@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Support Desk — Ticket Triage</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f5f7fa;
+    color: #1a2332;
+    line-height: 1.5;
+  }
+  .header {
+    background: white;
+    border-bottom: 1px solid #e5e9ef;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo {
+    width: 32px;
+    height: 32px;
+    background: #1e40af;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+  }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header span { color: #64748b; font-size: 14px; margin-left: 8px; }
+  .container {
+    max-width: 1100px;
+    margin: 32px auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e5e9ef;
+  }
+  .card h2 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card p.sub { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    padding: 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  textarea:focus { outline: none; border-color: #1e40af; }
+  button {
+    margin-top: 16px;
+    background: #1e40af;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  button:hover { background: #1e3a8a; }
+  .results h2 { margin-bottom: 16px; }
+  .result-item {
+    border: 1px solid #e5e9ef;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+  }
+  .result-item strong { display: block; font-size: 13px; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .badge.billing { background: #fef3c7; color: #92400e; }
+  .badge.security { background: #fee2e2; color: #991b1b; }
+  .badge.technical { background: #dbeafe; color: #1e40af; }
+  .badge.account { background: #e0e7ff; color: #3730a3; }
+  .priority-high { color: #dc2626; font-weight: 600; }
+  .priority-urgent { color: #b91c1c; font-weight: 700; }
+  .priority-medium { color: #d97706; }
+  .review-yes { background: #fee2e2; color: #991b1b; }
+  .review-no { background: #dcfce7; color: #166534; }
+  .note { font-size: 13px; color: #64748b; margin-top: 16px; }
+  @media (max-width: 800px) {
+    .container { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">AI</div>
+    <h1>AI Support Desk <span>Ticket Triage</span></h1>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Customer Ticket</h2>
+      <p class="sub">Paste or type the customer ticket below. AI will analyze and triage it.</p>
+      <textarea id="ticket" placeholder="Example: I was charged twice this month and need help fixing my bill."></textarea>
+      <button onclick="analyze()">Analyze Ticket</button>
+    </div>
+
+    <div class="card results">
+      <h2>AI Triage Results</h2>
+      <div id="output">
+        <p class="sub">Results will appear here after analysis.</p>
+      </div>
+      <p class="note">These recommendations are AI-generated to speed up triage. Please review before routing.</p>
+    </div>
+  </div>
+
+<script>
+function analyze() {
+  const text = document.getElementById('ticket').value.trim().toLowerCase();
+  if (!text) {
+    alert('Please enter a ticket.');
+    return;
+  }
+
+  let category = 'Other';
+  let priority = 'Medium';
+  let route = 'General Support';
+  let summary = 'Customer submitted a support request.';
+  let review = 'No';
+  let reviewReason = '';
+
+  if (text.includes('charge') || text.includes('billed') || text.includes('billing') || text.includes('subscription') || text.includes('refund')) {
+    category = 'Billing';
+    priority = 'Medium';
+    route = 'Billing Team';
+    summary = 'Customer reports a billing or subscription issue.';
+    review = 'Yes';
+    reviewReason = 'billing dispute';
+  }
+  if (text.includes('access') || text.includes('login') || text.includes('password') || text.includes('account') || text.includes('credentials')) {
+    category = 'Account Access';
+    priority = 'High';
+    route = 'Account Support';
+    summary = 'Customer is unable to access their account.';
+    if (text.includes('someone') || text.includes('unauthorized') || text.includes('hacked') || text.includes('permission')) {
+      category = 'Security Concern';
+      priority = 'Urgent';
+      route = 'Security Team';
+      summary = 'Possible unauthorized account access.';
+      review = 'Yes';
+      reviewReason = 'security incident';
+    }
+  }
+  if (text.includes('crash') || text.includes('error') || text.includes('bug') || text.includes('upload') || text.includes('not working')) {
+    category = 'Technical Issue';
+    priority = 'High';
+    route = 'Technical Support';
+    summary = 'Customer reports a technical problem or crash.';
+  }
+  if (text.includes('screen reader') || text.includes('accessibility') || text.includes('ada')) {
+    category = 'Accessibility Support';
+    priority = 'High';
+    route = 'Accessibility Team';
+    summary = 'Customer reports an accessibility barrier.';
+    review = 'Yes';
+    reviewReason = 'accessibility issue';
+  }
+
+  const catClass = category.toLowerCase().split(' ')[0];
+  const priClass = priority.toLowerCase();
+
+  document.getElementById('output').innerHTML = `
+    <div class="result-item">
+      <strong>Summary</strong>
+      ${summary}
+    </div>
+    <div class="result-item">
+      <strong>Category</strong>
+      <span class="badge ${catClass}">${category}</span>
+    </div>
+    <div class="result-item">
+      <strong>Priority</strong>
+      <span class="priority-${priClass}">${priority}</span>
+    </div>
+    <div class="result-item">
+      <strong>Recommended Team</strong>
+      ${route}
+    </div>
+    <div class="result-item">
+      <strong>Human Review</strong>
+      <span class="badge ${review === 'Yes' ? 'review-yes' : 'review-no'}">${review}${reviewReason ? ' (' + reviewReason + ')' : ''}</span>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
