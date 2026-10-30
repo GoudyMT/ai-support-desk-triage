@@ -1,16 +1,19 @@
 # Model Card: Ticket Triage Word-Weight Model
 
-Every number on this page is quoted from `ml/reports/eval.json`, written by `python -m triage.evaluate`.
+The accuracy numbers on this page are quoted from `ml/reports/eval.json`, written by `python -m triage.evaluate`;
+CI re-derives that file on every push and fails if it changes. The parity, size and row counts come from the
+commands named beside them.
 
 ## What it is
 
 Two small classifiers that read a support ticket and suggest its **category** (9 classes) and **priority**
 (4 classes). Each is a TF-IDF word and word-pair count fed to logistic regression (scikit-learn 1.9.1). The
-fitted weights are exported to `web/src/model/model.json` and scored in the browser by
-`web/src/model/scorer.ts`, which agrees with Python on every evaluation ticket (largest probability gap
-1.22e-15 on 16,048 rows).
+fitted weights are exported to `web/src/model/model.json` and scored in TypeScript by
+`web/src/model/scorer.ts`, which agrees with Python on every evaluation ticket (`npm --prefix web run parity`:
+16,048 rows, largest probability gap 1.22e-15 when measured on 2026-10-30).
 
-It is a suggestion for a human reviewer, not a decision. The live page adds rules and a review step around it.
+It is a suggestion for a human reviewer, not a decision. The live demo page, built next, will add rules and a
+review step around it.
 
 ## Data
 
@@ -18,8 +21,11 @@ It is a suggestion for a human reviewer, not a decision. The live page adds rule
   tickets from sentence templates, with obviously fake personal data in some of them. No customer data is used.
 - **Masked before the model sees it.** Emails, phone numbers, order numbers and card numbers are replaced by
   `[EMAIL_ADDRESS]`, `[PHONE_NUMBER]`, `[ORDER_NUMBER]` and `[CARD_NUMBER]` (`web/src/privacy/mask.ts`). The
-  same masker runs on the live page.
-- **Hand-written set:** 48 tickets written by hand (`ml/data/handwritten.jsonl`), frozen, never trained on.
+  live demo page will run the same masker on what a visitor types.
+- **Hand-written set:** 48 tickets written outside the generator (`ml/data/handwritten.jsonl`): 8 from the
+  project README and 40 drafted by Claude for this project, the same author as the generator templates. The set
+  was frozen before the first training run and is never trained on. Because of the shared author it is a sanity
+  check, not an independent test.
 
 ## How it is kept apart from its test sets
 
@@ -27,8 +33,8 @@ It is a suggestion for a human reviewer, not a decision. The live page adds rule
    20,000 tickets from the other three folds' wording and is scored on 4,000 tickets of its own fold's wording.
    A held-out ticket whose text also appears in training is dropped at export, and training stops with an error
    if one is found again.
-2. **Hand-written set.** No model trains on it. The export and the evaluation both stop with an error if a
-   hand-written text appears in any training file.
+2. **Hand-written set.** No model trains on it. The export stops with an error if a hand-written text appears
+   in any training file, and the evaluation checks again against the shipped model's training file.
 3. **Shipped model.** It is fit on all wording (20,000 tickets) because live tickets use every template. It
    has seen the held-out templates, so the only number reported for it is on the hand-written set.
 
@@ -58,7 +64,8 @@ model has no review flag of its own; the live page's review rules are built in a
 **The bar.** The project's bar is that the model beats v0 on category accuracy on every fold and on the
 hand-written set: it does (`beats_v0_every_fold` and `beats_v0_handwritten` are true). The owner set this first
 run as the floor: later changes may not lower any fold's category accuracy by more than 1 point or drop the
-hand-written set below 39 of 48.
+hand-written set below 39 of 48. Any later tuning should be judged on a separate tuning split, so the folds
+stay a fair test of it.
 
 ## Limits
 
@@ -66,6 +73,9 @@ hand-written set below 39 of 48.
   never seen its fold's sentence patterns. Fold 1 is the weakest at 48.6%.
 - **Generated data.** The tickets come from templates, so real customers will phrase things the generator
   does not. The 48 hand-written tickets are the closest check, and 48 is a small sample.
+- **The hand-written score is not explained yet.** The shipped model gets 39 of 48 (81%) hand-written tickets
+  right against a 57.3% held-out mean. It has seen every template, the hand-written set shares an author with
+  them, and 48 rows is a small sample; any of these could account for the gap, and none has been measured.
 - **Words, not meaning.** The model counts words and word pairs; it does not understand negation or context.
 - **Masking is pattern-based.** Some formats are still missed, for example dotted numbers like
   "0475.12.34.56", a no-break space between card digits, or an en dash in a phone number. Long digit runs and
