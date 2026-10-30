@@ -127,7 +127,7 @@ describe('generateTicket', () => {
     },
     {
       index: 1,
-      text: 'A new hire needs access to Harbor Suite. Our admin is away. What can we do? Thanks.',
+      text: 'A new hire needs access to Corvallo Suite. Our admin is away. What can we do? Thanks.',
       label: { category: 'Account Access', priority: 'High', mustReview: false },
     },
     {

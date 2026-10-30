@@ -12,7 +12,9 @@ export interface Template {
   grievance?: boolean;
 }
 
-// Every wording list is cut into FOLDS folds. A fold's 'heldout' side draws only
+// Every template list, named slot (product, plan, feature, month) and fake-data
+// frame list is cut into FOLDS folds; the category-neutral openers, requests and
+// closers and the number slots are shared. A fold's 'heldout' side draws only
 // from that fold's items and its 'train' side from the other folds', so a model
 // scored on a fold is scored on wording it never trained on, and across the four
 // folds every item is scored once. 'all' (live demo tickets) draws from everything.

@@ -147,7 +147,7 @@ export const MONTHS: readonly string[] = ['January', 'February', 'March', 'April
 // that belongs to one fold's product but sits in the other folds' wording would
 // let the model read the category off the product name.
 export const PRODUCTS: readonly string[] = [
-  'Nimbus Hub', 'Harbor Suite', 'Quillfold Studio', 'Orchard Console', 'Lantern Deck', 'Wrenfield Pad', 'Saffron Portal', 'Juniper Lab',
+  'Tessmere Hub', 'Corvallo Suite', 'Quillfold Studio', 'Orchard Console', 'Lantern Deck', 'Wrenfield Pad', 'Saffron Portal', 'Juniper Lab',
 ];
 export const PLANS: readonly string[] = [
   'Pro plan', 'Crew plan', 'Starter plan', 'Business plan', 'Basic plan', 'Growth plan', 'Premium plan', 'Enterprise plan',
