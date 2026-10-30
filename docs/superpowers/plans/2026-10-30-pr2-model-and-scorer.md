@@ -152,13 +152,13 @@ Approach: copy the four `if` blocks of `analyze()` in `capstone/prototype/AI_Sup
   the raw `text`). New files in `ml/data/generated/`: `train_all.jsonl` (seed 1, 20,000, split `all`, fold `null`)
   and `handwritten.jsonl` (the 48 frozen rows plus `maskedText` and `v0`; the frozen source file is not edited).
 
-- [ ] **Step 1: Tests:** a row's `maskedText` equals `maskText(text).text` and its `v0` equals `v0Triage(text)`;
+- [x] **Step 1: Tests:** a row's `maskedText` equals `maskText(text).text` and its `v0` equals `v0Triage(text)`;
   `train_all` rows have `fold: null`; the hand-written output keeps all 48 ids and every original field unchanged;
   the export throws `E_HANDWRITTEN_IN_TRAIN` when a hand-written normalised text is in any training file (break
   check: add one hand-written text to a toy training list, see it throw).
-- [ ] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass; run `npm --prefix web run export-data`, expect
+- [x] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass; run `npm --prefix web run export-data`, expect
   4 x 20,000 + 4 x 4,000 + 20,000 + 48 rows printed.
-- [ ] **Step 5:** Commit `feat: export masked text and v0 answers for training and evaluation`
+- [x] **Step 5:** Commit `feat: export masked text and v0 answers for training and evaluation`
 
 ### Task 4: Python training and per-fold evaluation (Opus checker)
 
@@ -278,3 +278,8 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   red rows, restored. Full gate 312 tests, exit 0. Known limits, for PR 3's privacy copy: dotted numbers like
   "0475.12.34.56", a no-break space between card groups, an en dash in a phone; 7+ digit ids (build numbers, IPs)
   mask as phones; the variable-length lookbehind needs Safari 16.4+ (PR 4 browser targets).
+- 2026-10-30: Task 3 done (00798ba): 317 tests; builder added a raw-vs-masked v0 test (an "ada" email) after its
+  own break check went uncaught. Lead break check: guard without train_all -> 1 red, restored; gate exit 0;
+  export wrote 4 x 20,000 + 4 x 4,000 + 20,000 + 48 rows. The builder's edit-fence file list could not be written
+  (the Write tool refused the shared git path), so the fence was not active for this unit; the diff touched only
+  its two files.
