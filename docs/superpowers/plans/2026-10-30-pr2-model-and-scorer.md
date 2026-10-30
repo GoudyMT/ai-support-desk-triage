@@ -193,10 +193,13 @@ Approach: copy the four `if` blocks of `analyze()` in `capstone/prototype/AI_Sup
 ### Task 5 (lead, with the owner): first honest run and the bar
 
 Not a builder unit. The deciding measurement (spec 6, Q4).
-- [ ] Before running, write in this plan the placeholder check: train fold models once as is and once with every
+- [x] Before running, write in this plan the placeholder check: train fold models once as is and once with every
   `[..._NUMBER]` / `[EMAIL_ADDRESS]` token replaced by one `[PERSONAL_DATA]` token; if kind tokens raise category
   accuracy on held-out rows that carry personal data by more than 2 points, the model is leaning on a generator
   artifact and Task 1's tokens collapse to one (owner told).
+  Written before any run (2026-10-30): "rows that carry personal data" = held-out rows whose `maskedText` differs
+  from `text`; the 2-point bar applies to the mean over the 4 folds, per-fold values reported beside it; the check
+  is a one-off scratch script over `triage.train.fit_models` and `triage.evaluate.score_rows`, not committed.
 - [ ] Run the evaluation; post the numbers (per fold, mean and spread, hand-written k of n, v0 beside each).
 - [ ] The owner sets the raw-accuracy bar and the flag-rate target note (spec 10.2) before any tuning. If the
   model misses Q5 on any fold: stop, Re-Plan on Failure, options to the owner.
