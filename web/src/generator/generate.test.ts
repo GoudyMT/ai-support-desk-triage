@@ -106,8 +106,8 @@ describe('generateTicket', () => {
   it('matches the pinned ticket for seed 42, index 0', () => {
     const ticket = generateTicket(42, 0);
     expect({ text: ticket.text, label: ticket.label }).toEqual({
-      text: 'how do i change the email address on my account? i no longer use the old one. Please advise. Call me on 555-0163.',
-      label: { category: 'Account Access', priority: 'High', mustReview: false },
+      text: 'Can several people edit the same report in Beacon dashboard at once? Cheers.',
+      label: { category: 'Product Question', priority: 'Low', mustReview: false },
     });
   });
 });
