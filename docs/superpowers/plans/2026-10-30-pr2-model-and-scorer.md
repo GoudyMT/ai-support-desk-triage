@@ -81,12 +81,12 @@ Python or TypeScript) is a design call for PR 5 or 6; parked in the Roadmap.
 ### Task 0 (lead, with the owner): track list, venv, pins
 
 Not a builder unit.
-- [ ] Add to `.kit/tracking.json` track: `ml/` (the never list and `.gitignore` still keep `ml/.venv/` and
+- [x] Add to `.kit/tracking.json` track: `ml/` (the never list and `.gitignore` still keep `ml/.venv/` and
   `ml/data/generated/` out; add `ml/.venv/` to `.gitignore`). Owner's yes.
-- [ ] Write `ml/requirements.txt` (exact pins, each at least 14 days old); show the resolved list; on the owner's
+- [x] Write `ml/requirements.txt` (exact pins, each at least 14 days old); show the resolved list; on the owner's
   yes create the venv: `C:\Python312\python.exe -m venv ml\.venv`, then `ml\.venv\Scripts\python.exe -m pip
   install -r ml\requirements.txt`. Record versions in adapter A6, the Python test command in A8 and A9.
-- [ ] Kit 1.9.0 update before the first builder starts, in a fresh session (owner, 2026-10-30):
+- [x] Kit 1.9.0 update before the first builder starts, in a fresh session (owner, 2026-10-30):
   `/methodology-kit update`, then `/methodology-kit status`.
 
 ### Task 1: Privacy masker (Opus checker)
@@ -104,7 +104,7 @@ Approach: card-like runs first (13 to 19 digits, single spaces or dashes allowed
 then order numbers (`ORD-` plus digits, and `order` / `order #` / `order number` followed by 4 or more digits),
 then phones (7 to 15 digits with optional `+`, parentheses, spaces, dots or dashes, at least 7 digits).
 
-- [ ] **Step 1: Tests**
+- [x] **Step 1: Tests**
   - `maskText` over `generateTickets(1, 5000)`: every ticket with `hasFakeData` has no `@`, no `ORD-`, no
     `555-01`, no run of 13 or more digits left; every ticket without fake data is returned unchanged.
   - Formats the generator does not make (Review Focus 3), each masked to its token: `jordan@mail.example.net`,
@@ -113,9 +113,9 @@ then phones (7 to 15 digits with optional `+`, parentheses, spaces, dots or dash
   - Left alone: `version 2.4.1`, `3 times`, `2026-10-30`, `error 404`, `10:45`.
   - `found` for `"Call 555-0142 about ORD-123456"` equals `['phone', 'order']`.
   - Masking is idempotent: `maskText(maskText(x).text).text === maskText(x).text` on the 5,000 tickets.
-- [ ] **Step 2:** Run `npm --prefix web test -- mask`; expect fail. **Step 3:** Implement. **Step 4:** Pass.
+- [x] **Step 2:** Run `npm --prefix web test -- mask`; expect fail. **Step 3:** Implement. **Step 4:** Pass.
   Break check: remove the card rule, see the generated-ticket test fail, restore.
-- [ ] **Step 5:** Commit `feat: add the privacy masker shared by training and the live page`
+- [x] **Step 5:** Commit `feat: add the privacy masker shared by training and the live page`
 
 ### Task 2: v0 port with equality to the original page (Opus checker)
 
@@ -130,7 +130,7 @@ then phones (7 to 15 digits with optional `+`, parentheses, spaces, dots or dash
 Approach: copy the four `if` blocks of `analyze()` in `capstone/prototype/AI_Support_Desk_Triage_Prototype.html`
 (lines 141 to 217) in the same order, same substrings, same overwrite behaviour.
 
-- [ ] **Step 1: Tests**
+- [x] **Step 1: Tests**
   - Oracle: the test reads the HTML file, takes the `<script>` text, runs it in `node:vm` with a stub `document`
     (`getElementById('ticket').value` = the ticket, `getElementById('output')` captures `innerHTML`) and a stub
     `alert`, calls `analyze()`, and parses category, priority and review Yes or No from the captured HTML.
@@ -138,9 +138,9 @@ Approach: copy the four `if` blocks of `analyze()` in `capstone/prototype/AI_Sup
     `generateTickets(3, 2000)` texts.
   - Pinned quirks: `"I moved to Canada"` is Accessibility Support (the `ada` substring); `"billing error"` is
     Technical Issue with `mustReview` true (a later rule overwrites the category, the billing flag stays).
-- [ ] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass. Break check: swap the order of two blocks, see
+- [x] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass. Break check: swap the order of two blocks, see
   the oracle test fail, restore.
-- [ ] **Step 5:** Commit `feat: port the v0 keyword rules exactly as the original page runs them`
+- [x] **Step 5:** Commit `feat: port the v0 keyword rules exactly as the original page runs them`
 
 ### Task 3: Export with masked text and v0 answers
 
@@ -268,3 +268,13 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
 - 2026-10-30: owner locked Q1-Q5; design amended (spec 6, section 7, revision history). Owner approved the
   plan, with test-set isolation and the write-up added, and chose the PR 1 team (Sonnet builders, Opus checkers
   on Tasks 1, 2, 4, 6). Build starts in a fresh session after the kit 1.9.0 update.
+- 2026-10-30: kit 1.9.0, status current. Task 0 done (0484a81): ml/ tracked, `ml/.venv/`, `__pycache__/`,
+  `.pytest_cache/` ignored; 13 exact pins (cloudpickle 3.1.2 added, joblib needs it), `pip check` clean.
+- 2026-10-30: Task 2 done (0e6e381, 6ff578c): 27 tests; checker FIX round 1 added one oracle row per keyword
+  (4 of 22 were unguarded). Lead break check: `credentials` misspelled -> 1 red row, restored.
+- 2026-10-30: Task 1 done (93b0260, 264e881, 9c2b937): 50 tests; checker FIX rounds 1 and 2 closed order-wording,
+  plural-list, phone-after-number and 20+ digit leaks (checker fuzz: 320 of 3,510 sentences leaked before round 1,
+  3 after); lead ruling: every 13+ digit run masks as a card (no 19 cap). Lead break check: card cap {12,18} -> 4
+  red rows, restored. Full gate 312 tests, exit 0. Known limits, for PR 3's privacy copy: dotted numbers like
+  "0475.12.34.56", a no-break space between card groups, an en dash in a phone; 7+ digit ids (build numbers, IPs)
+  mask as phones; the variable-length lookbehind needs Safari 16.4+ (PR 4 browser targets).
