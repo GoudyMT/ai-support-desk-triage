@@ -18,6 +18,12 @@ import { TEMPLATES, type Template } from './templates';
 const SHARE_TOLERANCE = 0.015;
 const SAMPLE_SIZE = 20000;
 const FORMAT_SAMPLE_SIZE = 5000;
+const MAX_SAME_TEXTS = 5;
+// A polite phrase may lean toward some categories no more than this far (total
+// variation distance, half the summed gap between two category mixes) from the
+// mix of all tickets. Above it, the phrase itself would tell the model the
+// category.
+const MAX_POLITE_LEAN = 0.2;
 const MIN_TEXT_LENGTH = 1;
 const MAX_TEXT_LENGTH = 2000;
 const HARD_CASES = Object.keys(HARD_CASE_SHARES) as HardCase[];
@@ -93,13 +99,14 @@ describe('generateTicket', () => {
 
   // Whole tickets differ across seeds even when the generator ignores the seed
   // (the id and seed fields carry it), so only the texts show whether the seed
-  // reaches the wording.
-  it('writes different texts at every position for another seed', () => {
+  // reaches the wording. Two different seeds can still draw the same short
+  // template with no extras at a few positions, so a handful of equal texts is
+  // allowed; a generator that ignores the seed repeats all 50.
+  it('writes mostly different texts at the same positions for another seed', () => {
     const first = generateTickets(1, 50);
     const second = generateTickets(2, 50);
-    first.forEach((ticket, index) => {
-      expect(ticket.text, `position ${index}`).not.toBe(second[index]?.text);
-    });
+    const same = first.filter((ticket, index) => ticket.text === second[index]?.text).length;
+    expect(same).toBeLessThanOrEqual(MAX_SAME_TEXTS);
   });
 
   it('builds ticket i of generateTickets exactly as generateTicket(seed, i)', () => {
@@ -113,27 +120,28 @@ describe('generateTicket', () => {
 
   // Pins replay across machines: any change to a template, a share or the draw
   // order moves this ticket, and with it every saved run and dataset.
-  // Index 1 is a plain polite request, 2 a repeated crash with typos (High) and
-  // 6 a keyword trap: "Nevada" hides "ada" in a Billing ticket.
+  // Index 0 carries a polite request, 1 a greeting and sign-off, 2 a repeated
+  // crash with typos (High) and 6 a keyword trap: "Nevada" hides "ada" in a
+  // Billing ticket.
   it.each([
     {
       index: 0,
-      text: 'Can several people edit the same report in Quillfold dashboard at once? Thank you so much.',
+      text: 'Can several people edit the same report in Quillfold dashboard at once? Would you mind getting back to me soon?',
       label: { category: 'Product Question', priority: 'Low', mustReview: false },
     },
     {
       index: 1,
-      text: 'Hey,\nWould you mind telling me how to change the email address on my account? I no longer use the old one.',
+      text: 'Hey,\nHow do I change the email address on my account? I no longer use the old one. Thanks.',
       label: { category: 'Account Access', priority: 'High', mustReview: false },
     },
     {
       index: 2,
-      text: 'quillfold dashboard keeps crashing on my phone. it has happened every day this wee and my team is waiting on me.',
+      text: 'Quillfold dashboard keeps crashing on my phone. It has happened ever day this week and my team is waiting on me. Cheers.',
       label: { category: 'Technical Issue', priority: 'High', mustReview: false },
     },
     {
       index: 6,
-      text: 'I was billed twice for the Harbor reports licence for our Nevada office. Please refund one of them. It was my card 4884 5463 9242 0830.',
+      text: 'I was billed twice for the Harbor reports licence for our Nevada office. Please refund one of them. Thank you. Please reply to marcus.cole60@example.com.',
       label: { category: 'Billing', priority: 'High', mustReview: true, reviewReason: 'billing dispute' },
     },
   ])('matches the pinned ticket for seed 42, index $index', ({ index, text, label }) => {
@@ -146,19 +154,20 @@ describe('generateTicket', () => {
 // mixing and quietly repeat another ticket; a count nobody can build would hang
 // the page. Both are refused up front.
 describe('input guards', () => {
-  const MAX_SEED = 0xffffffff;
+  const MAX_UINT32 = 0xffffffff;
 
-  it.each([1.9, -1, 2 ** 32 + 1, Number.NaN])('refuses the seed %s with E_SEED_RANGE', (seed) => {
+  it.each([1.9, -1, 2 ** 32, Number.NaN])('refuses the seed %s with E_SEED_RANGE', (seed) => {
     expect(() => generateTicketDetail(seed, 0)).toThrow('E_SEED_RANGE');
   });
 
-  it.each([-1, 1.5])('refuses the index %s with E_SEED_RANGE', (index) => {
+  it.each([-1, 1.5, 2 ** 32])('refuses the index %s with E_SEED_RANGE', (index) => {
     expect(() => generateTicketDetail(1, index)).toThrow('E_SEED_RANGE');
   });
 
-  it('accepts the seeds at both ends of the range', () => {
+  it('accepts the seed and the index at both ends of the range', () => {
     expect(generateTicket(0, 0).id).toBe('T-0-0');
-    expect(generateTicket(MAX_SEED, 0).id).toBe(`T-${MAX_SEED}-0`);
+    expect(generateTicket(MAX_UINT32, 0).id).toBe(`T-${MAX_UINT32}-0`);
+    expect(generateTicket(1, MAX_UINT32).id).toBe(`T-1-${MAX_UINT32}`);
   });
 
   it.each([-1, Number.NaN, 1.5, 100_001])('refuses the count %s with E_COUNT_RANGE', (count) => {
@@ -387,7 +396,7 @@ describe('generated wording reads like one customer wrote it', () => {
     }
   });
 
-  it('puts threats only after a grievance, never "Not urgent, just curious ... you will regret it"', () => {
+  it('puts threats only after a grievance, never "Not urgent, just curious ... you are going to be sorry"', () => {
     const threatening = DETAILS.filter((detail) => detail.ticket.hardCase === 'threatening');
     expect(threatening.length).toBeGreaterThan(0);
     for (const { ticket, templates } of threatening) {
@@ -396,15 +405,20 @@ describe('generated wording reads like one customer wrote it', () => {
     }
   });
 
-  // If polite wording came only with polite-security tickets, "could you please"
-  // would itself mean Security Concern and the model would learn manners, not
-  // meaning. Tickets 0-4999 of seed 1 are the same as generateTickets(1, 5000).
-  it('spreads every polite phrase over at least 3 label categories', () => {
+  // If a polite phrase leaned toward one category, "would you mind" would itself
+  // mean Account Access and the model would learn manners, not meaning. Each
+  // phrase must follow the category mix of all tickets (seed 1, the same 20,000
+  // as generateTickets(1, 20000)).
+  it('keeps every polite phrase close to the category mix of all tickets', () => {
     const phrases = ['could you please', 'thank you so much', 'many thanks', 'good afternoon', 'dear support', 'would you mind', 'hello team'];
-    const sample = TICKETS.slice(0, FORMAT_SAMPLE_SIZE);
-    for (const phrase of phrases) {
-      const categories = new Set(sample.filter((ticket) => ticket.text.toLowerCase().includes(phrase)).map((ticket) => ticket.label.category));
-      expect(categories.size, `${phrase}: ${[...categories].join(', ')}`).toBeGreaterThanOrEqual(3);
+    const mix = (tickets: typeof TICKETS): Map<Category, number> =>
+      new Map(CATEGORIES.map((category) => [category, tickets.filter((ticket) => ticket.label.category === category).length / tickets.length]));
+    const overall = mix(TICKETS);    for (const phrase of phrases) {
+      const withPhrase = TICKETS.filter((ticket) => ticket.text.toLowerCase().includes(phrase));
+      expect(withPhrase.length, phrase).toBeGreaterThan(0);
+      const own = mix(withPhrase);
+      const lean = CATEGORIES.reduce((sum, category) => sum + Math.abs((own.get(category) ?? 0) - (overall.get(category) ?? 0)), 0) / 2;
+      expect(lean, `${phrase} (${withPhrase.length} tickets)`).toBeLessThanOrEqual(MAX_POLITE_LEAN);
     }
   });
 

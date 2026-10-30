@@ -47,7 +47,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       severe: true,
       grievance: true,
     },
-    { text: 'Could you please send me an invoice for my {plan} payment from {date}? I need it for my records.' },
+    { text: 'Could you send me an invoice for my {plan} payment from {date}? I need it for my records.' },
     { text: 'I would like to move my {plan} from monthly to yearly billing. How will the price change?' },
     { text: 'Please cancel my subscription before it renews on {date}. I do not want to pay for another month.' },
     {
@@ -72,7 +72,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       grievance: true,
     },
     { text: '{product} crashed once this morning, but it opened normally after a restart. Just letting you know.' },
-    { text: 'Could you please look at the export button in {product}? It shows an error message and nothing downloads.' },
+    { text: 'The export button in {product} shows an error message and nothing downloads.' },
     { text: '{product} is slow today. Pages take about {seconds} seconds to load.' },
     { text: 'Uploads keep failing at 90 percent in {product}. I have tried three times.' },
     { text: 'The mobile app for {product} has stopped working on my tablet since the last update.', grievance: true },
@@ -86,7 +86,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
   'Account Access': [
     { text: "I can't log in to {product}, and the email to reset my password never shows up.", grievance: true },
     { text: 'Locked out after too many password attempts. Please unlock my account.', grievance: true },
-    { text: 'Would you mind telling me how to change the email address on my account? I no longer use the old one.' },
+    { text: 'How do I change the email address on my account? I no longer use the old one.' },
     {
       text: 'The verification code from my authenticator app is rejected when I sign in, so I am locked out of {product}.',
       grievance: true,
@@ -107,16 +107,16 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
   'Accessibility Support': [
     { text: 'With a screen reader, the buttons in {product} are announced only as "button", so I cannot tell them apart.', grievance: true },
     { text: "I'm colorblind and the red and green status labels look the same in {product}. Can you add another indicator?" },
-    { text: "Would you mind telling me whether {product} can be used with only a keyboard? I can't use a mouse because of a hand injury." },
+    { text: "Can {product} be used with only a keyboard? I can't use a mouse because of a hand injury." },
     { text: "The text in the {product} app is too small and I can't make it larger. I have low vision.", grievance: true },
     { text: "The tutorials on your site come without captions. I am deaf, so I can't follow along.", grievance: true },
     { text: 'Our company must meet ADA requirements. Does {product} have an accessibility statement?' },
     { text: 'The pop-up in {product} traps my keyboard focus and I have to restart my computer to get out of it.', grievance: true },
   ],
   'Product Question': [
-    { text: 'Does the {plan} include {feature}? Trying to decide before I upgrade.' },
+    { text: 'Is {feature} included in the {plan}? Trying to decide before I upgrade.' },
     { text: 'What is the difference between the {plan} and the {otherPlan}?' },
-    { text: 'Would you mind telling me whether {product} supports {feature}? I could not find it in the settings.' },
+    { text: 'Does {product} support {feature}? I could not find it in the settings.' },
     { text: 'Do students get a lower price? Not urgent, just curious.' },
     { text: 'Can several people edit the same report in {product} at once?' },
     { text: 'How many seats are included in the {plan}?' },
@@ -161,11 +161,11 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       grievance: true,
     },
     { text: 'The tracking says delivered, but nothing is at my door.', grievance: true },
-    { text: 'Could you please change my delivery address before the order ships?' },
+    { text: 'I need to change my delivery address before the order ships.' },
     { text: 'One item was missing from my order. The rest arrived on {date}.', grievance: true },
   ],
   Other: [
-    { text: 'Could you please give me a phone number for your head office? I would like to send a letter.' },
+    { text: 'Do you have a phone number for your head office? I would like to send a letter.' },
     { text: 'I would like to suggest a partnership between our company and yours. Who should I talk to?' },
     { text: 'A quick thank you to your team for helping me last week. It went really well.' },
     { text: 'Are you hiring? I could not find a careers page.' },
@@ -186,6 +186,16 @@ export const OPENERS: readonly string[] = [
 export const CLOSERS: readonly string[] = [
   'Thanks.', 'Thank you.', 'Please advise.', 'Appreciate any help.', 'Cheers.', 'Regards.',
   'Thank you so much.', 'Many thanks.',
+];
+
+// A polite ask that names no category, added to a ticket of any category with
+// the same chance, so "could you please" and "would you mind" never lean toward
+// one of them.
+export const REQUESTS: readonly string[] = [
+  'Could you please check on this when you can?',
+  'Could you please let me know what to do next?',
+  'Would you mind taking a look at this?',
+  'Would you mind getting back to me soon?',
 ];
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];

@@ -102,7 +102,7 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'The Pay button at checkout is silent for my screen reader, so I cannot complete the charge.' },
   ],
   'Product Question': [
-    { text: 'Does the {plan} account for time zones when scheduling reports?' },
+    { text: 'Will the {plan} account for time zones when scheduling reports?' },
     { text: 'Ada from your sales team said the {plan} includes {feature}. Is that right?' },
     { text: 'Can the API help me debug my own scripts against sample data?' },
   ],

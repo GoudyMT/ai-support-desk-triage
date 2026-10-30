@@ -12,7 +12,16 @@ import {
   type HardCase,
 } from './hardCases';
 import { createRng, ticketSeed, type Rng } from './rng';
-import { CATEGORY_SHARES, CATEGORY_TRIGGER_WORDS, CLOSERS, OPENERS, TEMPLATES, fillSlots, type Template } from './templates';
+import {
+  CATEGORY_SHARES,
+  CATEGORY_TRIGGER_WORDS,
+  CLOSERS,
+  OPENERS,
+  REQUESTS,
+  TEMPLATES,
+  fillSlots,
+  type Template,
+} from './templates';
 
 export { CATEGORY_SHARES, CATEGORY_TRIGGER_WORDS, FAKE_DATA_SHARE, HARD_CASE_SHARES };
 export type { HardCase };
@@ -39,13 +48,14 @@ export interface TicketDetail {
   plainText: string;
 }
 
-const MAX_SEED = 0xffffffff;
+const MAX_UINT32 = 0xffffffff;
 // Far above the largest export (20,000), low enough that a typo in a count
 // cannot freeze the page.
 const MAX_TICKETS = 100_000;
 const NO_HARD_CASE = 'none';
 const OPENER_CHANCE = 0.4;
 const CLOSER_CHANCE = 0.4;
+const REQUEST_CHANCE = 0.12;
 // Some people type in lower case with no care for capitals.
 const CASUAL_CHANCE = 0.1;
 
@@ -127,9 +137,9 @@ function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category): Bo
   }
 }
 
-// Greeting, sign-off and the odd all-lower-case message vary the voice without
-// touching what the ticket is about. A threat ends the message, so no
-// "Thanks." follows it, and a polite security report already greets and thanks
+// Greeting, polite request, sign-off and the odd all-lower-case message vary the
+// voice without touching what the ticket is about. A threat ends the message, so
+// no request or "Thanks." follows it, and a polite security report already greets and thanks
 // in its own words, as do a few other templates. The greeting sits on its own
 // line, as in an email. A template that already greets or thanks gets no
 // second greeting or thanks.
@@ -139,16 +149,18 @@ function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined): strin
   }
   const wantsOpener = rng.chance(OPENER_CHANCE);
   const opener = wantsOpener && !GREETING_AT_START.test(body) ? rng.pick(OPENERS) : '';
+  const wantsRequest = hardCase !== 'threatening' && rng.chance(REQUEST_CHANCE);
+  const request = wantsRequest ? rng.pick(REQUESTS) : '';
   const wantsCloser = hardCase !== 'threatening' && rng.chance(CLOSER_CHANCE);
   const closer = wantsCloser && !SIGN_OFF_ANYWHERE.test(body) ? rng.pick(CLOSERS) : '';
-  const text = [rng.chance(CASUAL_CHANCE) ? body.toLowerCase() : body, closer].filter((part) => part !== '').join(' ');
+  const text = [rng.chance(CASUAL_CHANCE) ? body.toLowerCase() : body, request, closer].filter((part) => part !== '').join(' ');
   return opener === '' ? text : `${opener}\n${text}`;
 }
 
 export function generateTicketDetail(seed: number, index: number): TicketDetail {
   // The seed mixing works on 32 bits, so a seed or index outside them would
   // wrap and repeat another ticket without any sign of it.
-  if (!Number.isInteger(seed) || seed < 0 || seed > MAX_SEED || !Number.isInteger(index) || index < 0) {
+  if (!Number.isInteger(seed) || seed < 0 || seed > MAX_UINT32 || !Number.isInteger(index) || index < 0 || index > MAX_UINT32) {
     throw new Error('E_SEED_RANGE');
   }
   // Only (seed, index) feeds the generator, so ticket i never depends on the
