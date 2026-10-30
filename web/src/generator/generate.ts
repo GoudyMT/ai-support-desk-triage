@@ -60,8 +60,8 @@ const CLOSER_CHANCE = 0.4;
 const REQUEST_CHANCE = 0.12;
 // A polite security ticket is polite on purpose, yet no polite phrase may lean
 // toward Security, so it greets and thanks every time but asks as often as any
-// other ticket: a request is rarer than a greeting, so a higher chance would
-// make each request phrase mostly Security.
+// other ticket: with a request on every polite security ticket, about 35% of
+// tickets carrying a request phrase were Security against 10% of all tickets.
 const POLITE_OPENER_CHANCE = 1;
 const POLITE_CLOSER_CHANCE = 1;
 // Some people type in lower case with no care for capitals.

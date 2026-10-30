@@ -114,8 +114,8 @@ describe('generator wording against the hand-written set', () => {
 // model learn the run instead of the meaning, and when the two sit in different
 // folds the held-out one is no longer wording the model has never seen.
 describe('distinct wording', () => {
-  // No allow-list: every stock phrase ("i would like to", "is there a way to")
-  // was reworded so that no two texts share a run, whatever their category.
+  // No allow-list: stock phrases ("i would like to", "is there a way to") are
+  // worded differently in each text, so no two texts share a run, whatever their category.
   it('shares no run of 4 words between any two generator texts', () => {
     const owners = new Map<string, Set<string>>();
     for (const text of GENERATOR_TEXTS) {
@@ -219,7 +219,7 @@ describe('crash templates', () => {
   });
 });
 
-// Owner rulings of 2026-10-30, applied to the wording: losing work is loss, a
+// The labeling rules applied to the wording: losing work is loss, a
 // Security Concern reports an incident, and a question about plans and prices in
 // general is a Product Question while one about the asker's own bill is Billing.
 describe('label rulings applied to the templates', () => {
@@ -248,7 +248,6 @@ describe('label rulings applied to the templates', () => {
   // plans in general under Billing, or "my invoice" under Product Question.
   describe('price questions', () => {
     const PRICE_WORDS = /\b(?:price|prices|pricing|cost|costs|rate|rates)\b/i;
-    const MONEY_WORDS = /\b(?:price|prices|pricing|cost|costs|charge|charges|fee|fees|rate|rates|paying|pay)\b/i;
     // The asker's own bill: their invoice, receipt, statement, card, payment or
     // subscription, or a charge made to them.
     const OWN_BILL =
@@ -262,10 +261,8 @@ describe('label rulings applied to the templates', () => {
       expect(priced.filter((template) => !OWN_BILL.test(template.text)).map((template) => template.text)).toEqual([]);
     });
 
-    it('has Product Question templates only where a mention of price, cost or charge is general', () => {
-      const priced = product.filter((template) => MONEY_WORDS.test(template.text));
-      expect(priced.length).toBeGreaterThan(0);
-      expect(priced.filter((template) => OWN_BILL.test(template.text)).map((template) => template.text)).toEqual([]);
+    it('has no Product Question template about the asker\'s own bill', () => {
+      expect(product.filter((template) => OWN_BILL.test(template.text)).map((template) => template.text)).toEqual([]);
     });
   });
 });

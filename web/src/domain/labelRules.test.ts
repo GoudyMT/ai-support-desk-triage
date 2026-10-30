@@ -17,7 +17,7 @@ const EXPECTED_RISK_ORDER: readonly Category[] = [
 ];
 
 // Written out here, not read from ROUTES. The route is a fixed function of the
-// category (design C3); the six teams v0 already names (Billing, Account
+// category; the six teams v0 already names (Billing, Account
 // Support, Security, Technical Support, Accessibility, General Support) keep
 // their v0 names, so a renamed team in the Take over screen and the end report
 // would no longer match what v0 shows for the same ticket.

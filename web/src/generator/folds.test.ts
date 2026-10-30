@@ -114,7 +114,7 @@ describe('how items are assigned to folds', () => {
 
 // A list with nothing to pick from would crash the export, or (for a subset such
 // as the grievance templates a threat follows) crash only on the rare ticket that
-// reaches it. Folds 1 and 2 used to fail this way.
+// reaches it.
 describe('every fold can be built, on both sides', () => {
   const lists: [string, readonly unknown[]][] = [
     ['vague templates', VAGUE_TEMPLATES],

@@ -122,7 +122,7 @@ describe('generateTicket', () => {
   it.each([
     {
       index: 0,
-      text: 'Does Lantern Deck work on a Chromebook, or only on Windows and Mac? Would you be able to help?',
+      text: 'Does Lantern Deck work on a tablet, or only on a desktop computer? Would you be able to help?',
       label: { category: 'Product Question', priority: 'Low', mustReview: false },
     },
     {
@@ -213,7 +213,7 @@ describe('labels', () => {
     const disputeWording = /refund|twice|charged again|never signed up|second time/i;
     // A duplicate or repeat charge counts as "charged again", a crash that keeps
     // happening stops the work, and typing lost to a forced sign-out counts as
-    // loss (owner rulings of 2026-10-30).
+    // loss.
     const severeWording = /can't work|every time|keeps crashing|blocking|charged again|twice|double charge|lose what i was typing/i;
     const statusWording = /where is my order|order status|any update/i;
     const all: [Category, Template][] = [];

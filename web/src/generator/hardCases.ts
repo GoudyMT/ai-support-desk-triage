@@ -179,7 +179,7 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'My order lists Nevada as the state instead of Nebraska. Can you correct that before it goes out?' },
     { text: 'My parcel was left at the access gate of our building, but the gate is locked and nobody saw it.' },
     { text: 'The debugging kit I ordered arrived in a box that is crushed at one corner.' },
-    { text: 'The courier added a surcharge at the door that I did not agree to.' },
+    { text: 'The courier left a note saying my phone charger needs a signature, but nobody knocked.' },
   ],
   Other: [
     { text: 'Our team in Canada would love to put your logo in a case study. Who handles that?' },
