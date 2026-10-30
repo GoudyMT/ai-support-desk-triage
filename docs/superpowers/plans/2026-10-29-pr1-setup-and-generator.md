@@ -10,6 +10,9 @@ shares) and exports labeled datasets for training, plus the frozen hand-written 
 that the generator, and later the report, read. The generator is deterministic per `(seed, index)` so a run can
 be replayed. A Node script exports JSONL datasets for the Python side (PR 2).
 
+> SUPERSEDED (2026-10-30): Node 22.22.3 and npm 10.9.8 (Vite 6 and Vitest 5 need Node 22), Vitest 5.0.5 (4.1.x
+> crashed npm's installer), @types/node 22.19.21 added; CI runs Node 22.22.3. See Progress.
+
 **Tech Stack:** Node 20.11 (installed), npm 10.4, TypeScript 5.9.3, Vite 6.4.4, Vitest 3.2.7, ESLint 9.39.5,
 typescript-eslint 8.71.2, tsx (for the export script; version picked by the same rule). Every version is pinned
 exactly and was released at least 14 days before 2026-10-29.
@@ -51,7 +54,7 @@ exactly and was released at least 14 days before 2026-10-29.
 
 Not a builder unit. The lead fills `standards/project-adapter.md` with the owner (stack, gate command
 `npm --prefix web run gate`, test devices, deploy model, branch and release conventions, and whether size budgets
-apply), writes `.claude/skill-cases.local.json` with the owner, and gets the owner's yes for the dependency
+apply), writes the local skill-cases file with the owner, and gets the owner's yes for the dependency
 download. Builders start only after this.
 
 ### Task 1: Project setup
@@ -75,7 +78,7 @@ download. Builders start only after this.
 - [ ] **Step 4:** Run `npm --prefix web run gate`. Expected: lint clean, typecheck clean, 2 tests pass.
 - [ ] **Step 5:** Break check: change `toBe(2)` to `toBe(3)`, run the gate, see it fail on that assertion,
   restore.
-- [ ] **Step 6:** CI: `ci.yml` runs on push and pull_request, Node 20, `npm ci` and `npm run gate` in `web/`.
+- [ ] **Step 6:** CI: `ci.yml` runs on push and pull_request, Node 22.22.3 (superseded from Node 20, 2026-10-30), `npm ci` and `npm run gate` in `web/`.
 - [ ] **Step 7:** Commit: `chore: set up the web TypeScript project with lint, tests and CI`
 
 ### Task 2: Labels and labeling rules (Opus checker)
@@ -104,7 +107,8 @@ download. Builders start only after this.
   - `labelTicket(facts: TicketFacts): TicketLabel`
 
 Rules (spec 9 C1, in precedence order):
-1. `threatening` -> Urgent Complaint, Urgent, review `threatening language`; `secondary` = primary of `issues`.
+1. `threatening` -> Urgent Complaint, Urgent, review `threatening language`; `secondary` = primary of `issues`, left out when that topic is
+   itself Urgent Complaint (amended 2026-10-30, commit 3ea560d).
 2. `vague` -> Other, Medium, review `vague ticket`.
 3. Otherwise category = `primaryCategory(issues)`; `secondary` = the other issue when there are two.
 4. Priority by category: Security Concern Urgent; Accessibility Support High; Account Access High; Urgent
@@ -177,7 +181,8 @@ templates of different categories; `typos` swaps or drops letters in about 1 wor
 none of the words hacked, unauthorized, breach, stolen. At least 6 templates per category and 5 per hard case.
 
 - [ ] **Step 1:** Tests (exact values from the interfaces above):
-  - determinism: `generateTicket(42, 7)` deep-equals itself on a second call; seeds 42 and 43 differ.
+  - determinism: `generateTicket(42, 7)` deep-equals itself on a second call; seeds 42 and 43 differ (superseded 2026-10-30: the texts of seeds 1 and 2 differ at no more than 5 of 50
+    positions, so a generator that ignores its seed fails).
   - shares over `generateTickets(1, 20000)`: each base-template category share (before a hard case changes the
     label) and each hard-case share within 0.015 of its target; fake-data share within 0.015 of 0.15 (Review
     Focus 4). The base category is exposed on the same test-only path as the facts.
@@ -228,5 +233,20 @@ the gate.
 ### Task 7 (lead): close out PR 1
 
 - [ ] Full gate green; first CI run green on the branch (after the owner's go to push).
-- [ ] Sweep at the feature tier under a Swarm Contract the owner approves; report in `.kit/sweeps/`.
+- [ ] Sweep at the feature tier under a Swarm Contract cleared by the sweep approval script (the owner decides only
+  when the script asks); report in `.kit/sweeps/`.
 - [ ] PR body from the pr-body skill, shown to the owner before the PR command.
+
+## Progress
+
+- Task 0 (setup and adapter): done 2026-10-29, with the owner.
+- Task 1 (web project, lint, tests, CI): e1b755a.
+- Task 2 (labels and rules): 129425f, 3ea560d.
+- Task 3 (seeded random numbers): c7215d1.
+- Task 4 (ticket generator): 236d13c, 323d266; owner rulings d9f902f.
+- Task 5 (dataset export): c1f1d76.
+- Task 6 (hand-written set, frozen by the owner): 6252562.
+- Task 7 (close out): feature sweep 2026-10-30 found 2 high and 6 medium roots; fixes 5d9e22b, 835e29e, 5a64b09,
+  27f1ddf, 88d576c, 401d03e, 06cd5d8, d63a222, e76e3d9, e5c5d9c. Owner rulings 2026-10-30: the held-out set is
+  built from held-out templates (design 5.2), and a repeated crash counts as blocking (design 9 C1). Full gate green
+  at e5c5d9c (165 tests). Re-sweep, push and PR pending.
