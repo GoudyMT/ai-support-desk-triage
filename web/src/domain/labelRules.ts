@@ -56,13 +56,18 @@ function reviewReasonFor(category: Category, facts: TicketFacts): ReviewReason |
 
 export function labelTicket(facts: TicketFacts): TicketLabel {
   if (facts.threatening) {
-    return {
+    const underlying = primaryCategory(facts.issues);
+    const threatLabel: TicketLabel = {
       category: 'Urgent Complaint',
-      secondary: primaryCategory(facts.issues),
       priority: 'Urgent',
       mustReview: true,
       reviewReason: 'threatening language',
     };
+    // A secondary equal to the category says nothing, so it is left out.
+    if (underlying !== 'Urgent Complaint') {
+      threatLabel.secondary = underlying;
+    }
+    return threatLabel;
   }
   if (facts.vague) {
     return {

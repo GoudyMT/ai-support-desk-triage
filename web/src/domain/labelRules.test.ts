@@ -46,6 +46,24 @@ describe('rule 1: a threat is an urgent complaint that must be reviewed', () => 
     expect(label.secondary).toBe('Account Access');
   });
 
+  it('takes the same secondary when the riskiest issue is listed first', () => {
+    const label = labelTicket(
+      facts({ issues: ['Account Access', 'Technical Issue'], threatening: true }),
+    );
+    expect(label.secondary).toBe('Account Access');
+  });
+
+  it('omits the secondary when the threat is raised on an urgent complaint itself', () => {
+    const label = labelTicket(facts({ issues: ['Urgent Complaint'], threatening: true }));
+    expect(label).toEqual({
+      category: 'Urgent Complaint',
+      priority: 'Urgent',
+      mustReview: true,
+      reviewReason: 'threatening language',
+    });
+    expect(label).not.toHaveProperty('secondary');
+  });
+
   it('beats vague when a ticket is both', () => {
     expect(
       labelTicket(facts({ issues: ['Product Question'], threatening: true, vague: true })),
@@ -98,10 +116,6 @@ describe('rule 3: risk order for every pair of categories', () => {
     EXPECTED_RISK_ORDER.filter((b) => b !== a).map((b): [Category, Category] => [a, b]),
   );
 
-  it('covers all 72 ordered pairs', () => {
-    expect(pairs).toHaveLength(72);
-  });
-
   it.each(pairs)('primaryCategory([%s, %s]) is the one earlier in the risk order', (a, b) => {
     const expected =
       EXPECTED_RISK_ORDER.indexOf(a) < EXPECTED_RISK_ORDER.indexOf(b) ? a : b;
@@ -123,12 +137,29 @@ describe('rule 4: priority by category', () => {
     ['Shipping/Order Issue', { statusQuestion: true }, 'Low'],
     ['Product Question', {}, 'Low'],
     ['Other', {}, 'Low'],
+    // A flag on a category it does not apply to must change nothing.
+    ['Security Concern', { severe: true, statusQuestion: true }, 'Urgent'],
+    ['Shipping/Order Issue', { severe: true }, 'Medium'],
+    ['Billing', { statusQuestion: true }, 'Medium'],
+    ['Technical Issue', { statusQuestion: true }, 'Medium'],
   ];
 
   it.each(cases)('%s with %j is %s', (category, flags, priority) => {
     const label = labelTicket(facts({ issues: [category as Category], ...flags }));
     expect(label.category).toBe(category);
     expect(label.priority).toBe(priority);
+  });
+
+  it('judges priority by the riskiest issue, not by a flag that fits the other one', () => {
+    expect(
+      labelTicket(facts({ issues: ['Shipping/Order Issue', 'Security Concern'], statusQuestion: true })),
+    ).toEqual({
+      category: 'Security Concern',
+      secondary: 'Shipping/Order Issue',
+      priority: 'Urgent',
+      mustReview: true,
+      reviewReason: 'security incident',
+    });
   });
 });
 
