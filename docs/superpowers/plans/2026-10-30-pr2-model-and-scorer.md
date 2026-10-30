@@ -256,9 +256,9 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
 
 ### Task 8 (lead): close out
 
-- [ ] Write `ml/MODEL_CARD.md` (test-set isolation section above, data, numbers from `eval.json`, limits);
+- [x] Write `ml/MODEL_CARD.md` (test-set isolation section above, data, numbers from `eval.json`, limits);
   every number in it quoted from `eval.json`.
-- [ ] Full gate green: `npm --prefix web run gate`, `ml\.venv\Scripts\python.exe -m pytest ml/tests`,
+- [x] Full gate green: `npm --prefix web run gate`, `ml\.venv\Scripts\python.exe -m pytest ml/tests`,
   `npm --prefix web run parity`; adapter A9 updated with all three.
 - [ ] Feature-tier sweep: write the Swarm Contract, run approve.mjs first; APPROVED -> short start notice to the
   owner, then findings; report in `.kit/sweeps/`. Canary counts into the scoreboard.
@@ -308,3 +308,11 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   run locally: check_model SAME on 16,048 rows, parity 4 passed on a fresh export. Linux run unseen until push. The
   builder saw random Python crashes (access violations); the PC logs recurring WHEA corrected CPU errors since
   2026-10-05 on an i9-13900KS with a June 2023 BIOS (owner told).
+- 2026-10-30: Task 8 in progress. Model card d15beee. Feature sweep (8 roles, approve.mjs APPROVED, all canary hits):
+  33 findings, 27 real after triage, 5 repeated, no high or critical, alignment YES. Fixes: hash-locked pins (ab4f42e),
+  card corrections (799e724, 5fd9d1c), scorer refusals and chip order (050078f), masker dashed phones, non-ASCII
+  emails, slash and underscore cards with the 10 generated files byte-identical (6af6942), eval re-derived in CI
+  with row fingerprints and the owner's floor (564abab), whole-model check_model with a 1e-6 tolerance from a
+  measured 1.1e-10 shuffle drift (43c6d74). Lead: full gate and every CI step green locally; break check on the floor
+  constant red. Deferred to the owner: Python 3.12.2 patch level; shared vocabulary in model.json (PR 4 size).
+  Re-sweep: approve.mjs asked the owner (new file check_eval.py; test-value and privacy roles).
