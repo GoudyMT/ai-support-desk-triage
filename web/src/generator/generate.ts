@@ -20,11 +20,13 @@ import {
   REQUESTS,
   TEMPLATES,
   fillSlots,
+  poolOf,
+  type Pool,
   type Template,
 } from './templates';
 
-export { CATEGORY_SHARES, CATEGORY_TRIGGER_WORDS, FAKE_DATA_SHARE, HARD_CASE_SHARES };
-export type { HardCase };
+export { CATEGORY_SHARES, CATEGORY_TRIGGER_WORDS, FAKE_DATA_SHARE, HARD_CASE_SHARES, MAX_TICKETS };
+export type { HardCase, Pool };
 
 export interface Ticket {
   id: string;
@@ -89,12 +91,16 @@ function drawHardCase(rng: Rng): HardCase | undefined {
   return drawn === NO_HARD_CASE ? undefined : drawn;
 }
 
-function buildTwoIssues(rng: Rng, base: Category): Body {
+function buildTwoIssues(rng: Rng, base: Category, pool: Pool): Body {
   const others = CATEGORIES.filter((category) => category !== base && category !== 'Other');
   const second = rng.pick(others);
-  const first = rng.pick(TEMPLATES[base]);
-  const other = rng.pick(TEMPLATES[second]);
-  const text = [fillSlots(first.text, rng), rng.pick(TWO_ISSUE_CONNECTORS), fillSlots(other.text, rng)].join(' ');
+  const first = rng.pick(poolOf(TEMPLATES[base], pool));
+  const other = rng.pick(poolOf(TEMPLATES[second], pool));
+  const text = [
+    fillSlots(first.text, rng, pool),
+    rng.pick(poolOf(TWO_ISSUE_CONNECTORS, pool)),
+    fillSlots(other.text, rng, pool),
+  ].join(' ');
   const issues = [base, second];
   // A dispute or a status question only matters to the issue that decides the
   // category. Words of loss or blocking raise the priority wherever they
@@ -104,35 +110,45 @@ function buildTwoIssues(rng: Rng, base: Category): Body {
   return { text, facts, topic: base, templates: [first, other] };
 }
 
-function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category): Body {
+function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, pool: Pool): Body {
   switch (hardCase) {
     case 'vague': {
-      const template = rng.pick(VAGUE_TEMPLATES);
+      const template = rng.pick(poolOf(VAGUE_TEMPLATES, pool));
       const facts = { ...factsFor(['Other'], template), vague: true };
-      return { text: fillSlots(template.text, rng), facts, topic: 'Other', templates: [template] };
+      return { text: fillSlots(template.text, rng, pool), facts, topic: 'Other', templates: [template] };
     }
     case 'threatening': {
       // A threat only follows a message that already carries a grievance.
-      const template = rng.pick(TEMPLATES[base].filter((candidate) => candidate.grievance === true));
-      const text = `${fillSlots(template.text, rng)} ${rng.pick(THREAT_PHRASES)}`;
+      const template = rng.pick(poolOf(TEMPLATES[base], pool).filter((candidate) => candidate.grievance === true));
+      const text = `${fillSlots(template.text, rng, pool)} ${rng.pick(poolOf(THREAT_PHRASES, pool))}`;
       return { text, facts: { ...factsFor([base], template), threatening: true }, topic: base, templates: [template] };
     }
     case 'two-issues':
-      return buildTwoIssues(rng, base);
+      return buildTwoIssues(rng, base, pool);
     case 'keyword-trap': {
-      const template = rng.pick(TRAP_TEMPLATES[base]);
-      return { text: fillSlots(template.text, rng), facts: factsFor([base], template), topic: base, templates: [template] };
+      const template = rng.pick(poolOf(TRAP_TEMPLATES[base], pool));
+      return {
+        text: fillSlots(template.text, rng, pool),
+        facts: factsFor([base], template),
+        topic: base,
+        templates: [template],
+      };
     }
     case 'polite-security': {
-      const template = rng.pick(POLITE_SECURITY_TEMPLATES);
+      const template = rng.pick(poolOf(POLITE_SECURITY_TEMPLATES, pool));
       const issues: Category[] = ['Security Concern'];
       const facts = factsFor(issues, template);
-      return { text: fillSlots(template.text, rng), facts, topic: 'Security Concern', templates: [template] };
+      return { text: fillSlots(template.text, rng, pool), facts, topic: 'Security Concern', templates: [template] };
     }
     case 'typos':
     case undefined: {
-      const template = rng.pick(TEMPLATES[base]);
-      return { text: fillSlots(template.text, rng), facts: factsFor([base], template), topic: base, templates: [template] };
+      const template = rng.pick(poolOf(TEMPLATES[base], pool));
+      return {
+        text: fillSlots(template.text, rng, pool),
+        facts: factsFor([base], template),
+        topic: base,
+        templates: [template],
+      };
     }
   }
 }
@@ -157,7 +173,7 @@ function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined): strin
   return opener === '' ? text : `${opener}\n${text}`;
 }
 
-export function generateTicketDetail(seed: number, index: number): TicketDetail {
+export function generateTicketDetail(seed: number, index: number, pool: Pool = 'all'): TicketDetail {
   // The seed mixing works on 32 bits, so a seed or index outside them would
   // wrap and repeat another ticket without any sign of it.
   if (!Number.isInteger(seed) || seed < 0 || seed > MAX_UINT32 || !Number.isInteger(index) || index < 0 || index > MAX_UINT32) {
@@ -172,7 +188,7 @@ export function generateTicketDetail(seed: number, index: number): TicketDetail 
   const baseCategory = rng.weighted(CATEGORY_SHARES);
   const hasFakeData = rng.chance(FAKE_DATA_SHARE);
 
-  const body = buildBody(rng, hardCase, baseCategory);
+  const body = buildBody(rng, hardCase, baseCategory, pool);
   const plainText = addVoice(rng, body.text, hardCase);
   let text = hardCase === 'typos' ? introduceTypos(rng, plainText) : plainText;
   // Added last so a typo can never damage an email, number or card.
@@ -194,13 +210,13 @@ export function generateTicketDetail(seed: number, index: number): TicketDetail 
   return { ticket, facts: body.facts, baseCategory, templates: body.templates, plainText };
 }
 
-export function generateTicket(seed: number, index: number): Ticket {
-  return generateTicketDetail(seed, index).ticket;
+export function generateTicket(seed: number, index: number, pool: Pool = 'all'): Ticket {
+  return generateTicketDetail(seed, index, pool).ticket;
 }
 
-export function generateTickets(seed: number, count: number): Ticket[] {
+export function generateTickets(seed: number, count: number, pool: Pool = 'all'): Ticket[] {
   if (!Number.isInteger(count) || count < 0 || count > MAX_TICKETS) {
     throw new Error('E_COUNT_RANGE');
   }
-  return Array.from({ length: count }, (_, index) => generateTicket(seed, index));
+  return Array.from({ length: count }, (_, index) => generateTicket(seed, index, pool));
 }

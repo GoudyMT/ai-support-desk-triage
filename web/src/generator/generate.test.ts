@@ -384,7 +384,7 @@ describe('generated wording reads like one customer wrote it', () => {
   it('never names the same plan twice in one sentence', () => {
     for (const ticket of TICKETS) {
       for (const sentence of ticket.text.split(/[.?!]/)) {
-        const plans = (sentence.match(/\b(?:pro|team|starter|business) plan\b/gi) ?? []).map((plan) => plan.toLowerCase());
+        const plans = (sentence.match(/\b(?:pro|team|starter|business|basic|growth|premium|enterprise) plan\b/gi) ?? []).map((plan) => plan.toLowerCase());
         expect(new Set(plans).size, ticket.text).toBe(plans.length);
       }
     }

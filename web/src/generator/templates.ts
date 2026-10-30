@@ -13,6 +13,24 @@ export interface Template {
   grievance?: boolean;
 }
 
+// 'train' and 'heldout' draw from separate wording so a model scored on the
+// held-out set is scored on wording it never trained on; 'all' (live demo
+// tickets) draws from everything.
+export type Pool = 'all' | 'train' | 'heldout';
+
+// Every HELDOUT_EVERY-th item of a list (the last of each group) is held out,
+// so about a quarter of any list. The order of a list therefore decides which
+// items are held out.
+export const HELDOUT_EVERY = 4;
+
+export function poolOf<T>(items: readonly T[], pool: Pool): readonly T[] {
+  if (pool === 'all') {
+    return items;
+  }
+  const wantHeldout = pool === 'heldout';
+  return items.filter((_item, index) => (index % HELDOUT_EVERY === HELDOUT_EVERY - 1) === wantHeldout);
+}
+
 export const CATEGORY_SHARES: Record<Category, number> = {
   'Technical Issue': 0.22,
   Billing: 0.18,
@@ -49,12 +67,12 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     },
     { text: 'Could you send me an invoice for my {plan} payment from {date}? I need it for my records.' },
     { text: 'I would like to move my {plan} from monthly to yearly billing. How will the price change?' },
-    { text: 'Please cancel my subscription before it renews on {date}. I do not want to pay for another month.' },
     {
       text: 'A {amount} charge from {date} appeared on my statement for the {plan}. I did not sign up for it, so I want a refund.',
       billingDispute: true,
       grievance: true,
     },
+    { text: 'Please cancel my subscription before it renews on {date}. I do not want to pay for another month.' },
     {
       text: 'I cancelled last month, yet my card was charged again today. This is the second time and I need it sorted out.',
       billingDispute: true,
@@ -91,7 +109,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       text: 'The verification code from my authenticator app is rejected when I sign in, so I am locked out of {product}.',
       grievance: true,
     },
-    { text: 'I was removed from the Team workspace by mistake. Can you restore my access?' },
+    { text: 'I was removed from our company workspace by mistake. Can you restore my access?' },
     { text: 'A new hire needs access to {product}. Our admin is away. What can we do?' },
     { text: 'cant get in, it says my account is disabled' },
   ],
@@ -122,6 +140,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'How many seats are included in the {plan}?' },
     { text: 'Is there an API for {product}? We would like to connect it to our internal tools.' },
     { text: 'Nobody has told me what the {plan} actually includes. Does it include {feature}?', grievance: true },
+    { text: 'I asked about {feature} twice already and got two different answers. Which of them is right?', grievance: true },
   ],
   'Urgent Complaint': [
     {
@@ -172,6 +191,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'Please remove me from your marketing emails. I have asked before.', grievance: true },
     { text: 'I am a journalist writing about small software companies. Who handles press requests?' },
     { text: 'Is your office open on {date}? I wanted to drop something off.' },
+    { text: 'Your newsletter still lands in my inbox every week even though I unsubscribed last spring.', grievance: true },
   ],
 };
 
@@ -199,9 +219,11 @@ export const REQUESTS: readonly string[] = [
 ];
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const PRODUCTS = ['Nimbus sync', 'Harbor reports', 'Quillfold dashboard', 'Team workspace', 'Orchard scheduler'];
-const PLANS = ['Pro plan', 'Team plan', 'Starter plan', 'Business plan'];
-const FEATURES = ['dark mode', 'audit logs', 'scheduled reports', 'shared folders', 'single sign-on', 'CSV export', 'offline mode', 'custom roles'];
+export const PRODUCTS: readonly string[] = ['Nimbus sync', 'Harbor reports', 'Quillfold dashboard', 'Team workspace', 'Orchard scheduler'];
+export const PLANS: readonly string[] = [
+  'Pro plan', 'Team plan', 'Starter plan', 'Business plan', 'Basic plan', 'Growth plan', 'Premium plan', 'Enterprise plan',
+];
+export const FEATURES: readonly string[] = ['dark mode', 'audit logs', 'scheduled reports', 'shared folders', 'single sign-on', 'CSV export', 'offline mode', 'custom roles'];
 
 const CENTS_PER_DOLLAR = 100;
 const CENTS_PAD = 2;
@@ -216,14 +238,14 @@ const MAX_LOAD_SECONDS = 40;
 
 // `slot` looks up (and fixes) another slot's value, so one slot can depend on
 // another.
-type SlotFill = (rng: Rng, slot: (name: string) => string) => string;
+type SlotFill = (rng: Rng, slot: (name: string) => string, pool: Pool) => string;
 
 const SLOTS: Record<string, SlotFill> = {
-  product: (rng) => rng.pick(PRODUCTS),
-  plan: (rng) => rng.pick(PLANS),
+  product: (rng, _slot, pool) => rng.pick(poolOf(PRODUCTS, pool)),
+  plan: (rng, _slot, pool) => rng.pick(poolOf(PLANS, pool)),
   // A comparison between a plan and itself reads as nonsense.
-  otherPlan: (rng, slot) => rng.pick(PLANS.filter((plan) => plan !== slot('plan'))),
-  feature: (rng) => rng.pick(FEATURES),
+  otherPlan: (rng, slot, pool) => rng.pick(poolOf(PLANS, pool).filter((plan) => plan !== slot('plan'))),
+  feature: (rng, _slot, pool) => rng.pick(poolOf(FEATURES, pool)),
   amount: (rng) =>
     `$${rng.int(MIN_AMOUNT_DOLLARS, MAX_AMOUNT_DOLLARS)}.${String(rng.int(0, CENTS_PER_DOLLAR - 1)).padStart(CENTS_PAD, '0')}`,
   date: (rng) => `${rng.pick(MONTHS)} ${rng.int(1, MAX_DAY_OF_MONTH)}`,
@@ -233,7 +255,7 @@ const SLOTS: Record<string, SlotFill> = {
 
 // A slot named twice in one template gets the same value both times, so the
 // text never contradicts itself.
-export function fillSlots(text: string, rng: Rng): string {
+export function fillSlots(text: string, rng: Rng, pool: Pool = 'all'): string {
   const chosen = new Map<string, string>();
   const slot = (name: string): string => {
     const known = chosen.get(name);
@@ -246,7 +268,7 @@ export function fillSlots(text: string, rng: Rng): string {
     if (fill === undefined) {
       throw new Error('E_UNKNOWN_SLOT');
     }
-    const value = fill(rng, slot);
+    const value = fill(rng, slot, pool);
     chosen.set(name, value);
     return value;
   };

@@ -80,41 +80,66 @@ export const TRAP_WORDS: Record<string, Category> = {
 
 // One or more per category so the category draw (and so every category share)
 // does not change when a ticket becomes a trap. Each text carries a trap word
-// whose suggested category is not the template's own.
+// whose suggested category is not the template's own. Every list has at least
+// four, so the held-out pool (every fourth) is never empty.
 export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
   Billing: [
+    { text: 'Adam in our finance team needs the {plan} receipt from {date}. Where can he download it?' },
     {
       text: 'I was billed twice for the {product} licence for our Nevada office. Please refund one of them.',
       billingDispute: true,
       severe: true,
     },
+    { text: 'The accountant at our Canada branch says the invoice for the {plan} shows the wrong total. Can you send a corrected one?' },
+    { text: 'The pricing page has a bug: it lists a different price for the {plan} than my invoice shows.' },
   ],
   'Technical Issue': [
     { text: '{product} drains my battery. I have to charge my phone three times a day since the last update.' },
+    { text: 'Since the update, {product} cannot load the accounting data we imported. The progress bar just sits there.' },
+    { text: 'The old adapters for our {product} integration stopped answering on Tuesday.' },
+    { text: 'I tried to recharge my tablet and now {product} shows a blank screen when I open it.' },
   ],
   'Account Access': [
     { text: 'Ada on my team cannot get into {product}. Her password reset link says it expired.' },
+    { text: 'My colleague Adam never got his invitation email, so he cannot sign in to {product}.' },
+    { text: 'I am locked out of {product}. The sign-in page shows a small bug icon and no message.' },
+    { text: 'My card was not charged, but I cannot sign in to {product} on my new phone.' },
   ],
   'Security Concern': [
     { text: 'A sign-in from Canada showed up at 3am and I have never been there. Someone else is using my login.' },
+    { text: 'My accountant says a stranger signed in to {product} from overseas yesterday.' },
+    { text: 'An email says there is a charge on my card and asks me to click a link to dispute it. I did not click.' },
+    { text: 'Adam got a text with a link to reset a password he never asked for. Is it safe to ignore?' },
   ],
   'Accessibility Support': [
     { text: 'The Pay button at checkout is silent for my screen reader, so I cannot complete the charge.' },
+    { text: 'The captcha on your sign-up page has no audio option, so I cannot get into my account.' },
+    { text: 'A bug in the {product} chart makes my screen reader skip every second row.' },
+    { text: 'I use a magnifier, and the access code box in {product} is cut off at 200 percent zoom.' },
   ],
   'Product Question': [
     { text: 'Will the {plan} account for time zones when scheduling reports?' },
     { text: 'Ada from your sales team said the {plan} includes {feature}. Is that right?' },
     { text: 'Can the API help me debug my own scripts against sample data?' },
+    { text: 'Does the {plan} charge extra if I add more seats later?' },
   ],
   'Urgent Complaint': [
     { text: 'Your Canada support line never picks up. I have called five times and I am fed up with this company.' },
+    { text: 'I was charged for support I never received and nobody has called me back.' },
+    { text: 'Your access to a real person is a joke. I have been on hold for an hour and nobody picks up.' },
+    { text: 'Adam from your team promised me a callback and never phoned. I am done with this company.' },
   ],
   'Shipping/Order Issue': [
     { text: 'My order to Canada has been stuck at customs for {days} days. Any update?', statusQuestion: true },
     { text: 'The phone accessory I ordered came without the cable.' },
+    { text: 'The charger I ordered arrived with a cracked plug.' },
+    { text: 'The courier left my package with Adam next door and I never got it.' },
   ],
   Other: [
     { text: 'Our team in Canada would love to put your logo in a case study. Who handles that?' },
+    { text: 'Is there a special rate for accounting firms like ours?' },
+    { text: 'Our school would like to feature {product} in a debugging workshop. Who should we contact?' },
+    { text: 'Adam from our events team would like to invite someone from your company to speak at a meetup. Who should he contact?' },
   ],
 };
 
