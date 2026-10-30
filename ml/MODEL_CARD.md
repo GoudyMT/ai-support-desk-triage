@@ -77,7 +77,8 @@ stay a fair test of it.
   right against a 57.3% held-out mean. It has seen every template, the hand-written set shares an author with
   them, and 48 rows is a small sample; any of these could account for the gap, and none has been measured.
 - **Words, not meaning.** The model counts words and word pairs; it does not understand negation or context.
-- **Masking is pattern-based.** Some formats are still missed, for example dotted numbers like
-  "0475.12.34.56", a no-break space between card digits, or an en dash in a phone number. Long digit runs and
-  7+ digit ids are masked even when they are not personal data.
+- **Masking is pattern-based.** Some formats are still missed, for example an email typed with spaces around
+  "@", a no-break space between card digits, an en dash in a phone number, a phone written with "/" or "_", or
+  a phone that looks like a year-first date ("2010-12-31"). Long digit runs and 7+ digit ids are masked even
+  when they are not personal data.
 - **Size.** `model.json` is 3,825,908 bytes (about 1.4 MB gzipped).
