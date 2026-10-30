@@ -179,6 +179,25 @@ describe('writeDatasets', () => {
     }
   });
 
+  // No frozen hand-written row holds personal data, so the rows above cannot
+  // tell a writer that masks from one that copies the text. This row does: the
+  // address is masked in maskedText, and its name ("ada") is a v0 keyword that
+  // only the raw text carries.
+  it('masks a hand-written row that carries fake personal data and runs v0 on its raw text', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'export-hand-pii-'));
+    try {
+      const text = 'You can reach me at ada@example.test about the invoice.';
+      expect(v0Triage(maskText(text).text)).not.toEqual(v0Triage(text));
+      writeDatasets(scratch, SMALL, TRAIN_ALL, [{ id: 'H-fake', text }]);
+      const [row] = parseJsonl(readFileSync(join(scratch, 'handwritten.jsonl'), 'utf8'));
+      expect(row?.text).toBe(text);
+      expect(row?.maskedText).toBe('You can reach me at [EMAIL_ADDRESS] about the invoice.');
+      expect(row?.v0).toEqual(v0Triage(text));
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
   // A hand-written text found in a training list would make the hand-written
   // score a memory test, so the export must stop before it writes anything.
   it('throws E_HANDWRITTEN_IN_TRAIN, writing no file, when a training list holds a hand-written text with other case and punctuation', () => {

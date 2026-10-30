@@ -76,6 +76,10 @@ describe('mask tokens', () => {
 });
 
 describe('maskText on formats the generator never makes', () => {
+  // Built at run time so this file stays ASCII: e with a diaeresis, u with an umlaut.
+  const E_DIAERESIS = String.fromCharCode(0xeb);
+  const U_UMLAUT = String.fromCharCode(0xfc);
+
   const cases: { kind: MaskKind; value: string; sentence: string }[] = [
     { kind: 'email', value: 'jordan@mail.example.net', sentence: 'Please write to jordan@mail.example.net about it.' },
     { kind: 'phone', value: '(212) 555-0147', sentence: 'You can call me on (212) 555-0147 today.' },
@@ -93,6 +97,18 @@ describe('maskText on formats the generator never makes', () => {
     { kind: 'card', value: '4111  1111  1111  1111', sentence: 'I paid with 4111  1111  1111  1111 last week.' },
     { kind: 'card', value: '4111 - 1111 - 1111 - 1111', sentence: 'I paid with 4111 - 1111 - 1111 - 1111 last week.' },
     { kind: 'phone', value: '212 - 555 - 0147', sentence: 'Ring 212 - 555 - 0147 after lunch.' },
+    // Four-two-two(-two) groups are not dates: the date rule must not swallow them.
+    { kind: 'phone', value: '0475-12-34-56', sentence: 'Call me on 0475-12-34-56.' },
+    { kind: 'phone', value: '5550-12-34', sentence: 'My number is 5550-12-34.' },
+    { kind: 'phone', value: '0475.12.34.56', sentence: 'Ring 0475.12.34.56 after lunch.' },
+    // Each of these starts like a date and fails one date test: a year outside
+    // 19xx and 20xx, a fourth group, a month past 12, a day past 31.
+    { kind: 'phone', value: '0475-12-31', sentence: 'Reach me on 0475-12-31 please.' },
+    { kind: 'phone', value: '2012-10-11-12', sentence: 'Reach me on 2012-10-11-12 please.' },
+    { kind: 'phone', value: '2012-13-10', sentence: 'Reach me on 2012-13-10 please.' },
+    { kind: 'phone', value: '2012-10-45', sentence: 'Reach me on 2012-10-45 please.' },
+    { kind: 'card', value: '4111/1111/1111/1111', sentence: 'Card 4111/1111/1111/1111' },
+    { kind: 'card', value: '4111_1111_1111_1111', sentence: 'Card 4111_1111_1111_1111' },
   ];
 
   it.each(cases)('masks $value as a $kind', ({ kind, value, sentence }) => {
@@ -102,6 +118,15 @@ describe('maskText on formats the generator never makes', () => {
     // No digit of the value may survive as a fragment.
     expect(text).not.toMatch(/\d/);
     expect(found).toEqual([kind]);
+  });
+
+  // Names and domains with accented letters. The whole address must go: a mask
+  // that starts after the accented letter still shows the name's first part.
+  it.each([
+    { label: 'accented local part', address: `zo${E_DIAERESIS}.smith@example.com` },
+    { label: 'accented domain', address: `max@m${U_UMLAUT}ller.de` },
+  ])('masks the whole address with an $label', ({ address }) => {
+    expect(maskText(`Write to ${address} soon.`)).toEqual({ text: `Write to ${MASK_TOKENS.email} soon.`, found: ['email'] });
   });
 
   it.each([
@@ -166,6 +191,9 @@ describe('maskText on formats the generator never makes', () => {
     'This broke in version 2.4.1 for me.',
     'It failed 3 times today.',
     'Since 2026-10-30 nothing loads.',
+    '2026-10-30',
+    'Shipped on 2026.10.30 as planned.',
+    'Due 10/30/2026 at noon.',
     'I keep getting error 404 on the page.',
     'The meeting is at 10:45 sharp.',
   ])('leaves ordinary numbers alone in: %s', (sentence) => {
