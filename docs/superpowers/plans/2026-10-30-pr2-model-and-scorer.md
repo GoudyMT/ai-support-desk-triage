@@ -182,13 +182,13 @@ Approach: copy the four `if` blocks of `analyze()` in `capstone/prototype/AI_Sup
     writing `ml/reports/eval.json`: per fold and for hand-written, model and v0 category accuracy, priority
     accuracy, v0 review-flag accuracy; mean and standard deviation over the 4 folds; hand-written as `k` and `n`;
     `beats_v0_every_fold: bool` and `beats_v0_handwritten: bool` (Q5).
-- [ ] **Step 1: Tests:** leakage guard - for each fold, no normalised held-out `maskedText` (same rule as
+- [x] **Step 1: Tests:** leakage guard - for each fold, no normalised held-out `maskedText` (same rule as
   `normalizeText` in the export) is in that fold's training set, and training raises if one is (Review Focus 4);
   `load_rows` on a missing path raises with the command in the message; on a 30-row toy set the pipeline
   predicts its own training rows and `fold_scores` counts k of n exactly; the vectorizer tokenizes
   `"caf\u00e9 x_y 4o [CARD_NUMBER]"` to the expected list.
-- [ ] **Step 2:** Fail (`ml\.venv\Scripts\python.exe -m pytest ml/tests`). **Step 3:** Implement. **Step 4:** Pass.
-- [ ] **Step 5:** Commit `feat: train and score the word-weight model per fold against v0`
+- [x] **Step 2:** Fail (`ml\.venv\Scripts\python.exe -m pytest ml/tests`). **Step 3:** Implement. **Step 4:** Pass.
+- [x] **Step 5:** Commit `feat: train and score the word-weight model per fold against v0`
 
 ### Task 5 (lead, with the owner): first honest run and the bar
 
@@ -200,10 +200,10 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   Written before any run (2026-10-30): "rows that carry personal data" = held-out rows whose `maskedText` differs
   from `text`; the 2-point bar applies to the mean over the 4 folds, per-fold values reported beside it; the check
   is a one-off scratch script over `triage.train.fit_models` and `triage.evaluate.score_rows`, not committed.
-- [ ] Run the evaluation; post the numbers (per fold, mean and spread, hand-written k of n, v0 beside each).
+- [x] Run the evaluation; post the numbers (per fold, mean and spread, hand-written k of n, v0 beside each).
 - [ ] The owner sets the raw-accuracy bar and the flag-rate target note (spec 10.2) before any tuning. If the
   model misses Q5 on any fold: stop, Re-Plan on Failure, options to the owner.
-- [ ] Commit `ml/reports/eval.json`: `feat: record the first per-fold evaluation against v0`
+- [x] Commit `ml/reports/eval.json`: `feat: record the first per-fold evaluation against v0`
 
 ### Task 6: Model export and TypeScript scorer with parity (Opus checker)
 
@@ -286,3 +286,11 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   export wrote 4 x 20,000 + 4 x 4,000 + 20,000 + 48 rows. The builder's edit-fence file list could not be written
   (the Write tool refused the shared git path), so the fence was not active for this unit; the diff touched only
   its two files.
+- 2026-10-30: Task 4 done (f52334e, 0dd4767): 22 Python tests; checker FIX round 1 pinned masked-text training,
+  test-set isolation (both mutants now red) and distinct metric counts; hand-written guard added on the Python side.
+  Lead break check: shipped model fit on train_all + hand-written -> 2 red, restored. Task 5 run (8c6bfd4, 11 s):
+  category model 0.573 mean (sd 0.053) vs v0 0.336; hand-written 39/48 vs 14/48; beats v0 on every fold and on
+  hand-written. Placeholder check: kind tokens vs one token +0.17 / +1.70 / +0.51 / -0.68 pts, mean +0.43 < 2, so the
+  four tokens stay. Raw-accuracy bar: asked the owner (recommended: this run as the floor). Flag-rate target moves to
+  PR 3 (it needs the confidence floor). Task 6 note: JavaScript rejects the inline flag in TOKEN_PATTERN; the TS
+  scorer uses its own /\b\w\w+\b/g, proved equal by the parity cases.
