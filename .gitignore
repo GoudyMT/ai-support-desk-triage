@@ -1,0 +1,6 @@
+node_modules/
+web/dist/
+ml/data/generated/
+# Env files carry secrets; only the example is shared.
+.env*
+!.env.example
