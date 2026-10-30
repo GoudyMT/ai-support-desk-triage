@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-29
 **Owner:** Max Goudy
-**Status:** approved by the owner 2026-10-29
+**Status:** approved by the owner 2026-10-29; amended 2026-10-30 (see Revision History)
 **Repo:** `GoudyMT/ai-support-desk-triage` (public), baseline tag `v0` at `d9563c2`
 
 ## 1. Intent and why
@@ -94,14 +94,16 @@ Other) and four priorities (Low, Medium, High, Urgent).
 - Hard cases mixed in on purpose, at a set share of the stream: vague tickets, threatening language, two issues
   in one ticket, typos and slang, words that fool keyword matching ("Canada"), polite tickets about security.
 - One generator, written in TypeScript, used by both sides: a script exports a labeled training set for Python,
-  and the browser uses the same code for the live stream. Training and live tickets come from different seed
-  ranges, so the model is always judged on tickets it never saw.
+  and the browser uses the same code for the live stream. Training and held-out tickets are built from separate
+  template sets (whole templates and slot values held out per category and hard case), and a held-out ticket whose
+  text also appears in training is dropped, so the held-out score measures wording the model never saw. Live
+  tickets come from their own seed range.
 - Every run is random; its seed is shown in a corner so a run can be replayed exactly.
 
 ### 5.3 The model
 
 - TF-IDF (words and word pairs) plus logistic regression, one model for category and one for priority, trained
-  in Python with scikit-learn on the exported set; evaluated on a held-out set from a separate seed range.
+  in Python with scikit-learn on the exported set; evaluated on the held-out set built from held-out templates.
 - Exported as a small JSON file (vocabulary, idf weights, coefficients); a TypeScript scorer reproduces the
   Python predictions. A parity test proves the two agree on the held-out set.
 - The "why": the top words by contribution for the predicted class, shown as weighted chips on the ticket.
@@ -213,8 +215,10 @@ default is left blank for the viewer to fill.
   - Threatening or abusive language: category Urgent Complaint whatever the topic, priority Urgent, must-review Yes.
   - Priority by category and wording: Security Concern is Urgent; Accessibility Support and Account Access are
     High; Billing and Technical Issue are Medium, raised to High for words of loss or blocking ("can't work",
-    "charged again"; a duplicate charge such as "charged twice" counts as charged again, owner ruling 2026-10-30;
-    in a two-issue ticket such words in either issue count); Product Question is Low; Shipping/Order Issue is Medium, Low for a status question.
+    "charged again"; a duplicate charge such as "charged twice" counts as charged again, and a crash that repeats
+    ("keeps crashing", "crashes every time") counts as blocking, owner rulings 2026-10-30; in a two-issue ticket
+    such words in either issue count); Product Question is Low; Shipping/Order Issue is Medium, Low for a status
+    question.
   - Must-review Yes: Security Concern, Accessibility Support, Billing dispute (a disputed or duplicate charge or a
     refund), Urgent Complaint, vague tickets. This is Checkpoint 6's always-review list.
   - The rules live in one module with tests; the generator and the report both read it.
@@ -252,3 +256,9 @@ default is left blank for the viewer to fill.
      the system's raw throughput, clearly marked "capacity test, not a real arrival rate".
    - **Act 3:** the report.
    - Reviewer time per flagged ticket is an on-screen assumption, like the other value inputs (section 5.9).
+
+## Revision History
+
+- 2026-10-30: two C1 rulings by the owner (a duplicate charge counts as charged again; a repeated crash counts as
+  blocking), and the held-out set moved from a separate seed range to separate templates with text overlap removed,
+  after the PR 1 review found that 45% of held-out tickets repeated training text word for word.
