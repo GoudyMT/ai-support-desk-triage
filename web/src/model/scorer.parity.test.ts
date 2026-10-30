@@ -12,7 +12,9 @@ interface HeadAnswer {
   probabilities: Record<string, number>;
 }
 
-type ParityRow = { id: string; maskedText: string } & Record<HeadName, HeadAnswer>;
+// Ids repeat from fold to fold, so a row is named by its id and its fold
+// (null for the hand-written rows).
+type ParityRow = { id: string; fold: number | null; maskedText: string } & Record<HeadName, HeadAnswer>;
 
 function readParityRows(): ParityRow[] {
   if (!existsSync(PARITY_URL)) {
@@ -40,7 +42,7 @@ describe('scorer parity with scikit-learn on the evaluation tickets', () => {
     for (const row of rows) {
       const prediction = score(model, head, row.maskedText);
       if (prediction.label !== row[head].label) {
-        differentClass.push(row.id);
+        differentClass.push(`${row.id} (fold ${row.fold ?? 'none'})`);
       }
       for (const [name, expected] of Object.entries(row[head].probabilities)) {
         maxDifference = Math.max(maxDifference, Math.abs((prediction.probabilities[name] ?? Infinity) - expected));

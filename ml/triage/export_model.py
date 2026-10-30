@@ -8,13 +8,11 @@ import json
 from pathlib import Path
 
 from triage.data import FOLD_COUNT, GENERATED_DIR, HANDWRITTEN_PATH, TRAIN_ALL_PATH, fold_paths, load_rows
-from triage.features import TOKEN_PATTERN
 from triage.train import LABEL_FIELDS, fit_models
 
 MODEL_PATH = Path(__file__).resolve().parent.parent.parent / "web" / "src" / "model" / "model.json"
 PARITY_PATH = GENERATED_DIR / "parity_predictions.jsonl"
 MODEL_VERSION = 1
-NGRAM_RANGE = [1, 2]
 DIVIDER = "=" * 60
 STEP_COUNT = 4
 
@@ -50,11 +48,15 @@ def build_model(models):
     Returns:
         A dict ready to write as JSON; floats keep their full precision.
     """
+    # Both heads are fitted with make_vectorizer, so one head's vectorizer
+    # states the settings. They are read from it, not repeated here, so a changed
+    # vectorizer is declared as changed and the scorer refuses what it cannot do.
+    vectorizer = models[LABEL_FIELDS[0]].named_steps["tfidf"]
     return {
         "version": MODEL_VERSION,
-        "tokenPattern": TOKEN_PATTERN,
-        "ngramRange": NGRAM_RANGE,
-        "sublinearTf": True,
+        "tokenPattern": vectorizer.token_pattern,
+        "ngramRange": list(vectorizer.ngram_range),
+        "sublinearTf": vectorizer.sublinear_tf,
         "heads": {field: head_dict(models[field]) for field in LABEL_FIELDS},
     }
 
@@ -64,11 +66,12 @@ def parity_records(models, rows):
 
     Args:
         models: The dict fit_models returns.
-        rows: Rows with id and maskedText.
+        rows: Rows with id and maskedText, and optionally the fold they were
+            held out in.
 
     Returns:
-        One dict per row: id, maskedText, and per head the class ("label") and
-        the probability of every class.
+        One dict per row: id, fold (None when the row has none), maskedText,
+        and per head the class ("label") and the probability of every class.
     """
     texts = [row["maskedText"] for row in rows]
     answers = {}
@@ -77,7 +80,7 @@ def parity_records(models, rows):
         answers[field] = (pipeline.predict(texts), pipeline.predict_proba(texts), pipeline.classes_)
     records = []
     for i, row in enumerate(rows):
-        record = {"id": row["id"], "maskedText": row["maskedText"]}
+        record = {"id": row["id"], "fold": row.get("fold"), "maskedText": row["maskedText"]}
         for field in LABEL_FIELDS:
             labels, probabilities, classes = answers[field]
             record[field] = {
@@ -102,10 +105,12 @@ def export(models, parity_rows, model_path, parity_path):
     parity_path.parent.mkdir(parents=True, exist_ok=True)
     # Compact separators: the file ships to the browser. ensure_ascii (the
     # default) keeps both files ASCII and lines free of U+2028, so a reader may
-    # split on "\n".
-    model_path.write_text(json.dumps(build_model(models), separators=(",", ":")) + "\n", encoding="utf-8")
+    # split on "\n". newline="\n" so Windows writes the same bytes as Linux.
+    model_path.write_text(
+        json.dumps(build_model(models), separators=(",", ":")) + "\n", encoding="utf-8", newline="\n"
+    )
     lines = [json.dumps(record, separators=(",", ":")) for record in parity_records(models, parity_rows)]
-    parity_path.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+    parity_path.write_text("".join(line + "\n" for line in lines), encoding="utf-8", newline="\n")
 
 
 def main(argv=None):
@@ -122,7 +127,9 @@ def main(argv=None):
     # Step 1: read the exported files.
     print(f"[1/{STEP_COUNT}] Loading generated files")
     train_all_rows = load_rows(TRAIN_ALL_PATH)
-    parity_rows = [row for k in range(FOLD_COUNT) for row in load_rows(fold_paths(k)[1])]
+    # Ids repeat from fold to fold, so each held-out row is tagged with its
+    # fold; the hand-written rows have none.
+    parity_rows = [{**row, "fold": k} for k in range(FOLD_COUNT) for row in load_rows(fold_paths(k)[1])]
     parity_rows += load_rows(HANDWRITTEN_PATH)
     print(f"    train {len(train_all_rows):,}, parity rows {len(parity_rows):,}")
 

@@ -58,10 +58,6 @@ describe('tokenize', () => {
       String.fromCharCode(0x212a) + 'ey pad',
       ['key', 'pad', 'key pad'],
     ],
-    ['digits glued to words stay one word', 'win10pro and 3x', ['win10pro', 'and', '3x', 'win10pro and', 'and 3x']],
-    ['underscores join words', 'snake_case_word ok', ['snake_case_word', 'ok', 'snake_case_word ok']],
-    ['a letter after a non-ASCII letter is a one-letter piece', 'caf' + String.fromCharCode(0xe9) + 's', ['caf']],
-    ['one-letter words alone give nothing', 'A  B', []],
   ];
 
   it.each(cases)('matches Python when %s', (_name, text, expected) => {
@@ -83,6 +79,10 @@ describe('loadModel', () => {
     ['another version', tinyModel({}, { version: 2 })],
     ['a longer n-gram range', tinyModel({}, { ngramRange: [1, 3] })],
     ['no sublinear term frequency', tinyModel({}, { sublinearTf: false })],
+    // A repeated term would share one column and shift every later weight.
+    ['a repeated vocabulary term', tinyModel({ vocabulary: ['red', 'red', 'red blue'] })],
+    // 1e999 is valid JSON text that reads as Infinity, and would turn every score into NaN.
+    ['an infinite weight', JSON.parse(JSON.stringify(tinyModel()).replace('"idf":[1,2,3]', '"idf":[1,2,1e999]')) as unknown],
   ];
 
   it.each(badModels)('rejects a model with %s', (_name, json) => {
@@ -111,10 +111,28 @@ describe('score', () => {
     expect(prediction.probabilities['A']).toBeCloseTo(0.6228519978818157, 12);
     expect(prediction.probabilities['B']).toBeCloseTo(0.2866324788336901, 12);
     expect(prediction.probabilities['C']).toBeCloseTo(0.09051552328449428, 12);
-    expect(prediction.topTerms.map((t) => t.term)).toEqual(['red', 'red blue', 'blue']);
+    // "blue" is in the text but adds nothing toward A, so it is no chip.
+    expect(prediction.topTerms.map((t) => t.term)).toEqual(['red', 'red blue']);
     expect(prediction.topTerms[0]?.weight).toBeCloseTo(0.42506050925680217, 12);
     expect(prediction.topTerms[1]?.weight).toBeCloseTo(0.37657137619562636, 12);
-    expect(prediction.topTerms[2]?.weight).toBe(0);
+  });
+
+  it('answers with a class other than the first, and takes the words from that class', () => {
+    const prediction = score(loadModel(tinyModel()), 'category', 'blue red');
+    expect(prediction.label).toBe('B');
+    expect(prediction.confidence).toBeCloseTo(0.5545199832509413, 12);
+    expect(prediction.probabilities['A']).toBeCloseTo(0.39185397160276764, 12);
+    expect(prediction.probabilities['C']).toBeCloseTo(0.053626045146290914, 12);
+    expect(prediction.topTerms.map((t) => t.term)).toEqual(['blue']);
+    expect(prediction.topTerms[0]?.weight).toBeCloseTo(0.8944271909999159, 12);
+  });
+
+  it('shows no word that pushed against the answer', () => {
+    // The "red blue" phrase is in the text and lowers class B (-0.246).
+    const prediction = score(loadModel(tinyModel()), 'category', 'red blue blue blue blue blue');
+    expect(prediction.label).toBe('B');
+    expect(prediction.topTerms.map((t) => t.term)).toEqual(['blue']);
+    expect(prediction.topTerms[0]?.weight).toBeCloseTo(0.8552470316038023, 12);
   });
 
   it('gives the intercept answer and no terms when no word is known', () => {

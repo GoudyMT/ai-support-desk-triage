@@ -142,7 +142,8 @@ function softmax(scores: number[]): number[] {
  * @param head Which question to answer.
  * @param maskedText The ticket text after masking.
  * @returns The most likely class, its probability, every class's probability,
- *   and the up to 5 words of the text that pushed hardest toward that class.
+ *   and the words of the text that pushed toward that class, strongest first, at
+ *   most 5 (fewer, or none, when fewer words pushed toward it).
  */
 export function score(model: Model, head: HeadName, maskedText: string): Prediction {
   const { classes, vocabulary, index, idf, coef, intercept } = model.heads[head];
@@ -169,6 +170,9 @@ export function score(model: Model, head: HeadName, maskedText: string): Predict
   const best = scores.indexOf(Math.max(...scores));
   const topTerms = present
     .map((w) => ({ term: at(vocabulary, w.column), weight: w.value * at(at(coef, best), w.column) }))
+    // Only words that pushed toward the answer: a chip for a word that argued
+    // against it would show the visitor something the model did not rely on.
+    .filter((t) => t.weight > 0)
     .sort((a, b) => b.weight - a.weight)
     .slice(0, TOP_TERM_COUNT);
   return {
