@@ -70,6 +70,8 @@ download. Builders start only after this.
 - Produces: npm scripts `lint`, `typecheck` (`tsc --noEmit`), `test` (`vitest run`), `gate` (lint, then
   typecheck, then test; fails on the first failure).
 
+> SUPERSEDED (2026-10-30): the smoke test was cut in 27f1ddf (it passed with no project code; every other test proves
+> the toolchain).
 - [ ] **Step 1:** Write `web/src/smoke.test.ts`: `expect(1 + 1).toBe(2)` and a second test that imports nothing
   and asserts `typeof structuredClone === 'function'` (proves the Node target).
 - [ ] **Step 2:** Resolve dependencies lockfile-only; show the lead the lockfile; install after the owner's yes.
@@ -120,6 +122,8 @@ Rules (spec 9 C1, in precedence order):
 Plan note: "Urgent Complaint without a threat is High with reason `escalated complaint`" and "Other (not vague)
 is Low" extend spec C1, which is silent on them; the owner checks them at plan review.
 
+> SUPERSEDED (2026-10-30): 27f1ddf replaced the 72-pair table with the 16 neighbouring pairs in both orders and cut the
+> RISK_ORDER constant row (second proofs); aef3607 restored a ROUTES row pinning every route name (design C3).
 - [ ] **Step 1:** Write tests: one per rule above with exact expected labels; a table test over all 72 ordered
   pairs of distinct categories asserting `primaryCategory([a, b])` is whichever comes first in `RISK_ORDER`;
   threatening beats vague when both are true; `ROUTES` has exactly 9 keys.
@@ -181,7 +185,7 @@ templates of different categories; `typos` swaps or drops letters in about 1 wor
 none of the words hacked, unauthorized, breach, stolen. At least 6 templates per category and 5 per hard case.
 
 - [ ] **Step 1:** Tests (exact values from the interfaces above):
-  - determinism: `generateTicket(42, 7)` deep-equals itself on a second call; seeds 42 and 43 differ (superseded 2026-10-30: the texts of seeds 1 and 2 differ at no more than 5 of 50
+  - determinism: `generateTicket(42, 7)` deep-equals itself on a second call; seeds 42 and 43 differ (superseded 2026-10-30: the texts of seeds 1 and 2 are the same at no more than 5 of 50
     positions, so a generator that ignores its seed fails).
   - shares over `generateTickets(1, 20000)`: each base-template category share (before a hard case changes the
     label) and each hard-case share within 0.015 of its target; fake-data share within 0.015 of 0.15 (Review
@@ -194,7 +198,8 @@ none of the words hacked, unauthorized, breach, stolen. At least 6 templates per
     contains none of the four banned words (Review Focus 2).
   - text over 5,000 tickets: ASCII only, 1 to 2000 characters, emails only at example.com or example.org,
     phones only 555-0100 to 555-0199, every 13 to 19 digit run fails the Luhn check (Review Focus 3).
-  - every one of the 9 categories and 6 hard cases appears in 20,000 tickets.
+  - every one of the 9 categories and 6 hard cases appears in 20,000 tickets (superseded 2026-10-30: cut in
+    06cd5d8 as a second proof of the share rows).
 - [ ] **Step 2:** Run; expect failure. **Step 3:** Implement. **Step 4:** Run; expect pass. Break check: set
   `HARD_CASE_SHARES.vague` to 0.2, see the share test fail, restore.
 - [ ] **Step 5:** Commit: `feat: add the procedural ticket generator with labeled hard cases`
@@ -207,13 +212,17 @@ none of the words hacked, unauthorized, breach, stolen. At least 6 templates per
 
 **Interfaces:**
 - Consumes: Task 4 (`generateTickets`, `Ticket`).
+> SUPERSEDED (2026-10-30): the export now writes one training and one held-out file per template fold,
+> `train_0..3.jsonl` (20,000 each) and `heldout_0..3.jsonl` (4,000 each, text overlap dropped), each row with a
+> `fold` key; generation takes a split argument (design 5.2; e76e3d9, e5c5d9c, aef3607).
 - Produces: `toJsonl(tickets: Ticket[]): string` (one JSON object per line: `id`, `text`, `category`,
   `secondary`, `priority`, `mustReview`, `reviewReason`, `hardCase`), and the command
   `npm --prefix web run export-data` writing `ml/data/generated/train.jsonl` (seed 1, 20,000 tickets) and
   `ml/data/generated/heldout.jsonl` (seed 2, 4,000 tickets). Both stay out of git (regenerable).
 
 - [ ] **Step 1:** Tests: `toJsonl` of 2 tickets gives 2 lines that parse back to the same fields; train and
-  held-out ids never overlap; a seed >= 1000 passed to the export throws (training range only).
+  held-out ids never overlap (superseded 2026-10-30: ids can never collide, so the rows now check that no
+  text, template, slot value or fake-data frame is shared between a fold's two files); a seed >= 1000 passed to the export throws (training range only).
 - [ ] **Step 2:** Run; fail. **Step 3:** Implement. **Step 4:** Run; pass; run the command and check line counts
   (20,000 and 4,000).
 - [ ] **Step 5:** Commit: `feat: add the labeled dataset export for training`
@@ -249,4 +258,14 @@ the gate.
 - Task 7 (close out): feature sweep 2026-10-30 found 2 high and 6 medium roots; fixes 5d9e22b, 835e29e, 5a64b09,
   27f1ddf, 88d576c, 401d03e, 06cd5d8, d63a222, e76e3d9, e5c5d9c. Owner rulings 2026-10-30: the held-out set is
   built from held-out templates (design 5.2), and a repeated crash counts as blocking (design 9 C1). Full gate green
-  at e5c5d9c (165 tests). Re-sweep, push and PR pending.
+  at e5c5d9c (165 tests). The re-sweep found one fixed held-out set too noisy (up to 45 points per category by fold
+  choice); owner rulings 2026-10-30 (later): 4 template folds with grouped cross-validation, lost work counts as
+  loss, general price questions are Product Question (design c2e2e94); built in aef3607 (235 tests).
+  Test cuts in this task: the smoke test, the 72-pair table, the RISK_ORDER constant row, the all-categories row,
+  the polite-templates length line, two rng replay rows (each a second proof or no real use).
+  Deferred: PR 2 trains and scores on text after the privacy masking step, because the kind of fake data
+  (a card number, an order number) points at a category; PR 2 reports hand-written slices as k of n; PR 3 or 4
+  decides which split the live stream scores against; PR 4 renders ticket text with textContent and
+  white-space: pre-line, adds an XSS check, and passes text to string replace only through a function; bump Vite
+  to 6.4.5 on or after 2026-11-04 (advisory GHSA-8g5g-mxqh-grgj, dev server only); after merge the owner adds a
+  branch rule on main requiring the gate check.
