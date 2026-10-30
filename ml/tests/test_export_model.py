@@ -1,14 +1,14 @@
 """Tests for the model export: the written file must give the answers the fitted model gives."""
 
 import json
-import math
 import random
-import re
 
 import numpy as np
+import pytest
 
+from triage import export_model
+from triage.check_model import class_scores, load_model, predict_class
 from triage.export_model import build_model, export, parity_records
-from triage.features import TOKEN_PATTERN
 from triage.train import LABEL_FIELDS, fit_models
 
 CATEGORY_WORDS = {
@@ -44,48 +44,22 @@ def make_rows(count, seed):
     return rows
 
 
-def reload_and_predict(model, head_name, texts):
-    """Scores texts from the written file alone, with numpy and no scikit-learn."""
-    head = model["heads"][head_name]
-    index = {term: i for i, term in enumerate(head["vocabulary"])}
-    idf = np.array(head["idf"])
-    coef = np.array(head["coef"])
-    intercept = np.array(head["intercept"])
-    labels, probabilities = [], []
-    for text in texts:
-        tokens = re.findall(model["tokenPattern"], text.lower())
-        terms = tokens + [" ".join(pair) for pair in zip(tokens, tokens[1:])]
-        counts = np.zeros(len(index))
-        for term in terms:
-            if term in index:
-                counts[index[term]] += 1
-        # 1 + ln(count) is fixed here, not read from the file: it is the only
-        # weighing the TypeScript scorer implements.
-        x = np.where(counts > 0, 1 + np.log(np.where(counts > 0, counts, 1)), 0) * idf
-        norm = math.sqrt(float(x @ x))
-        x = x / norm if norm > 0 else x
-        scores = coef @ x + intercept
-        exps = np.exp(scores - scores.max())
-        labels.append(head["classes"][int(np.argmax(scores))])
-        probabilities.append(exps / exps.sum())
-    return labels, np.array(probabilities)
-
-
 def test_written_model_reloads_to_the_fitted_models_answers(tmp_path):
-    # The scorer in the browser reads only this file, so the file must carry
-    # everything the fitted model answers with.
+    # What this alone guards: export() itself. check_model's own test scores
+    # build_model's dict, so a loss between that dict and the bytes on disk
+    # (floats rounded or truncated when written) shows only here. The scoring is
+    # check_model's scorer, which reads only the file as the browser does.
     models = fit_models(make_rows(ROW_COUNT, seed=1))
     model_path = tmp_path / "model.json"
     export(models, make_rows(1, seed=9), model_path, tmp_path / "parity.jsonl")
-    model = json.loads(model_path.read_text(encoding="utf-8"))
-    assert model["tokenPattern"] == TOKEN_PATTERN
-    assert set(model["heads"]) == set(LABEL_FIELDS)
+    model = load_model(model_path)
     texts = [row["maskedText"] for row in make_rows(ROW_COUNT, seed=2)]
     for head_name in LABEL_FIELDS:
-        labels, probabilities = reload_and_predict(model, head_name, texts)
-        assert labels == list(models[head_name].predict(texts))
-        expected = models[head_name].predict_proba(texts)
-        assert np.max(np.abs(probabilities - expected)) < TOLERANCE
+        head = model["heads"][head_name]
+        assert [predict_class(head, text) for text in texts] == list(models[head_name].predict(texts))
+        # For this multi-class fit the scores are the decision function.
+        scores = np.array([class_scores(head, text) for text in texts])
+        assert np.max(np.abs(scores - models[head_name].decision_function(texts))) < TOLERANCE
 
 
 def test_model_declares_the_settings_it_was_fitted_with_and_lines_up_its_arrays():
@@ -109,6 +83,25 @@ def test_model_declares_the_settings_it_was_fitted_with_and_lines_up_its_arrays(
         assert np.array(head["coef"]).shape == (len(head["classes"]), len(head["vocabulary"]))
         assert len(head["idf"]) == len(head["vocabulary"])
         assert len(head["intercept"]) == len(head["classes"])
+
+
+def test_a_model_with_a_nan_weight_is_not_written(tmp_path):
+    # JSON.parse in the browser fails on NaN with an error that quotes the file;
+    # a model that cannot be read must stop the export, and leave no file behind.
+    models = fit_models(make_rows(ROW_COUNT, seed=1))
+    models["category"].named_steps["logreg"].intercept_[0] = float("nan")
+    model_path = tmp_path / "model.json"
+    with pytest.raises(ValueError, match="JSON compliant"):
+        export(models, make_rows(1, seed=9), model_path, tmp_path / "parity.jsonl")
+    assert not model_path.exists()
+
+
+def test_a_parity_row_with_a_nan_is_not_written(tmp_path, monkeypatch):
+    # The TypeScript parity test reads this file with JSON.parse too.
+    monkeypatch.setattr(export_model, "parity_records", lambda models, rows: [{"id": "t-1", "probability": float("nan")}])
+    models = fit_models(make_rows(ROW_COUNT, seed=1))
+    with pytest.raises(ValueError, match="JSON compliant"):
+        export(models, make_rows(1, seed=9), tmp_path / "model.json", tmp_path / "parity.jsonl")
 
 
 def test_files_are_written_with_unix_line_endings(tmp_path):

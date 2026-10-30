@@ -106,10 +106,16 @@ def export(models, parity_rows, model_path, parity_path):
     # Compact separators: the file ships to the browser. ensure_ascii (the
     # default) keeps both files ASCII and lines free of U+2028, so a reader may
     # split on "\n". newline="\n" so Windows writes the same bytes as Linux.
+    # allow_nan=False: NaN and Infinity are not JSON, so JSON.parse in the
+    # browser would refuse the file; stop here instead of writing it.
     model_path.write_text(
-        json.dumps(build_model(models), separators=(",", ":")) + "\n", encoding="utf-8", newline="\n"
+        json.dumps(build_model(models), separators=(",", ":"), allow_nan=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
-    lines = [json.dumps(record, separators=(",", ":")) for record in parity_records(models, parity_rows)]
+    lines = [
+        json.dumps(record, separators=(",", ":"), allow_nan=False) for record in parity_records(models, parity_rows)
+    ]
     parity_path.write_text("".join(line + "\n" for line in lines), encoding="utf-8", newline="\n")
 
 

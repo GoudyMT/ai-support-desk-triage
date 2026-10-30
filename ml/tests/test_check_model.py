@@ -9,6 +9,7 @@ import pytest
 from triage.check_model import (
     class_scores,
     first_difference,
+    first_model_difference,
     load_check_rows,
     load_model,
     main,
@@ -40,6 +41,13 @@ def toy_model():
         "sublinearTf": True,
         "heads": {name: {**copy.deepcopy(head), "classes": classes} for name, classes in TOY_CLASSES.items()},
     }
+
+
+def change(node, keys, value):
+    """Sets the value at the end of a path of keys and list positions."""
+    for key in keys[:-1]:
+        node = node[key]
+    node[keys[-1]] = value
 
 
 def write_model(directory, name, model):
@@ -122,7 +130,10 @@ def write_flipped_copy(model_path, tmp_path):
     raise AssertionError("no single coefficient changes any row's class")
 
 
-def test_a_flipped_coefficient_exits_one_and_names_the_first_row_it_changes(tmp_path, capsys):
+def test_a_flipped_coefficient_exits_one_and_names_the_first_row_it_changes(tmp_path, capsys, monkeypatch):
+    # The part-by-part step would stop this file first; it is switched off so the
+    # row-by-row step is shown to find a changed answer on its own.
+    monkeypatch.setattr("triage.check_model.first_model_difference", lambda fresh, committed: None)
     row = write_flipped_copy(MODEL_PATH, tmp_path)
     assert main([str(tmp_path / "flipped.json"), str(MODEL_PATH)]) == 1
     out = capsys.readouterr().out
@@ -170,6 +181,102 @@ def test_a_model_made_with_other_settings_is_refused(tmp_path):
     other["sublinearTf"] = False
     with pytest.raises(ValueError, match="E_MODEL_SETTINGS"):
         load_model(write_model(tmp_path, "other.json", other))
+
+
+def two_classes_only(model):
+    head = model["heads"]["category"]
+    for key in ("classes", "coef", "intercept"):
+        head[key] = head[key][:2]
+
+
+MALFORMED = [
+    pytest.param(lambda m: change(m, ("version",), 2), "E_MODEL_SHAPE", id="version-2"),
+    pytest.param(lambda m: change(m, ("tokenPattern",), r"\b\w+\b"), "E_MODEL_SETTINGS", id="token-pattern"),
+    pytest.param(lambda m: change(m, ("ngramRange",), [1, 3]), "E_MODEL_SETTINGS", id="ngram-range"),
+    pytest.param(lambda m: change(m, ("ngramRange",), [True, 2]), "E_MODEL_SETTINGS", id="ngram-range-true-for-1"),
+    pytest.param(lambda m: m["heads"].pop("priority"), "E_MODEL_SHAPE", id="head-missing"),
+    pytest.param(two_classes_only, "E_MODEL_SHAPE", id="two-classes"),
+    pytest.param(lambda m: change(m, ("heads", "category", "coef"), [[1.0, 0.0, 0.0]] * 2), "E_MODEL_SHAPE", id="coef-two-rows-for-three-classes"),
+    pytest.param(lambda m: change(m, ("heads", "category", "coef", 0), [1.0, 0.0]), "E_MODEL_SHAPE", id="coef-row-short"),
+    pytest.param(lambda m: change(m, ("heads", "category", "idf"), [1.0, 1.0]), "E_MODEL_SHAPE", id="idf-short"),
+    pytest.param(lambda m: change(m, ("heads", "category", "intercept"), [0.0, 0.0]), "E_MODEL_SHAPE", id="intercept-short"),
+    pytest.param(lambda m: change(m, ("heads", "category", "vocabulary"), ["alpha", "beta", "alpha"]), "E_MODEL_SHAPE", id="vocabulary-repeats"),
+    pytest.param(lambda m: change(m, ("heads", "category", "classes"), ["Billing", "Billing", "Low"]), "E_MODEL_SHAPE", id="classes-repeat"),
+    pytest.param(lambda m: change(m, ("heads", "category", "intercept", 0), float("nan")), "E_MODEL_SHAPE", id="intercept-nan"),
+]
+
+
+@pytest.mark.parametrize("damage, code", MALFORMED)
+def test_a_malformed_model_is_refused_as_the_browser_refuses_it(tmp_path, damage, code):
+    # A file the browser cannot load, or loads and misreads (a short coef zipped
+    # against more classes, a NaN intercept that makes one class always win),
+    # must not be judged "the same" by a scorer that accepts it silently.
+    model = toy_model()
+    damage(model)
+    with pytest.raises(ValueError, match=code):
+        load_model(write_model(tmp_path, "bad.json", model))
+
+
+# (head, path inside the head, new value, where the difference is reported)
+DAMAGE = [
+    pytest.param("category", ("classes",), list(reversed(TOY_CLASSES["category"])), "category classes[0]", id="classes"),
+    pytest.param("category", ("vocabulary",), ["gamma", "beta", "alpha"], "category vocabulary[0]", id="vocabulary-order"),
+    pytest.param("category", ("idf", 0), 1.001, "category idf[0]", id="idf"),
+    pytest.param("category", ("coef", 1, 2), 0.001, "category coef[1,2]", id="coef"),
+    pytest.param("priority", ("intercept", 2), 0.001, "priority intercept[2]", id="intercept-of-the-second-head"),
+]
+
+
+@pytest.mark.parametrize("name, path, value, where", DAMAGE)
+def test_a_difference_in_any_part_of_the_model_is_named_by_head_array_and_index(tmp_path, name, path, value, where):
+    # Agreeing on the classes of the evaluation rows says nothing about a part of
+    # the model no row exercises, so every array is compared on its own.
+    other = toy_model()
+    change(other["heads"][name], path, value)
+    found = first_model_difference(
+        load_model(write_model(tmp_path, "a.json", other)), load_model(write_model(tmp_path, "b.json", toy_model()))
+    )
+    assert found is not None
+    assert found.startswith(where)
+
+
+def test_refit_noise_far_below_the_tolerance_is_not_a_difference(tmp_path):
+    # CI refits on another platform, where the solver's last digits differ
+    # (measured about 1e-10 between row orders); that must not fail the check.
+    noisy = toy_model()
+    noisy["heads"]["category"]["coef"][0][0] += 1e-9
+    noisy["heads"]["category"]["idf"][1] += 1e-9
+    noisy["heads"]["priority"]["intercept"][2] += 1e-9
+    found = first_model_difference(
+        load_model(write_model(tmp_path, "a.json", noisy)), load_model(write_model(tmp_path, "b.json", toy_model()))
+    )
+    assert found is None
+
+
+def test_a_vocabulary_term_added_by_hand_exits_one_though_no_evaluation_row_uses_it(tmp_path, capsys):
+    # The tamper that passed the class-only check: a new term, weighted toward
+    # Other, flipped "charged twice please refund zzqxinjected" and no row said it.
+    raw = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    head = raw["heads"]["category"]
+    head["vocabulary"].append("zzqxinjected")
+    head["idf"].append(1.0)
+    for label, weights in zip(head["classes"], head["coef"]):
+        weights.append(50.0 if label == "Other" else 0.0)
+    write_model(tmp_path, "tampered.json", raw)
+    assert main([str(tmp_path / "tampered.json"), str(MODEL_PATH)]) == 1
+    out = capsys.readouterr().out
+    assert "category vocabulary" in out
+    assert "SAME" not in out
+
+
+def test_a_small_change_to_one_coefficient_exits_one(tmp_path, capsys):
+    raw = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    raw["heads"]["category"]["coef"][0][0] += 1e-3
+    write_model(tmp_path, "nudged.json", raw)
+    assert main([str(tmp_path / "nudged.json"), str(MODEL_PATH)]) == 1
+    out = capsys.readouterr().out
+    assert "category coef[0,0]" in out
+    assert "SAME" not in out
 
 
 def test_check_rows_are_every_heldout_row_with_its_fold_then_the_handwritten_rows():
