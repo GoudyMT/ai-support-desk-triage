@@ -213,7 +213,8 @@ default is left blank for the viewer to fill.
   - Threatening or abusive language: category Urgent Complaint whatever the topic, priority Urgent, must-review Yes.
   - Priority by category and wording: Security Concern is Urgent; Accessibility Support and Account Access are
     High; Billing and Technical Issue are Medium, raised to High for words of loss or blocking ("can't work",
-    "charged again"); Product Question is Low; Shipping/Order Issue is Medium, Low for a status question.
+    "charged again"; a duplicate charge such as "charged twice" counts as charged again, owner ruling 2026-10-30;
+    in a two-issue ticket such words in either issue count); Product Question is Low; Shipping/Order Issue is Medium, Low for a status question.
   - Must-review Yes: Security Concern, Accessibility Support, Billing dispute (a disputed or duplicate charge or a
     refund), Urgent Complaint, vague tickets. This is Checkpoint 6's always-review list.
   - The rules live in one module with tests; the generator and the report both read it.
