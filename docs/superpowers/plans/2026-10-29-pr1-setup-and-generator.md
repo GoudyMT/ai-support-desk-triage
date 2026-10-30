@@ -146,6 +146,8 @@ is Low" extend spec C1, which is silent on them; the owner checks them at plan r
 - Produces: `ticketSeed(seed: number, index: number): number` (mixes the two into one 32-bit seed, so each
   ticket is independent of the ones before it).
 
+> SUPERSEDED (2026-10-30): the same-seed first-5 replay row and the ticketSeed stability row were cut in 88d576c
+> (second proofs of the pinned createRng(42) values); see Progress.
 - [ ] **Step 1:** Tests: same seed gives the same first 5 `next()` values; different seeds differ; `int(1, 3)`
   over 3,000 draws hits 1, 2 and 3 and nothing else; `weighted({a: 0, b: 1})` never returns `a`; `pick([])`
   throws; a snapshot of `createRng(42)` first 3 values (Review Focus 1).

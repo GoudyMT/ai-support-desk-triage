@@ -94,8 +94,9 @@ Other) and four priorities (Low, Medium, High, Urgent).
 - Hard cases mixed in on purpose, at a set share of the stream: vague tickets, threatening language, two issues
   in one ticket, typos and slang, words that fool keyword matching ("Canada"), polite tickets about security.
 - One generator, written in TypeScript, used by both sides: a script exports a labeled training set for Python,
-  and the browser uses the same code for the live stream. Every template, slot value and fake-data frame is
-  assigned to one of 4 folds, balanced within each kind of template (grievance, severe, dispute, status). For each
+  and the browser uses the same code for the live stream. Every template, named slot value (product, plan,
+  feature, month) and fake-data frame is assigned to one of 4 folds (greetings, requests, sign-offs and numbers
+  carry no category and are shared), balanced within each kind of template (grievance, severe, dispute, status). For each
   fold the export writes a training set from the other three folds and a held-out set from that fold alone, with
   any held-out ticket whose text also appears in training dropped. The model is scored on every fold in turn
   (grouped cross-validation), so each template is tested once and each score is reported as a mean and a spread.
