@@ -227,15 +227,15 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
     Prediction` (top 5 terms by contribution to the predicted class, for the word chips, spec 5.3).
     Probabilities are a softmax over the class scores (scikit-learn's multinomial form for lbfgs); term
     frequency is `1 + ln(count)` (sublinear), then idf, then L2 normalisation, as scikit-learn does.
-- [ ] **Step 1: Tests:** Python - the JSON round-trips to the same predictions as the fitted pipeline on 200
+- [x] **Step 1: Tests:** Python - the JSON round-trips to the same predictions as the fitted pipeline on 200
   rows. TypeScript unit - tokenizer equals the Python list for `"caf\u00e9 x_y 4o [CARD_NUMBER]"` and
   `"Its 2fa isn't working!!"` (Review Focus 1); bigrams join with one space; an unknown word changes nothing;
   `loadModel` rejects a model missing `idf`. Parity (`npm --prefix web run parity`) - for every row of
   `parity_predictions.jsonl`, TypeScript's class equals Python's (100%, spec 6) and each probability is within
   1e-9; a missing file fails naming the two commands that make it.
-- [ ] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass; record `model.json` size in this plan (size
+- [x] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass; record `model.json` size in this plan (size
   budget A12 is set in PR 4). Break check: drop `sublinear_tf` on the TypeScript side, see parity fail, restore.
-- [ ] **Step 5:** Commit `feat: export the model and score it in TypeScript with a parity test`
+- [x] **Step 5:** Commit `feat: export the model and score it in TypeScript with a parity test`
 
 ### Task 7: CI job for the model
 
@@ -296,3 +296,10 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   scorer uses its own /\b\w\w+\b/g, proved equal by the parity cases.
 - 2026-10-30: the owner locked the raw-accuracy bar, option A: the first run is the floor (spec 6); flag-rate target
   set in PR 3.
+- 2026-10-30: Task 6 done (96874a2, f2c4e7f): parity 16,048 rows, 0 class mismatches, max probability gap 1.22e-15;
+  checker FIX round 1: chips show only words that pushed toward the answer (spec 5.3), settings read from the fitted
+  vectorizer, LF output, fold on parity rows. model.json 3,825,908 bytes (gzip-9 1,373,132; 10 significant digits
+  would give 2,731,480 raw and still hold 1e-9) - for the PR 4 size budget. Lead break check: chip filter loosened -> 3
+  red, restored. Task 7 risk (checker measured): lbfgs stops at tol 1e-4, so start noise of 1e-12 moves probabilities
+  up to 2.2e-9; a Linux fit may miss 1e-9 against the Windows file. Lead ruling: in CI, parity scores the freshly
+  exported model (same fit as its parity file) and check_model compares fresh vs committed by class.
