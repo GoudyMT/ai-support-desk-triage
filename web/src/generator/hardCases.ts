@@ -28,8 +28,8 @@ export const VAGUE_TEMPLATES: readonly Template[] = [
 
 export const THREAT_PHRASES: readonly string[] = [
   'Fix this today or I will take this to my lawyer and every news outlet I can find.',
-  'If I do not hear back by tomorrow you will regret it.',
-  'You people are useless. Sort this out now or I will come down to your office and make a scene.',
+  'If I do not hear back by tomorrow you are going to be sorry.',
+  'You people are useless. Sort this out today or I will turn up at your office and cause a scene.',
   'I will make sure everyone I know hears what a rotten company you are.',
   'Fix it or I will dispute everything and ruin your reputation online.',
   'Do not ignore me again. You will pay for this.',
@@ -49,7 +49,7 @@ export const TWO_ISSUE_CONNECTORS: readonly string[] = [
 // unauthorized, breach or stolen, so a keyword rule cannot find it.
 export const POLITE_SECURITY_TEMPLATES: readonly Template[] = [
   {
-    text: 'Hello, I hope you are having a good day. I noticed a sign-in alert from a city I have never been to, and it was not me. Could someone please look at whether another person is using my login? Thank you so much.',
+    text: 'Hello, I hope you are having a good day. An alert says someone signed in from a city I have never been to, but I did not do that. Could someone please look at whether another person is using my login? Thank you so much.',
   },
   {
     text: "Good afternoon. Sorry to bother you, but my {product} sent invitations to people I don't know. I did not send them. Would you mind checking what happened? I would be very grateful.",
@@ -99,7 +99,7 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'A sign-in from Canada showed up at 3am and I have never been there. Someone else is using my login.' },
   ],
   'Accessibility Support': [
-    { text: 'My screen reader will not read the Pay button at checkout, so I cannot complete the charge.' },
+    { text: 'The Pay button at checkout is silent for my screen reader, so I cannot complete the charge.' },
   ],
   'Product Question': [
     { text: 'Does the {plan} account for time zones when scheduling reports?' },

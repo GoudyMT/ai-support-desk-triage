@@ -42,31 +42,37 @@ export const CATEGORY_TRIGGER_WORDS: readonly string[] = [
 export const TEMPLATES: Record<Category, readonly Template[]> = {
   Billing: [
     {
-      text: 'I was charged {amount} twice for my {plan} this month. Please refund the extra charge.',
+      text: '{amount} came out of my card twice for the {plan} in the same month. Please refund the extra charge.',
       billingDispute: true,
       severe: true,
       grievance: true,
     },
-    { text: 'Could you send me an invoice for my {plan} payment from {date}? I need it for my records.' },
+    { text: 'Could you please send me an invoice for my {plan} payment from {date}? I need it for my records.' },
     { text: 'I would like to move my {plan} from monthly to yearly billing. How will the price change?' },
     { text: 'Please cancel my subscription before it renews on {date}. I do not want to pay for another month.' },
     {
-      text: 'There is a {amount} charge on my statement from {date} and I never signed up for the {plan}. I want a refund.',
+      text: 'A {amount} charge from {date} appeared on my statement for the {plan}. I did not sign up for it, so I want a refund.',
       billingDispute: true,
       grievance: true,
     },
     {
-      text: 'My card was charged again after I cancelled. This is the second time and I need it sorted out.',
+      text: 'I cancelled last month, yet my card was charged again today. This is the second time and I need it sorted out.',
       billingDispute: true,
       severe: true,
       grievance: true,
     },
-    { text: 'The receipt for {amount} shows the wrong company name. Can you correct it?' },
+    { text: 'The receipt for {amount} lists a different company name than mine. Can you correct it?' },
     { text: 'Is sales tax included in the {amount} I paid for the {plan}? The receipt does not say.' },
   ],
   'Technical Issue': [
-    { text: "{product} crashes every time I open a large file. I can't work until this is fixed.", severe: true, grievance: true },
-    { text: 'The export button in {product} shows an error message and nothing downloads.' },
+    { text: "{product} crashes every time a large file is opened. I can't work until this is fixed.", severe: true, grievance: true },
+    {
+      text: '{product} keeps crashing on my phone. It has happened every day this week and my team is waiting on me.',
+      severe: true,
+      grievance: true,
+    },
+    { text: '{product} crashed once this morning, but it opened normally after a restart. Just letting you know.' },
+    { text: 'Could you please look at the export button in {product}? It shows an error message and nothing downloads.' },
     { text: '{product} is slow today. Pages take about {seconds} seconds to load.' },
     { text: 'Uploads keep failing at 90 percent in {product}. I have tried three times.' },
     { text: 'The mobile app for {product} has stopped working on my tablet since the last update.', grievance: true },
@@ -78,10 +84,13 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'There is a bug where the date filter in {product} resets when I refresh the page. Minor, but annoying.' },
   ],
   'Account Access': [
-    { text: "I can't log in to {product}. The password reset email never arrives.", grievance: true },
+    { text: "I can't log in to {product}, and the email to reset my password never shows up.", grievance: true },
     { text: 'Locked out after too many password attempts. Please unlock my account.', grievance: true },
-    { text: 'How do I change the email address on my account? I no longer use the old one.' },
-    { text: 'My two-factor codes are rejected when I sign in, so I am locked out of {product}.', grievance: true },
+    { text: 'Would you mind telling me how to change the email address on my account? I no longer use the old one.' },
+    {
+      text: 'The verification code from my authenticator app is rejected when I sign in, so I am locked out of {product}.',
+      grievance: true,
+    },
     { text: 'I was removed from the Team workspace by mistake. Can you restore my access?' },
     { text: 'A new hire needs access to {product}. Our admin is away. What can we do?' },
     { text: 'cant get in, it says my account is disabled' },
@@ -96,19 +105,19 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: "A form on your site shows other people's names in the web address. This looks like a security hole." },
   ],
   'Accessibility Support': [
-    { text: 'The screen reader I use cannot read the buttons in {product}. They are only announced as "button".', grievance: true },
+    { text: 'With a screen reader, the buttons in {product} are announced only as "button", so I cannot tell them apart.', grievance: true },
     { text: "I'm colorblind and the red and green status labels look the same in {product}. Can you add another indicator?" },
-    { text: "Can {product} be used with only a keyboard? I can't use a mouse because of a hand injury." },
+    { text: "Would you mind telling me whether {product} can be used with only a keyboard? I can't use a mouse because of a hand injury." },
     { text: "The text in the {product} app is too small and I can't make it larger. I have low vision.", grievance: true },
-    { text: "Your video tutorials have no captions. I'm deaf and can't follow them.", grievance: true },
+    { text: "The tutorials on your site come without captions. I am deaf, so I can't follow along.", grievance: true },
     { text: 'Our company must meet ADA requirements. Does {product} have an accessibility statement?' },
     { text: 'The pop-up in {product} traps my keyboard focus and I have to restart my computer to get out of it.', grievance: true },
   ],
   'Product Question': [
     { text: 'Does the {plan} include {feature}? Trying to decide before I upgrade.' },
     { text: 'What is the difference between the {plan} and the {otherPlan}?' },
-    { text: 'Does {product} support {feature}? I could not find it in the settings.' },
-    { text: 'Do you have a student discount? Not urgent, just curious.' },
+    { text: 'Would you mind telling me whether {product} supports {feature}? I could not find it in the settings.' },
+    { text: 'Do students get a lower price? Not urgent, just curious.' },
     { text: 'Can several people edit the same report in {product} at once?' },
     { text: 'How many seats are included in the {plan}?' },
     { text: 'Is there an API for {product}? We would like to connect it to our internal tools.' },
@@ -116,7 +125,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
   ],
   'Urgent Complaint': [
     {
-      text: "This is the third time I've written about the same problem and nobody has answered. I'm very unhappy with your service.",
+      text: "I have emailed three times about one problem and no one has replied. I'm very unhappy with your service.",
       grievance: true,
     },
     {
@@ -129,7 +138,7 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     },
     { text: 'Absolutely unacceptable. I was promised a callback on {date} and never got one.', grievance: true },
     {
-      text: "I've been a customer for years and this is the worst experience I have had. I want to speak to a manager.",
+      text: "I've been a customer for years and this is the worst experience I have had. I would like a manager to call me.",
       grievance: true,
     },
     {
@@ -140,25 +149,25 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
   ],
   'Shipping/Order Issue': [
     {
-      text: 'Where is my order? It was supposed to arrive on {date} and the tracking has not changed.',
+      text: 'Is there any update on my order? The delivery was due on {date} and the tracking has not changed.',
       statusQuestion: true,
       grievance: true,
     },
-    { text: 'My package arrived with a crushed box and the item inside is damaged.', grievance: true },
-    { text: 'I received the wrong size. Can I exchange it?' },
+    { text: 'My package was badly dented when it arrived and the item inside is damaged.', grievance: true },
+    { text: 'They sent me the wrong size. Can I exchange it?' },
     {
       text: 'Order status please. I placed it {days} days ago and have heard nothing since.',
       statusQuestion: true,
       grievance: true,
     },
     { text: 'The tracking says delivered, but nothing is at my door.', grievance: true },
-    { text: 'I need to change my delivery address before the order ships.' },
+    { text: 'Could you please change my delivery address before the order ships?' },
     { text: 'One item was missing from my order. The rest arrived on {date}.', grievance: true },
   ],
   Other: [
-    { text: 'Do you have a phone number for your head office? I would like to send a letter.' },
+    { text: 'Could you please give me a phone number for your head office? I would like to send a letter.' },
     { text: 'I would like to suggest a partnership between our company and yours. Who should I talk to?' },
-    { text: 'Just wanted to say thanks, your team helped me last week and it was great.' },
+    { text: 'A quick thank you to your team for helping me last week. It went really well.' },
     { text: 'Are you hiring? I could not find a careers page.' },
     { text: 'Please remove me from your marketing emails. I have asked before.', grievance: true },
     { text: 'I am a journalist writing about small software companies. Who handles press requests?' },
@@ -166,17 +175,21 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
   ],
 };
 
-// Short and plain on purpose: none of these names a category.
+// Short and plain on purpose: none of these names a category. The formal and
+// grateful ones are here too, so politeness shows up in every category and
+// never tells the model which one a ticket belongs to.
 export const OPENERS: readonly string[] = [
   'Hi,', 'Hello,', 'Hi there,', 'Good morning,', 'To whom it may concern,', 'Hey,',
+  'Good afternoon,', 'Dear support,', 'Hello team,',
 ];
 
 export const CLOSERS: readonly string[] = [
   'Thanks.', 'Thank you.', 'Please advise.', 'Appreciate any help.', 'Cheers.', 'Regards.',
+  'Thank you so much.', 'Many thanks.',
 ];
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const PRODUCTS = ['Nimbus sync', 'Harbor reports', 'Beacon dashboard', 'Team workspace', 'Orchard scheduler'];
+const PRODUCTS = ['Nimbus sync', 'Harbor reports', 'Quillfold dashboard', 'Team workspace', 'Orchard scheduler'];
 const PLANS = ['Pro plan', 'Team plan', 'Starter plan', 'Business plan'];
 const FEATURES = ['dark mode', 'audit logs', 'scheduled reports', 'shared folders', 'single sign-on', 'CSV export', 'offline mode', 'custom roles'];
 
@@ -217,7 +230,9 @@ export function fillSlots(text: string, rng: Rng): string {
     if (known !== undefined) {
       return known;
     }
-    const fill = SLOTS[name];
+    // An own-property check: a plain object also answers to names every object
+    // inherits, such as constructor and __proto__.
+    const fill = Object.hasOwn(SLOTS, name) ? SLOTS[name] : undefined;
     if (fill === undefined) {
       throw new Error('E_UNKNOWN_SLOT');
     }

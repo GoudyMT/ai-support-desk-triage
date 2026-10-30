@@ -1,8 +1,8 @@
 import type { Category } from '../domain/labels';
 import type { Rng } from './rng';
 
-// Share of tickets that carry fake personal data, so the privacy stage in a
-// later PR has something to find.
+// Share of tickets that carry fake personal data, so the privacy masking step
+// has something to find.
 export const FAKE_DATA_SHARE = 0.15;
 
 type Kind = 'email' | 'phone' | 'order' | 'card';

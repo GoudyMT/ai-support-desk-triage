@@ -39,6 +39,10 @@ export interface TicketDetail {
   plainText: string;
 }
 
+const MAX_SEED = 0xffffffff;
+// Far above the largest export (20,000), low enough that a typo in a count
+// cannot freeze the page.
+const MAX_TICKETS = 100_000;
 const NO_HARD_CASE = 'none';
 const OPENER_CHANCE = 0.4;
 const CLOSER_CHANCE = 0.4;
@@ -142,6 +146,11 @@ function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined): strin
 }
 
 export function generateTicketDetail(seed: number, index: number): TicketDetail {
+  // The seed mixing works on 32 bits, so a seed or index outside them would
+  // wrap and repeat another ticket without any sign of it.
+  if (!Number.isInteger(seed) || seed < 0 || seed > MAX_SEED || !Number.isInteger(index) || index < 0) {
+    throw new Error('E_SEED_RANGE');
+  }
   // Only (seed, index) feeds the generator, so ticket i never depends on the
   // tickets before it.
   const rng = createRng(ticketSeed(seed, index));
@@ -178,5 +187,8 @@ export function generateTicket(seed: number, index: number): Ticket {
 }
 
 export function generateTickets(seed: number, count: number): Ticket[] {
+  if (!Number.isInteger(count) || count < 0 || count > MAX_TICKETS) {
+    throw new Error('E_COUNT_RANGE');
+  }
   return Array.from({ length: count }, (_, index) => generateTicket(seed, index));
 }

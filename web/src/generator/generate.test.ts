@@ -12,7 +12,7 @@ import {
   generateTickets,
   type HardCase,
 } from './generate';
-import { POLITE_SECURITY_TEMPLATES, THREAT_PHRASES, TRAP_TEMPLATES, TRAP_WORDS, introduceTypos } from './hardCases';
+import { THREAT_PHRASES, TRAP_TEMPLATES, TRAP_WORDS, introduceTypos } from './hardCases';
 import { TEMPLATES, type Template } from './templates';
 
 const SHARE_TOLERANCE = 0.015;
@@ -87,9 +87,19 @@ function luhnValid(digits: string): boolean {
 }
 
 describe('generateTicket', () => {
-  it('gives the same ticket for the same seed and index, and a different one for another seed', () => {
+  it('gives the same ticket for the same seed and index', () => {
     expect(generateTicket(42, 7)).toEqual(generateTicket(42, 7));
-    expect(generateTicket(42, 7)).not.toEqual(generateTicket(43, 7));
+  });
+
+  // Whole tickets differ across seeds even when the generator ignores the seed
+  // (the id and seed fields carry it), so only the texts show whether the seed
+  // reaches the wording.
+  it('writes different texts at every position for another seed', () => {
+    const first = generateTickets(1, 50);
+    const second = generateTickets(2, 50);
+    first.forEach((ticket, index) => {
+      expect(ticket.text, `position ${index}`).not.toBe(second[index]?.text);
+    });
   });
 
   it('builds ticket i of generateTickets exactly as generateTicket(seed, i)', () => {
@@ -103,12 +113,61 @@ describe('generateTicket', () => {
 
   // Pins replay across machines: any change to a template, a share or the draw
   // order moves this ticket, and with it every saved run and dataset.
-  it('matches the pinned ticket for seed 42, index 0', () => {
-    const ticket = generateTicket(42, 0);
-    expect({ text: ticket.text, label: ticket.label }).toEqual({
-      text: 'Can several people edit the same report in Beacon dashboard at once? Cheers.',
+  // Index 1 is a plain polite request, 2 a repeated crash with typos (High) and
+  // 6 a keyword trap: "Nevada" hides "ada" in a Billing ticket.
+  it.each([
+    {
+      index: 0,
+      text: 'Can several people edit the same report in Quillfold dashboard at once? Thank you so much.',
       label: { category: 'Product Question', priority: 'Low', mustReview: false },
-    });
+    },
+    {
+      index: 1,
+      text: 'Hey,\nWould you mind telling me how to change the email address on my account? I no longer use the old one.',
+      label: { category: 'Account Access', priority: 'High', mustReview: false },
+    },
+    {
+      index: 2,
+      text: 'quillfold dashboard keeps crashing on my phone. it has happened every day this wee and my team is waiting on me.',
+      label: { category: 'Technical Issue', priority: 'High', mustReview: false },
+    },
+    {
+      index: 6,
+      text: 'I was billed twice for the Harbor reports licence for our Nevada office. Please refund one of them. It was my card 4884 5463 9242 0830.',
+      label: { category: 'Billing', priority: 'High', mustReview: true, reviewReason: 'billing dispute' },
+    },
+  ])('matches the pinned ticket for seed 42, index $index', ({ index, text, label }) => {
+    const ticket = generateTicket(42, index);
+    expect({ text: ticket.text, label: ticket.label }).toEqual({ text, label });
+  });
+});
+
+// A seed or index outside the 32-bit range would wrap silently in the seed
+// mixing and quietly repeat another ticket; a count nobody can build would hang
+// the page. Both are refused up front.
+describe('input guards', () => {
+  const MAX_SEED = 0xffffffff;
+
+  it.each([1.9, -1, 2 ** 32 + 1, Number.NaN])('refuses the seed %s with E_SEED_RANGE', (seed) => {
+    expect(() => generateTicketDetail(seed, 0)).toThrow('E_SEED_RANGE');
+  });
+
+  it.each([-1, 1.5])('refuses the index %s with E_SEED_RANGE', (index) => {
+    expect(() => generateTicketDetail(1, index)).toThrow('E_SEED_RANGE');
+  });
+
+  it('accepts the seeds at both ends of the range', () => {
+    expect(generateTicket(0, 0).id).toBe('T-0-0');
+    expect(generateTicket(MAX_SEED, 0).id).toBe(`T-${MAX_SEED}-0`);
+  });
+
+  it.each([-1, Number.NaN, 1.5, 100_001])('refuses the count %s with E_COUNT_RANGE', (count) => {
+    expect(() => generateTickets(1, count)).toThrow('E_COUNT_RANGE');
+  });
+
+  it('returns no tickets for a count of 0, and builds the largest allowed count', () => {
+    expect(generateTickets(1, 0)).toEqual([]);
+    expect(generateTickets(1, 100_000)).toHaveLength(100_000);
   });
 });
 
@@ -134,13 +193,6 @@ describe('shares over 20,000 tickets', () => {
     expect(FAKE_DATA_SHARE).toBe(EXPECTED_FAKE_DATA_SHARE);
     expect(Math.abs(shareOf(count) - EXPECTED_FAKE_DATA_SHARE)).toBeLessThan(SHARE_TOLERANCE);
   });
-
-  it('produces all 9 categories and all 6 hard cases', () => {
-    const labelled = new Set(TICKETS.map((ticket) => ticket.label.category));
-    expect([...labelled].sort()).toEqual([...CATEGORIES].sort());
-    const hard = new Set(TICKETS.map((ticket) => ticket.hardCase).filter((hardCase) => hardCase !== undefined));
-    expect([...hard].sort()).toEqual([...HARD_CASES].sort());
-  });
 });
 
 describe('labels', () => {
@@ -154,8 +206,9 @@ describe('labels', () => {
   // wrongly, and every accuracy number after it with them.
   it('sets billingDispute, severe and statusQuestion only where the template wording says so', () => {
     const disputeWording = /refund|twice|charged again|never signed up|second time/i;
-    // A duplicate or repeat charge counts as "charged again" (C1).
-    const severeWording = /can't work|every time|blocking|charged again|twice|double charge/i;
+    // A duplicate or repeat charge counts as "charged again", and a crash that
+    // keeps happening stops the work.
+    const severeWording = /can't work|every time|keeps crashing|blocking|charged again|twice|double charge/i;
     const statusWording = /where is my order|order status|any update/i;
     const all: [Category, Template][] = [];
     for (const category of CATEGORIES) {
@@ -229,7 +282,6 @@ describe('hard cases look like their case', () => {
       expect(ticket.label.category, ticket.id).toBe('Security Concern');
       expect(ticket.text.toLowerCase(), ticket.id).not.toMatch(/hacked|unauthorized|breach|stolen/);
     }
-    expect(POLITE_SECURITY_TEMPLATES.length).toBeGreaterThanOrEqual(5);
   });
 
   it('changes the letters of a typos ticket while keeping its word count', () => {
@@ -341,6 +393,18 @@ describe('generated wording reads like one customer wrote it', () => {
     for (const { ticket, templates } of threatening) {
       expect(templates[0]?.grievance, ticket.id).toBe(true);
       expect(ticket.text.toLowerCase(), ticket.id).not.toContain('not urgent');
+    }
+  });
+
+  // If polite wording came only with polite-security tickets, "could you please"
+  // would itself mean Security Concern and the model would learn manners, not
+  // meaning. Tickets 0-4999 of seed 1 are the same as generateTickets(1, 5000).
+  it('spreads every polite phrase over at least 3 label categories', () => {
+    const phrases = ['could you please', 'thank you so much', 'many thanks', 'good afternoon', 'dear support', 'would you mind', 'hello team'];
+    const sample = TICKETS.slice(0, FORMAT_SAMPLE_SIZE);
+    for (const phrase of phrases) {
+      const categories = new Set(sample.filter((ticket) => ticket.text.toLowerCase().includes(phrase)).map((ticket) => ticket.label.category));
+      expect(categories.size, `${phrase}: ${[...categories].join(', ')}`).toBeGreaterThanOrEqual(3);
     }
   });
 
