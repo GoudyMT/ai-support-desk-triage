@@ -37,7 +37,7 @@ function runOriginalPage(ticket: string): V0Result {
   const priority = /<span class="priority-[a-z]+">([^<]+)<\/span>/.exec(html)?.[1];
   const review = /class="badge (review-yes|review-no)"/.exec(html)?.[1];
   if (category === undefined || priority === undefined || review === undefined) {
-    throw new Error(`page output not readable for: ${ticket}`);
+    throw new Error('E_TEST_PAGE_OUTPUT');
   }
   return { category: category as Category, priority: priority as Priority, mustReview: review === 'review-yes' };
 }
@@ -70,6 +70,39 @@ describe('v0Triage matches the original prototype page', () => {
     for (const ticket of tickets) {
       expect({ id: ticket.id, ...v0Triage(ticket.text) }).toEqual({ id: ticket.id, ...runOriginalPage(ticket.text) });
     }
+  });
+
+  // The tickets above rarely isolate a single keyword, so a misspelled keyword in the
+  // port could hide behind another one. Each of the page's 22 keywords gets its own
+  // ticket. The four security words only count inside the account block, so they
+  // follow an account word.
+  const KEYWORD_TICKETS = [
+    'charge',
+    'billed',
+    'billing',
+    'subscription',
+    'refund',
+    'access',
+    'login',
+    'password',
+    'account',
+    'credentials',
+    'account someone',
+    'account unauthorized',
+    'account hacked',
+    'account permission',
+    'crash',
+    'error',
+    'bug',
+    'upload',
+    'not working',
+    'screen reader',
+    'accessibility',
+    'ada',
+  ];
+
+  it.each(KEYWORD_TICKETS)('agrees with the page on the keyword ticket "%s"', (ticket) => {
+    expect(v0Triage(ticket)).toEqual(runOriginalPage(ticket));
   });
 
   it('keeps the original quirks, because v0 is the yardstick and is never fixed', () => {
