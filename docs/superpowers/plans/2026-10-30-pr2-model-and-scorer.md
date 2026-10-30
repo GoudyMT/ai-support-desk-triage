@@ -248,11 +248,11 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
 - New CI job `model` (ubuntu, Python 3.12.2 via `actions/setup-python` pinned to a full commit, Node 22.22.3):
   `npm ci`, export, venv + `pip install -r ml/requirements.txt`, `pytest ml/tests`, export the model to a temp
   path, `check_model` against the committed file, then `npm run parity`.
-- [ ] **Step 1: Tests:** `check_model` on two equal models exits 0; with one coefficient sign flipped so a
+- [x] **Step 1: Tests:** `check_model` on two equal models exits 0; with one coefficient sign flipped so a
   row's class changes, exits 1 and names that row.
-- [ ] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass locally; the CI run itself is seen after the
+- [x] **Step 2:** Fail. **Step 3:** Implement. **Step 4:** Pass locally; the CI run itself is seen after the
   owner's go to push.
-- [ ] **Step 5:** Commit `ci: retrain the model in CI and check it matches the committed one`
+- [x] **Step 5:** Commit `ci: retrain the model in CI and check it matches the committed one`
 
 ### Task 8 (lead): close out
 
@@ -303,3 +303,8 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   red, restored. Task 7 risk (checker measured): lbfgs stops at tol 1e-4, so start noise of 1e-12 moves probabilities
   up to 2.2e-9; a Linux fit may miss 1e-9 against the Windows file. Lead ruling: in CI, parity scores the freshly
   exported model (same fit as its parity file) and check_model compares fresh vs committed by class.
+- 2026-10-30: Task 7 done (6e8d336): 35 Python tests; CI job `model` (setup-python v7.0.0, v7.1.0 under 14 days);
+  parity reads PARITY_MODEL in CI. Lead: 3 clean pytest runs, break check (priority head ignored -> 1 red), every CI step
+  run locally: check_model SAME on 16,048 rows, parity 4 passed on a fresh export. Linux run unseen until push. The
+  builder saw random Python crashes (access violations); the PC logs recurring WHEA corrected CPU errors since
+  2026-10-05 on an i9-13900KS with a June 2023 BIOS (owner told).
