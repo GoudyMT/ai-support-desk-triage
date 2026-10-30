@@ -201,7 +201,7 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   from `text`; the 2-point bar applies to the mean over the 4 folds, per-fold values reported beside it; the check
   is a one-off scratch script over `triage.train.fit_models` and `triage.evaluate.score_rows`, not committed.
 - [x] Run the evaluation; post the numbers (per fold, mean and spread, hand-written k of n, v0 beside each).
-- [ ] The owner sets the raw-accuracy bar and the flag-rate target note (spec 10.2) before any tuning. If the
+- [x] The owner sets the raw-accuracy bar and the flag-rate target note (spec 10.2) before any tuning. If the
   model misses Q5 on any fold: stop, Re-Plan on Failure, options to the owner.
 - [x] Commit `ml/reports/eval.json`: `feat: record the first per-fold evaluation against v0`
 
@@ -294,3 +294,5 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   four tokens stay. Raw-accuracy bar: asked the owner (recommended: this run as the floor). Flag-rate target moves to
   PR 3 (it needs the confidence floor). Task 6 note: JavaScript rejects the inline flag in TOKEN_PATTERN; the TS
   scorer uses its own /\b\w\w+\b/g, proved equal by the parity cases.
+- 2026-10-30: the owner locked the raw-accuracy bar, option A: the first run is the floor (spec 6); flag-rate target
+  set in PR 3.
