@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Category } from './labels';
+import { ROUTES, type Category } from './labels';
 import { labelTicket, primaryCategory, type TicketFacts } from './labelRules';
 
 // Written out here, not read from RISK_ORDER, so a reordered constant cannot
@@ -16,6 +16,23 @@ const EXPECTED_RISK_ORDER: readonly Category[] = [
   'Other',
 ];
 
+// Written out here, not read from ROUTES. The route is a fixed function of the
+// category (design C3); the six teams v0 already names (Billing, Account
+// Support, Security, Technical Support, Accessibility, General Support) keep
+// their v0 names, so a renamed team in the Take over screen and the end report
+// would no longer match what v0 shows for the same ticket.
+const EXPECTED_ROUTES: Record<Category, string> = {
+  Billing: 'Billing Team',
+  'Technical Issue': 'Technical Support',
+  'Account Access': 'Account Support',
+  'Security Concern': 'Security Team',
+  'Accessibility Support': 'Accessibility Team',
+  'Product Question': 'Product Specialists',
+  'Urgent Complaint': 'Escalations Team',
+  'Shipping/Order Issue': 'Fulfillment Team',
+  Other: 'General Support',
+};
+
 function facts(overrides: Partial<TicketFacts> = {}): TicketFacts {
   return {
     issues: ['Product Question'],
@@ -27,6 +44,12 @@ function facts(overrides: Partial<TicketFacts> = {}): TicketFacts {
     ...overrides,
   };
 }
+
+describe('routes: one team per category', () => {
+  it('names exactly the nine teams, the v0 ones unchanged', () => {
+    expect(ROUTES).toEqual(EXPECTED_ROUTES);
+  });
+});
 
 describe('rule 1: a threat is an urgent complaint that must be reviewed', () => {
   it('labels it Urgent Complaint / Urgent and keeps the underlying issue as secondary', () => {

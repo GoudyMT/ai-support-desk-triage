@@ -1,6 +1,8 @@
 import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAX_TICKETS, generateTicket, generateTickets, type Pool, type Ticket } from '../src/generator/generate';
+import { MAX_TICKETS, generateTicket, generateTickets, type Split, type Ticket } from '../src/generator/generate';
+import { FOLDS } from '../src/generator/templates';
 
 export const TRAIN_SEED = 1;
 export const HELDOUT_SEED = 2;
@@ -19,9 +21,9 @@ function checkExportSeed(seed: number): void {
   }
 }
 
-export function exportTickets(seed: number, count: number, pool: Pool = 'all'): Ticket[] {
+export function exportTickets(seed: number, count: number, split: Split = 'all'): Ticket[] {
   checkExportSeed(seed);
-  return generateTickets(seed, count, pool);
+  return generateTickets(seed, count, split);
 }
 
 // Lower case, every run of characters that are not letters or digits as one
@@ -34,13 +36,14 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
-// The pools keep held-out wording apart from training wording, so no held-out
-// text should be in the training set. This is the guard for the day two lists
-// come to hold the same sentence: a ticket whose normalised text is in the
+// A fold keeps its held-out wording apart from its training wording, so no
+// held-out text should be in the training set. This is the guard for the day two
+// lists come to hold the same sentence: a ticket whose normalised text is in the
 // training set is skipped (its index is not reused), so the score never rewards
 // remembering a training text.
 export function exportHeldout(
   seed: number,
+  fold: number,
   trainTexts: ReadonlySet<string>,
   count: number,
   walkLimit: number = MAX_TICKETS,
@@ -48,7 +51,7 @@ export function exportHeldout(
   checkExportSeed(seed);
   const kept: Ticket[] = [];
   for (let index = 0; index < walkLimit && kept.length < count; index += 1) {
-    const ticket = generateTicket(seed, index, 'heldout');
+    const ticket = generateTicket(seed, index, { fold, side: 'heldout' });
     if (!trainTexts.has(normalizeText(ticket.text))) {
       kept.push(ticket);
     }
@@ -59,15 +62,27 @@ export function exportHeldout(
   return kept;
 }
 
-export function buildDatasets(): { train: Ticket[]; heldout: Ticket[] } {
-  const train = exportTickets(TRAIN_SEED, TRAIN_COUNT, 'train');
-  const trainTexts = new Set(train.map((ticket) => normalizeText(ticket.text)));
-  return { train, heldout: exportHeldout(HELDOUT_SEED, trainTexts, HELDOUT_COUNT) };
+export interface FoldDataset {
+  fold: number;
+  train: Ticket[];
+  heldout: Ticket[];
 }
 
-// Every line carries all eight keys, with null for what a ticket lacks, so the
-// reader on the Python side never has to guess whether a key is missing.
-export function toJsonl(tickets: Ticket[]): string {
+// Fold k trains on the wording of the other three folds and is scored on its own.
+export function buildFold(fold: number): FoldDataset {
+  const train = exportTickets(TRAIN_SEED, TRAIN_COUNT, { fold, side: 'train' });
+  const trainTexts = new Set(train.map((ticket) => normalizeText(ticket.text)));
+  return { fold, train, heldout: exportHeldout(HELDOUT_SEED, fold, trainTexts, HELDOUT_COUNT) };
+}
+
+export function buildDatasets(): FoldDataset[] {
+  return Array.from({ length: FOLDS }, (_, fold) => buildFold(fold));
+}
+
+// Every line carries all nine keys, with null for what a ticket lacks, so the
+// reader on the Python side never has to guess whether a key is missing. `fold`
+// names the fold the file belongs to.
+export function toJsonl(tickets: Ticket[], fold: number): string {
   return tickets
     .map((ticket) =>
       JSON.stringify({
@@ -79,22 +94,34 @@ export function toJsonl(tickets: Ticket[]): string {
         mustReview: ticket.label.mustReview,
         reviewReason: ticket.label.reviewReason ?? null,
         hardCase: ticket.hardCase ?? null,
+        fold,
       }) + '\n',
     )
     .join('');
 }
 
-function writeDataset(fileName: string, tickets: Ticket[]): void {
-  const target = fileURLToPath(new URL(fileName, OUTPUT_DIR));
-  writeFileSync(target, toJsonl(tickets), 'utf8');
-  console.log(`wrote ${target} (${tickets.length} rows)`);
+// Two files per fold, train_<k>.jsonl and heldout_<k>.jsonl. Returns each file
+// written with its row count.
+export function writeDatasets(outputDir: string, datasets: FoldDataset[]): { target: string; rows: number }[] {
+  mkdirSync(outputDir, { recursive: true });
+  const written: { target: string; rows: number }[] = [];
+  for (const { fold, train, heldout } of datasets) {
+    for (const [name, tickets] of [
+      [`train_${fold}.jsonl`, train],
+      [`heldout_${fold}.jsonl`, heldout],
+    ] as const) {
+      const target = join(outputDir, name);
+      writeFileSync(target, toJsonl(tickets, fold), 'utf8');
+      written.push({ target, rows: tickets.length });
+    }
+  }
+  return written;
 }
 
 function main(): void {
-  mkdirSync(fileURLToPath(OUTPUT_DIR), { recursive: true });
-  const { train, heldout } = buildDatasets();
-  writeDataset('train.jsonl', train);
-  writeDataset('heldout.jsonl', heldout);
+  for (const { target, rows } of writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets())) {
+    console.log(`wrote ${target} (${rows} rows)`);
+  }
 }
 
 // True when this file is the command being run. Both paths are resolved first:

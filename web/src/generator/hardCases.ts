@@ -24,17 +24,17 @@ export const VAGUE_TEMPLATES: readonly Template[] = [
   { text: 'Please fix it. You know what I mean.' },
   { text: "Not sure who to ask. It happened again today and I don't know what to do." },
   { text: 'I have a question but it is complicated. Can we talk?' },
-  { text: 'It stopped doing what it did yesterday. I am not sure what changed.' },
+  { text: 'It stopped doing what it did yesterday and nobody knows what changed.' },
   { text: 'Can a real person call me back this afternoon? It is hard to explain in writing.' },
   { text: 'I tried what you told me last time and it did not help. Where do we go from here?' },
-  { text: 'A friend said I should write to you about this. I am not sure I have the right place.' },
+  { text: 'A friend said I should write to you about this. Maybe this is the wrong place.' },
   { text: 'Same thing as last week again. I would rather not go through it all in writing.' },
 ];
 
 export const THREAT_PHRASES: readonly string[] = [
   'Fix this today or I will take this to my lawyer and every news outlet I can find.',
   'If I do not hear back by tomorrow you are going to be sorry.',
-  'You people are useless. Sort this out today or I will turn up at your office and cause a scene.',
+  'You people are useless. Get this sorted by tonight, or I will turn up at your office and cause a scene.',
   'I will make sure everyone I know hears what a rotten company you are.',
   'Fix it or I will dispute everything and ruin your reputation online.',
   'Do not ignore me again. You will pay for this.',
@@ -43,7 +43,7 @@ export const THREAT_PHRASES: readonly string[] = [
   'Consider this my final warning. The next message goes to your chief executive and the press.',
   'I am done being polite. Sort this out today, or this goes very public.',
   'My solicitor has already been told about this and will write to you if I hear nothing by Friday.',
-  'Keep ignoring me and I will make sure every review site hears exactly what happened.',
+  'Keep ignoring me and every review site will hear exactly what happened, I promise you.',
 ];
 
 // Sentence-length joiners, so the second template keeps its own capital letter.
@@ -63,44 +63,23 @@ export const TWO_ISSUE_CONNECTORS: readonly string[] = [
 ];
 
 // Each polite ticket is a real security report with none of hacked,
-// unauthorized, breach or stolen, so a keyword rule cannot find it.
+// unauthorized, breach or stolen, so a keyword rule cannot find it. The report
+// itself is plain; its politeness comes from the shared openers, requests and
+// closers (see addVoice), because a polite phrase found only in these templates
+// would tell the model "security" by its manners.
 export const POLITE_SECURITY_TEMPLATES: readonly Template[] = [
-  {
-    text: 'Hello, I hope you are having a good day. An alert says someone signed in from a city I have never been to, but I did not do that. Could someone please look at whether another person is using my login? Thank you so much.',
-  },
-  {
-    text: "Good afternoon. Sorry to bother you, but my {product} sent invitations to people I don't know. I did not send them. Would you mind checking what happened? I would be very grateful.",
-  },
-  {
-    text: "Hi, thank you for your help last time. I think someone else may know my password, because my settings changed overnight and I didn't change them. Could you please secure my account when you have a moment?",
-  },
-  {
-    text: 'Hello team, a quick and polite note: my phone was lost on the train this morning and it is still signed in to {product}. Could you please end that session so nobody else can use it?',
-  },
-  {
-    text: "Dear support, I wanted to flag, kindly, that I received a password reset email I never asked for, twice today. I'm a little worried that somebody is trying to get into my account. Many thanks.",
-  },
-  {
-    text: "Hi there! No rush at all, but I found two devices in my {product} device list that I don't recognize. Could you help me remove them and make sure my account is safe? Thanks a lot.",
-  },
-  {
-    text: 'Good morning. I am sure it is nothing, but a login code I never requested arrived by text just now. Could you please check whether anyone else is trying to use my {product} login? Many thanks.',
-  },
-  {
-    text: 'Hello, I hope your week is going well. The recovery email on my profile was replaced with one I do not recognise. Would you be able to put the old one back and tell me how it happened? Thank you.',
-  },
-  {
-    text: 'Hi, quick question when you have a moment. The last sign-in shown on my {product} page is from a device I have never owned. Is there a way to sign it out? Appreciate any help.',
-  },
-  {
-    text: 'Dear team, I am writing politely because a friend told me her messages seemed to come from my {product} login, and I did not send any of them. Could you look into it, please? Regards.',
-  },
-  {
-    text: 'Good evening, and sorry to trouble you. Two-step verification on my {product} was switched off and I certainly did not do it. Please could you turn it back on and check how this happened? Cheers.',
-  },
-  {
-    text: 'Hello there, you were so helpful before. My saved payment details were changed and I did not touch them, so I worry that another person is using my login. Could you please freeze it until we know more? Thank you.',
-  },
+  { text: 'The alert on my phone says a sign-in happened from a city far from where I live, and nobody here did that.' },
+  { text: 'My {product} sent invitations to people I do not know, though I never sent them.' },
+  { text: 'My settings changed overnight although I had not touched them, so someone else may know my password.' },
+  { text: 'My phone was lost on the train this morning and it still has {product} open on it.' },
+  { text: 'A password reset email reached me twice today that nobody here requested, and somebody may be trying to enter my account.' },
+  { text: 'Two devices in my {product} device list are not ones I have ever used.' },
+  { text: 'A one-time code from {product} arrived by text just now, though nobody here tried to log in.' },
+  { text: 'The recovery email on my profile was replaced with an address I do not recognise.' },
+  { text: 'My {product} page lists a recent session on a computer that was never mine.' },
+  { text: 'A friend told me her messages seemed to come from my {product} login, and I sent none of them.' },
+  { text: 'Two-step verification on my {product} was switched off and I certainly did not do it.' },
+  { text: 'My saved payment details were changed without me touching them, so I wonder who else is in my profile.' },
 ];
 
 // What v0's text.includes() rules would answer for each innocent substring.
@@ -115,13 +94,13 @@ export const TRAP_WORDS: Record<string, Category> = {
 
 // One or more per category so the category draw (and so every category share)
 // does not change when a ticket becomes a trap. Each text carries a trap word
-// whose suggested category is not the template's own. Every list has at least
-// four, so the held-out pool (every fourth) is never empty.
+// whose suggested category is not the template's own. Every list has eight, two
+// per fold, so no fold's held-out side is empty.
 export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
   Billing: [
     { text: 'Adam in our finance team needs the {plan} receipt from {date}. Where can he download it?' },
     {
-      text: 'I was billed twice for the {product} licence for our Nevada office. Please refund one of them.',
+      text: 'I was billed twice for the {product} licence for our Nevada office. Please refund the second payment.',
       billingDispute: true,
       severe: true,
     },
@@ -133,7 +112,7 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'I cannot find the access link to download my invoice for the {plan}, only a blank page.' },
   ],
   'Technical Issue': [
-    { text: '{product} drains my battery. I have to charge my phone three times a day since the last update.' },
+    { text: '{product} drains my battery. I have to charge my phone three times a day now, even on a quiet afternoon.' },
     { text: 'Since the update, {product} cannot load the accounting data we imported. The progress bar just sits there.' },
     { text: 'The old adapters for our {product} integration stopped answering on Tuesday.' },
     { text: 'I tried to recharge my tablet and now {product} shows a blank screen when I open it.' },
@@ -144,16 +123,16 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
   ],
   'Account Access': [
     { text: 'Ada on my team cannot get into {product}. Her password reset link says it expired.' },
-    { text: 'My colleague Adam never got his invitation email, so he cannot sign in to {product}.' },
-    { text: 'I am locked out of {product}. The sign-in page shows a small bug icon and no message.' },
-    { text: 'My card was not charged, but I cannot sign in to {product} on my new phone.' },
+    { text: 'My colleague Adam never got his invitation email, so he is unable to enter {product}.' },
+    { text: 'Locked out of {product} again: the login screen shows a small bug icon and no message.' },
+    { text: 'My card was not charged, but {product} on my new phone keeps refusing my sign-in.' },
     { text: 'I cannot sign in to {product} from the airport in Granada because the code arrives late.' },
-    { text: 'A bug in the reset form wipes the new password I type, so I cannot get back into {product}.' },
+    { text: 'The reset form has a bug that wipes the new password I type, so I am shut out of {product}.' },
     { text: 'I was charged a fee on my phone when the login code text arrived, and I have been unable to sign in to {product} since.' },
     { text: 'Our admin in Canada cannot reset the password for {product}.' },
   ],
   'Security Concern': [
-    { text: 'A sign-in from Canada showed up at 3am and I have never been there. Someone else is using my login.' },
+    { text: 'A sign-in from Canada showed up at 3am and I have not set foot there. Somebody else is on my login.' },
     { text: 'My accountant says a stranger signed in to {product} from overseas yesterday.' },
     { text: 'An email says there is a charge on my card and asks me to click a link to dispute it. I did not click.' },
     { text: 'Adam got a text with a link to reset a password he never asked for. Is it safe to ignore?' },
@@ -163,14 +142,14 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'An email from my accountant looks off: the writing is odd and the attachment is a zip file.' },
   ],
   'Accessibility Support': [
-    { text: 'The Pay button at checkout is silent for my screen reader, so I cannot complete the charge.' },
+    { text: 'The Pay button at checkout stays silent when my screen reader reaches it, so the charge cannot be completed.' },
     { text: 'The captcha on your sign-up page has no audio option, so I cannot get into my account.' },
     { text: 'A bug in the {product} chart makes my screen reader skip every second row.' },
     { text: 'I use a magnifier, and the access code box in {product} is cut off at 200 percent zoom.' },
     { text: 'The video call for our account review has no live captions, so I cannot follow what is said.' },
     { text: 'My screen reader reads the account number field as one long number, with no pauses.' },
     { text: 'The charge breakdown table in {product} has no column headings for my screen reader to announce.' },
-    { text: 'There is a bug in the high contrast mode of {product}: the buttons turn white on white.' },
+    { text: 'High contrast mode in {product} has a bug: the buttons turn white on white.' },
   ],
   'Product Question': [
     { text: 'Will the {plan} account for time zones when scheduling reports?' },
@@ -185,10 +164,10 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
   'Urgent Complaint': [
     { text: 'Your Canada support line never picks up. I have called five times and I am fed up with this company.' },
     { text: 'I was charged for support I never received and nobody has called me back.' },
-    { text: 'Your access to a real person is a joke. I have been on hold for an hour and nobody picks up.' },
+    { text: 'Getting access to a real person is a farce. I have been on hold for an hour and nobody picks up.' },
     { text: 'Adam from your team promised me a callback and never phoned. I am done with this company.' },
     { text: 'I have lodged a complaint three times about the Canada office and nobody has written back.' },
-    { text: 'You charged my company for support I never received and I am furious that nobody has fixed it.' },
+    { text: 'You charged my company for a support plan that never happened and I am furious that nobody has fixed it.' },
     { text: 'This is the last time I will deal with your account team. They are rude and slow.' },
     { text: 'Adam on your help desk hung up on me twice today. I want an apology.' },
   ],
@@ -208,7 +187,7 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'Our school would like to feature {product} in a debugging workshop. Who should we contact?' },
     { text: 'Adam from our events team would like to invite someone from your company to speak at a meetup. Who should he contact?' },
     { text: 'Who is in charge of partnerships? I would like to send a proposal.' },
-    { text: 'Our university in Granada would like to invite one of your team to a talk next spring.' },
+    { text: 'Our university in Granada is hoping one of your team can give a talk next spring.' },
     { text: 'Is there an account manager I can send a thank-you note to?' },
     { text: 'I run a podcast about software bugs and would love to interview someone from your team.' },
   ],

@@ -1,6 +1,6 @@
 import type { Category } from '../domain/labels';
 import type { Rng } from './rng';
-import { poolOf, type Pool } from './templates';
+import { poolOf, type Split } from './templates';
 
 // Share of tickets that carry fake personal data, so the privacy masking step
 // has something to find.
@@ -131,7 +131,77 @@ function fakeValue(rng: Rng, kind: Kind): string {
 }
 
 // One sentence of fake personal data to append to a ticket about `category`.
-export function fakeSnippet(rng: Rng, category: Category, pool: Pool = 'all'): string {
+export function fakeSnippet(rng: Rng, category: Category, split: Split = 'all'): string {
   const kind = rng.pick(KINDS_BY_CATEGORY[category] ?? DEFAULT_KINDS);
-  return rng.pick(poolOf(FAKE_SENTENCES[kind], pool)).replace('{value}', fakeValue(rng, kind));
+  return rng.pick(poolOf(FAKE_SENTENCES[kind], split)).replace('{value}', fakeValue(rng, kind));
+}
+
+// The made-up values a template's {slots} are filled with. Like the frames above,
+// the names are cut into folds, so a product held out in one fold is a product
+// the model never trained on.
+
+// May is left out: it is also a common word ("it may concern"), so a model could
+// not tell the month held out in one fold from the word in the others' wording.
+export const MONTHS: readonly string[] = ['January', 'February', 'March', 'April', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// Slot values are coined names with no word a template uses elsewhere: a word
+// that belongs to one fold's product but sits in the other folds' wording would
+// let the model read the category off the product name.
+export const PRODUCTS: readonly string[] = [
+  'Nimbus Hub', 'Harbor Suite', 'Quillfold Studio', 'Orchard Console', 'Lantern Deck', 'Pebble Pad', 'Saffron Portal', 'Juniper Lab',
+];
+export const PLANS: readonly string[] = [
+  'Pro plan', 'Crew plan', 'Starter plan', 'Business plan', 'Basic plan', 'Growth plan', 'Premium plan', 'Enterprise plan',
+];
+export const FEATURES: readonly string[] = [
+  'kanban boards', 'weekly digest', 'idea maps', 'shared cursors', 'task templates', 'pinned views', 'burndown charts', 'gantt charts',
+];
+
+const CENTS_PER_DOLLAR = 100;
+const CENTS_PAD = 2;
+const MIN_AMOUNT_DOLLARS = 9;
+const MAX_AMOUNT_DOLLARS = 299;
+// Day 28 exists in every month, so no date is ever impossible.
+const MAX_DAY_OF_MONTH = 28;
+const MIN_WAIT_DAYS = 2;
+const MAX_WAIT_DAYS = 21;
+const MIN_LOAD_SECONDS = 8;
+const MAX_LOAD_SECONDS = 40;
+
+// `slot` looks up (and fixes) another slot's value, so one slot can depend on
+// another.
+type SlotFill = (rng: Rng, slot: (name: string) => string, split: Split) => string;
+
+const SLOTS: Record<string, SlotFill> = {
+  product: (rng, _slot, split) => rng.pick(poolOf(PRODUCTS, split)),
+  plan: (rng, _slot, split) => rng.pick(poolOf(PLANS, split)),
+  // A comparison between a plan and itself reads as nonsense.
+  otherPlan: (rng, slot, split) => rng.pick(poolOf(PLANS, split).filter((plan) => plan !== slot('plan'))),
+  feature: (rng, _slot, split) => rng.pick(poolOf(FEATURES, split)),
+  amount: (rng) =>
+    `$${rng.int(MIN_AMOUNT_DOLLARS, MAX_AMOUNT_DOLLARS)}.${String(rng.int(0, CENTS_PER_DOLLAR - 1)).padStart(CENTS_PAD, '0')}`,
+  date: (rng, _slot, split) => `${rng.pick(poolOf(MONTHS, split))} ${rng.int(1, MAX_DAY_OF_MONTH)}`,
+  days: (rng) => String(rng.int(MIN_WAIT_DAYS, MAX_WAIT_DAYS)),
+  seconds: (rng) => String(rng.int(MIN_LOAD_SECONDS, MAX_LOAD_SECONDS)),
+};
+
+// A slot named twice in one template gets the same value both times, so the
+// text never contradicts itself.
+export function fillSlots(text: string, rng: Rng, split: Split = 'all'): string {
+  const chosen = new Map<string, string>();
+  const slot = (name: string): string => {
+    const known = chosen.get(name);
+    if (known !== undefined) {
+      return known;
+    }
+    // An own-property check: a plain object also answers to names every object
+    // inherits, such as constructor and __proto__.
+    const fill = Object.hasOwn(SLOTS, name) ? SLOTS[name] : undefined;
+    if (fill === undefined) {
+      throw new Error('E_UNKNOWN_SLOT');
+    }
+    const value = fill(rng, slot, split);
+    chosen.set(name, value);
+    return value;
+  };
+  return text.replace(/\{(\w+)\}/g, (_match, name: string) => slot(name));
 }

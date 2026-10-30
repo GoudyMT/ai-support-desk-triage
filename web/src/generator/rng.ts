@@ -13,6 +13,35 @@ export interface Rng {
 const UINT32_RANGE = 4294967296;
 const MULBERRY_STEP = 0x6d2b79f5;
 
+function drawInt(next: () => number, min: number, max: number): number {
+  if (!Number.isInteger(min) || !Number.isInteger(max) || max < min) {
+    throw new Error('E_RNG_RANGE');
+  }
+  return min + Math.floor(next() * (max - min + 1));
+}
+
+function drawWeighted<T extends string>(next: () => number, weights: Record<T, number>): T {
+  const entries = (Object.entries(weights) as [T, number][]).filter(([, w]) => w > 0);
+  if (entries.length === 0) {
+    throw new Error('E_RNG_EMPTY');
+  }
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  const target = next() * total;
+  let acc = 0;
+  for (const [key, w] of entries) {
+    acc += w;
+    if (target < acc) {
+      return key;
+    }
+  }
+  // Rounding can leave target equal to the running total; the last key owns that edge.
+  const last = entries[entries.length - 1];
+  if (last === undefined) {
+    throw new Error('E_RNG_EMPTY');
+  }
+  return last[0];
+}
+
 export function createRng(seed: number): Rng {
   let state = seed >>> 0;
 
@@ -24,12 +53,7 @@ export function createRng(seed: number): Rng {
     return ((t ^ (t >>> 14)) >>> 0) / UINT32_RANGE;
   }
 
-  function int(min: number, max: number): number {
-    if (!Number.isInteger(min) || !Number.isInteger(max) || max < min) {
-      throw new Error('E_RNG_RANGE');
-    }
-    return min + Math.floor(next() * (max - min + 1));
-  }
+  const int = (min: number, max: number): number => drawInt(next, min, max);
 
   function pick<T>(items: readonly T[]): T {
     if (items.length === 0) {
@@ -42,33 +66,13 @@ export function createRng(seed: number): Rng {
     return item;
   }
 
-  function chance(p: number): boolean {
-    return next() < p;
-  }
-
-  function weighted<T extends string>(weights: Record<T, number>): T {
-    const entries = (Object.entries(weights) as [T, number][]).filter(([, w]) => w > 0);
-    if (entries.length === 0) {
-      throw new Error('E_RNG_EMPTY');
-    }
-    const total = entries.reduce((sum, [, w]) => sum + w, 0);
-    const target = next() * total;
-    let acc = 0;
-    for (const [key, w] of entries) {
-      acc += w;
-      if (target < acc) {
-        return key;
-      }
-    }
-    // Rounding can leave target equal to the running total; the last key owns that edge.
-    const last = entries[entries.length - 1];
-    if (last === undefined) {
-      throw new Error('E_RNG_EMPTY');
-    }
-    return last[0];
-  }
-
-  return { next, int, pick, chance, weighted };
+  return {
+    next,
+    int,
+    pick,
+    chance: (p) => next() < p,
+    weighted: (weights) => drawWeighted(next, weights),
+  };
 }
 
 const MIX_A = 0x85ebca6b;

@@ -1,6 +1,6 @@
 import { CATEGORIES, type Category, type TicketLabel } from '../domain/labels';
 import { labelTicket, primaryCategory, type TicketFacts } from '../domain/labelRules';
-import { FAKE_DATA_SHARE, fakeSnippet } from './fakeData';
+import { FAKE_DATA_SHARE, fakeSnippet, fillSlots } from './fakeData';
 import {
   HARD_CASE_SHARES,
   POLITE_SECURITY_TEMPLATES,
@@ -19,14 +19,14 @@ import {
   OPENERS,
   REQUESTS,
   TEMPLATES,
-  fillSlots,
+  checkSplit,
   poolOf,
-  type Pool,
+  type Split,
   type Template,
 } from './templates';
 
 export { CATEGORY_SHARES, CATEGORY_TRIGGER_WORDS, FAKE_DATA_SHARE, HARD_CASE_SHARES, MAX_TICKETS };
-export type { HardCase, Pool };
+export type { HardCase, Split };
 
 export interface Ticket {
   id: string;
@@ -51,13 +51,19 @@ export interface TicketDetail {
 }
 
 const MAX_UINT32 = 0xffffffff;
-// Far above the largest export (20,000), low enough that a typo in a count
-// cannot freeze the page.
+// Far above the largest export (20,000). Measured: 100,000 tickets take about
+// 0.5 s in Node on a desktop; a count beyond that is refused rather than run.
 const MAX_TICKETS = 100_000;
 const NO_HARD_CASE = 'none';
 const OPENER_CHANCE = 0.4;
 const CLOSER_CHANCE = 0.4;
 const REQUEST_CHANCE = 0.12;
+// A polite security ticket is polite on purpose, yet no polite phrase may lean
+// toward Security, so it greets and thanks every time but asks as often as any
+// other ticket: a request is rarer than a greeting, so a higher chance would
+// make each request phrase mostly Security.
+const POLITE_OPENER_CHANCE = 1;
+const POLITE_CLOSER_CHANCE = 1;
 // Some people type in lower case with no care for capitals.
 const CASUAL_CHANCE = 0.1;
 
@@ -91,15 +97,15 @@ function drawHardCase(rng: Rng): HardCase | undefined {
   return drawn === NO_HARD_CASE ? undefined : drawn;
 }
 
-function buildTwoIssues(rng: Rng, base: Category, pool: Pool): Body {
+function buildTwoIssues(rng: Rng, base: Category, split: Split): Body {
   const others = CATEGORIES.filter((category) => category !== base && category !== 'Other');
   const second = rng.pick(others);
-  const first = rng.pick(poolOf(TEMPLATES[base], pool));
-  const other = rng.pick(poolOf(TEMPLATES[second], pool));
+  const first = rng.pick(poolOf(TEMPLATES[base], split));
+  const other = rng.pick(poolOf(TEMPLATES[second], split));
   const text = [
-    fillSlots(first.text, rng, pool),
-    rng.pick(poolOf(TWO_ISSUE_CONNECTORS, pool)),
-    fillSlots(other.text, rng, pool),
+    fillSlots(first.text, rng, split),
+    rng.pick(poolOf(TWO_ISSUE_CONNECTORS, split)),
+    fillSlots(other.text, rng, split),
   ].join(' ');
   const issues = [base, second];
   // A dispute or a status question only matters to the issue that decides the
@@ -110,41 +116,41 @@ function buildTwoIssues(rng: Rng, base: Category, pool: Pool): Body {
   return { text, facts, topic: base, templates: [first, other] };
 }
 
-function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, pool: Pool): Body {
+function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, split: Split): Body {
   switch (hardCase) {
     case 'vague': {
-      const template = rng.pick(poolOf(VAGUE_TEMPLATES, pool));
+      const template = rng.pick(poolOf(VAGUE_TEMPLATES, split));
       const facts = { ...factsFor(['Other'], template), vague: true };
-      return { text: fillSlots(template.text, rng, pool), facts, topic: 'Other', templates: [template] };
+      return { text: fillSlots(template.text, rng, split), facts, topic: 'Other', templates: [template] };
     }
     case 'threatening': {
       // A threat only follows a message that already carries a grievance.
-      const template = rng.pick(poolOf(TEMPLATES[base], pool).filter((candidate) => candidate.grievance === true));
-      const text = `${fillSlots(template.text, rng, pool)} ${rng.pick(poolOf(THREAT_PHRASES, pool))}`;
+      const template = rng.pick(poolOf(TEMPLATES[base], split).filter((candidate) => candidate.grievance === true));
+      const text = `${fillSlots(template.text, rng, split)} ${rng.pick(poolOf(THREAT_PHRASES, split))}`;
       return { text, facts: { ...factsFor([base], template), threatening: true }, topic: base, templates: [template] };
     }
     case 'two-issues':
-      return buildTwoIssues(rng, base, pool);
+      return buildTwoIssues(rng, base, split);
     case 'keyword-trap': {
-      const template = rng.pick(poolOf(TRAP_TEMPLATES[base], pool));
+      const template = rng.pick(poolOf(TRAP_TEMPLATES[base], split));
       return {
-        text: fillSlots(template.text, rng, pool),
+        text: fillSlots(template.text, rng, split),
         facts: factsFor([base], template),
         topic: base,
         templates: [template],
       };
     }
     case 'polite-security': {
-      const template = rng.pick(poolOf(POLITE_SECURITY_TEMPLATES, pool));
+      const template = rng.pick(poolOf(POLITE_SECURITY_TEMPLATES, split));
       const issues: Category[] = ['Security Concern'];
       const facts = factsFor(issues, template);
-      return { text: fillSlots(template.text, rng, pool), facts, topic: 'Security Concern', templates: [template] };
+      return { text: fillSlots(template.text, rng, split), facts, topic: 'Security Concern', templates: [template] };
     }
     case 'typos':
     case undefined: {
-      const template = rng.pick(poolOf(TEMPLATES[base], pool));
+      const template = rng.pick(poolOf(TEMPLATES[base], split));
       return {
-        text: fillSlots(template.text, rng, pool),
+        text: fillSlots(template.text, rng, split),
         facts: factsFor([base], template),
         topic: base,
         templates: [template],
@@ -155,30 +161,29 @@ function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, poo
 
 // Greeting, polite request, sign-off and the odd all-lower-case message vary the
 // voice without touching what the ticket is about. A threat ends the message, so
-// no request or "Thanks." follows it, and a polite security report already greets and thanks
-// in its own words, as do a few other templates. The greeting sits on its own
-// line, as in an email. A template that already greets or thanks gets no
-// second greeting or thanks.
+// no request or "Thanks." follows it. The greeting sits on its own line, as in an
+// email. A template that already greets or thanks gets no second greeting or
+// thanks. A polite security report always greets and thanks, but only in the
+// shared wording every other category also uses.
 function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined): string {
-  if (hardCase === 'polite-security') {
-    return body;
-  }
-  const wantsOpener = rng.chance(OPENER_CHANCE);
+  const polite = hardCase === 'polite-security';
+  const wantsOpener = rng.chance(polite ? POLITE_OPENER_CHANCE : OPENER_CHANCE);
   const opener = wantsOpener && !GREETING_AT_START.test(body) ? rng.pick(OPENERS) : '';
   const wantsRequest = hardCase !== 'threatening' && rng.chance(REQUEST_CHANCE);
   const request = wantsRequest ? rng.pick(REQUESTS) : '';
-  const wantsCloser = hardCase !== 'threatening' && rng.chance(CLOSER_CHANCE);
+  const wantsCloser = hardCase !== 'threatening' && rng.chance(polite ? POLITE_CLOSER_CHANCE : CLOSER_CHANCE);
   const closer = wantsCloser && !SIGN_OFF_ANYWHERE.test(body) ? rng.pick(CLOSERS) : '';
   const text = [rng.chance(CASUAL_CHANCE) ? body.toLowerCase() : body, request, closer].filter((part) => part !== '').join(' ');
   return opener === '' ? text : `${opener}\n${text}`;
 }
 
-export function generateTicketDetail(seed: number, index: number, pool: Pool = 'all'): TicketDetail {
+export function generateTicketDetail(seed: number, index: number, split: Split = 'all'): TicketDetail {
   // The seed mixing works on 32 bits, so a seed or index outside them would
   // wrap and repeat another ticket without any sign of it.
   if (!Number.isInteger(seed) || seed < 0 || seed > MAX_UINT32 || !Number.isInteger(index) || index < 0 || index > MAX_UINT32) {
     throw new Error('E_SEED_RANGE');
   }
+  checkSplit(split);
   // Only (seed, index) feeds the generator, so ticket i never depends on the
   // tickets before it.
   const rng = createRng(ticketSeed(seed, index));
@@ -188,12 +193,12 @@ export function generateTicketDetail(seed: number, index: number, pool: Pool = '
   const baseCategory = rng.weighted(CATEGORY_SHARES);
   const hasFakeData = rng.chance(FAKE_DATA_SHARE);
 
-  const body = buildBody(rng, hardCase, baseCategory, pool);
+  const body = buildBody(rng, hardCase, baseCategory, split);
   const plainText = addVoice(rng, body.text, hardCase);
   let text = hardCase === 'typos' ? introduceTypos(rng, plainText) : plainText;
   // Added last so a typo can never damage an email, number or card.
   if (hasFakeData) {
-    text = `${text} ${fakeSnippet(rng, body.topic, pool)}`;
+    text = `${text} ${fakeSnippet(rng, body.topic, split)}`;
   }
 
   const ticket: Ticket = {
@@ -210,13 +215,15 @@ export function generateTicketDetail(seed: number, index: number, pool: Pool = '
   return { ticket, facts: body.facts, baseCategory, templates: body.templates, plainText };
 }
 
-export function generateTicket(seed: number, index: number, pool: Pool = 'all'): Ticket {
-  return generateTicketDetail(seed, index, pool).ticket;
+export function generateTicket(seed: number, index: number, split: Split = 'all'): Ticket {
+  return generateTicketDetail(seed, index, split).ticket;
 }
 
-export function generateTickets(seed: number, count: number, pool: Pool = 'all'): Ticket[] {
+export function generateTickets(seed: number, count: number, split: Split = 'all'): Ticket[] {
   if (!Number.isInteger(count) || count < 0 || count > MAX_TICKETS) {
     throw new Error('E_COUNT_RANGE');
   }
-  return Array.from({ length: count }, (_, index) => generateTicket(seed, index, pool));
+  // Checked here too: a count of 0 builds no ticket to trip the check.
+  checkSplit(split);
+  return Array.from({ length: count }, (_, index) => generateTicket(seed, index, split));
 }

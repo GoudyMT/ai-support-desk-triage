@@ -1,15 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildDatasets } from '../../scripts/exportDataset';
-import { CATEGORIES } from '../domain/labels';
-import { FAKE_SENTENCES } from './fakeData';
-import {
-  CATEGORY_TRIGGER_WORDS,
-  generateTicketDetail,
-  generateTickets,
-  type HardCase,
-  type TicketDetail,
-} from './generate';
+import { buildDatasets, exportTickets } from '../../scripts/exportDataset';
+import { CATEGORIES, type Category } from '../domain/labels';
+import { FAKE_SENTENCES, fillSlots } from './fakeData';
+import { CATEGORY_TRIGGER_WORDS, generateTickets, type Ticket } from './generate';
 import {
   POLITE_SECURITY_TEMPLATES,
   THREAT_PHRASES,
@@ -19,20 +13,7 @@ import {
   VAGUE_TEMPLATES,
 } from './hardCases';
 import { createRng } from './rng';
-import {
-  CLOSERS,
-  FEATURES,
-  MONTHS,
-  OPENERS,
-  PLANS,
-  PRODUCTS,
-  REQUESTS,
-  TEMPLATES,
-  fillSlots,
-  poolOf,
-  type Pool,
-  type Template,
-} from './templates';
+import { CLOSERS, OPENERS, REQUESTS, TEMPLATES } from './templates';
 
 // The hand-written set is the model's honest exam. If the generator already says
 // the same thing in the same words, a good score proves only that the model
@@ -60,6 +41,9 @@ function grams(text: string): string[] {
   return found;
 }
 
+// Every piece of wording the generator can put in a ticket, each entry its own
+// text: a template, a threat, a connector, an opener, a closer, a request, a
+// fake-data frame.
 const GENERATOR_TEXTS: string[] = [
   ...CATEGORIES.flatMap((category) => TEMPLATES[category].map((template) => template.text)),
   ...CATEGORIES.flatMap((category) => TRAP_TEMPLATES[category].map((template) => template.text)),
@@ -70,6 +54,7 @@ const GENERATOR_TEXTS: string[] = [
   ...OPENERS,
   ...CLOSERS,
   ...REQUESTS,
+  ...Object.values(FAKE_SENTENCES).flat(),
 ];
 
 const ROWS = readFileSync(HANDWRITTEN_URL, 'utf8')
@@ -95,15 +80,15 @@ describe('generator wording against the hand-written set', () => {
         shared.push(`${row.id}: ${hits.map((gram) => `"${gram}" in "${owner.get(gram)}"`).join('; ')}`);
       }
     }
-    expect(shared).toEqual([]);
+    expect(shared, shared.join('\n')).toEqual([]);
   });
 
   // A slot breaks a run in the template check, but a filled slot can complete one:
   // "Does the {plan} include" becomes "does the pro plan include", which is the
   // hand-written row word for word. The fake-data sentences are only visible here.
-  // Checked on the two exported files, the only tickets a model trains and is
-  // scored on, and on the live mix (pool 'all'), which joins train and held-out
-  // wording in one ticket.
+  // Checked on every exported file, the only tickets a model trains and is scored
+  // on, and on the live mix (split 'all'), which joins every fold's wording in
+  // one ticket.
   it('shares no run of 4 words between any hand-written row and any exported or live-mix ticket', () => {
     const rowOf = new Map<string, string>();
     for (const row of ROWS) {
@@ -112,8 +97,8 @@ describe('generator wording against the hand-written set', () => {
       }
     }
     const shared = new Map<string, string>();
-    const { train, heldout } = buildDatasets();
-    for (const ticket of [...train, ...heldout, ...generateTickets(1, 20000)]) {
+    const exported = buildDatasets().flatMap(({ train, heldout }) => [...train, ...heldout]);
+    for (const ticket of [...exported, ...generateTickets(1, 20000)]) {
       for (const gram of grams(ticket.text)) {
         const id = rowOf.get(gram);
         if (id !== undefined && !shared.has(gram)) {
@@ -121,7 +106,104 @@ describe('generator wording against the hand-written set', () => {
         }
       }
     }
-    expect([...shared.values()]).toEqual([]);
+    expect([...shared.values()], [...shared.values()].join('\n')).toEqual([]);
+  });
+});
+
+// Two templates that share a short run of words ("is using my login") let a
+// model learn the run instead of the meaning, and when the two sit in different
+// folds the held-out one is no longer wording the model has never seen.
+describe('distinct wording', () => {
+  // No allow-list: every stock phrase ("i would like to", "is there a way to")
+  // was reworded so that no two texts share a run, whatever their category.
+  it('shares no run of 4 words between any two generator texts', () => {
+    const owners = new Map<string, Set<string>>();
+    for (const text of GENERATOR_TEXTS) {
+      for (const gram of new Set(grams(text))) {
+        owners.set(gram, (owners.get(gram) ?? new Set<string>()).add(text));
+      }
+    }
+    const shared = [...owners.entries()]
+      .filter(([, texts]) => texts.size > 1)
+      .map(([gram, texts]) => `"${gram}" in ${[...texts].map((text) => `"${text}"`).join(' and ')}`);
+    // The message lists every pair, so a failure shows the wording to change, not a count.
+    expect(shared, shared.join('\n')).toEqual([]);
+  });
+});
+
+// If a polite phrase leaned toward one category, "would you mind" would itself
+// mean Account Access and the model would learn manners, not meaning. Each
+// phrase must follow the category mix of all tickets. Checked on the live mix
+// (seed 1, the same 20,000 as generateTickets(1, 20000)) and on the training
+// export of every fold, the tickets a model actually learns from.
+describe('polite phrases', () => {
+  const SAMPLE_SIZE = 20000;
+  // A phrase may lean toward some categories no more than this far (total
+  // variation distance, half the summed gap between two category mixes) from the
+  // mix of all tickets. Above it, the phrase itself would tell the model the
+  // category.
+  const MAX_POLITE_LEAN = 0.2;
+  const MIN_CARRIERS = 50;
+  const MIN_CHECKED_PHRASES = 20;
+  // Words that make a run of words polite. A run holding one of them, found in
+  // the polite security templates, is checked like the shared openers, closers
+  // and requests, so a courtesy phrase written only into those templates (they
+  // reach nothing but Security tickets) fails here.
+  const COURTESY_WORDS = new Set([
+    'please', 'thank', 'thanks', 'sorry', 'kindly', 'grateful', 'hope', 'appreciate', 'polite', 'politely',
+    'mind', 'moment', 'rush', 'helpful', 'bother', 'trouble', 'hello', 'dear', 'regards', 'cheers', 'could', 'would',
+  ]);
+  const wordsOf = (text: string): string[] => text.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word !== '');
+
+  function politePhrases(): string[] {
+    const phrases = new Set<string>([...OPENERS, ...CLOSERS, ...REQUESTS].map((text) => wordsOf(text).join(' ')));
+    for (const { text } of POLITE_SECURITY_TEMPLATES) {
+      const words = wordsOf(text);
+      for (let length = 2; length <= RUN_LENGTH; length += 1) {
+        for (let start = 0; start + length <= words.length; start += 1) {
+          const run = words.slice(start, start + length);
+          if (run.some((word) => COURTESY_WORDS.has(word))) {
+            phrases.add(run.join(' '));
+          }
+        }
+      }
+    }
+    return [...phrases];
+  }
+
+  function worstLean(tickets: Ticket[]): { lean: number; phrase: string; carriers: number; checked: number } {
+    const mix = (rows: Ticket[]): Map<Category, number> =>
+      new Map(CATEGORIES.map((category) => [category, rows.filter((row) => row.label.category === category).length / rows.length]));
+    const overall = mix(tickets);
+    const padded = tickets.map((ticket) => ` ${wordsOf(ticket.text).join(' ')} `);
+    const worst = { lean: 0, phrase: '', carriers: 0, checked: 0 };
+    for (const phrase of politePhrases()) {
+      const carrying = tickets.filter((_ticket, index) => padded[index]?.includes(` ${phrase} `) === true);
+      if (carrying.length < MIN_CARRIERS) {
+        continue;
+      }
+      worst.checked += 1;
+      const own = mix(carrying);
+      const lean = CATEGORIES.reduce((sum, category) => sum + Math.abs((own.get(category) ?? 0) - (overall.get(category) ?? 0)), 0) / 2;
+      if (lean > worst.lean) {
+        Object.assign(worst, { lean, phrase, carriers: carrying.length });
+      }
+    }
+    return worst;
+  }
+
+  const MIXES: [string, () => Ticket[]][] = [
+    ['the live mix', () => generateTickets(1, SAMPLE_SIZE)],
+    ...[0, 1, 2, 3].map((fold): [string, () => Ticket[]] => [
+      `the fold ${fold} training export`,
+      () => exportTickets(1, SAMPLE_SIZE, { fold, side: 'train' }),
+    ]),
+  ];
+
+  it.each(MIXES)('stay close to the category mix of %s', (_name, tickets) => {
+    const worst = worstLean(tickets());
+    expect(worst.checked).toBeGreaterThanOrEqual(MIN_CHECKED_PHRASES);
+    expect(worst.lean, `"${worst.phrase}" (${worst.carriers} tickets)`).toBeLessThanOrEqual(MAX_POLITE_LEAN);
   });
 });
 
@@ -137,6 +219,57 @@ describe('crash templates', () => {
   });
 });
 
+// Owner rulings of 2026-10-30, applied to the wording: losing work is loss, a
+// Security Concern reports an incident, and a question about plans and prices in
+// general is a Product Question while one about the asker's own bill is Billing.
+describe('label rulings applied to the templates', () => {
+  const ALL_TECHNICAL = [...TEMPLATES['Technical Issue'], ...TRAP_TEMPLATES['Technical Issue']];
+
+  it('marks every Technical template that loses the writer\'s work as severe', () => {
+    const losingWork = ALL_TECHNICAL.filter((template) => /\blos(?:e|t|ing)\b[^.]*\b(?:typing|typed|work)\b/i.test(template.text));
+    expect(losingWork.length).toBeGreaterThan(0);
+    expect(losingWork.filter((template) => template.severe !== true).map((template) => template.text)).toEqual([]);
+  });
+
+  // "How do I see which devices are signed in?" is a how-to, so a model that
+  // learns it as Security / Urgent sends every account-settings question to the
+  // security team.
+  it('gives Security Concern no how-to question, only reports of something that happened', () => {
+    const howTo = /^(?:how (?:do|can|would) i|is there a way|where (?:do|can) i)\b/i;
+    const security = [
+      ...TEMPLATES['Security Concern'],
+      ...TRAP_TEMPLATES['Security Concern'],
+      ...POLITE_SECURITY_TEMPLATES,
+    ];
+    expect(security.filter((template) => howTo.test(template.text)).map((template) => template.text)).toEqual([]);
+  });
+
+  // Word lists, not a classifier: they catch a template that says "price" about
+  // plans in general under Billing, or "my invoice" under Product Question.
+  describe('price questions', () => {
+    const PRICE_WORDS = /\b(?:price|prices|pricing|cost|costs|rate|rates)\b/i;
+    const MONEY_WORDS = /\b(?:price|prices|pricing|cost|costs|charge|charges|fee|fees|rate|rates|paying|pay)\b/i;
+    // The asker's own bill: their invoice, receipt, statement, card, payment or
+    // subscription, or a charge made to them.
+    const OWN_BILL =
+      /\b(?:my|our) (?:\w+ )?(?:invoices?|bills?|receipts?|statements?|cards?|payments?|subscriptions?)\b|\b(?:charged|billed) (?:me|us|again|twice)\b|\bI (?:paid|was charged|was billed)\b/i;
+    const billing = [...TEMPLATES.Billing, ...TRAP_TEMPLATES.Billing];
+    const product = [...TEMPLATES['Product Question'], ...TRAP_TEMPLATES['Product Question']];
+
+    it('has Billing templates only where a mention of price is about the asker\'s own bill', () => {
+      const priced = billing.filter((template) => PRICE_WORDS.test(template.text));
+      expect(priced.length).toBeGreaterThan(0);
+      expect(priced.filter((template) => !OWN_BILL.test(template.text)).map((template) => template.text)).toEqual([]);
+    });
+
+    it('has Product Question templates only where a mention of price, cost or charge is general', () => {
+      const priced = product.filter((template) => MONEY_WORDS.test(template.text));
+      expect(priced.length).toBeGreaterThan(0);
+      expect(priced.filter((template) => OWN_BILL.test(template.text)).map((template) => template.text)).toEqual([]);
+    });
+  });
+});
+
 describe('fillSlots', () => {
   // A slot name comes from template text, but a plain-object lookup would also
   // answer to names every object inherits: {constructor} would fill in
@@ -147,198 +280,6 @@ describe('fillSlots', () => {
 
   it('refuses a name no slot defines', () => {
     expect(() => fillSlots('Hello {nothing}', createRng(1))).toThrow('E_UNKNOWN_SLOT');
-  });
-});
-
-describe('poolOf', () => {
-  const ITEMS = Array.from({ length: 12 }, (_, index) => index);
-
-  it('hands out the whole list for "all" and splits it for train and held-out with nothing lost or shared', () => {
-    expect(poolOf(ITEMS, 'all')).toEqual(ITEMS);
-    const train = poolOf(ITEMS, 'train');
-    const heldout = poolOf(ITEMS, 'heldout');
-    expect(heldout).toEqual([3, 7, 11]);
-    expect([...train, ...heldout].sort((a, b) => a - b)).toEqual(ITEMS);
-    expect(train.filter((item) => heldout.includes(item))).toEqual([]);
-  });
-});
-
-// A pool with nothing to pick from would crash the export, or (for a subset
-// such as the grievance templates a threat follows) crash only on the rare
-// ticket that reaches it.
-describe('every list a ticket is drawn from has something in both pools', () => {
-  const POOLS: Pool[] = ['train', 'heldout'];
-  const lists: [string, readonly unknown[]][] = [
-    ['vague templates', VAGUE_TEMPLATES],
-    ['polite security templates', POLITE_SECURITY_TEMPLATES],
-    ['threat phrases', THREAT_PHRASES],
-    ['two-issue connectors', TWO_ISSUE_CONNECTORS],
-    ['products', PRODUCTS],
-    ['plans', PLANS],
-    ['features', FEATURES],
-    ['months', MONTHS],
-    ...Object.entries(FAKE_SENTENCES).map(([kind, frames]): [string, readonly unknown[]] => [`${kind} fake-data sentences`, frames]),
-    ...CATEGORIES.flatMap((category): [string, readonly unknown[]][] => [
-      [`${category} templates`, TEMPLATES[category]],
-      [`${category} trap templates`, TRAP_TEMPLATES[category]],
-    ]),
-  ];
-
-  it.each(POOLS)('in the %s pool', (pool) => {
-    for (const [name, list] of lists) {
-      expect(poolOf(list, pool).length, `${name} in ${pool}`).toBeGreaterThan(0);
-    }
-  });
-
-  // Threats follow a grievance template only; the subset is filtered from a
-  // pool's templates, the way the generator builds it.
-  it.each(POOLS)('keeps a grievance template in every category in the %s pool', (pool) => {
-    for (const category of CATEGORIES) {
-      const grievances = poolOf(TEMPLATES[category], pool).filter((template) => template.grievance === true);
-      expect(grievances.length, `${category} in ${pool}`).toBeGreaterThan(0);
-    }
-  });
-
-  // "Compare the Pro plan with the Pro plan" reads as nonsense, so a plan always
-  // needs another plan in the same pool to be set against.
-  it.each(POOLS)('has two plans in the %s pool, so a plan always has another to be compared with', (pool) => {
-    expect(poolOf(PLANS, pool).length).toBeGreaterThanOrEqual(2);
-  });
-});
-
-// A category scored on one held-out sentence scores 0 or 100 by which sentence
-// sat at that position, so each held-out pool needs enough wording that a
-// category's score reflects the category.
-describe('the held-out pool is big enough to be a fair exam', () => {
-  const MIN_BODIES = 4;
-  const MIN_TRAPS = 2;
-  const MIN_HARD_CASE_WORDING = 3;
-  const MIN_PRODUCTS = 2;
-  const MIN_FAKE_SENTENCES = 2;
-  const heldout = (list: readonly unknown[]): number => poolOf(list, 'heldout').length;
-
-  it.each(CATEGORIES)('has %s body and trap templates in both pools', (category) => {
-    expect(heldout(TEMPLATES[category])).toBeGreaterThanOrEqual(MIN_BODIES);
-    expect(heldout(TRAP_TEMPLATES[category])).toBeGreaterThanOrEqual(MIN_TRAPS);
-  });
-
-  it('has at least 3 held-out vague, threat, polite-security and connector entries and 2 products', () => {
-    expect(heldout(VAGUE_TEMPLATES)).toBeGreaterThanOrEqual(MIN_HARD_CASE_WORDING);
-    expect(heldout(THREAT_PHRASES)).toBeGreaterThanOrEqual(MIN_HARD_CASE_WORDING);
-    expect(heldout(POLITE_SECURITY_TEMPLATES)).toBeGreaterThanOrEqual(MIN_HARD_CASE_WORDING);
-    expect(heldout(TWO_ISSUE_CONNECTORS)).toBeGreaterThanOrEqual(MIN_HARD_CASE_WORDING);
-    expect(heldout(PRODUCTS)).toBeGreaterThanOrEqual(MIN_PRODUCTS);
-  });
-
-  // A fake-data frame such as "The card I used is" appears in one category's
-  // tickets; one frame in a pool would be a cue the model learns.
-  it.each(Object.entries(FAKE_SENTENCES))('has at least 2 %s fake-data sentences in each pool', (_kind, frames) => {
-    expect(heldout(frames)).toBeGreaterThanOrEqual(MIN_FAKE_SENTENCES);
-    expect(poolOf(frames, 'train').length).toBeGreaterThanOrEqual(MIN_FAKE_SENTENCES);
-  });
-});
-
-// A word that belongs only to a held-out product, plan, feature or month, yet
-// sits in training wording ("workspace" in an Account Access sentence), would
-// let the model learn the category from the slot word. Words both pools share
-// ("team", "plan") are exempt.
-describe('held-out slot words stay out of training wording', () => {
-  const wordsOf = (text: string): string[] => text.toLowerCase().replace(/\{\w+\}/g, ' ').split(/[^a-z0-9]+/).filter((w) => w !== '');
-  const slotLists = [PRODUCTS, PLANS, FEATURES, MONTHS];
-
-  it('puts no word of a held-out slot value that no training value shares into any training sentence', () => {
-    const trainValueWords = new Set(slotLists.flatMap((list) => poolOf(list, 'train').flatMap(wordsOf)));
-    const heldoutOnly = new Set(
-      slotLists.flatMap((list) => poolOf(list, 'heldout').flatMap(wordsOf)).filter((word) => !trainValueWords.has(word)),
-    );
-    const trainSentences = [
-      ...CATEGORIES.flatMap((category) => [...poolOf(TEMPLATES[category], 'train'), ...poolOf(TRAP_TEMPLATES[category], 'train')]).map(
-        (template) => template.text,
-      ),
-      ...poolOf(VAGUE_TEMPLATES, 'train').map((template) => template.text),
-      ...poolOf(POLITE_SECURITY_TEMPLATES, 'train').map((template) => template.text),
-      ...poolOf(THREAT_PHRASES, 'train'),
-      ...poolOf(TWO_ISSUE_CONNECTORS, 'train'),
-      ...Object.values(FAKE_SENTENCES).flatMap((frames) => poolOf(frames, 'train')),
-      ...OPENERS,
-      ...CLOSERS,
-      ...REQUESTS,
-    ];
-    expect(heldoutOnly.size).toBeGreaterThan(0);
-    const leaks = trainSentences.flatMap((sentence) => wordsOf(sentence).filter((word) => heldoutOnly.has(word)).map((word) => `"${word}" in "${sentence}"`));
-    expect(leaks).toEqual([]);
-  });
-});
-
-// The held-out score is only honest if the model never saw the wording it is
-// scored on: whole templates, threats, connectors and the product, plan and
-// feature names must each belong to one pool. Built with the same seeds and
-// counts as the export.
-describe('training and held-out wording stay apart', () => {
-  const TRAIN_DETAILS = Array.from({ length: 20_000 }, (_, index) => generateTicketDetail(1, index, 'train'));
-  const HELDOUT_DETAILS = Array.from({ length: 4000 }, (_, index) => generateTicketDetail(2, index, 'heldout'));
-
-  function templatesOf(details: TicketDetail[]): Set<Template> {
-    return new Set(details.flatMap((detail) => detail.templates));
-  }
-
-  function textsOf(details: TicketDetail[]): string {
-    return details.map((detail) => detail.ticket.text.toLowerCase()).join('\n');
-  }
-
-  it('builds no training ticket from a template a held-out ticket uses, and no held-out ticket from one a training ticket uses', () => {
-    const trained = templatesOf(TRAIN_DETAILS);
-    const heldout = templatesOf(HELDOUT_DETAILS);
-    expect(trained.size).toBeGreaterThan(0);
-    expect(heldout.size).toBeGreaterThan(0);
-    expect([...heldout].filter((template) => trained.has(template)).map((template) => template.text)).toEqual([]);
-  });
-
-  it('never puts a product, plan or feature of one pool into the text of the other', () => {
-    const valuesOf = (pool: Pool): string[] => [PRODUCTS, PLANS, FEATURES].flatMap((list) => [...poolOf(list, pool)]);
-    // A month shows only as a date such as "april 12", so "may" in "it may" is not one.
-    const monthsIn = (text: string): Set<string> => new Set([...text.matchAll(/\b([a-z]+) \d{1,2}\b/g)].map((match) => match[1] ?? ''));
-    const leaks = (pool: Pool, text: string): string[] => [
-      ...valuesOf(pool).filter((value) => text.includes(value.toLowerCase())),
-      ...poolOf(MONTHS, pool).filter((month) => monthsIn(text).has(month.toLowerCase())),
-    ];
-    expect(leaks('heldout', textsOf(TRAIN_DETAILS))).toEqual([]);
-    expect(leaks('train', textsOf(HELDOUT_DETAILS))).toEqual([]);
-  });
-
-  // The frame in front of an email, phone, order or card is wording like any
-  // other: "The card I used is" must not mark one pool.
-  it('puts a fake-data sentence of one pool only into tickets of that pool', () => {
-    const frames = (pool: Pool): string[] => Object.values(FAKE_SENTENCES).flatMap((list) => [...poolOf(list, pool)]);
-    // The value (email, phone, order number or card) is masked so only the frame is left.
-    const masked = (details: TicketDetail[]): string[] =>
-      details
-        .filter((detail) => detail.ticket.hasFakeData)
-        .map((detail) => detail.ticket.text.replace(/ORD-\d{6}|[\w.]+@example\.(?:com|org)|555-01\d\d|(?:\d{4} ){3}\d{4}/g, '{value}'));
-    const found = (list: string[], texts: string[]): number => texts.filter((text) => list.some((frame) => text.includes(frame))).length;
-    expect(found(frames('heldout'), masked(TRAIN_DETAILS))).toBe(0);
-    expect(found(frames('train'), masked(HELDOUT_DETAILS))).toBe(0);
-    expect(found(frames('heldout'), masked(HELDOUT_DETAILS))).toBeGreaterThan(0);
-    expect(found(frames('train'), masked(TRAIN_DETAILS))).toBeGreaterThan(0);
-  });
-
-  // A connector is a sentence of its own between the two issues.
-  it('puts a threat phrase or two-issue connector of one pool only into tickets of that pool', () => {
-    const phrasesIn = (details: TicketDetail[], hardCase: HardCase, phrases: readonly string[], wrap: string): string[] => {
-      const text = textsOf(details.filter((detail) => detail.ticket.hardCase === hardCase));
-      return phrases.filter((phrase) => text.includes(`${wrap}${phrase.toLowerCase()}${wrap}`));
-    };
-    const heldoutThreats = poolOf(THREAT_PHRASES, 'heldout');
-    const trainThreats = poolOf(THREAT_PHRASES, 'train');
-    const heldoutLinks = poolOf(TWO_ISSUE_CONNECTORS, 'heldout');
-    const trainLinks = poolOf(TWO_ISSUE_CONNECTORS, 'train');
-    expect(phrasesIn(TRAIN_DETAILS, 'threatening', heldoutThreats, '')).toEqual([]);
-    expect(phrasesIn(HELDOUT_DETAILS, 'threatening', trainThreats, '')).toEqual([]);
-    expect(phrasesIn(TRAIN_DETAILS, 'two-issues', heldoutLinks, ' ')).toEqual([]);
-    expect(phrasesIn(HELDOUT_DETAILS, 'two-issues', trainLinks, ' ')).toEqual([]);
-    // The check can find something: each pool's own phrases do appear.
-    expect(phrasesIn(HELDOUT_DETAILS, 'threatening', heldoutThreats, '').length).toBeGreaterThan(0);
-    expect(phrasesIn(TRAIN_DETAILS, 'two-issues', trainLinks, ' ').length).toBeGreaterThan(0);
   });
 });
 
