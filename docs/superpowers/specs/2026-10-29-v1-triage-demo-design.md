@@ -94,16 +94,19 @@ Other) and four priorities (Low, Medium, High, Urgent).
 - Hard cases mixed in on purpose, at a set share of the stream: vague tickets, threatening language, two issues
   in one ticket, typos and slang, words that fool keyword matching ("Canada"), polite tickets about security.
 - One generator, written in TypeScript, used by both sides: a script exports a labeled training set for Python,
-  and the browser uses the same code for the live stream. Training and held-out tickets are built from separate
-  template sets (whole templates and slot values held out per category and hard case), and a held-out ticket whose
-  text also appears in training is dropped, so the held-out score measures wording the model never saw. Live
-  tickets come from their own seed range.
+  and the browser uses the same code for the live stream. Every template, slot value and fake-data frame is
+  assigned to one of 4 folds, balanced within each kind of template (grievance, severe, dispute, status). For each
+  fold the export writes a training set from the other three folds and a held-out set from that fold alone, with
+  any held-out ticket whose text also appears in training dropped. The model is scored on every fold in turn
+  (grouped cross-validation), so each template is tested once and each score is reported as a mean and a spread.
+  The frozen hand-written set stays the final check. Live tickets use every fold and their own seed range.
 - Every run is random; its seed is shown in a corner so a run can be replayed exactly.
 
 ### 5.3 The model
 
 - TF-IDF (words and word pairs) plus logistic regression, one model for category and one for priority, trained
-  in Python with scikit-learn on the exported set; evaluated on the held-out set built from held-out templates.
+  in Python with scikit-learn on each fold's training set; evaluated on that fold's held-out set (mean and spread
+  over the 4 folds), then on the frozen hand-written set.
 - Exported as a small JSON file (vocabulary, idf weights, coefficients); a TypeScript scorer reproduces the
   Python predictions. A parity test proves the two agree on the held-out set.
 - The "why": the top words by contribution for the predicted class, shown as weighted chips on the ticket.
@@ -164,7 +167,7 @@ default is left blank for the viewer to fill.
 1. **Expectations.** A visitor understands in the first minute what the system does and where the human
    decides; the demo runs 2 to 5 minutes without help and ends in a report; nothing on screen is invented.
 2. **Success criteria (the gate for v1):**
-   - The held-out category accuracy beats v0 on the same held-out tickets (both measured, numbers recorded in
+   - The held-out category accuracy (mean over the 4 folds) beats v0 on the same held-out tickets (both measured, numbers recorded in
      the README).
    - High-risk tickets missed on the held-out set, through the full pipeline: 0.
    - TypeScript and Python predictions agree on 100% of the held-out set.
@@ -217,8 +220,12 @@ default is left blank for the viewer to fill.
     High; Billing and Technical Issue are Medium, raised to High for words of loss or blocking ("can't work",
     "charged again"; a duplicate charge such as "charged twice" counts as charged again, and a crash that repeats
     ("keeps crashing", "crashes every time") counts as blocking, owner rulings 2026-10-30; in a two-issue ticket
-    such words in either issue count); Product Question is Low; Shipping/Order Issue is Medium, Low for a status
+    such words in either issue count; losing work, such as typing lost to a forced sign-out, counts as loss, owner
+    ruling 2026-10-30); Product Question is Low; Shipping/Order Issue is Medium, Low for a status
     question.
+  - Price questions: a question about plans and prices in general (what a plan costs, whether adding seats costs
+    more) is Product Question; a question about the asker's own bill, charges or invoice is Billing (owner ruling
+    2026-10-30).
   - Must-review Yes: Security Concern, Accessibility Support, Billing dispute (a disputed or duplicate charge or a
     refund), Urgent Complaint, vague tickets. This is Checkpoint 6's always-review list.
   - The rules live in one module with tests; the generator and the report both read it.
@@ -262,3 +269,7 @@ default is left blank for the viewer to fill.
 - 2026-10-30: two C1 rulings by the owner (a duplicate charge counts as charged again; a repeated crash counts as
   blocking), and the held-out set moved from a separate seed range to separate templates with text overlap removed,
   after the PR 1 review found that 45% of held-out tickets repeated training text word for word.
+- 2026-10-30 (later): after the re-sweep showed one fixed held-out set swings by up to 45 points per category
+  with the choice of held-out templates, the owner chose 4 template folds with grouped cross-validation; and two
+  more C1 rulings (lost work counts as loss; general price questions are Product Question, own-bill questions
+  Billing).
