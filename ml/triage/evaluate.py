@@ -1,10 +1,13 @@
 """Scores the word-weight model against v0 on rows it never trained on, and writes eval.json.
 
-Run from the ml folder: python -m triage.evaluate
+Run from the ml folder: python -m triage.evaluate [--out PATH]
 """
 
+import argparse
+import hashlib
 import json
 import statistics
+import sys
 from pathlib import Path
 
 from triage.data import FOLD_COUNT, HANDWRITTEN_PATH, TRAIN_ALL_PATH, fold_paths, load_rows
@@ -16,6 +19,29 @@ STEP_COUNT = 4
 METRICS = ("model_category", "model_priority", "v0_category", "v0_priority", "v0_review")
 # The folds are the whole population being measured, not a sample of one.
 STD_METHOD = "population"
+
+
+def rows_fingerprint(rows):
+    """Names a list of rows so a change to which rows are scored, or their order, shows.
+
+    The fixed serialisation: one line per row in file order, each line the compact
+    ASCII JSON array [id, fold, maskedText, category, priority], every line ended
+    by "\\n"; the result is the SHA-256 of those bytes, in lowercase hex. Raw text
+    and v0's answers are left out: they do not decide who is scored on what. The
+    hand-written rows carry no fold, which reads as null, as the all-wording file's do.
+
+    Args:
+        rows: Exported rows, in file order.
+
+    Returns:
+        64 hex characters.
+    """
+    lines = (
+        json.dumps([row["id"], row.get("fold"), row["maskedText"], row["category"], row["priority"]],
+                   ensure_ascii=True, separators=(",", ":")) + "\n"
+        for row in rows
+    )
+    return hashlib.sha256("".join(lines).encode("ascii")).hexdigest()
 
 
 def count_correct(predicted, truth):
@@ -145,9 +171,17 @@ def build_report(folds, train_all_rows, handwritten_rows, progress=None):
     fold_results = []
     for k, (train_rows, heldout_rows) in enumerate(folds):
         say(f"    fold {k}: train {len(train_rows):,}, held out {len(heldout_rows):,}")
-        fold_results.append(fold_scores(k, train_rows, heldout_rows))
+        fold_results.append({
+            **fold_scores(k, train_rows, heldout_rows),
+            "rows_sha256": rows_fingerprint(heldout_rows),
+            "train_rows_sha256": rows_fingerprint(train_rows),
+        })
     say(f"    shipped model: train {len(train_all_rows):,}, hand-written {len(handwritten_rows):,}")
-    handwritten = handwritten_scores(train_all_rows, handwritten_rows)
+    handwritten = {
+        **handwritten_scores(train_all_rows, handwritten_rows),
+        "rows_sha256": rows_fingerprint(handwritten_rows),
+        "train_rows_sha256": rows_fingerprint(train_all_rows),
+    }
     # The rows are the same for model and v0, so comparing right-answer counts
     # is comparing accuracy, without float equality.
     return {
@@ -173,8 +207,18 @@ def write_report(report, path):
     path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
-def main():
-    """Loads the generated files, measures every fold and the hand-written set, writes eval.json."""
+def main(argv=()):
+    """Loads the generated files, measures every fold and the hand-written set, writes the report.
+
+    Args:
+        argv: Command-line words. "--out PATH" writes the report there instead of
+            over the committed eval.json. Empty when called from code, so a test
+            runner's own arguments are never read.
+    """
+    parser = argparse.ArgumentParser(description="Score the model against v0 and write the report.")
+    parser.add_argument("--out", type=Path, default=None, help="where to write the report (default: the committed eval.json)")
+    out_path = parser.parse_args(argv).out or REPORT_PATH
+
     print(DIVIDER)
     print("WORD-WEIGHT MODEL AGAINST V0, PER FOLD")
     print(DIVIDER)
@@ -190,8 +234,8 @@ def main():
     report = build_report(folds, train_all_rows, handwritten_rows, print)
 
     # Step 3: write the report.
-    print(f"[3/{STEP_COUNT}] Writing {REPORT_PATH}")
-    write_report(report, REPORT_PATH)
+    print(f"[3/{STEP_COUNT}] Writing {out_path}")
+    write_report(report, out_path)
 
     # Step 4: show the headline.
     print(f"[4/{STEP_COUNT}] Result")
@@ -201,4 +245,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

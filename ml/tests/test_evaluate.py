@@ -13,6 +13,7 @@ from triage.evaluate import (
     build_report,
     fold_scores,
     handwritten_scores,
+    rows_fingerprint,
     summarize_folds,
     write_report,
 )
@@ -44,6 +45,7 @@ def make_row(row_id, masked_text, category, priority, v0, must_review=False):
     v0_category, v0_priority, v0_review = v0
     return {
         "id": row_id,
+        "fold": None,
         "text": masked_text.replace(PLACEHOLDER, hidden_words(category) + "@example.test"),
         "maskedText": masked_text,
         "category": category,
@@ -97,7 +99,11 @@ def heldout_rows(prefix="heldout", v0_perfect=False):
 
 
 def handwritten_rows(v0_perfect=False):
-    return scored_rows("hand", HANDWRITTEN_NOVEL, v0_perfect)
+    rows = scored_rows("hand", HANDWRITTEN_NOVEL, v0_perfect)
+    # The hand-written file has no fold key at all, unlike the exported files.
+    for row in rows:
+        del row["fold"]
+    return rows
 
 
 def count(k, n):
@@ -250,6 +256,70 @@ def test_the_command_reads_each_fold_file_and_writes_the_report(tmp_path, monkey
     details = [line for line in lines if line.startswith(" ")]
     assert details and all(re.match(r" {4}\S", line) for line in details)
     assert any("train 1,200" in line for line in details)
+
+
+def test_report_fingerprints_each_scored_row_set_and_the_rows_its_model_trained_on():
+    # A later change to a test set (fold assignment, row order) must show in
+    # eval.json even when every count happens to stay the same.
+    folds = toy_folds()
+    train_all = training_rows() * 2
+    report = build_report(folds, train_all, handwritten_rows())
+    for entry, (train_rows, heldout) in zip(report["folds"], folds):
+        assert entry["rows_sha256"] == rows_fingerprint(heldout)
+        assert entry["train_rows_sha256"] == rows_fingerprint(train_rows)
+    assert len({entry["rows_sha256"] for entry in report["folds"]}) == 4
+    assert report["handwritten"]["rows_sha256"] == rows_fingerprint(handwritten_rows())
+    assert report["handwritten"]["train_rows_sha256"] == rows_fingerprint(train_all)
+    assert re.fullmatch(r"[0-9a-f]{64}", report["handwritten"]["rows_sha256"])
+    assert report["handwritten"]["rows_sha256"] != report["handwritten"]["train_rows_sha256"]
+
+
+def moved(rows, index, field, value):
+    changed = [dict(row) for row in rows]
+    changed[index][field] = value
+    return changed
+
+
+@pytest.mark.parametrize("change", [
+    pytest.param(lambda rows: list(reversed(rows)), id="order"),
+    pytest.param(lambda rows: moved(rows, 3, "id", "other-id"), id="id"),
+    pytest.param(lambda rows: moved(rows, 3, "fold", 2), id="fold"),
+    pytest.param(lambda rows: moved(rows, 3, "maskedText", "other words"), id="masked-text"),
+    pytest.param(lambda rows: moved(rows, 3, "category", "Other"), id="category"),
+    pytest.param(lambda rows: moved(rows, 3, "priority", "Urgent"), id="priority"),
+    pytest.param(lambda rows: rows[:-1], id="a-row-dropped"),
+])
+def test_the_fingerprint_changes_when_any_scored_field_or_the_row_order_changes(change):
+    rows = handwritten_rows()
+    assert rows_fingerprint(change(rows)) != rows_fingerprint(rows)
+
+
+def test_the_fingerprint_ignores_fields_that_are_not_scored():
+    # The raw text and v0's answers are not part of what the floor compares.
+    rows = handwritten_rows()
+    assert rows_fingerprint(moved(rows, 3, "text", "other raw text")) == rows_fingerprint(rows)
+
+
+def test_the_command_writes_to_the_path_after_out_and_leaves_the_committed_report_alone(tmp_path, monkeypatch):
+    # CI re-derives the report into a temp file so it can be compared with the
+    # committed one; writing over the committed file would make that check vacuous.
+    committed_path = tmp_path / "committed.json"
+    out_path = tmp_path / "elsewhere" / "fresh.json"
+
+    def fake_load_rows(path):
+        name = Path(path).name
+        if name.startswith("heldout_"):
+            return heldout_rows(name)
+        if name == "handwritten.jsonl":
+            return handwritten_rows()
+        return training_rows()
+
+    monkeypatch.setattr(evaluate, "load_rows", fake_load_rows)
+    monkeypatch.setattr(evaluate, "REPORT_PATH", committed_path)
+    evaluate.main(["--out", str(out_path)])
+    assert not committed_path.exists()
+    assert out_path.is_file()
+    assert json.loads(out_path.read_text(encoding="utf-8"))["handwritten"]["model_category"] == count(5, 8)
 
 
 def test_each_row_set_is_scored_by_the_model_trained_for_it():

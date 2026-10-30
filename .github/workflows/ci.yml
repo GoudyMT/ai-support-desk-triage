@@ -53,7 +53,9 @@ jobs:
         working-directory: web
       - run: npm run export-data
         working-directory: web
-      - run: pip install -r ml/requirements.txt
+      # Every package is pinned to the sha256 of its published wheels: an unlisted
+      # package, a changed file or a source build is refused.
+      - run: pip install --require-hashes --only-binary :all: -r ml/requirements.txt
       - run: pytest ml/tests
       # Written outside the checkout so the committed model stays what it is
       # compared with; the parity file goes to its usual place.
@@ -63,6 +65,13 @@ jobs:
       # from the committed Windows one in the last digits and still agree on
       # every ticket.
       - run: python -m triage.check_model "$RUNNER_TEMP/model.json" "$GITHUB_WORKSPACE/web/src/model/model.json"
+        working-directory: ml
+      # The numbers in eval.json come from this run, not from whoever last
+      # committed them. Counts and row fingerprints must match, and the committed
+      # report must clear the owner's accuracy floor.
+      - run: python -m triage.evaluate --out "$RUNNER_TEMP/eval.json"
+        working-directory: ml
+      - run: python -m triage.check_eval "$RUNNER_TEMP/eval.json" "$GITHUB_WORKSPACE/ml/reports/eval.json"
         working-directory: ml
       # The browser scorer is judged on the model the parity file was made from.
       - run: npm run parity
