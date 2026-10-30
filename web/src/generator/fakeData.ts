@@ -30,11 +30,19 @@ const SENTENCES: Record<Kind, readonly string[]> = {
 const CARD_PAYLOAD_DIGITS = 15;
 const CARD_GROUP = 4;
 const DIGITS_IN_BASE = 10;
+const MAX_DIGIT = 9;
+const MAX_EMAIL_NUMBER = 99;
+// 555-0100 to 555-0199 is the block reserved for fiction.
+const PHONE_PREFIX = '555-01';
+const PHONE_SUFFIX_DIGITS = 2;
+const MAX_PHONE_SUFFIX = 99;
+const MIN_ORDER_NUMBER = 100000;
+const MAX_ORDER_NUMBER = 999999;
 
 function randomDigits(rng: Rng, count: number): string {
   let digits = '';
   for (let i = 0; i < count; i += 1) {
-    digits += String(rng.int(0, 9));
+    digits += String(rng.int(0, MAX_DIGIT));
   }
   return digits;
 }
@@ -59,7 +67,7 @@ function luhnCheckDigit(payload: string): number {
 // digit, so no payment system would accept it.
 function fakeCard(rng: Rng): string {
   const payload = `4${randomDigits(rng, CARD_PAYLOAD_DIGITS - 1)}`;
-  const wrong = (luhnCheckDigit(payload) + rng.int(1, 9)) % DIGITS_IN_BASE;
+  const wrong = (luhnCheckDigit(payload) + rng.int(1, MAX_DIGIT)) % DIGITS_IN_BASE;
   const digits = `${payload}${wrong}`;
   const groups: string[] = [];
   for (let at = 0; at < digits.length; at += CARD_GROUP) {
@@ -71,11 +79,11 @@ function fakeCard(rng: Rng): string {
 function fakeValue(rng: Rng, kind: Kind): string {
   switch (kind) {
     case 'email':
-      return `${rng.pick(EMAIL_NAMES)}${rng.int(1, 99)}@${rng.pick(EMAIL_DOMAINS)}`;
+      return `${rng.pick(EMAIL_NAMES)}${rng.int(1, MAX_EMAIL_NUMBER)}@${rng.pick(EMAIL_DOMAINS)}`;
     case 'phone':
-      return `555-01${String(rng.int(0, 99)).padStart(2, '0')}`;
+      return `${PHONE_PREFIX}${String(rng.int(0, MAX_PHONE_SUFFIX)).padStart(PHONE_SUFFIX_DIGITS, '0')}`;
     case 'order':
-      return `ORD-${rng.int(100000, 999999)}`;
+      return `ORD-${rng.int(MIN_ORDER_NUMBER, MAX_ORDER_NUMBER)}`;
     case 'card':
       return fakeCard(rng);
   }

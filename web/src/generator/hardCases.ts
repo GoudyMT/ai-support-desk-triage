@@ -52,7 +52,7 @@ export const POLITE_SECURITY_TEMPLATES: readonly Template[] = [
     text: 'Hello, I hope you are having a good day. I noticed a sign-in alert from a city I have never been to, and it was not me. Could someone please look at whether another person is using my login? Thank you so much.',
   },
   {
-    text: "Good afternoon. Sorry to bother you, but my {product} workspace sent invitations to people I don't know. I did not send them. Would you mind checking what happened? I would be very grateful.",
+    text: "Good afternoon. Sorry to bother you, but my {product} sent invitations to people I don't know. I did not send them. Would you mind checking what happened? I would be very grateful.",
   },
   {
     text: "Hi, thank you for your help last time. I think someone else may know my password, because my settings changed overnight and I didn't change them. Could you please secure my account when you have a moment?",
@@ -83,10 +83,14 @@ export const TRAP_WORDS: Record<string, Category> = {
 // whose suggested category is not the template's own.
 export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
   Billing: [
-    { text: 'I was billed twice for the {product} licence for our Nevada office. Please refund one of them.', billingDispute: true },
+    {
+      text: 'I was billed twice for the {product} licence for our Nevada office. Please refund one of them.',
+      billingDispute: true,
+      severe: true,
+    },
   ],
   'Technical Issue': [
-    { text: '{product} drains my battery. I have to charge my phone twice a day since the last update.' },
+    { text: '{product} drains my battery. I have to charge my phone three times a day since the last update.' },
   ],
   'Account Access': [
     { text: 'Ada on my team cannot get into {product}. Her password reset link says it expired.' },
@@ -116,13 +120,16 @@ export const TRAP_TEMPLATES: Record<Category, readonly Template[]> = {
 
 const WORD_PATTERN = /[A-Za-z]{4,}/g;
 const TYPO_RATE = 0.125;
+const SWAP_CHANCE = 0.5;
 
 function mangle(rng: Rng, word: string): string {
   const swapAt = rng.int(0, word.length - 2);
-  if (rng.chance(0.5) && word[swapAt] !== word[swapAt + 1]) {
+  if (rng.chance(SWAP_CHANCE) && word[swapAt] !== word[swapAt + 1]) {
     return word.slice(0, swapAt) + word[swapAt + 1] + word[swapAt] + word.slice(swapAt + 2);
   }
-  // Dropping an inner letter always changes the word, even for "ee" or "ll".
+  // Drops any letter but the first (the last one can go too). Removing one
+  // letter always changes the word, even from a double like "ee" or "ll",
+  // which a swap would leave as it was.
   const dropAt = rng.int(1, word.length - 1);
   return word.slice(0, dropAt) + word.slice(dropAt + 1);
 }

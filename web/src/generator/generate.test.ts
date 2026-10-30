@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES, type Category } from '../domain/labels';
-import { labelTicket } from '../domain/labelRules';
+import { labelTicket, primaryCategory } from '../domain/labelRules';
 import { createRng } from './rng';
 import {
   CATEGORY_SHARES,
@@ -18,6 +18,8 @@ import { TEMPLATES, type Template } from './templates';
 const SHARE_TOLERANCE = 0.015;
 const SAMPLE_SIZE = 20000;
 const FORMAT_SAMPLE_SIZE = 5000;
+const MIN_TEXT_LENGTH = 1;
+const MAX_TEXT_LENGTH = 2000;
 const HARD_CASES = Object.keys(HARD_CASE_SHARES) as HardCase[];
 
 // Built once: the share tests need 20,000 tickets and each build is the real path.
@@ -49,6 +51,19 @@ const EXPECTED_FAKE_DATA_SHARE = 0.15;
 
 function shareOf(count: number): number {
   return count / SAMPLE_SIZE;
+}
+
+// The parts of a template's text that no slot can change.
+function fixedWording(template: Template): string[] {
+  return template.text
+    .split(/\{\w+\}/)
+    .map((part) => part.trim().toLowerCase())
+    .filter((part) => part !== '');
+}
+
+function carriesWording(text: string, template: Template): boolean {
+  const lowered = text.toLowerCase();
+  return fixedWording(template).every((part) => lowered.includes(part));
 }
 
 function containsWord(text: string, word: string): boolean {
@@ -139,7 +154,8 @@ describe('labels', () => {
   // wrongly, and every accuracy number after it with them.
   it('sets billingDispute, severe and statusQuestion only where the template wording says so', () => {
     const disputeWording = /refund|twice|charged again|never signed up|second time/i;
-    const severeWording = /can't work|every time|blocking|charged again/i;
+    // A duplicate or repeat charge counts as "charged again" (C1).
+    const severeWording = /can't work|every time|blocking|charged again|twice|double charge/i;
     const statusWording = /where is my order|order status|any update/i;
     const all: [Category, Template][] = [];
     for (const category of CATEGORIES) {
@@ -225,14 +241,127 @@ describe('hard cases look like their case', () => {
   });
 });
 
+// The label is only as true as the facts, and the facts only as true as the
+// text. These tie each hard case's label to the template wording it was built
+// from, through generateTicketDetail, the same path generateTicket uses.
+describe('hard-case labels follow their text', () => {
+  it('labels every vague ticket Other, Medium, must-review for a vague ticket', () => {
+    const vague = DETAILS.filter((detail) => detail.ticket.hardCase === 'vague');
+    expect(vague.length).toBeGreaterThan(0);
+    for (const { ticket } of vague) {
+      expect(ticket.label, ticket.id).toEqual({
+        category: 'Other',
+        priority: 'Medium',
+        mustReview: true,
+        reviewReason: 'vague ticket',
+      });
+    }
+  });
+
+  it('builds every two-issue ticket from two distinct issues, both texts, and the flags the rule gives', () => {
+    const twoIssues = DETAILS.filter((detail) => detail.ticket.hardCase === 'two-issues');
+    expect(twoIssues.length).toBeGreaterThan(0);
+    for (const { ticket, facts, templates } of twoIssues) {
+      const [first, other] = templates;
+      if (first === undefined || other === undefined) {
+        throw new Error('E_TEST_TEMPLATES');
+      }
+      expect(templates, ticket.id).toHaveLength(2);
+      expect(new Set(facts.issues).size, ticket.id).toBe(2);
+      expect(ticket.label.secondary, ticket.id).toBeDefined();
+      expect(ticket.label.secondary, ticket.id).not.toBe(ticket.label.category);
+      expect(carriesWording(ticket.text, first), ticket.text).toBe(true);
+      expect(carriesWording(ticket.text, other), ticket.text).toBe(true);
+      // Dispute and status come from the issue that decides the category;
+      // words of loss or blocking count from either.
+      const deciding = primaryCategory(facts.issues) === facts.issues[0] ? first : other;
+      expect(facts.billingDispute, ticket.id).toBe(deciding.billingDispute === true);
+      expect(facts.statusQuestion, ticket.id).toBe(deciding.statusQuestion === true);
+      expect(facts.severe, ticket.id).toBe(first.severe === true || other.severe === true);
+    }
+  });
+
+  // A Billing ticket that also says "This is blocking my whole team" about a
+  // sync problem is High: the blocking words are in the ticket either way.
+  it('raises a Billing ticket to High when the losing Technical issue is severe', () => {
+    const rows = DETAILS.filter(({ ticket, facts, templates }) => {
+      const billing = templates[facts.issues.indexOf('Billing')];
+      const technical = templates[facts.issues.indexOf('Technical Issue')];
+      return (
+        ticket.hardCase === 'two-issues' &&
+        billing !== undefined &&
+        technical !== undefined &&
+        billing.severe !== true &&
+        technical.severe === true
+      );
+    });
+    expect(rows.length).toBeGreaterThan(0);
+    for (const { ticket } of rows) {
+      expect(ticket.label.category, ticket.id).toBe('Billing');
+      expect(ticket.label.priority, ticket.id).toBe('High');
+    }
+  });
+
+  it('applies typos to the text of typos tickets and to no others', () => {
+    let typos = 0;
+    for (const { ticket, templates, plainText } of DETAILS) {
+      if (ticket.hardCase === 'typos') {
+        typos += 1;
+        const [template] = templates;
+        expect(template, ticket.id).toBeDefined();
+        expect(carriesWording(plainText, template as Template), plainText).toBe(true);
+        expect(ticket.text.startsWith(plainText), ticket.text).toBe(false);
+      } else {
+        expect(ticket.text.startsWith(plainText), ticket.text).toBe(true);
+      }
+    }
+    expect(typos).toBeGreaterThan(0);
+  });
+});
+
+describe('generated wording reads like one customer wrote it', () => {
+  it('never names the same plan twice in one sentence', () => {
+    for (const ticket of TICKETS) {
+      for (const sentence of ticket.text.split(/[.?!]/)) {
+        const plans = (sentence.match(/\b(?:pro|team|starter|business) plan\b/gi) ?? []).map((plan) => plan.toLowerCase());
+        expect(new Set(plans).size, ticket.text).toBe(plans.length);
+      }
+    }
+  });
+
+  it('never repeats a word back to back, as in "workspace workspace"', () => {
+    for (const ticket of TICKETS) {
+      expect(ticket.text, ticket.id).not.toMatch(/\b(\w+)\s+\1\b/i);
+    }
+  });
+
+  it('puts threats only after a grievance, never "Not urgent, just curious ... you will regret it"', () => {
+    const threatening = DETAILS.filter((detail) => detail.ticket.hardCase === 'threatening');
+    expect(threatening.length).toBeGreaterThan(0);
+    for (const { ticket, templates } of threatening) {
+      expect(templates[0]?.grievance, ticket.id).toBe(true);
+      expect(ticket.text.toLowerCase(), ticket.id).not.toContain('not urgent');
+    }
+  });
+
+  it('opens with at most one greeting and closes with at most one thanks', () => {
+    const greeting = /\b(?:hi there|hi|hello|hey|good morning|good afternoon|dear|to whom it may concern)\b/gi;
+    const signOff = /\b(?:thanks|thank you|cheers|regards|please advise|appreciate any help)\b/gi;
+    for (const ticket of TICKETS) {
+      expect((ticket.text.match(greeting) ?? []).length, ticket.text).toBeLessThanOrEqual(1);
+      expect((ticket.text.match(signOff) ?? []).length, ticket.text).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 describe('fake personal data and text limits', () => {
   const sample = TICKETS.slice(0, FORMAT_SAMPLE_SIZE);
 
   it('keeps every ticket ASCII, 1 to 2000 characters and free of unfilled slots', () => {
     for (const ticket of sample) {
       expect(ticket.text, ticket.id).toMatch(/^[\x20-\x7e\n]+$/);
-      expect(ticket.text.length, ticket.id).toBeGreaterThanOrEqual(1);
-      expect(ticket.text.length, ticket.id).toBeLessThanOrEqual(2000);
+      expect(ticket.text.length, ticket.id).toBeGreaterThanOrEqual(MIN_TEXT_LENGTH);
+      expect(ticket.text.length, ticket.id).toBeLessThanOrEqual(MAX_TEXT_LENGTH);
       expect(ticket.text, ticket.id).not.toMatch(/[{}]/);
     }
   });
