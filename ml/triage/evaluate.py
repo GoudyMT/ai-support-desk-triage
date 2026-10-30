@@ -8,7 +8,7 @@ import statistics
 from pathlib import Path
 
 from triage.data import FOLD_COUNT, HANDWRITTEN_PATH, TRAIN_ALL_PATH, fold_paths, load_rows
-from triage.train import fit_fold_models, fit_models
+from triage.train import assert_no_leak, fit_fold_models, fit_models
 
 REPORT_PATH = Path(__file__).resolve().parent.parent / "reports" / "eval.json"
 DIVIDER = "=" * 60
@@ -82,7 +82,13 @@ def handwritten_scores(train_all_rows, handwritten_rows):
 
     Returns:
         A dict with one count per METRICS.
+
+    Raises:
+        ValueError: A hand-written text is in the training rows.
     """
+    # The hand-written set is the one test set no model may train on, so it gets
+    # the same check the fold models get.
+    assert_no_leak(train_all_rows, handwritten_rows)
     return score_rows(fit_models(train_all_rows), handwritten_rows)
 
 
@@ -138,9 +144,9 @@ def build_report(folds, train_all_rows, handwritten_rows, progress=None):
     say = progress or (lambda message: None)
     fold_results = []
     for k, (train_rows, heldout_rows) in enumerate(folds):
-        say(f"      fold {k}: train {len(train_rows)}, held out {len(heldout_rows)}")
+        say(f"    fold {k}: train {len(train_rows):,}, held out {len(heldout_rows):,}")
         fold_results.append(fold_scores(k, train_rows, heldout_rows))
-    say(f"      shipped model: train {len(train_all_rows)}, hand-written {len(handwritten_rows)}")
+    say(f"    shipped model: train {len(train_all_rows):,}, hand-written {len(handwritten_rows):,}")
     handwritten = handwritten_scores(train_all_rows, handwritten_rows)
     # The rows are the same for model and v0, so comparing right-answer counts
     # is comparing accuracy, without float equality.
@@ -170,7 +176,7 @@ def write_report(report, path):
 def main():
     """Loads the generated files, measures every fold and the hand-written set, writes eval.json."""
     print(DIVIDER)
-    print("Word-weight model against v0, per fold")
+    print("WORD-WEIGHT MODEL AGAINST V0, PER FOLD")
     print(DIVIDER)
 
     # Step 1: read the exported files.
@@ -189,8 +195,8 @@ def main():
 
     # Step 4: show the headline.
     print(f"[4/{STEP_COUNT}] Result")
-    print(f"      beats v0 on every fold: {report['beats_v0_every_fold']}")
-    print(f"      beats v0 on hand-written: {report['beats_v0_handwritten']}")
+    print(f"    beats v0 on every fold: {report['beats_v0_every_fold']}")
+    print(f"    beats v0 on hand-written: {report['beats_v0_handwritten']}")
     print(DIVIDER)
 
 

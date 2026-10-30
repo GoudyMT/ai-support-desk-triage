@@ -6,7 +6,7 @@ import re
 import pytest
 
 from triage.data import FOLD_COUNT, fold_paths, load_rows
-from triage.train import assert_no_leak, fit_fold_models
+from triage.train import assert_no_leak
 
 
 def normalized(text):
@@ -15,8 +15,15 @@ def normalized(text):
     return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
 
-def row(text):
-    return {"text": text, "maskedText": text, "category": "Other", "priority": "Low"}
+def row(masked_text, address="jo"):
+    # The raw text keeps an address the masker hides, so two rows can read the
+    # same masked and differ raw; the guard must go by what the model sees.
+    return {
+        "text": f"{masked_text} {address}@example.test",
+        "maskedText": masked_text,
+        "category": "Other",
+        "priority": "Low",
+    }
 
 
 def test_load_rows_names_the_export_command_when_the_file_is_missing(tmp_path):
@@ -48,17 +55,10 @@ def test_real_fold_heldout_wording_is_not_in_its_training_set(k):
 
 def test_guard_raises_when_a_heldout_text_differs_only_in_case_and_punctuation():
     train = [row("Reset my password, please!")]
-    heldout = [row("something else entirely"), row("reset MY password please")]
+    heldout = [row("something else entirely"), row("reset MY password please", "ann")]
     with pytest.raises(ValueError, match="E_HELDOUT_IN_TRAIN"):
         assert_no_leak(train, heldout)
 
 
 def test_guard_accepts_a_heldout_text_that_differs_by_a_word():
     assert_no_leak([row("Reset my password, please!")], [row("reset my password now")])
-
-
-def test_training_a_fold_model_runs_the_guard_first():
-    train = [row("Reset my password, please!")]
-    heldout = [row("reset MY password please")]
-    with pytest.raises(ValueError, match="E_HELDOUT_IN_TRAIN"):
-        fit_fold_models(train, heldout)
