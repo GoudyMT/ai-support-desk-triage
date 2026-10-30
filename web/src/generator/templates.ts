@@ -18,9 +18,9 @@ export interface Template {
 // tickets) draws from everything.
 export type Pool = 'all' | 'train' | 'heldout';
 
-// Every HELDOUT_EVERY-th item of a list (the last of each group) is held out,
-// so about a quarter of any list. The order of a list therefore decides which
-// items are held out.
+// The item at index 3, 7, 11, ... of a list is held out and the rest train, so
+// one item in four is held out (exactly four of a list of 16). The order of a
+// list therefore decides which items are held out.
 export const HELDOUT_EVERY = 4;
 
 export function poolOf<T>(items: readonly T[], pool: Pool): readonly T[] {
@@ -81,6 +81,25 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     },
     { text: 'The receipt for {amount} lists a different company name than mine. Can you correct it?' },
     { text: 'Is sales tax included in the {amount} I paid for the {plan}? The receipt does not say.' },
+    {
+      text: 'I moved down to the {plan} in {date} but my invoice still shows the old price. Please refund the difference.',
+      billingDispute: true,
+      grievance: true,
+    },
+    { text: 'Can you change the company name and address on all my past invoices? Our legal name changed this year.' },
+    { text: 'Which card is the {plan} being paid with at the moment? I have two saved and I am not sure.' },
+    { text: 'Please send me a copy of the {amount} receipt from {date}, with the tax breakdown, for our expense report.' },
+    {
+      text: 'My free trial of the {plan} ended on {date} and I was moved to a paid plan with no warning. I would like a refund.',
+      billingDispute: true,
+      grievance: true,
+    },
+    { text: 'How does annual billing work for the {plan}? We would like to pay by bank transfer instead of by card.' },
+    { text: 'I need to update the billing contact for the {plan} because our finance person left the company.' },
+    {
+      text: 'Your invoice for the {plan} arrived a month late, and now our accounts team keeps chasing me about it.',
+      grievance: true,
+    },
   ],
   'Technical Issue': [
     { text: "{product} crashes every time a large file is opened. I can't work until this is fixed.", severe: true, grievance: true },
@@ -100,6 +119,20 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       grievance: true,
     },
     { text: 'There is a bug where the date filter in {product} resets when I refresh the page. Minor, but annoying.' },
+    { text: 'The search box in {product} returns nothing for words I know are in my files.' },
+    { text: 'Notifications from {product} arrive about an hour late on my laptop.' },
+    {
+      text: 'Since this morning {product} logs me out every few minutes and I lose what I was typing.',
+      grievance: true,
+    },
+    { text: 'Dark text on a dark background: the new theme in {product} makes the menu unreadable.' },
+    { text: 'Printing a report from {product} cuts off the right-hand column.' },
+    { text: 'I cannot attach files over 10 MB in {product}. The progress circle spins and nothing happens.' },
+    {
+      text: 'Approvals in {product} are blocking my whole team: the button greys out as soon as I tap it.',
+      severe: true,
+      grievance: true,
+    },
   ],
   'Account Access': [
     { text: "I can't log in to {product}, and the email to reset my password never shows up.", grievance: true },
@@ -109,9 +142,24 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       text: 'The verification code from my authenticator app is rejected when I sign in, so I am locked out of {product}.',
       grievance: true,
     },
-    { text: 'I was removed from our company workspace by mistake. Can you restore my access?' },
+    { text: 'My name disappeared from our company user list by mistake. Can you restore my access?' },
     { text: 'A new hire needs access to {product}. Our admin is away. What can we do?' },
     { text: 'cant get in, it says my account is disabled' },
+    {
+      text: 'My invitation link expired before I could use it, so I still have no way into {product}.',
+      grievance: true,
+    },
+    { text: 'How do I turn on two-step sign-in? The setting is not where the help page says it is.' },
+    { text: 'My colleague left and I need to take over her login for our support mailbox. What is the process?' },
+    { text: 'I changed my phone number and now the text message codes go to the old one. How do I update it?' },
+    {
+      text: 'The sign-in page keeps telling me my details are wrong, but they are the same ones I used yesterday.',
+      grievance: true,
+    },
+    { text: 'Can I use one login for two different companies? I work for both and the email is the same.' },
+    { text: 'I forgot which email address I signed up with. Can you look it up from my name and phone number?' },
+    { text: 'Our contractor needs temporary entry to {product} for two weeks. How do we set that up without full rights?' },
+    { text: 'After I changed my password the app on my tablet logged out and will not let me back in.', grievance: true },
   ],
   'Security Concern': [
     { text: 'I got a sign-in alert from a country I have never visited. Someone has hacked my account.', grievance: true },
@@ -119,8 +167,20 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'I received an email saying my data was part of a breach. Is my {product} data affected?' },
     { text: "Someone is using my login at night. I see sessions from devices I don't own.", grievance: true },
     { text: 'My laptop was stolen and it was still signed in to {product}. Please lock my account.', grievance: true },
-    { text: 'I think a contractor now has unauthorized access to our shared folder in {product}. Please look into it today.' },
+    { text: 'I think a contractor now has unauthorized access to our project folder in {product}. Please look into it today.' },
     { text: "A form on your site shows other people's names in the web address. This looks like a security hole." },
+    { text: 'A text message gave me a login code I never asked for, three times in ten minutes.', grievance: true },
+    { text: 'Our {product} audit shows a former employee still has an active session. Please end it today.' },
+    { text: 'My email address was changed in my profile and I did not change it. I think another person got in.', grievance: true },
+    { text: 'Is it safe to click the link in an email that claims to be from your billing team? It looks a little odd.' },
+    { text: 'I found a file in {product} that I never uploaded, and it has a strange name. Could it be a virus?', grievance: true },
+    { text: 'How do I see which devices are signed in to my login right now? I want to remove the old ones.' },
+    { text: 'My neighbour says her messages from me looked odd. I think a scammer has copied my phone number.', grievance: true },
+    { text: 'A stranger phoned me pretending to be from your company and asked for my login code. I hung up.', grievance: true },
+    {
+      text: 'Two people from outside our company have been added to our project in {product}, and nobody here added them.',
+      grievance: true,
+    },
   ],
   'Accessibility Support': [
     { text: 'With a screen reader, the buttons in {product} are announced only as "button", so I cannot tell them apart.', grievance: true },
@@ -130,6 +190,27 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: "The tutorials on your site come without captions. I am deaf, so I can't follow along.", grievance: true },
     { text: 'Our company must meet ADA requirements. Does {product} have an accessibility statement?' },
     { text: 'The pop-up in {product} traps my keyboard focus and I have to restart my computer to get out of it.', grievance: true },
+    {
+      text: 'The error messages in {product} disappear after two seconds, and my dyslexia means I cannot read them that fast.',
+      grievance: true,
+    },
+    { text: 'Is there a dark theme in {product} that is easier on the eyes? Bright screens give me migraines.' },
+    { text: 'I use voice control, and half of the buttons in {product} have no name I can say out loud.' },
+    {
+      text: 'The sign-in page times out before I can finish typing with my one working hand. Can the limit be longer?',
+      grievance: true,
+    },
+    { text: 'Can I get your user guide as a plain text file? My braille display cannot read the PDF.' },
+    { text: 'The animations in {product} make me dizzy. Is there a way to turn them off?' },
+    {
+      text: 'Your phone support line has no text relay option, so I cannot reach anyone as a deaf customer.',
+      grievance: true,
+    },
+    { text: 'The link colours on your help pages match the text around them, so I cannot find them with my colour blindness.' },
+    {
+      text: 'Zoomed in at 200 percent, the table in {product} runs off the screen and I cannot scroll to the last columns.',
+      grievance: true,
+    },
   ],
   'Product Question': [
     { text: 'Is {feature} included in the {plan}? Trying to decide before I upgrade.' },
@@ -141,6 +222,16 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'Is there an API for {product}? We would like to connect it to our internal tools.' },
     { text: 'Nobody has told me what the {plan} actually includes. Does it include {feature}?', grievance: true },
     { text: 'I asked about {feature} twice already and got two different answers. Which of them is right?', grievance: true },
+    { text: 'Does {product} work on a Chromebook, or only on Windows and Mac?' },
+    { text: 'How long do you keep deleted files in {product} before they are gone for good?' },
+    { text: 'Can I add a second admin to {product} without paying for another seat?' },
+    { text: 'Is there a way to export all my data from {product} if I decide to leave?' },
+    { text: 'What happens to my files in {product} if I move from the {plan} to the {otherPlan}?' },
+    { text: 'Will {product} still be supported next year? We are choosing tools for the whole company.' },
+    {
+      text: 'I was told {feature} would arrive this quarter. Is there a date yet? I keep waiting and hearing nothing.',
+      grievance: true,
+    },
   ],
   'Urgent Complaint': [
     {
@@ -165,6 +256,39 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       grievance: true,
     },
     { text: 'Terrible service! I was passed between three agents and each one told me something different.', grievance: true },
+    {
+      text: 'This is the fourth time I am explaining the same problem to a new person. Does anyone there keep notes?',
+      grievance: true,
+    },
+    {
+      text: 'I was told a senior person would phone me last week. Nobody did, and I have lost faith in your company.',
+      grievance: true,
+    },
+    {
+      text: 'My problem is still not fixed after {days} days, and your replies keep asking for details I already gave.',
+      grievance: true,
+    },
+    { text: 'Your latest email says my case is closed. It is not closed. Nothing has been solved.', grievance: true },
+    {
+      text: 'I am sick of waiting. Every time I call, the line drops, and every time I write, I get a template.',
+      grievance: true,
+    },
+    {
+      text: 'I expected much better from a company I have recommended to friends. Today I regret that.',
+      grievance: true,
+    },
+    {
+      text: 'Whoever handled my request clearly did not read it. I want a different person to look at it today.',
+      grievance: true,
+    },
+    {
+      text: 'I booked a callback for {date} and sat by the phone all day. It never rang, and nobody has said sorry.',
+      grievance: true,
+    },
+    {
+      text: 'You promised an answer by the end of the week. It is now the following week and I have heard nothing at all.',
+      grievance: true,
+    },
   ],
   'Shipping/Order Issue': [
     {
@@ -180,8 +304,24 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
       grievance: true,
     },
     { text: 'The tracking says delivered, but nothing is at my door.', grievance: true },
-    { text: 'I need to change my delivery address before the order ships.' },
+    { text: 'I need to change my delivery address before the order goes out.' },
     { text: 'One item was missing from my order. The rest arrived on {date}.', grievance: true },
+    {
+      text: 'The courier marked my parcel as delivered, but it went to the wrong house and the neighbours do not have it.',
+      grievance: true,
+    },
+    { text: 'Can I pick up my order from a local store instead of waiting for delivery? I will be away on {date}.' },
+    { text: 'I ordered two items together and only one box turned up. When will the second one arrive?', grievance: true },
+    { text: 'The shipping fee at checkout was higher than the one in my basket. Can you check what I owe for delivery?' },
+    {
+      text: 'Any update on my parcel? The website has said processing for {days} days now.',
+      statusQuestion: true,
+      grievance: true,
+    },
+    { text: 'I need to return an item that does not fit. Is there a prepaid label I can print?' },
+    { text: 'The label on my parcel had the wrong flat number, so it went back to your warehouse.', grievance: true },
+    { text: 'Please can you deliver after 6pm? Nobody is home during the day and I keep missing the courier.' },
+    { text: 'Half of my order is here and the other half is marked as out of stock. Will it ship separately?' },
   ],
   Other: [
     { text: 'Do you have a phone number for your head office? I would like to send a letter.' },
@@ -192,6 +332,14 @@ export const TEMPLATES: Record<Category, readonly Template[]> = {
     { text: 'I am a journalist writing about small software companies. Who handles press requests?' },
     { text: 'Is your office open on {date}? I wanted to drop something off.' },
     { text: 'Your newsletter still lands in my inbox every week even though I unsubscribed last spring.', grievance: true },
+    { text: 'Is it possible to arrange a visit to your office for a school group in the spring?' },
+    { text: 'I found a typo on your website homepage. Who should I tell?' },
+    { text: 'We are organising a charity run and would love your company to sponsor a team.' },
+    { text: 'Could you send me your logo files? I am writing a blog post about local businesses.' },
+    { text: 'I think I sent my CV to the wrong email address last week. Who reads applications?' },
+    { text: 'Congratulations on your award this week. Well deserved!' },
+    { text: 'The phone number on your contact page seems to have a digit missing.' },
+    { text: 'My company would like to translate your help pages into Spanish for free. Who can we speak to about that?' },
   ],
 };
 
@@ -218,8 +366,11 @@ export const REQUESTS: readonly string[] = [
   'Would you mind getting back to me soon?',
 ];
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export const PRODUCTS: readonly string[] = ['Nimbus sync', 'Harbor reports', 'Quillfold dashboard', 'Team workspace', 'Orchard scheduler'];
+export const MONTHS: readonly string[] = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const PRODUCTS: readonly string[] = [
+  'Nimbus sync', 'Harbor reports', 'Quillfold dashboard', 'Team workspace', 'Orchard scheduler', 'Lantern calendar',
+  'Pebble notes', 'Saffron board',
+];
 export const PLANS: readonly string[] = [
   'Pro plan', 'Team plan', 'Starter plan', 'Business plan', 'Basic plan', 'Growth plan', 'Premium plan', 'Enterprise plan',
 ];
@@ -248,7 +399,7 @@ const SLOTS: Record<string, SlotFill> = {
   feature: (rng, _slot, pool) => rng.pick(poolOf(FEATURES, pool)),
   amount: (rng) =>
     `$${rng.int(MIN_AMOUNT_DOLLARS, MAX_AMOUNT_DOLLARS)}.${String(rng.int(0, CENTS_PER_DOLLAR - 1)).padStart(CENTS_PAD, '0')}`,
-  date: (rng) => `${rng.pick(MONTHS)} ${rng.int(1, MAX_DAY_OF_MONTH)}`,
+  date: (rng, _slot, pool) => `${rng.pick(poolOf(MONTHS, pool))} ${rng.int(1, MAX_DAY_OF_MONTH)}`,
   days: (rng) => String(rng.int(MIN_WAIT_DAYS, MAX_WAIT_DAYS)),
   seconds: (rng) => String(rng.int(MIN_LOAD_SECONDS, MAX_LOAD_SECONDS)),
 };

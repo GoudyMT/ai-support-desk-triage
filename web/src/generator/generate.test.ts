@@ -120,29 +120,29 @@ describe('generateTicket', () => {
 
   // Pins replay across machines: any change to a template, a share or the draw
   // order moves this ticket, and with it every saved run and dataset.
-  // Index 0 carries a polite request, 1 a greeting and sign-off, 2 a repeated
-  // crash with typos (High) and 6 a keyword trap: "Nevada" hides "ada" in a
-  // Billing ticket.
+  // Index 0 carries a polite request, 1 a sign-off, 2 an export error with a
+  // typo (Medium) and 6 a keyword trap: "accountant" and "Canada" hide
+  // "account" and "ada" in a Billing ticket about a wrong invoice total.
   it.each([
     {
       index: 0,
-      text: 'Can several people edit the same report in Quillfold dashboard at once? Would you mind getting back to me soon?',
+      text: 'I asked about single sign-on twice already and got two different answers. Which of them is right? Would you mind getting back to me soon?',
       label: { category: 'Product Question', priority: 'Low', mustReview: false },
     },
     {
       index: 1,
-      text: 'Hey,\nHow do I change the email address on my account? I no longer use the old one. Thanks.',
+      text: 'A new hire needs access to Harbor reports. Our admin is away. What can we do? Thanks.',
       label: { category: 'Account Access', priority: 'High', mustReview: false },
     },
     {
       index: 2,
-      text: 'Quillfold dashboard keeps crashing on my phone. It has happened ever day this week and my team is waiting on me. Cheers.',
-      label: { category: 'Technical Issue', priority: 'High', mustReview: false },
+      text: 'The export button in Team workspace shows an error messag and nothing downloads. Cheers.',
+      label: { category: 'Technical Issue', priority: 'Medium', mustReview: false },
     },
     {
       index: 6,
-      text: 'I was billed twice for the Harbor reports licence for our Nevada office. Please refund one of them. Thank you. Please reply to marcus.cole60@example.com.',
-      label: { category: 'Billing', priority: 'High', mustReview: true, reviewReason: 'billing dispute' },
+      text: 'The accountant at our Canada branch says the invoice for the Business plan shows the wrong total. Can you send a corrected one? Thank you. Send your answer to marcus.cole60@example.com.',
+      label: { category: 'Billing', priority: 'Medium', mustReview: false },
     },
   ])('matches the pinned ticket for seed 42, index $index', ({ index, text, label }) => {
     const ticket = generateTicket(42, index);

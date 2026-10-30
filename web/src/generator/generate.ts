@@ -193,7 +193,7 @@ export function generateTicketDetail(seed: number, index: number, pool: Pool = '
   let text = hardCase === 'typos' ? introduceTypos(rng, plainText) : plainText;
   // Added last so a typo can never damage an email, number or card.
   if (hasFakeData) {
-    text = `${text} ${fakeSnippet(rng, body.topic)}`;
+    text = `${text} ${fakeSnippet(rng, body.topic, pool)}`;
   }
 
   const ticket: Ticket = {

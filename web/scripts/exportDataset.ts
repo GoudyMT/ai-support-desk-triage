@@ -34,10 +34,11 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
-// Held-out tickets come from wording the model never trains on, but the shared
-// openers, closers and requests could still rebuild a training text exactly.
-// Any ticket whose normalised text is in the training set is skipped (its index
-// is not reused), so the score never rewards remembering a training text.
+// The pools keep held-out wording apart from training wording, so no held-out
+// text should be in the training set. This is the guard for the day two lists
+// come to hold the same sentence: a ticket whose normalised text is in the
+// training set is skipped (its index is not reused), so the score never rewards
+// remembering a training text.
 export function exportHeldout(
   seed: number,
   trainTexts: ReadonlySet<string>,

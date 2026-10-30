@@ -1,7 +1,7 @@
-import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES } from '../src/domain/labels';
 import { HARD_CASE_SHARES, generateTicket, generateTickets, type HardCase } from '../src/generator/generate';
@@ -157,12 +157,17 @@ describe('isRunAsCommand', () => {
     expect(isRunAsCommand(undefined, SCRIPT_URL)).toBe(false);
   });
 
+  // A temp folder with its own script, linked from a second folder: the module
+  // URL names the real file and the command line names the link.
   it('is true when the script is reached through a junction to its folder', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'export-junction-'));
     try {
+      const real = join(scratch, 'real');
+      mkdirSync(real);
+      writeFileSync(join(real, 'command.ts'), '');
       const link = join(scratch, 'scripts-link');
-      symlinkSync(SCRIPT_DIR, link, 'junction');
-      expect(isRunAsCommand(join(link, 'exportDataset.ts'), SCRIPT_URL)).toBe(true);
+      symlinkSync(real, link, 'junction');
+      expect(isRunAsCommand(join(link, 'command.ts'), pathToFileURL(join(real, 'command.ts')).href)).toBe(true);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
