@@ -1,0 +1,14 @@
+# Exact pins, each released at least 14 days before 2026-10-30; CI installs this same file.
+scikit-learn==1.9.1
+numpy==2.5.4
+scipy==1.18.1
+joblib==1.6.0
+cloudpickle==3.1.2
+threadpoolctl==3.7.0
+narwhals==2.27.1
+pytest==9.1.1
+pluggy==1.7.0
+iniconfig==2.3.1
+packaging==26.3
+pygments==2.21.0
+colorama==0.4.6 ; sys_platform == "win32"

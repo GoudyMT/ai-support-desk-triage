@@ -1,6 +1,9 @@
 node_modules/
 web/dist/
 ml/data/generated/
+ml/.venv/
+__pycache__/
+.pytest_cache/
 # Env files carry secrets; only the example is shared.
 .env*
 !.env.example
