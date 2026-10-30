@@ -20,6 +20,7 @@ const GENERATED_SHAPES: readonly (readonly [MaskKind, RegExp])[] = [
 describe('maskText on generated tickets', () => {
   it('leaves no email, order number, phone or card digits in a ticket that carries fake data', () => {
     let fake = 0;
+    const checkedPerKind = new Map<MaskKind, number>();
     for (const ticket of sample.filter((t) => t.hasFakeData)) {
       fake += 1;
       const { text, found } = maskText(ticket.text);
@@ -32,10 +33,15 @@ describe('maskText on generated tickets', () => {
       for (const [kind, shape] of GENERATED_SHAPES) {
         if (shape.test(ticket.text)) {
           expect(found, ticket.id).toContain(kind);
+          checkedPerKind.set(kind, (checkedPerKind.get(kind) ?? 0) + 1);
         }
       }
     }
     expect(fake).toBeGreaterThan(0);
+    // A shape that stopped matching would skip its check without a sound.
+    for (const [kind] of GENERATED_SHAPES) {
+      expect(checkedPerKind.get(kind) ?? 0, kind).toBeGreaterThan(0);
+    }
   });
 
   it('returns a ticket without fake data unchanged', () => {
@@ -55,6 +61,20 @@ describe('maskText on generated tickets', () => {
   });
 });
 
+// The model reads text as lowercase words of two or more characters.
+const WORD = /\b\w\w+\b/g;
+
+describe('mask tokens', () => {
+  it('each read as one word that no ticket uses on its own', () => {
+    const ticketWords = new Set(sample.flatMap((ticket) => ticket.text.toLowerCase().match(WORD) ?? []));
+    for (const token of Object.values(MASK_TOKENS)) {
+      const pieces = token.toLowerCase().match(WORD) ?? [];
+      expect(pieces, token).toHaveLength(1);
+      expect(ticketWords.has(pieces[0] ?? ''), token).toBe(false);
+    }
+  });
+});
+
 describe('maskText on formats the generator never makes', () => {
   const cases: { kind: MaskKind; value: string; sentence: string }[] = [
     { kind: 'email', value: 'jordan@mail.example.net', sentence: 'Please write to jordan@mail.example.net about it.' },
@@ -65,13 +85,70 @@ describe('maskText on formats the generator never makes', () => {
     { kind: 'card', value: '4111111111111111', sentence: 'The card 4111111111111111 was charged twice.' },
     { kind: 'order', value: '48213', sentence: 'This is about Order #48213 from May.' },
     { kind: 'order', value: '482130', sentence: 'I mean order number 482130 please.' },
+    // Longer runs and looser spacing: every run of 13 or more digits is a card.
+    { kind: 'card', value: '41111111111111111111', sentence: 'The card 41111111111111111111 was charged.' },
+    { kind: 'card', value: '0123456789012345678901', sentence: 'My acct 0123456789012345678901 is wrong.' },
+    { kind: 'card', value: '12345 4111 1111 1111 1111', sentence: 'The invoice 12345 4111 1111 1111 1111 was paid.' },
+    { kind: 'card', value: '4111.1111.1111.1111', sentence: 'I paid with 4111.1111.1111.1111 last week.' },
+    { kind: 'card', value: '4111  1111  1111  1111', sentence: 'I paid with 4111  1111  1111  1111 last week.' },
+    { kind: 'card', value: '4111 - 1111 - 1111 - 1111', sentence: 'I paid with 4111 - 1111 - 1111 - 1111 last week.' },
+    { kind: 'phone', value: '212 - 555 - 0147', sentence: 'Ring 212 - 555 - 0147 after lunch.' },
   ];
 
   it.each(cases)('masks $value as a $kind', ({ kind, value, sentence }) => {
     const { text, found } = maskText(sentence);
     expect(text).toContain(MASK_TOKENS[kind]);
     expect(text).not.toContain(value);
+    // No digit of the value may survive as a fragment.
+    expect(text).not.toMatch(/\d/);
     expect(found).toEqual([kind]);
+  });
+
+  it.each([
+    { sentence: 'My order number is 482130.', numbers: ['482130'] },
+    { sentence: 'Order number: 482130', numbers: ['482130'] },
+    { sentence: 'Order: 48213', numbers: ['48213'] },
+    { sentence: 'Order no. 48213', numbers: ['48213'] },
+    { sentence: 'Order No: 48213', numbers: ['48213'] },
+    { sentence: 'order ID 48213', numbers: ['48213'] },
+    { sentence: 'order # 48213', numbers: ['48213'] },
+    { sentence: 'my order is 48213', numbers: ['48213'] },
+    { sentence: 'Order ref 48213', numbers: ['48213'] },
+    { sentence: 'ORD 123456', numbers: ['123456'] },
+    { sentence: 'order 48213 and 48214', numbers: ['48213', '48214'] },
+    { sentence: 'order #48213, #48214', numbers: ['48213', '48214'] },
+  ])('masks every order number in: $sentence', ({ sentence, numbers }) => {
+    const { text, found } = maskText(sentence);
+    expect(text).toContain(MASK_TOKENS.order);
+    for (const number of numbers) {
+      expect(text).not.toContain(number);
+    }
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.every((kind) => kind === 'order')).toBe(true);
+  });
+
+  // A phone number written right after another number must not be read as a
+  // continuation of it.
+  it.each([
+    { sentence: 'Order #48213 555-0142', found: ['order', 'phone'] },
+    { sentence: 'ORD-123456 555-0142', found: ['order', 'phone'] },
+    // 19 digits of card plus the phone digits make one run of 13 or more
+    // digits, which is masked whole as a card.
+    { sentence: '4111 1111 1111 1111 555-0142', found: ['card'] },
+  ])('masks the phone after another number in: $sentence', ({ sentence, found }) => {
+    const result = maskText(sentence);
+    expect(result.text).not.toMatch(/\d/);
+    expect(result.found).toEqual(found);
+  });
+
+  it('stays fast on very long input with nothing to mask', () => {
+    const LONG = 50000;
+    const BUDGET_MS = 200;
+    for (const input of ['a'.repeat(LONG), ' '.repeat(LONG), `order${' '.repeat(LONG)}`]) {
+      const start = performance.now();
+      maskText(input);
+      expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    }
   });
 
   it.each([
