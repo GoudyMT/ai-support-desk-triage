@@ -35,6 +35,14 @@ const TOKEN = /\b\w\w+\b/g;
 // settings would score wrongly without any error, so it is refused.
 const SUPPORTED_NGRAM_RANGE = [1, 2];
 
+// The Python constant in ml/triage/features.py, which the pattern above stands in for.
+const PYTHON_TOKEN_PATTERN = String.raw`(?a)\b\w\w+\b`;
+
+// A trained weight is a few units (the shipped model's largest is about 10). A
+// value near the largest number overflows the sums in `score` into NaN, so
+// anything past this much-larger bound is refused instead.
+const MAX_WEIGHT_MAGNITUDE = 1e6;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -44,7 +52,8 @@ function isArrayOf<T>(value: unknown, test: (item: unknown) => item is T): value
 }
 
 const isString = (item: unknown): item is string => typeof item === 'string';
-const isNumber = (item: unknown): item is number => typeof item === 'number' && Number.isFinite(item);
+const isNumber = (item: unknown): item is number =>
+  typeof item === 'number' && Number.isFinite(item) && Math.abs(item) <= MAX_WEIGHT_MAGNITUDE;
 const isNumberArray = (item: unknown): item is number[] => isArrayOf(item, isNumber);
 
 function at<T>(items: readonly T[], i: number): T {
@@ -72,6 +81,11 @@ function parseHead(raw: unknown): ScoringHead {
   const index = new Map(vocabulary.map((term, i) => [term, i] as const));
   if (
     classes.length < MIN_CLASSES ||
+    // Class names become keys of the probabilities record: a repeated name would
+    // merge two classes, and one that is an inherited key ("toString") would
+    // replace a method of the record.
+    new Set(classes).size !== classes.length ||
+    classes.some((name) => name in {}) ||
     index.size !== vocabulary.length ||
     idf.length !== vocabulary.length ||
     coef.length !== classes.length ||
@@ -95,6 +109,7 @@ export function loadModel(json: unknown): Model {
     !isRecord(json) ||
     json['version'] !== 1 ||
     json['sublinearTf'] !== true ||
+    json['tokenPattern'] !== PYTHON_TOKEN_PATTERN ||
     !isNumberArray(json['ngramRange']) ||
     json['ngramRange'].join() !== SUPPORTED_NGRAM_RANGE.join() ||
     !isRecord(json['heads'])
@@ -128,8 +143,20 @@ export function tokenize(text: string): string[] {
   return [...words, ...pairs];
 }
 
+// A loop, not Math.max(...scores): spreading hundreds of thousands of values
+// overflows the call stack.
+function maxOf(values: readonly number[]): number {
+  let top = -Infinity;
+  for (const value of values) {
+    if (value > top) {
+      top = value;
+    }
+  }
+  return top;
+}
+
 function softmax(scores: number[]): number[] {
-  const top = Math.max(...scores);
+  const top = maxOf(scores);
   const exps = scores.map((s) => Math.exp(s - top));
   const total = exps.reduce((sum, e) => sum + e, 0);
   return exps.map((e) => e / total);
@@ -167,7 +194,7 @@ export function score(model: Model, head: HeadName, maskedText: string): Predict
     (_, c) => present.reduce((sum, w) => sum + w.value * at(at(coef, c), w.column), 0) + at(intercept, c),
   );
   const probabilities = softmax(scores);
-  const best = scores.indexOf(Math.max(...scores));
+  const best = scores.indexOf(maxOf(scores));
   const topTerms = present
     .map((w) => ({ term: at(vocabulary, w.column), weight: w.value * at(at(coef, best), w.column) }))
     // Only words that pushed toward the answer: a chip for a word that argued

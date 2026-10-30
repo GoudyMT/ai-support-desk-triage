@@ -83,10 +83,34 @@ describe('loadModel', () => {
     ['a repeated vocabulary term', tinyModel({ vocabulary: ['red', 'red', 'red blue'] })],
     // 1e999 is valid JSON text that reads as Infinity, and would turn every score into NaN.
     ['an infinite weight', JSON.parse(JSON.stringify(tinyModel()).replace('"idf":[1,2,3]', '"idf":[1,2,1e999]')) as unknown],
+    // Finite, but the products and sums in score overflow and every probability becomes NaN.
+    [
+      'coef and intercept values near the largest number',
+      tinyModel({ coef: [[1e308, 0, 0], [0, 1, -0.5], [-1, -1, 0]], intercept: [1e308, 0, 0] }),
+    ],
+    ['an idf value near the largest number', tinyModel({ idf: [1, 2, 1e308] })],
+    ['an intercept value near the largest number', tinyModel({ intercept: [0.1, 0, -1e308] })],
+    // Two classes with one name would collapse into one entry of the probabilities.
+    ['a repeated class name', tinyModel({ classes: ['A', 'A', 'B'] })],
+    // A class named like an inherited key would replace a method of the probabilities record.
+    ['a class named toString', tinyModel({ classes: ['A', 'toString', 'C'] })],
+    ['a class named __proto__', tinyModel({ classes: ['A', '__proto__', 'C'] })],
+    // The scorer implements one token pattern; another splits text differently without any error.
+    ['another token pattern', tinyModel({}, { tokenPattern: String.raw`(?u)\b\w+\b` })],
+    ['no token pattern', tinyModel({}, { tokenPattern: undefined })],
   ];
 
   it.each(badModels)('rejects a model with %s', (_name, json) => {
     expect(() => loadModel(json)).toThrow('E_MODEL_SHAPE');
+  });
+
+  it('accepts weights of a million, far above any a trained model has', () => {
+    const model = loadModel(
+      tinyModel({ idf: [1e6, 1, 1], coef: [[1e6, 0, 0], [0, 1, -0.5], [-1, -1, 0]], intercept: [1e6, 0, 0] }),
+    );
+    const prediction = score(model, 'category', 'red');
+    expect(prediction.label).toBe('A');
+    expect(Number.isFinite(prediction.confidence)).toBe(true);
   });
 
   it('accepts the shipped model, whose class names are the app labels and whose token pattern is the Python one', () => {
@@ -142,6 +166,46 @@ describe('score', () => {
     expect(prediction.probabilities['B']).toBeCloseTo(0.3322249935333472, 12);
     expect(prediction.probabilities['C']).toBeCloseTo(0.3006096053557273, 12);
     expect(prediction.topTerms).toEqual([]);
+  });
+
+  it('shows the five strongest words, strongest first, whatever their order in the vocabulary', () => {
+    // Seven words all push toward class A; their weights are not in vocabulary order.
+    const model = loadModel(
+      tinyModel({
+        vocabulary: ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg'],
+        idf: [1, 1, 1, 1, 1, 1, 1],
+        coef: [
+          [0.1, 0.7, 0.3, 0.9, 0.5, 0.2, 0.6],
+          [0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0],
+        ],
+        intercept: [1, 0, 0],
+      }),
+    );
+    const prediction = score(model, 'category', 'aa bb cc dd ee ff gg');
+    expect(prediction.label).toBe('A');
+    // Each word has the length-1 value 1/sqrt(7), so its weight is its coef over sqrt(7).
+    expect(prediction.topTerms.map((t) => t.term)).toEqual(['dd', 'bb', 'gg', 'ee', 'cc']);
+    const expected = [0.9, 0.7, 0.6, 0.5, 0.3].map((c) => c / Math.sqrt(7));
+    prediction.topTerms.forEach((t, i) => expect(t.weight).toBeCloseTo(expected[i] ?? NaN, 12));
+  });
+
+  it('scores a model with hundreds of thousands of classes', () => {
+    const count = 300_000;
+    const classes = Array.from({ length: count }, (_, i) => `c${i}`);
+    const model = loadModel(
+      tinyModel({
+        classes,
+        vocabulary: ['red'],
+        idf: [1],
+        coef: classes.map(() => [0]),
+        intercept: classes.map((_, i) => (i === count - 1 ? 1 : 0)),
+      }),
+    );
+    const prediction = score(model, 'category', 'red');
+    expect(prediction.label).toBe(`c${count - 1}`);
+    expect(prediction.confidence).toBeGreaterThan(0);
+    expect(prediction.confidence).toBeLessThan(1);
   });
 
   it('ignores a word the model has never seen', () => {
