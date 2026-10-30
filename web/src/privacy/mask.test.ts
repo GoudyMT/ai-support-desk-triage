@@ -117,6 +117,12 @@ describe('maskText on formats the generator never makes', () => {
     { sentence: 'ORD 123456', numbers: ['123456'] },
     { sentence: 'order 48213 and 48214', numbers: ['48213', '48214'] },
     { sentence: 'order #48213, #48214', numbers: ['48213', '48214'] },
+    { sentence: 'My orders 48213 and 48214 never came', numbers: ['48213', '48214'] },
+    { sentence: 'Orders #48213, #48214', numbers: ['48213', '48214'] },
+    { sentence: 'order numbers 48213 and 48214', numbers: ['48213', '48214'] },
+    { sentence: 'Order reference 48213', numbers: ['48213'] },
+    { sentence: 'order 48213 or 48214', numbers: ['48213', '48214'] },
+    { sentence: 'order 48213/48214', numbers: ['48213', '48214'] },
   ])('masks every order number in: $sentence', ({ sentence, numbers }) => {
     const { text, found } = maskText(sentence);
     expect(text).toContain(MASK_TOKENS.order);
@@ -132,9 +138,14 @@ describe('maskText on formats the generator never makes', () => {
   it.each([
     { sentence: 'Order #48213 555-0142', found: ['order', 'phone'] },
     { sentence: 'ORD-123456 555-0142', found: ['order', 'phone'] },
-    // 19 digits of card plus the phone digits make one run of 13 or more
+    // 16 digits of card plus the phone digits make one run of 13 or more
     // digits, which is masked whole as a card.
     { sentence: '4111 1111 1111 1111 555-0142', found: ['card'] },
+    // Two phone numbers close together are 14 or more digits in one run, which
+    // is masked whole; no tail of the second may be left behind.
+    { sentence: 'call 555-0142 (312) 867-5309 ok', found: ['card'] },
+    { sentence: 'call 555-0142. (312) 867-5309', found: ['card'] },
+    { sentence: 'call 555-0142  (312) 867-5309', found: ['card'] },
   ])('masks the phone after another number in: $sentence', ({ sentence, found }) => {
     const result = maskText(sentence);
     expect(result.text).not.toMatch(/\d/);
