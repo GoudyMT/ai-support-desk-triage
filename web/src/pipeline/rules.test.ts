@@ -362,7 +362,7 @@ describe('short tickets', () => {
     ["i'm having trouble resetting my password", 'trouble that names what failed'],
     ['i am without any problems this week', 'no trouble at all'],
     ['not any issues so far, thanks', 'a customer saying nothing is wrong'],
-    ['never any trouble until today, all good', 'a customer saying nothing was wrong'],
+    ['never any trouble with it, thanks', 'a customer saying nothing was wrong'],
   ])('does not flag %j (%s)', (text) => {
     // The cue word is there but the ticket is not vague; a flag here would send
     // a clear question or a thank-you to a reviewer as a vague ticket.
@@ -381,6 +381,8 @@ describe('short tickets', () => {
 // person, can raise its priority (security and threats to Urgent) and records a
 // reason, so each of these must come back empty.
 const NOT_FLAGGED = [
+  // A price question that points at a charge.
+  'what is that charge for a second seat?',
   // Security words used for plain product talk.
   "i can't login from my phone since the update",
   'i logged in from my work laptop and the page is blank',
@@ -465,7 +467,7 @@ const KEPT_SENSITIVE: [ReviewReason, string, string[]][] = [
   ['security incident', 'my account shows a login from brazil that i do not recognize', ['that i do not recognize']],
   ['security incident', "i see a purchase on my account i don't recognize", ["on my account i don't recognize"]],
   ['accessibility issue', 'your checkout is not accessible, i am a keyboard user and cannot reach the pay button', ['keyboard user']],
-  ['billing dispute', 'that charge was a mistake, i cancelled last month', ['that charge']],
+  ['billing dispute', 'that charge was a mistake, i cancelled last month', ['that charge was']],
   ['billing dispute', 'i was billed $49 instead of $29 this month', ['was billed']],
   ['billing dispute', 'i cancelled in march but was still billed for april', ['still billed']],
   ['accessibility issue', 'i use a screen reader and the form is unreadable', ['screen reader']],

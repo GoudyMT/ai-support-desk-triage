@@ -33,14 +33,15 @@ const CONTACT_VERBS = [
 ];
 const REPEAT_COUNTS = ['three', 'four', 'five'];
 
-// What a customer does not recognize on their account. "Unrecognized" and
-// "unfamiliar" alone also describe a file format or a layout, so each is paired
-// with a thing that someone else could have done or opened.
+// The customer saying they do not know something; it needs what comes before it.
 const NOT_RECOGNIZED = [
   'i do not recognize', "i don't recognize", 'i dont recognize', 'i do not recognise', "i don't recognise",
   'i dont recognise',
 ];
 
+// What a customer does not recognize on their account. "Unrecognized" and
+// "unfamiliar" alone also describe a file format or a layout, so each is paired
+// with a thing that someone else could have done or opened.
 const UNKNOWN_THINGS = [
   'device', 'devices', 'login', 'logins', 'sign in', 'activity', 'location', 'transaction',
   'transactions', 'charge', 'charges', 'purchase', 'purchases',
@@ -162,12 +163,16 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'charges on my',
     'charge i',
     'charges i',
-    // Pointing at one charge, or saying a bill happened, is a dispute; "the
-    // charge" alone still asks a price ("what is the charge for a seat").
-    'this charge',
-    'that charge',
-    'these charges',
-    'those charges',
+    // Saying what one charge is or was, or that a bill happened, is a dispute;
+    // "that charge" alone still asks a price ("what is that charge for a seat").
+    'this charge is',
+    'this charge was',
+    'that charge is',
+    'that charge was',
+    'these charges are',
+    'these charges were',
+    'those charges are',
+    'those charges were',
     'was billed',
     'were billed',
     'been billed',
