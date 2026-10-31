@@ -130,6 +130,16 @@ describe('simulated reviewer', () => {
     expect(noReason.reason).toContain(`the ticket is about ${noReason.category}`);
   });
 
+  it('explains a mistake by what the reviewer believed, not by the ticket true reason', () => {
+    const reviewer = createSimulatedReviewer(SEED, truthOf, 1);
+    for (let n = 4; n < 400; n += REASONS.length) {
+      expect(truthOf(idOf(n)).reviewReason).toBe('threatening language');
+      const decision = reviewer.decide(agreeingInput(n));
+      expect(decision.reason).toContain(`the ticket is about ${decision.category}`);
+      expect(decision.reason).not.toContain('threatens staff');
+    }
+  });
+
   it('routes every decision to the team for its decided category', () => {
     for (const d of decideMany(2000)) {
       expect(d.route).toBe(ROUTES[d.category]);

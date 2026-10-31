@@ -26,8 +26,13 @@ function hashId(id: string): number {
   return hash;
 }
 
+// A wrong decision is explained by what the reviewer believed, never by the ticket's
+// true reason, which would not lead to the category it chose.
 function explain(suggested: Category, decided: Category, truth: TicketLabel): string {
-  const why = truth.reviewReason === undefined ? `the ticket is about ${decided}` : REASON_PHRASES[truth.reviewReason];
+  const why =
+    truth.reviewReason === undefined || decided !== truth.category
+      ? `the ticket is about ${decided}`
+      : REASON_PHRASES[truth.reviewReason];
   return `The model said ${suggested}; ${why}, so it goes to ${decided}.`;
 }
 
