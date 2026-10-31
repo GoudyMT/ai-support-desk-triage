@@ -218,3 +218,13 @@ wrong, with its top words).
   aggregate shortfall by reason and hard-case kind (never ticket texts), before / after numbers logged here,
   then re-measure; a narrower second pass only if the new numbers call for it. The second check is dropped
   (adds 45-85 misses per fold): `secondCheckOn` stays false; its code stays, off.
+- 2026-10-31 rule revision 2c09c64 (picked as 2106ea7; isolated builder, about 560 entries added, a one-slip
+  spelling rule for words of 6+ letters, a short-vague-ticket signal). After, flagged % / missed:
+  floor 0.0: 54.4/103, 64.3/133, 46.7/154, 54.1/196; hand-written 47.9/1.
+  floor 0.3: 72.4/85, 73.0/99, 67.0/106, 72.0/112; hand-written 52.1/0.
+  floor 0.5: 89.9/9, 88.5/6, 87.9/10, 89.3/46; hand-written 66.7/0.
+  floor 0.6: 93.0/0, 94.7/1, 92.9/2, 94.5/1; hand-written 81.3/0.
+  floor 0.8: 97.3/0, 99.8/0, 99.6/0, 99.5/0; hand-written 91.7/0.
+  Left at floor 0 (folds): vague 292 of 944, accessibility 137 of 736, escalated complaint 96 of 864, polite
+  security 41 of 576. Brought to the owner: change the bar (zero on hand-written, stated fold miss rate) and
+  pick floor 0.5 (recommended) or 0.3.
