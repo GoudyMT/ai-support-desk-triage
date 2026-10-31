@@ -177,7 +177,8 @@ default is left blank for the viewer to fill.
      - the first hand-written set: 0 of 22, 67% flagged. It shaped the keyword rules, so it is reported as seen,
        not as an independent test.
      - the held-out folds: 10 / 6 / 10 / 46 missed (72 of 5,856 must-review, 1.2%), 88-90% flagged.
-     A set fails CI if it misses more, flags a larger share, or its must-review count changes.
+     A set fails CI if it misses more, flags a larger share, or its ticket or must-review count changes; the
+     check also fails if a set is missing, a fold file names another fold, or the frozen fresh set changed.
    - TypeScript and Python predictions agree on 100% of the held-out set.
    - The v0 port matches the original HTML on all compared tickets.
    - The demo completes on a mid-range phone at learn speed without dropped frames being noticeable (checked by

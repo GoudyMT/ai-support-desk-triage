@@ -7,7 +7,7 @@
 - Next: the owner's answers (fresh-set near-matches, fold 0 at 10), fix check on the re-sweep fixes, full gate,
   PR body; push and PR on the owner's go
 - Branch: feat/v1-pipeline (from main @ c0a2b7c)
-- Open questions: none
+- Open questions (the owner's): keep the fresh set's two near-matches (F-19, F-48)?; accept fold 0 at 10?
 
 **Goal:** every ticket passes through the six stages with a record per stage, no high-risk ticket is missed on
 any held-out fold or the hand-written set, and the run's numbers are computed from real outcomes.
@@ -83,6 +83,7 @@ file parsed with a YAML parser before the push (L-02).
 - [x] Time `maskText` on fake-data tickets padded to 2,000 / 5,000 / 10,000 / 20,000 characters, median of 20
       runs each, on the owner's PC -> verify: a table in this plan's Execution Notes.
 - [x] Set `MAX_TICKET_CHARS` = the largest size measured under 5 ms; record it in the design's section 12.
+  > SUPERSEDED (2026-10-31): judged on the whole pipeline against 50 ms - see the length bar Execution Note.
 
 ### Task 1: Types and intake
 
@@ -211,10 +212,14 @@ wrong, with its top words).
   must-review tickets against the fold models' 6 / 10 / 46 (it is more confident, so fewer low-confidence
   flags). Measure the live stream's misses before the page claims a number.
 - Rules: a short question that says "not a problem" ("it is not a problem, just curious") is flagged as vague,
-  and a bare "or else." ultimatum fires no rule (the model still flags it). Both are flag-cost or covered cases.
-- Masker: dates in other forms (15.01.2024, 15-01-2024), IP addresses, version numbers, long amounts and seven
-  small numbers one per line are masked as a phone or card. Safe for privacy; it hides that detail from the
-  model and the reviewer.
+  and a bare "or else." ultimatum fires no rule (the model still flags it). Accepted flag cost from restoring
+  coverage: "an icon on the toolbar that I don't recognize" is flagged as security, and "I was billed $29 this
+  month, where can I download the invoice?" as a billing dispute; a missed login or dispute costs more than a
+  reviewer's glance.
+- Masker: dates in other forms (15.01.2024, 15-01-2024, a year with fullwidth dashes), IP addresses, version
+  numbers, long amounts, seven small numbers one per line, and lists of numbers joined by commas or bars
+  ("Pages 12, 15, 18, 21, 25, 30, 41", "IDs: 1234, 5678, 9012, 3456", "404 | 500 | 503 | 502 | 504") are masked
+  as a phone or card. Safe for privacy; it hides that detail from the model and the reviewer.
 
 ## Execution Notes & Deviations
 
@@ -222,6 +227,8 @@ wrong, with its top words).
   owner's PC, Node 20.11.0 (the shell's default, not fnm's 22.22.3; the margin below makes the difference moot):
   2,000 chars 0.05 ms (0.06); 5,000 0.14 (0.19); 10,000 0.26 (0.27); 20,000 0.50 (0.53). Every size is far
   under the 5 ms bar, so `MAX_TICKET_CHARS = 20000`, the largest size measured.
+  > SUPERSEDED (2026-10-31): English text only; the bar is now the whole pipeline against 50 ms - see the length
+  > bar entry below.
 - 2026-10-31 Task 6 measurement (`measurePipeline.ts`, fold models from `export_model --folds-out`, rules frozen
   at 9a33526, 18.9 s). Flagged % / high-risk missed, second check off:
   floor 0.0: folds 48.9/274, 61.4/220, 46.6/156, 54.0/200; hand-written 45.8/2.

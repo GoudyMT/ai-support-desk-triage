@@ -109,8 +109,9 @@ streaming between stages); putting the rules inside the model step (hides which 
    goals 2-3, so the floor and target are set from it. The CI model job, which already retrains, also exports
    the four fold models to a temporary folder and fails if any fold or the hand-written set has a high-risk
    miss. Fold models are never committed.
-   > SUPERSEDED (2026-10-31): it fails when a set breaks its start point (misses, flag rate, must-review count),
-   > over the folds and both hand-written sets (seen and fresh) - see section 5.
+   > SUPERSEDED (2026-10-31): it fails when a set breaks its start point (misses, flag rate, ticket and
+   > must-review counts), over the folds and both hand-written sets (seen and fresh), and when a set is missing, a
+   > fold file names another fold or the frozen fresh set changed - see section 5.
 
 **Should**
 - The second-check experiment (section 5), as a stage between guardrails and review that is off unless the
