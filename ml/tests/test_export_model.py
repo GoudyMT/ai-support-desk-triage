@@ -81,10 +81,14 @@ def test_each_fold_model_is_written_and_reloads_to_that_folds_answers(tmp_path):
 
 
 def test_a_held_out_text_in_training_writes_no_fold_file(tmp_path):
-    train_rows = make_rows(ROW_COUNT, seed=10)
+    # The leak sits in the second fold: a clean first fold must not be written
+    # before the second is checked, or a failed export leaves a mixed folder.
+    clean = (make_rows(ROW_COUNT, seed=10), make_rows(20, seed=20))
+    leaky_train = make_rows(ROW_COUNT, seed=11)
     with pytest.raises(ValueError):
-        export_model.export_folds([(train_rows, train_rows[:1])], tmp_path / "folds")
+        export_model.export_folds([clean, (leaky_train, leaky_train[:1])], tmp_path / "folds")
     assert not (tmp_path / "folds" / "fold_0.json").exists()
+    assert not (tmp_path / "folds" / "fold_1.json").exists()
 
 
 def test_model_declares_the_settings_it_was_fitted_with_and_lines_up_its_arrays():
