@@ -5,6 +5,8 @@ Run from the ml folder: python -m triage.export_model [--model-out PATH] [--pari
 
 import argparse
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from triage.data import FOLD_COUNT, GENERATED_DIR, HANDWRITTEN_PATH, TRAIN_ALL_PATH, fold_paths, load_rows
@@ -91,8 +93,31 @@ def parity_records(models, rows):
     return records
 
 
+def write_atomically(path, text):
+    """Writes a file so a reader (or a failed run) sees the old file or the new one, never half.
+
+    The text goes to a temp file in the same folder, which then replaces the
+    target; newline="\\n" so Windows writes the same bytes as Linux.
+
+    Args:
+        path: The file to write.
+        text: Its whole content.
+    """
+    handle, temp_name = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
+    try:
+        with open(handle, "w", encoding="utf-8", newline="\n") as temp_file:
+            temp_file.write(text)
+        os.replace(temp_name, path)
+    except BaseException:
+        Path(temp_name).unlink(missing_ok=True)
+        raise
+
+
 def export(models, parity_rows, model_path, parity_path):
     """Writes the model file and the parity file.
+
+    Both files' text is built before either is written, so a model or a parity
+    row that is not valid JSON stops the export with every file as it was.
 
     Args:
         models: The dict fit_models returns.
@@ -101,22 +126,19 @@ def export(models, parity_rows, model_path, parity_path):
         parity_path: Where to write the parity JSON lines.
     """
     model_path, parity_path = Path(model_path), Path(parity_path)
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    parity_path.parent.mkdir(parents=True, exist_ok=True)
     # Compact separators: the file ships to the browser. ensure_ascii (the
     # default) keeps both files ASCII and lines free of U+2028, so a reader may
-    # split on "\n". newline="\n" so Windows writes the same bytes as Linux.
-    # allow_nan=False: NaN and Infinity are not JSON, so JSON.parse in the
-    # browser would refuse the file; stop here instead of writing it.
-    model_path.write_text(
-        json.dumps(build_model(models), separators=(",", ":"), allow_nan=False) + "\n",
-        encoding="utf-8",
-        newline="\n",
+    # split on "\n". allow_nan=False: NaN and Infinity are not JSON, so
+    # JSON.parse in the browser would refuse the file; stop here instead of writing it.
+    model_text = json.dumps(build_model(models), separators=(",", ":"), allow_nan=False) + "\n"
+    parity_text = "".join(
+        json.dumps(record, separators=(",", ":"), allow_nan=False) + "\n"
+        for record in parity_records(models, parity_rows)
     )
-    lines = [
-        json.dumps(record, separators=(",", ":"), allow_nan=False) for record in parity_records(models, parity_rows)
-    ]
-    parity_path.write_text("".join(line + "\n" for line in lines), encoding="utf-8", newline="\n")
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    parity_path.parent.mkdir(parents=True, exist_ok=True)
+    write_atomically(model_path, model_text)
+    write_atomically(parity_path, parity_text)
 
 
 def main(argv=None):

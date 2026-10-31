@@ -30,10 +30,21 @@ SUPPORTED_NGRAM_RANGE = [1, 2]
 # The arrays of one head, in the order they are compared.
 HEAD_ARRAYS = ("classes", "vocabulary", "idf", "coef", "intercept")
 # How far two numbers of the same model may differ. The solver stops early, so a
-# refit on the same rows in another order (or on another platform, as CI does)
-# differs by about 1e-10; this allows four orders more and still fails a
-# hand-edited weight of 1e-3.
+# refit differs in its last digits. Measured: refitting on the same rows
+# shuffled, on Windows, the worst difference was 1.1e-10. The fit CI makes on
+# Linux has not been measured and is first seen in CI. This allows four orders
+# more than 1e-10 and still fails a hand-edited weight of 1e-3.
 VALUE_TOLERANCE = 1e-6
+# The browser's loader refuses a number past this magnitude (a value near the
+# largest float overflows its sums into NaN), and so does this one.
+MAX_WEIGHT_MAGNITUDE = 1e6
+# The names `name in {}` is true for in JavaScript. The browser refuses a class
+# with one of them, because class names become keys of its probabilities record.
+INHERITED_OBJECT_KEYS = frozenset({
+    "constructor", "__proto__", "toString", "valueOf", "hasOwnProperty", "isPrototypeOf",
+    "propertyIsEnumerable", "toLocaleString", "__defineGetter__", "__defineSetter__",
+    "__lookupGetter__", "__lookupSetter__",
+})
 
 # The scorer here follows the browser scorer step by step, from the model file
 # alone (plain Python, no scikit-learn), so two files are judged by a second
@@ -42,8 +53,13 @@ _TOKEN = re.compile(TOKEN_PATTERN)
 
 
 def _is_number(value):
-    """True for a finite JSON number; a bool is not one, as in the browser's loader."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    """True for a finite JSON number within MAX_WEIGHT_MAGNITUDE; a bool is not one, as in the browser's loader."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and abs(value) <= MAX_WEIGHT_MAGNITUDE
+    )
 
 
 def _is_list_of(values, test):
@@ -69,6 +85,7 @@ def _check_head_shape(head):
     if (
         len(classes) < MIN_CLASSES
         or len(set(classes)) != len(classes)
+        or any(name in INHERITED_OBJECT_KEYS for name in classes)
         or len(set(vocabulary)) != len(vocabulary)
         or len(idf) != len(vocabulary)
         or len(coef) != len(classes)

@@ -294,10 +294,12 @@ def test_the_fingerprint_changes_when_any_scored_field_or_the_row_order_changes(
     assert rows_fingerprint(change(rows)) != rows_fingerprint(rows)
 
 
-def test_the_fingerprint_ignores_fields_that_are_not_scored():
-    # The raw text and v0's answers are not part of what the floor compares.
-    rows = handwritten_rows()
-    assert rows_fingerprint(moved(rows, 3, "text", "other raw text")) == rows_fingerprint(rows)
+def test_the_report_is_written_with_unix_line_endings(tmp_path):
+    # CI re-derives the report on Linux and compares it with the one committed from
+    # Windows; the committed bytes must not depend on the platform that wrote them.
+    path = tmp_path / "eval.json"
+    write_report({"folds": [1, 2], "std_method": "population"}, path)
+    assert b"\r" not in path.read_bytes()
 
 
 def test_the_command_writes_to_the_path_after_out_and_leaves_the_committed_report_alone(tmp_path, monkeypatch):

@@ -203,7 +203,38 @@ MALFORMED = [
     pytest.param(lambda m: change(m, ("heads", "category", "vocabulary"), ["alpha", "beta", "alpha"]), "E_MODEL_SHAPE", id="vocabulary-repeats"),
     pytest.param(lambda m: change(m, ("heads", "category", "classes"), ["Billing", "Billing", "Low"]), "E_MODEL_SHAPE", id="classes-repeat"),
     pytest.param(lambda m: change(m, ("heads", "category", "intercept", 0), float("nan")), "E_MODEL_SHAPE", id="intercept-nan"),
+    pytest.param(lambda m: change(m, ("heads", "category", "idf", 0), 2e6), "E_MODEL_SHAPE", id="idf-over-a-million"),
+    pytest.param(lambda m: change(m, ("heads", "category", "coef", 1, 1), -2e6), "E_MODEL_SHAPE", id="coef-under-minus-a-million"),
 ]
+
+# What `name in {}` is true for in JavaScript, which the browser refuses as a class
+# name (it becomes a key of the probabilities record). Written out here, from the
+# language, and not read from the code under test.
+INHERITED_OBJECT_KEYS = [
+    "constructor", "__proto__", "toString", "valueOf", "hasOwnProperty", "isPrototypeOf",
+    "propertyIsEnumerable", "toLocaleString", "__defineGetter__", "__defineSetter__",
+    "__lookupGetter__", "__lookupSetter__",
+]
+
+
+def test_a_class_named_like_an_inherited_object_key_is_refused_as_the_browser_refuses_it(tmp_path):
+    # A ticket class called "toString" would replace a method of the browser's
+    # probabilities record; the browser refuses the file, so the check must too
+    # and not call it "the same model".
+    for name in INHERITED_OBJECT_KEYS:
+        model = toy_model()
+        change(model, ("heads", "category", "classes"), ["Billing", "Account Access", name])
+        with pytest.raises(ValueError, match="E_MODEL_SHAPE"):
+            load_model(write_model(tmp_path, "bad.json", model))
+
+
+def test_a_weight_of_exactly_a_million_is_still_accepted(tmp_path):
+    # The browser refuses magnitudes over 1e6, not at it; refusing the boundary
+    # would reject a file the browser loads.
+    model = toy_model()
+    change(model, ("heads", "category", "coef", 0, 0), 1e6)
+    change(model, ("heads", "category", "intercept", 1), -1e6)
+    assert load_model(write_model(tmp_path, "edge.json", model)) is not None
 
 
 @pytest.mark.parametrize("damage, code", MALFORMED)
@@ -241,8 +272,9 @@ def test_a_difference_in_any_part_of_the_model_is_named_by_head_array_and_index(
 
 
 def test_refit_noise_far_below_the_tolerance_is_not_a_difference(tmp_path):
-    # CI refits on another platform, where the solver's last digits differ
-    # (measured about 1e-10 between row orders); that must not fail the check.
+    # A refit's last digits differ (measured on Windows, refitting on shuffled
+    # rows: worst 1.1e-10; the Linux fit CI makes is first seen in CI). Noise far
+    # below the tolerance must not fail the check.
     noisy = toy_model()
     noisy["heads"]["category"]["coef"][0][0] += 1e-9
     noisy["heads"]["category"]["idf"][1] += 1e-9

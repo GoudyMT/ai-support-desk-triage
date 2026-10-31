@@ -96,12 +96,34 @@ def test_a_model_with_a_nan_weight_is_not_written(tmp_path):
     assert not model_path.exists()
 
 
-def test_a_parity_row_with_a_nan_is_not_written(tmp_path, monkeypatch):
-    # The TypeScript parity test reads this file with JSON.parse too.
+def test_a_parity_row_with_a_nan_is_not_written_and_leaves_the_model_file_as_it_was(tmp_path, monkeypatch):
+    # The TypeScript parity test reads this file with JSON.parse too. The model
+    # file is the one the site ships: a failed export must not replace the good
+    # one already there with a model the parity file does not describe.
     monkeypatch.setattr(export_model, "parity_records", lambda models, rows: [{"id": "t-1", "probability": float("nan")}])
     models = fit_models(make_rows(ROW_COUNT, seed=1))
+    model_path = tmp_path / "model.json"
+    model_path.write_bytes(b'{"the model already shipped": true}\n')
     with pytest.raises(ValueError, match="JSON compliant"):
-        export(models, make_rows(1, seed=9), tmp_path / "model.json", tmp_path / "parity.jsonl")
+        export(models, make_rows(1, seed=9), model_path, tmp_path / "parity.jsonl")
+    assert model_path.read_bytes() == b'{"the model already shipped": true}\n'
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["model.json"]
+
+
+def test_a_write_that_dies_before_the_swap_leaves_the_old_file_whole_and_no_temp_file(tmp_path, monkeypatch):
+    # A disk that fills or a process that is killed part way through a write must
+    # not leave half a model.json: the bytes go to a temp file, then replace the old one.
+    def fail(source, target):
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(export_model.os, "replace", fail)
+    models = fit_models(make_rows(ROW_COUNT, seed=1))
+    model_path = tmp_path / "model.json"
+    model_path.write_bytes(b'{"the model already shipped": true}\n')
+    with pytest.raises(OSError, match="disk gone"):
+        export(models, make_rows(1, seed=9), model_path, tmp_path / "parity.jsonl")
+    assert model_path.read_bytes() == b'{"the model already shipped": true}\n'
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["model.json"]
 
 
 def test_files_are_written_with_unix_line_endings(tmp_path):

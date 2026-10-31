@@ -204,7 +204,8 @@ def write_report(report, path):
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    # newline="\n" so Windows writes the same bytes as Linux.
+    path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def main(argv=()):

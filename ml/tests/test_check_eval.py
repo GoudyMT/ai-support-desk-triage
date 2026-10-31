@@ -9,6 +9,7 @@ from triage.check_eval import (
     FLOOR_MARGIN,
     FOLD_FIRST_RUN,
     HANDWRITTEN_FLOOR_K,
+    HANDWRITTEN_FLOOR_N,
     first_difference,
     floor_problem,
     main,
@@ -18,23 +19,45 @@ from triage.evaluate import METRICS, REPORT_PATH, rows_fingerprint
 
 FLOOR_N = 10_000
 HANDWRITTEN_N = 48
+# The share of rows every metric but model_category gets, far from the floor on
+# both sides: a floor that read model_priority (always above it) or v0_category
+# (always below it) would pass or fail the wrong fixtures instead of agreeing
+# with the category count.
+OTHER_METRIC_SHARE = {"model_priority": 0.9, "v0_category": 0.1, "v0_priority": 0.3, "v0_review": 0.7}
 
 
 def metric_counts(k, n):
     return {"k": k, "n": n, "accuracy": k / n}
 
 
+def metrics_for(category_k, n):
+    counts = {"model_category": metric_counts(category_k, n)}
+    counts.update({metric: metric_counts(round(share * n), n) for metric, share in OTHER_METRIC_SHARE.items()})
+    return counts
+
+
 def fold_entry(fold, category_k, n=FLOOR_N):
     entry = {"fold": fold, "rows_sha256": f"heldout-{fold}", "train_rows_sha256": f"train-{fold}"}
-    entry.update({metric: metric_counts(category_k + index, n) for index, metric in enumerate(METRICS)})
+    entry.update(metrics_for(category_k, n))
     return entry
 
 
-def report(category_ks=None, handwritten_k=HANDWRITTEN_FLOOR_K):
+def isolation():
+    block = {"folds": {}, "handwritten": {}}
+    for metric in METRICS:
+        trained = metric.startswith("model_")
+        block["folds"][metric] = {
+            "model": "fold_k" if trained else "v0", "trained_on": "train_k" if trained else None, "scored_on": "heldout_k"}
+        block["handwritten"][metric] = {
+            "model": "shipped" if trained else "v0", "trained_on": "train_all" if trained else None, "scored_on": "handwritten"}
+    return block
+
+
+def report(category_ks=None, handwritten_k=HANDWRITTEN_FLOOR_K, handwritten_n=HANDWRITTEN_N):
     """A report whose fold category accuracy sits exactly on the floor (1 point under the first run)."""
     if category_ks is None:
         category_ks = [round((first_run - FLOOR_MARGIN) * FLOOR_N) for first_run in FOLD_FIRST_RUN]
-    handwritten = {metric: metric_counts(handwritten_k + index, HANDWRITTEN_N) for index, metric in enumerate(METRICS)}
+    handwritten = metrics_for(handwritten_k, handwritten_n)
     handwritten.update({"rows_sha256": "handwritten", "train_rows_sha256": "train-all"})
     return {
         "std_method": "population",
@@ -43,6 +66,7 @@ def report(category_ks=None, handwritten_k=HANDWRITTEN_FLOOR_K):
         "handwritten": handwritten,
         "beats_v0_every_fold": True,
         "beats_v0_handwritten": True,
+        "isolation": isolation(),
     }
 
 
@@ -56,10 +80,13 @@ def test_the_floor_constants_are_the_owners_first_run_values():
     assert FOLD_FIRST_RUN == (0.5813, 0.4855, 0.6240, 0.6012)
     assert FLOOR_MARGIN == 0.01
     assert HANDWRITTEN_FLOOR_K == 39
+    assert HANDWRITTEN_FLOOR_N == 48
 
 
-# What each change does to a fresh report, as a bug in fold assignment, training or
-# the scorer would. Every one must be seen even though the others stay equal.
+# What each change does to a fresh report, as a bug in fold assignment, training,
+# the scorer or the summary, or a hand edit of the committed file, would. Every one
+# must be seen even though the others stay equal. The text before the first space
+# is the place the message must name.
 CHANGES = {
     "folds[1].model_category.k": lambda r: r["folds"][1]["model_category"].update(k=1),
     "folds[3].v0_review.n": lambda r: r["folds"][3]["v0_review"].update(n=3999),
@@ -71,20 +98,36 @@ CHANGES = {
     "beats_v0_every_fold": lambda r: r.update(beats_v0_every_fold=False),
     "beats_v0_handwritten": lambda r: r.update(beats_v0_handwritten=False),
     "folds[1].rows_sha256 (missing)": lambda r: r["folds"][1].pop("rows_sha256"),
-    "fold count": lambda r: r["folds"].pop(),
+    "folds (one fold fewer)": lambda r: r["folds"].pop(),
+    "summary.model_category.mean": lambda r: r["summary"]["model_category"].update(mean=0.73),
+    "summary.model_category.std": lambda r: r["summary"]["model_category"].update(std=0.001),
+    "folds[2].model_category.accuracy": lambda r: r["folds"][2]["model_category"].update(accuracy=0.6855),
+    "folds[0].model_category.accuracy (just past the tolerance)": lambda r: r["folds"][0]["model_category"].update(
+        accuracy=r["folds"][0]["model_category"]["accuracy"] + 2e-9),
+    "folds[0].fold": lambda r: r["folds"][0].update(fold=9),
+    "folds[1].v0_review.k (a float for an integer)": lambda r: r["folds"][1]["v0_review"].update(
+        k=float(r["folds"][1]["v0_review"]["k"])),
+    "std_method": lambda r: r.update(std_method="sample"),
+    "isolation.folds.model_category.scored_on": lambda r: r["isolation"]["folds"]["model_category"].update(scored_on="train_k"),
+    "isolation.handwritten.v0_category.trained_on": lambda r: r["isolation"]["handwritten"]["v0_category"].update(
+        trained_on="train_all"),
+    "isolation (missing)": lambda r: r.pop("isolation"),
+    "handwritten.model_priority.accuracy (missing)": lambda r: r["handwritten"]["model_priority"].pop("accuracy"),
+    "folds[0].extra (a key the other report lacks)": lambda r: r["folds"][0].update(extra=1),
 }
 
 
 def test_two_equal_reports_have_no_difference_and_float_noise_is_not_one():
-    # Linux and Windows may differ in the last digit of a float; counts are compared exactly.
+    # Linux and Windows may differ in the last digit of a float, so a float is
+    # compared within 1e-9 (the difference test above shows 2e-9 is seen).
     fresh, committed = report(), report()
-    committed["folds"][0]["model_category"]["accuracy"] += 1e-12
-    committed["summary"]["model_category"]["mean"] += 0.01
+    committed["folds"][0]["model_category"]["accuracy"] += 5e-10
+    committed["summary"]["model_category"]["std"] += 5e-10
     assert first_difference(fresh, committed) is None
 
 
 @pytest.mark.parametrize("name", CHANGES)
-def test_any_change_to_a_count_a_fingerprint_or_a_verdict_is_reported_by_name(name):
+def test_any_change_to_any_field_of_the_report_is_reported_by_name(name):
     fresh, committed = report(), report()
     CHANGES[name](fresh)
     message = first_difference(fresh, committed)
@@ -120,6 +163,15 @@ def test_a_report_well_above_the_floor_passes():
 
 def test_handwritten_below_39_of_48_fails():
     message = floor_problem(report(handwritten_k=HANDWRITTEN_FLOOR_K - 1))
+    assert message is not None
+    assert "hand-written" in message
+
+
+@pytest.mark.parametrize("n", [HANDWRITTEN_FLOOR_N - 1, 120])
+def test_a_handwritten_set_of_another_size_fails_even_with_39_right(n):
+    # The floor is 39 of the 48 frozen rows, as the spec says; 39 of 120 is a worse
+    # model than the owner accepted, and another size is a changed set to look at.
+    message = floor_problem(report(handwritten_n=n))
     assert message is not None
     assert "hand-written" in message
 
