@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadModel } from '../src/model/scorer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON } from '../src/pipeline/run';
-import { START_POINT_MISSES, gateFailures, measureSet, parseRows } from './measurePipeline';
+import { assertFreshUnseen, checkExitCode, gateFailures, measureSet, parseRows } from './measurePipeline';
 
 const MODEL = loadModel(JSON.parse(readFileSync(fileURLToPath(new URL('../src/model/model.json', import.meta.url)), 'utf8')));
 const ROW = { id: 'T-1', text: 'My account was hacked last night', category: 'Security Concern', priority: 'Urgent', mustReview: true };
@@ -28,26 +28,46 @@ describe('parseRows', () => {
 });
 
 describe('the start-point gate', () => {
-  // The owner's start point (2026-10-31): no regression on a fold, none missed by hand.
-  it('holds the recorded start point at floor 0.5 with the second check off', () => {
-    expect(START_POINT_MISSES).toEqual({ 'fold 0': 9, 'fold 1': 6, 'fold 2': 10, 'fold 3': 46, 'hand-written': 0 });
+  it('runs at floor 0.5 with the second check off (the owner, 2026-10-31)', () => {
     expect(CONFIDENCE_FLOOR).toBe(0.5);
     expect(SECOND_CHECK_ON).toBe(false);
   });
 
-  it('fails a set that misses more than its start point, and passes one at or under it', () => {
-    const results = [
-      { name: 'fold 0', tickets: 10, flagRate: 0.4, highRiskMissed: 9 },
-      { name: 'fold 1', tickets: 10, flagRate: 0.3, highRiskMissed: 7 },
-      { name: 'fold 3', tickets: 10, flagRate: 0.3, highRiskMissed: 12 },
-      { name: 'hand-written', tickets: 10, flagRate: 0.5, highRiskMissed: 1 },
-    ];
-    expect(gateFailures(results)).toEqual(['fold 1', 'hand-written']);
+  const START = {
+    a: { missed: 2, flagRate: 0.5, mustReview: 4 },
+    b: { missed: 0, flagRate: 0.6, mustReview: 3 },
+  };
+  const at = (name: string, missed: number, flagRate: number, mustReview: number) => ({
+    name,
+    tickets: 10,
+    flagRate,
+    highRiskMissed: missed,
+    mustReview,
   });
 
-  // A set the start point does not name has a ceiling of zero, never "anything goes".
-  it('treats a set with no recorded start point as allowed no misses', () => {
-    expect(gateFailures([{ name: 'fold 9', tickets: 10, flagRate: 0.4, highRiskMissed: 1 }])).toEqual(['fold 9']);
+  it('passes sets at or under their start point', () => {
+    expect(gateFailures([at('a', 2, 0.5, 4), at('b', 0, 0.4, 3)], START)).toEqual([]);
+    expect(checkExitCode([at('a', 2, 0.5, 4)], START)).toBe(0);
+  });
+
+  it('fails a set that misses more high-risk tickets than its start point', () => {
+    expect(gateFailures([at('a', 3, 0.5, 4), at('b', 1, 0.6, 3)], START)).toEqual(['a', 'b']);
+    expect(checkExitCode([at('a', 3, 0.5, 4)], START)).toBe(1);
+  });
+
+  // Flagging every ticket would miss nothing; the flag rate is held too.
+  it('fails a set that flags a larger share than its start point', () => {
+    expect(gateFailures([at('a', 0, 0.51, 4)], START)).toEqual(['a']);
+  });
+
+  // Labels dropped on the way in would lower the misses and pass; the count is pinned.
+  it('fails a set whose must-review count differs from its start point', () => {
+    expect(gateFailures([at('a', 0, 0.5, 3)], START)).toEqual(['a']);
+  });
+
+  // A set the start point does not name is never "anything goes".
+  it('fails a set with no recorded start point', () => {
+    expect(gateFailures([at('c', 0, 0, 0)], START)).toEqual(['c']);
   });
 
   // A must-review ticket the pipeline does not flag is a miss the gate must see:
@@ -59,5 +79,15 @@ describe('the start-point gate', () => {
     const result = measureSet('probe', MODEL, rows, 0, false);
     expect(result.highRiskMissed).toBe(1);
     expect(result.flagRate).toBe(0);
+    expect(result.mustReview).toBe(1);
+  });
+});
+
+describe('the fresh hand-written set', () => {
+  // The clean test set is only clean if no training ticket says the same thing.
+  it('refuses a fresh ticket whose text matches a training ticket after normalising', () => {
+    const fresh = parseRows(JSON.stringify(ROW));
+    expect(() => assertFreshUnseen(fresh, ['my ACCOUNT was hacked, last night!'])).toThrow('E_FRESH_SEEN');
+    expect(() => assertFreshUnseen(fresh, ['my account was hacked yesterday'])).not.toThrow();
   });
 });

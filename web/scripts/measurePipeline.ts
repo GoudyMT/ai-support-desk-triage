@@ -7,16 +7,17 @@ import { loadModel, type Model } from '../src/model/scorer';
 import { computeMetrics } from '../src/pipeline/metrics';
 import { createSimulatedReviewer } from '../src/pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTickets } from '../src/pipeline/run';
-import { isRunAsCommand } from './exportDataset';
+import { isRunAsCommand, normalizeText } from './exportDataset';
 
 // Runs the real pipeline over every held-out fold (each scored by its own fold
 // model, so no number comes from a model that saw those templates) and over the
-// hand-written set (scored by the shipped model, which never trained on it).
-// With --check it is the CI gate at the chosen floor: a set that misses more
-// high-risk tickets than its recorded start point fails it.
+// two hand-written sets (scored by the shipped model, which never trained on
+// either). With --check it is the CI gate at the chosen floor: a set that breaks
+// its recorded start point fails it.
 
 const DATA_DIR = fileURLToPath(new URL('../../ml/data/generated/', import.meta.url));
 const SHIPPED_MODEL = fileURLToPath(new URL('../src/model/model.json', import.meta.url));
+const FRESH_SET = fileURLToPath(new URL('../../ml/data/handwritten_fresh.jsonl', import.meta.url));
 const FLOORS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 // The reviewer only acts on flagged tickets, so its seed cannot change a flag or
 // a miss; it is fixed so the printed accuracies replay.
@@ -33,6 +34,13 @@ export interface SetResult {
   tickets: number;
   flagRate: number;
   highRiskMissed: number;
+  mustReview: number;
+}
+
+export interface StartPoint {
+  missed: number;
+  flagRate: number;
+  mustReview: number;
 }
 
 // A row is refused rather than guessed at: a missing mustReview read as false
@@ -67,26 +75,49 @@ export function measureSet(name: string, model: Model, rows: LabeledRow[], floor
   };
   const deps = { model, reviewer: createSimulatedReviewer(REVIEWER_SEED, truthOf), floor, secondCheckOn, now: () => 0 };
   const metrics = computeMetrics(runTickets(rows, deps), truthOf);
-  return { name, tickets: rows.length, flagRate: metrics.flagRate, highRiskMissed: metrics.highRiskMissed };
+  return {
+    name,
+    tickets: rows.length,
+    flagRate: metrics.flagRate,
+    highRiskMissed: metrics.highRiskMissed,
+    mustReview: rows.filter((row) => row.label.mustReview).length,
+  };
 }
 
-// The owner's start point (2026-10-31), measured at CONFIDENCE_FLOOR with the
-// second check off: a fold may not miss more than it did then, and the
-// hand-written set may miss none. Lower a number when an improvement lands.
-export const START_POINT_MISSES: Record<string, number> = {
-  'fold 0': 9,
-  'fold 1': 6,
-  'fold 2': 10,
-  'fold 3': 46,
-  'hand-written': 0,
-};
+// The owner's start point, measured at CONFIDENCE_FLOOR with the second check
+// off. A set may not miss more high-risk tickets or flag a larger share than it
+// did then (flagging everything would miss nothing), and its must-review count
+// must match (labels lost on the way in would hide misses). Lower a number when
+// an improvement lands; a rise is the owner's decision.
+export const START_POINT: Record<string, StartPoint> = {};
 
-// Names of the sets over their start point; empty means the gate passes. A set
-// with no recorded start point may miss nothing.
-export function gateFailures(results: SetResult[]): string[] {
+// Names of the sets that break their start point; empty means the gate passes.
+// A set with no recorded start point always fails.
+export function gateFailures(results: SetResult[], start: Record<string, StartPoint> = START_POINT): string[] {
   return results
-    .filter((result) => result.highRiskMissed > (START_POINT_MISSES[result.name] ?? 0))
+    .filter((result) => {
+      const point = start[result.name];
+      return (
+        point === undefined ||
+        result.highRiskMissed > point.missed ||
+        result.flagRate > point.flagRate ||
+        result.mustReview !== point.mustReview
+      );
+    })
     .map((result) => result.name);
+}
+
+export function checkExitCode(results: SetResult[], start: Record<string, StartPoint> = START_POINT): number {
+  return gateFailures(results, start).length === 0 ? 0 : 1;
+}
+
+// The fresh hand-written set is the untouched test; a ticket that says what a
+// training ticket says would make it a memory test instead.
+export function assertFreshUnseen(fresh: readonly LabeledRow[], trainingTexts: Iterable<string>): void {
+  const seen = new Set(Array.from(trainingTexts, normalizeText));
+  if (fresh.some((row) => seen.has(normalizeText(row.text)))) {
+    throw new Error('E_FRESH_SEEN');
+  }
 }
 
 function loadSets(foldsDir: string): { name: string; model: Model; rows: LabeledRow[] }[] {
@@ -99,11 +130,13 @@ function loadSets(foldsDir: string): { name: string; model: Model; rows: Labeled
       rows: parseRows(read(join(DATA_DIR, `heldout_${k}.jsonl`))),
     });
   }
-  sets.push({
-    name: 'hand-written',
-    model: loadModel(JSON.parse(read(SHIPPED_MODEL))),
-    rows: parseRows(read(join(DATA_DIR, 'handwritten.jsonl'))),
-  });
+  const shipped = loadModel(JSON.parse(read(SHIPPED_MODEL)));
+  // The first hand-written set helped shape the keyword rules, so it is reported
+  // as seen; the fresh one was written blind to the rules and the model.
+  sets.push({ name: 'hand-written (seen)', model: shipped, rows: parseRows(read(join(DATA_DIR, 'handwritten.jsonl'))) });
+  const fresh = parseRows(read(FRESH_SET));
+  assertFreshUnseen(fresh, parseRows(read(join(DATA_DIR, 'train_all.jsonl'))).map((row) => row.text));
+  sets.push({ name: 'hand-written (fresh)', model: shipped, rows: fresh });
   return sets;
 }
 
@@ -125,12 +158,13 @@ function main(args: string[]): number {
   if (args.includes('--check')) {
     const results = sets.map((set) => measureSet(set.name, set.model, set.rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON));
     for (const r of results) {
-      const allowed = START_POINT_MISSES[r.name] ?? 0;
-      console.log(`    ${r.name}: ${r.tickets} tickets, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed} (allowed ${allowed})`);
+      const point = START_POINT[r.name];
+      const allowed = point === undefined ? 'no start point' : `allowed ${point.missed} missed, ${(point.flagRate * 100).toFixed(1)}% flagged, ${point.mustReview} must-review`;
+      console.log(`    ${r.name}: ${r.tickets} tickets, ${r.mustReview} must-review, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed} (${allowed})`);
     }
     const failed = gateFailures(results);
-    console.log(failed.length === 0 ? 'PASS: every set at or under its start point' : `FAIL: more high-risk tickets missed than the start point in ${failed.join(', ')}`);
-    return failed.length === 0 ? 0 : 1;
+    console.log(failed.length === 0 ? 'PASS: every set at or under its start point' : `FAIL: start point broken in ${failed.join(', ')}`);
+    return checkExitCode(results);
   }
   for (const secondCheckOn of [false, true]) {
     console.log(`\nsecond check ${secondCheckOn ? 'on' : 'off'}`);
