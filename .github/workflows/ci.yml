@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The newest 3.12 patch. Local Windows runs 3.12.10, the last 3.12 release
+      # A current 3.12 patch. Local Windows runs 3.12.10, the last 3.12 release
       # with a Windows installer; this run is the check of record. The packages go
       # straight into the runner's own Python: it is thrown away after the run, so
       # a venv would isolate nothing.
