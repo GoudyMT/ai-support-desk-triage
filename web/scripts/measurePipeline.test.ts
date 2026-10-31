@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { loadModel } from '../src/model/scorer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON } from '../src/pipeline/run';
-import { START_POINT, assertFreshUnseen, checkExitCode, gateFailures, measureSet, parseRows } from './measurePipeline';
+import { START_POINT, assertFreshUnseen, checkExitCode, gateFailures, main, measureSet, parseRows } from './measurePipeline';
 
 const MODEL = loadModel(JSON.parse(readFileSync(fileURLToPath(new URL('../src/model/model.json', import.meta.url)), 'utf8')));
 const ROW = { id: 'T-1', text: 'My account was hacked last night', category: 'Security Concern', priority: 'Urgent', mustReview: true };
@@ -75,6 +75,7 @@ describe('the start-point gate', () => {
   // Labels dropped on the way in would lower the misses and pass; the count is pinned.
   it('fails a set whose must-review count differs from its start point', () => {
     expect(gateFailures([at('a', 0, 0.5, 3)], START)).toEqual(['a']);
+    expect(gateFailures([at('a', 0, 0.5, 5)], START)).toEqual(['a']);
   });
 
   // A set the start point does not name is never "anything goes".
@@ -92,6 +93,19 @@ describe('the start-point gate', () => {
     expect(result.highRiskMissed).toBe(1);
     expect(result.flagRate).toBe(0);
     expect(result.mustReview).toBe(1);
+  });
+
+  // CI reads the command's exit code, so the --check path itself must fail on a
+  // broken set, not only the helper it calls.
+  it('exits 1 from --check when a set breaks its start point and 0 when it holds', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const rows = parseRows(JSON.stringify(ROW));
+    const load = () => [{ name: 'probe', model: MODEL, rows }];
+    const held = measureSet('probe', MODEL, rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON);
+    const point = { missed: held.highRiskMissed, flagRate: held.flagRate, mustReview: held.mustReview };
+    expect(main(['--folds', 'unused', '--check'], load, { probe: point })).toBe(0);
+    expect(main(['--folds', 'unused', '--check'], load, { probe: { ...point, mustReview: 2 } })).toBe(1);
+    vi.restoreAllMocks();
   });
 });
 

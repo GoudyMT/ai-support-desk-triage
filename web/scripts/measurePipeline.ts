@@ -152,26 +152,28 @@ function argValue(args: string[], flag: string): string | undefined {
   return at === -1 ? undefined : args[at + 1];
 }
 
-function main(args: string[]): number {
+// The loader and start point are parameters so a test can drive the real --check
+// path on a small set; the command uses the defaults.
+export function main(args: string[], load = loadSets, start = START_POINT): number {
   const foldsDir = argValue(args, '--folds');
   if (foldsDir === undefined) {
     console.log('usage: measurePipeline --folds <dir> [--check]');
     return 2;
   }
-  const sets = loadSets(foldsDir);
+  const sets = load(foldsDir);
   console.log('='.repeat(60));
   console.log('PIPELINE MEASUREMENT');
   console.log('='.repeat(60));
   if (args.includes('--check')) {
     const results = sets.map((set) => measureSet(set.name, set.model, set.rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON));
     for (const r of results) {
-      const point = START_POINT[r.name];
+      const point = start[r.name];
       const allowed = point === undefined ? 'no start point' : `allowed ${point.missed} missed, ${(point.flagRate * 100).toFixed(1)}% flagged, ${point.mustReview} must-review`;
       console.log(`    ${r.name}: ${r.tickets} tickets, ${r.mustReview} must-review, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed} (${allowed})`);
     }
-    const failed = gateFailures(results);
+    const failed = gateFailures(results, start);
     console.log(failed.length === 0 ? 'PASS: every set at or under its start point' : `FAIL: start point broken in ${failed.join(', ')}`);
-    return checkExitCode(results);
+    return checkExitCode(results, start);
   }
   for (const secondCheckOn of [false, true]) {
     console.log(`\nsecond check ${secondCheckOn ? 'on' : 'off'}`);
