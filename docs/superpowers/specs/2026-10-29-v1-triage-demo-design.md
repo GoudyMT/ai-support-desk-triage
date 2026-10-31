@@ -298,6 +298,8 @@ default is left blank for the viewer to fill.
   (PR 3 plan, Execution Notes). The owner set the confidence floor to 0.5, kept zero missed as the bar on the
   hand-written set, and made the fold results the recorded start point that later work must improve (section
   6). The second check was dropped: it added 45-85 misses per fold.
+  > SUPERSEDED (2026-10-31): those figures were at floor 0.7; at floor 0.5 with the revised rules it adds 2-49
+  > per fold - see the next entry.
 - 2026-10-31 (PR 3 sweep): the first hand-written set had shaped the rule revision, so the owner had a fresh set
   of 60 written blind and frozen it before measuring; the first set is now reported as seen. The rules were
   narrowed where they flagged ordinary tickets; the start point was recorded again (section 6), with each set's

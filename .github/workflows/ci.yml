@@ -83,8 +83,9 @@ jobs:
         env:
           PARITY_MODEL: ${{ runner.temp }}/model.json
       # The full pipeline on every held-out fold (each with its own fold model) and
-      # the hand-written set: fails if any set misses more high-risk tickets than
-      # its recorded start point.
+      # both hand-written sets: fails if any set misses more high-risk tickets,
+      # flags a larger share, or has a different must-review count than its
+      # recorded start point.
       # --no: use the tsx that npm ci installed from the lockfile, never fetch one.
       - run: npm exec --no -- tsx scripts/measurePipeline.ts --folds "$RUNNER_TEMP/folds" --check
         working-directory: web

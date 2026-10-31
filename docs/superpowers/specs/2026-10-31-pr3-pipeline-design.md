@@ -28,6 +28,7 @@ vague ticket is still "Other" to a category model. Only rules that read the word
 2. Zero high-risk tickets missed on every held-out fold, through the full pipeline (parent section 6).
    > SUPERSEDED (2026-10-31): zero on the hand-written set, no regression on the folds - see section 5.
 3. The flag rate is measured and shown beside "high-risk missed", with the floor and target set with the owner.
+   > SUPERSEDED (2026-10-31): no separate target; each set's flag rate is held at its start point - see section 5.
 4. The run's numbers (parent 5.6) are computed from real outcomes, each one traceable to the tickets it counts.
 
 ## 3. Non-goals and anti-goals
@@ -47,6 +48,8 @@ vague ticket is still "Other" to a category model. Only rules that read the word
 
 - 2026-10-29 (parent 10.2): flagged = a keyword rule fires, or the model predicts a must-review category, or
   confidence is below the floor. Flag-rate target set after the first honest run.
+  > SUPERSEDED (2026-10-31): no separate target; the flag rate is held at each set's start point - see the last
+  > entry of this section.
 - 2026-10-29 (parent 10.2): the second check is a PR 3 experiment. It may clear only flags whose only reason is
   low confidence, never a hard-rule flag; its misses count; kept only if it lowers the flag rate with zero
   added misses on the hand-written set.
@@ -145,6 +148,7 @@ on screen traces to a measurement". The flag-rate target is added to parent 6 on
 
 - **Blocking, the owner (after measurement):** the confidence floor and the flag-rate target, from the
   measurement script's table.
+  > RESOLVED (2026-10-31): floor 0.5; no separate flag-rate target - see section 5.
 - **Blocking, a probe:** if frozen rules plus any floor under 0.9 still miss tickets on held-out folds, stop
   and bring the misses to the owner. Rule changes after the freeze are a recorded decision with before / after
   numbers on the hand-written set, never quiet tuning (rule:re-plan-on-failure).

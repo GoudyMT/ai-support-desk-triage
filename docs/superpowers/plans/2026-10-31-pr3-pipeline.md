@@ -79,9 +79,9 @@ file parsed with a YAML parser before the push (L-02).
 
 ### Task 0 (lead): masker speed and the intake cap
 
-- [ ] Time `maskText` on fake-data tickets padded to 2,000 / 5,000 / 10,000 / 20,000 characters, median of 20
+- [x] Time `maskText` on fake-data tickets padded to 2,000 / 5,000 / 10,000 / 20,000 characters, median of 20
       runs each, on the owner's PC -> verify: a table in this plan's Execution Notes.
-- [ ] Set `MAX_TICKET_CHARS` = the largest size measured under 5 ms; record it in the design's section 12.
+- [x] Set `MAX_TICKET_CHARS` = the largest size measured under 5 ms; record it in the design's section 12.
 
 ### Task 1: Types and intake
 
@@ -101,11 +101,11 @@ file parsed with a YAML parser before the push (L-02).
   Category; priority: Priority; route: string; by: 'model' | 'reviewer' }; v0: V0Result; ms: number }`
 - `MAX_TICKET_CHARS` (from Task 0); `intake(text: string, id: string, now: number): IntakeRecord`
 
-- [ ] Tests: `''`, `'   \n'` throw `E_EMPTY_TICKET`; `MAX_TICKET_CHARS + 1` characters throws
+- [x] Tests: `''`, `'   \n'` throw `E_EMPTY_TICKET`; `MAX_TICKET_CHARS + 1` characters throws
       `E_TICKET_TOO_LONG`; exactly `MAX_TICKET_CHARS` passes; the record keeps id and time -> verify: red on an
       assertion
-- [ ] Implement -> verify: `npm --prefix web test -- intake` passes
-- [ ] Commit `feat: add the pipeline record types and the intake stage`
+- [x] Implement -> verify: `npm --prefix web test -- intake` passes
+- [x] Commit `feat: add the pipeline record types and the intake stage`
 
 ### Task 2: Keyword rules (fresh builder, isolation brief; Opus checker)
 
@@ -117,10 +117,10 @@ meaning of each review reason. The checker confirms the commit touched only the 
 Record<ReviewReason, Priority>` (values in Global Constraints); `matchRules(maskedText: string): { reason:
 ReviewReason; words: string[] }[]` (case-insensitive, whole words or phrases, every reason that fires).
 
-- [ ] Tests: one plain sentence per reason fires that reason only; Review Focus 1 cases do not fire; two
+- [x] Tests: one plain sentence per reason fires that reason only; Review Focus 1 cases do not fire; two
       reasons in one text return both -> verify: red on an assertion
-- [ ] Implement -> verify: `npm --prefix web test -- rules` passes
-- [ ] Commit `feat: add the keyword review rules written from the review list` (this commit is the freeze;
+- [x] Implement -> verify: `npm --prefix web test -- rules` passes
+- [x] Commit `feat: add the keyword review rules written from the review list` (this commit is the freeze;
       any later change to `REVIEW_RULES` is a recorded owner decision with before / after hand-written numbers)
 
 ### Task 3: Guardrails and the second check (Opus checker)
@@ -132,10 +132,10 @@ ReviewReason; words: string[] }[]` (case-insensitive, whole words or phrases, ev
 `low confidence` and the top two classes of `category.probabilities` are both outside
 `MUST_REVIEW_CATEGORIES`; sets `clearedBySecondCheck`).
 
-- [ ] Tests: each reason kind flags; confident, non-sensitive, no rule -> not flagged; Review Focus 2, 4, 5;
+- [x] Tests: each reason kind flags; confident, non-sensitive, no rule -> not flagged; Review Focus 2, 4, 5;
       priority never below the model's or any fired rule's -> verify: red on an assertion
-- [ ] Implement -> verify: `npm --prefix web test -- guard` passes
-- [ ] Commit `feat: add the guardrails stage with the confidence floor and second check`
+- [x] Implement -> verify: `npm --prefix web test -- guard` passes
+- [x] Commit `feat: add the guardrails stage with the confidence floor and second check`
 
 ### Task 4: Simulated reviewer
 
@@ -144,10 +144,10 @@ ReviewReason; words: string[] }[]` (case-insensitive, whole words or phrases, ev
 TicketLabel, errorRate?: number): Reviewer` (uses `createRng`; the route from `ROUTES`; `reason` in plain words
 whenever its category differs from the suggestion).
 
-- [ ] Tests: same seed, same decisions; error rate within 1 point of 0.05 over 10,000 decisions; an error never
+- [x] Tests: same seed, same decisions; error rate within 1 point of 0.05 over 10,000 decisions; an error never
       returns the true category and keeps the true priority; a disagreement always has a reason -> verify: red
-- [ ] Implement -> verify: `npm --prefix web test -- reviewer` passes
-- [ ] Commit `feat: add the simulated reviewer with a stated error rate`
+- [x] Implement -> verify: `npm --prefix web test -- reviewer` passes
+- [x] Commit `feat: add the simulated reviewer with a stated error rate`
 
 ### Task 5: runTicket and the run's numbers (Opus checker on privacy)
 
@@ -160,36 +160,37 @@ id: string; text: string }[], deps: RunDeps): TicketTrail[]`; `computeMetrics(tr
 `handledWithoutReview`; `msPerTicket`; `instructiveMisses` (up to 5 trails where the model's category was
 wrong, with its top words).
 
-- [ ] Tests: a ticket with each fake-data kind leaves no raw value in any trail field (JSON of the trail
+- [x] Tests: a ticket with each fake-data kind leaves no raw value in any trail field (JSON of the trail
       searched); unflagged -> `final.by === 'model'`; flagged -> reviewer called with masked text only; every
       metric equals a hand count on a fixed 12-ticket fixture -> verify: red on an assertion
-- [ ] Implement -> verify: `npm --prefix web run gate` exit 0
-- [ ] Commit `feat: run each ticket through the six stages and compute the run's numbers`
+- [x] Implement -> verify: `npm --prefix web run gate` exit 0
+- [x] Commit `feat: run each ticket through the six stages and compute the run's numbers`
 
 ### Task 6 (lead, then the owner): measurement, floor and flag-rate target
 
-- [ ] Add `--folds-out DIR` to `export_model.py` (writes `fold_k.json` from `fit_fold_models`, same JSON shape
+- [x] Add `--folds-out DIR` to `export_model.py` (writes `fold_k.json` from `fit_fold_models`, same JSON shape
       as `model.json`) with a pytest that the files load and match the fold count -> verify: `pytest ml/tests`
-- [ ] Write `web/scripts/measurePipeline.ts`: for floors 0.0 to 0.9 by 0.1, second check off and on, prints
+- [x] Write `web/scripts/measurePipeline.ts`: for floors 0.0 to 0.9 by 0.1, second check off and on, prints
       flag rate and high-risk missed per fold (fold model) and on the hand-written set (`model.json`);
       `--check <floor>` exits 1 on any miss -> verify: a run on this PC, table pasted in Execution Notes
       > SUPERSEDED (2026-10-31): `--check` takes no floor (it uses `CONFIDENCE_FLOOR`) and fails a set that
       > breaks its start point - see Execution Notes.
-- [ ] HARD STOP: the owner sets the floor and the flag-rate target from the table; the second check is kept
+- [x] HARD STOP: the owner sets the floor and the flag-rate target from the table; the second check is kept
       only if it lowers the flag rate with zero added misses on the hand-written set. If no floor up to 0.9
       gives zero misses, stop and bring the misses (design section 10).
-- [ ] Set `CONFIDENCE_FLOOR` and `SECOND_CHECK_ON` in `run.ts` defaults; add the target to parent section 6
+- [x] Set `CONFIDENCE_FLOOR` and `SECOND_CHECK_ON` in `run.ts` defaults; add the target to parent section 6
       and its revision history -> verify: `--check` exit 0
-- [ ] Commit `feat: set the confidence floor from the per-fold measurement`
+      > SUPERSEDED (2026-10-31): no separate flag-rate target; parent section 6 holds each set's start point.
+- [x] Commit `feat: set the confidence floor from the per-fold measurement`
 
 ### Task 7: CI gate for zero misses
 
 **Files:** Modify `.github/workflows/ci.yml` (model job).
-- [ ] After the existing export step: `python -m triage.export_model --model-out "$RUNNER_TEMP/model.json"
+- [x] After the existing export step: `python -m triage.export_model --model-out "$RUNNER_TEMP/model.json"
       --folds-out "$RUNNER_TEMP/folds"`, then `npx tsx scripts/measurePipeline.ts --check <floor> --folds
       "$RUNNER_TEMP/folds"` in `web` -> verify: the workflow parses with a YAML parser (L-02) and the full
       model job's commands pass locally
-- [ ] Commit `ci: fail the model job on any high-risk ticket missed`
+- [x] Commit `ci: fail the model job on any high-risk ticket missed`
 > SUPERSEDED (2026-10-31): the commit hook refuses the `ci:` type, so it landed as `chore:` (b796a68); the step
 > runs `npm exec --no -- tsx scripts/measurePipeline.ts --folds "$RUNNER_TEMP/folds" --check` (eb4ceb7).
 
@@ -229,6 +230,8 @@ wrong, with its top words).
   aggregate shortfall by reason and hard-case kind (never ticket texts), before / after numbers logged here,
   then re-measure; a narrower second pass only if the new numbers call for it. The second check is dropped
   (adds 45-85 misses per fold): `secondCheckOn` stays false; its code stays, off.
+  > SUPERSEDED (2026-10-31): those figures were at floor 0.7; at floor 0.5 it adds 2 / 35 / 49 / 44 - see the
+  > start point entry below.
 - 2026-10-31 rule revision 2c09c64 (picked as 2106ea7; isolated builder, about 560 entries added, a one-slip
   spelling rule for words of 6+ letters, a short-vague-ticket signal). After, flagged % / missed:
   floor 0.0: 54.4/103, 64.3/133, 46.7/154, 54.1/196; hand-written 47.9/1.
@@ -249,7 +252,13 @@ wrong, with its top words).
   set written blind; hold each set's flag rate and must-review count too; the second check stays off.
 - 2026-10-31 rule revision 2 (0dbbbe2..d293319): word lists moved to `ruleWords.ts`; everyday sign-in and
   settings words narrowed; a slipped spelling after a comma or colon read; the slip rules indexed (about 6 ms
-  at 20,000 chars); "charge" and "lawsuit" read only as a dispute or a threat.
+  at 20,000 chars); "charge" and "lawsuit" read only as a dispute or a threat. Two reason moves, both from sweep
+  root R1 (a ticket under the wrong reason gets a false "why"): 'bad review', 'negative review', 'one star',
+  '1 star' and 'bad press' moved from threatening language to escalated complaint (priority before review
+  Urgent -> High; C1 makes threats and abuse Urgent, and a bad-review warning is neither), and 'threat',
+  'threats' moved to security ("my antivirus flags a threat"). Both stay flagged and reviewed. Must-review
+  tickets that lost a rule hit, base b796a68 -> head: seen set 0, fresh set 0; false rule hits on the folds
+  fell 145 -> 44, 173 -> 0, 76 -> 33, 50 -> 10 (fix check, 2026-10-31).
 - 2026-10-31 fresh hand-written set (52f16e3): 60 tickets, 24 must-review, written by an isolated builder blind
   to the rules, the model, the generator and the first set; reviewed and frozen by the owner before any
   measurement on it. The first set is reported as "seen" from here on.
