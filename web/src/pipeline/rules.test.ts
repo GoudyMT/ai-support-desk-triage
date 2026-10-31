@@ -361,6 +361,8 @@ describe('short tickets', () => {
     ['how do i issue a credit note?', 'issue as a verb'],
     ["i'm having trouble resetting my password", 'trouble that names what failed'],
     ['i am without any problems this week', 'no trouble at all'],
+    ['not any issues so far, thanks', 'a customer saying nothing is wrong'],
+    ['never any trouble until today, all good', 'a customer saying nothing was wrong'],
   ])('does not flag %j (%s)', (text) => {
     // The cue word is there but the ticket is not vague; a flag here would send
     // a clear question or a thank-you to a reviewer as a vague ticket.
