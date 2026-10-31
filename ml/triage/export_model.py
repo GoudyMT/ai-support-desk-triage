@@ -1,6 +1,6 @@
 """Writes the trained model for the TypeScript scorer, and what scikit-learn answers on the evaluation rows.
 
-Run from the ml folder: python -m triage.export_model [--model-out PATH] [--parity-out PATH]
+Run from the ml folder: python -m triage.export_model [--model-out PATH] [--parity-out PATH] [--folds-out DIR]
 """
 
 import argparse
@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 from triage.data import FOLD_COUNT, GENERATED_DIR, HANDWRITTEN_PATH, TRAIN_ALL_PATH, fold_paths, load_rows
-from triage.train import LABEL_FIELDS, fit_models
+from triage.train import LABEL_FIELDS, fit_fold_models, fit_models
 
 MODEL_PATH = Path(__file__).resolve().parent.parent.parent / "web" / "src" / "model" / "model.json"
 PARITY_PATH = GENERATED_DIR / "parity_predictions.jsonl"
@@ -141,11 +141,33 @@ def export(models, parity_rows, model_path, parity_path):
     write_atomically(parity_path, parity_text)
 
 
+def export_folds(folds, folds_dir):
+    """Writes one model file per fold, each fitted on that fold's training rows only.
+
+    The pipeline check scores each held-out fold with its own fold model, so no
+    reported miss count comes from a model that saw the held-out templates. Every
+    fold is fitted (and checked for leaks) before any file is written.
+
+    Args:
+        folds: A list of (train_rows, heldout_rows) pairs, in fold order.
+        folds_dir: The folder that receives fold_0.json, fold_1.json, ...
+    """
+    folds_dir = Path(folds_dir)
+    texts = [
+        json.dumps(build_model(fit_fold_models(train_rows, heldout_rows)), separators=(",", ":"), allow_nan=False) + "\n"
+        for train_rows, heldout_rows in folds
+    ]
+    folds_dir.mkdir(parents=True, exist_ok=True)
+    for k, text in enumerate(texts):
+        write_atomically(folds_dir / f"fold_{k}.json", text)
+
+
 def main(argv=None):
     """Fits both heads on all wording, then writes the model file and the parity file."""
     parser = argparse.ArgumentParser(description="Write the model file and the parity predictions.")
     parser.add_argument("--model-out", default=MODEL_PATH, help="where to write the model JSON")
     parser.add_argument("--parity-out", default=PARITY_PATH, help="where to write the parity JSON lines")
+    parser.add_argument("--folds-out", default=None, help="a folder for one model per fold (pipeline check); none by default")
     args = parser.parse_args(argv)
 
     print(DIVIDER)
@@ -168,6 +190,9 @@ def main(argv=None):
     # Step 3: write both files.
     print(f"[3/{STEP_COUNT}] Writing {args.model_out} and {args.parity_out}")
     export(models, parity_rows, args.model_out, args.parity_out)
+    if args.folds_out is not None:
+        print(f"    and one model per fold in {args.folds_out}")
+        export_folds([tuple(load_rows(path) for path in fold_paths(k)) for k in range(FOLD_COUNT)], args.folds_out)
 
     # Step 4: show the sizes.
     print(f"[4/{STEP_COUNT}] Result")
