@@ -57,7 +57,7 @@ jobs:
         working-directory: web
       # Every package is pinned to the sha256 of its published wheels: an unlisted
       # package, a changed file or a source build is refused.
-      - run: pip install --require-hashes --only-binary :all: -r ml/requirements.txt
+      - run: "pip install --require-hashes --only-binary :all: -r ml/requirements.txt"
       - run: pytest ml/tests
       # Written outside the checkout so the committed model stays what it is
       # compared with; the parity file goes to its usual place.
