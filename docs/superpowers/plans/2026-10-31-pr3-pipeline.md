@@ -2,9 +2,10 @@
 
 ## Progress
 - Current task: 8 (close out)
-- Done (with evidence): Tasks 0-7 (commits 66cc63f..cd7c2a5; start point and gate in Execution Notes); sweep
-  run, 34 findings, 28 real, fixes 9040112..cd7c2a5 (`.kit/sweeps/2026-10-31-pr3-pipeline.md`)
-- Next: sweep report dispositions, full gate, fix check, short re-sweep, PR body; push and PR on the owner's go
+- Done (with evidence): Tasks 0-7 (commits 66cc63f..cd7c2a5; start point and gate in Execution Notes); sweep,
+  fix check and short re-sweep with fixes through 0cbe271 (`.kit/sweeps/2026-10-31-pr3-pipeline.md`)
+- Next: the owner's answers (fresh-set near-matches, fold 0 at 10), fix check on the re-sweep fixes, full gate,
+  PR body; push and PR on the owner's go
 - Branch: feat/v1-pipeline (from main @ c0a2b7c)
 - Open questions: none
 
@@ -204,7 +205,16 @@ wrong, with its top words).
 - PR 4: a rule's reported `words` are list entries, not always text in the ticket (a slipped spelling reports the
   list word; the short-ticket signal reports a label). Chip highlighting must find the written word, not the entry.
 - PR 5: the privacy copy names exactly what is masked (emails, phones, order and card numbers); names, addresses
-  and passwords are not masked (parent 5.1 scope).
+  and passwords are not masked (parent 5.1 scope). Also not masked: an address with a local part over 64
+  characters (its first characters stay), `name@localhost` and `name@[ip]`.
+- PR 4: the live stream is scored by the shipped model, which on held-out folds 1-3 misses 153 / 156 / 236
+  must-review tickets against the fold models' 6 / 10 / 46 (it is more confident, so fewer low-confidence
+  flags). Measure the live stream's misses before the page claims a number.
+- Rules: a short question that says "not a problem" ("it is not a problem, just curious") is flagged as vague,
+  and a bare "or else." ultimatum fires no rule (the model still flags it). Both are flag-cost or covered cases.
+- Masker: dates in other forms (15.01.2024, 15-01-2024), IP addresses, version numbers, long amounts and seven
+  small numbers one per line are masked as a phone or card. Safe for privacy; it hides that detail from the
+  model and the reviewer.
 
 ## Execution Notes & Deviations
 
@@ -248,6 +258,8 @@ wrong, with its top words).
   measurement above already ran on it ("rules frozen at 9a33526"), so every recorded number includes it.
 - 2026-10-31 owner ruling: floor 0.5, the first measured result is the start point, and the bar is zero missed
   on the hand-written set with no fold getting worse (328704d, b796a68).
+  > SUPERSEDED (2026-10-31): the start point was recorded again after the sweep fixes, over both hand-written
+  > sets, with the flag rate and must-review count held too - see the start point entry below.
 - 2026-10-31 owner ruling after the sweep (yes to all four): narrow the rule false flags; a fresh hand-written
   set written blind; hold each set's flag rate and must-review count too; the second check stays off.
 - 2026-10-31 rule revision 2 (0dbbbe2..d293319): word lists moved to `ruleWords.ts`; everyday sign-in and
@@ -261,7 +273,9 @@ wrong, with its top words).
   fell 145 -> 44, 173 -> 0, 76 -> 33, 50 -> 10 (fix check, 2026-10-31).
 - 2026-10-31 fresh hand-written set (52f16e3): 60 tickets, 24 must-review, written by an isolated builder blind
   to the rules, the model, the generator and the first set; reviewed and frozen by the owner before any
-  measurement on it. The first set is reported as "seen" from here on.
+  measurement on it. The first set is reported as "seen" from here on. The record does not show whether the
+  narrowing in rule revision 2, committed after the set, was barred from it; the re-sweep's 5-word overlap scan
+  found only common phrases, and the narrowing changed no must-review hit on the set (fix check).
 - 2026-10-31 start point (cd7c2a5), floor 0.5, second check off, `--check` exit 0:
 
   | Set | Tickets | Must-review | Flagged | Missed |
@@ -273,6 +287,19 @@ wrong, with its top words).
   | hand-written (seen) | 48 | 22 | 66.7% | 0 |
   | hand-written (fresh) | 60 | 24 | 78.3% | 0 |
 
-  Fold 0 went from 9 to 10 missed with the narrowing (fewer false flags, one more miss); the owner's ruling
-  holds each set at this point, not at the earlier run. The second check at 0.5 adds 2 / 35 / 49 / 44 misses
+  Fold 0 went from 9 to 10 missed with the narrowing (fewer false flags, one more miss). The gate holds each set
+  at this point; the rise from 9 is waiting on the owner's yes. The second check at 0.5 adds 2 / 35 / 49 / 44 misses
   per fold and 1 on the fresh set, so it stays off.
+- 2026-10-31 short re-sweep (5 roles at 2ab6df7, report `.kit/sweeps/2026-10-31-pr3-pipeline.md`) and its fixes:
+  the check could pass on a missing set, a swapped fold file, a changed fresh set, a duplicate id or dropped
+  ordinary rows (71cc333: every start-point set must report, ticket counts held, each fold file names its fold,
+  the fresh set pinned by a fingerprint of its parsed rows, repeated ids refused); the narrowing had dropped a
+  disowned login, a disputed charge ("That charge was a mistake, I cancelled last month", missed end to end) and
+  a keyboard user's ticket (b4b0feb: phrases added back, "i don't recognize this setting" still unflagged; every
+  set measures exactly at its start point before and after); the masker missed cards, phones, orders and
+  emails typed with other dashes, spaces or invisible characters (8a9afb0: Unicode categories; every generated
+  training file byte-identical before and after, so the model and start point are unchanged).
+- 2026-10-31 ticket length bar: on 20,000 characters of Chinese the masker takes 23 ms (the address rule reads
+  up to 64 letters from each position, and the text has no spaces), so the 5 ms bar from Task 0 held for English
+  only. The whole pipeline at 20,000 characters: English 8.4 ms, Chinese 25.6 ms median (26.8 max). The cap stays
+  20,000, judged against 50 ms, where a browser task counts as long (29fcad4).

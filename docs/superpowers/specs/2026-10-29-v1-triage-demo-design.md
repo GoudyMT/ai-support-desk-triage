@@ -293,6 +293,8 @@ default is left blank for the viewer to fill.
   live page share one masker) and the v0 port (so the comparison is measured before the scorer is built).
 - 2026-10-30 (PR 2 first run): the owner set the raw-accuracy bar to the first run as a floor (section 6); the
   target flag rate moves to PR 3, where the confidence floor that sets it is built.
+  > SUPERSEDED (2026-10-31): there is no separate target; each set's flag rate is held at its start point -
+  > see the 2026-10-31 entries below.
 - 2026-10-31 (PR 3 measurement): zero high-risk missed on every held-out fold needed a confidence floor of 0.8
   or more, which sends 97-100% of tickets to a person, even after one recorded revision of the keyword rules
   (PR 3 plan, Execution Notes). The owner set the confidence floor to 0.5, kept zero missed as the bar on the

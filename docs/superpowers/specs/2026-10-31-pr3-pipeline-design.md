@@ -57,6 +57,8 @@ vague ticket is still "Other" to a category model. Only rules that read the word
 - 2026-10-31: the keyword rules are written only from the review list in parent C1 (security, accessibility,
   billing dispute, threatening language, escalated complaint, vague), frozen before the first measurement, and
   the hand-written set is their real test.
+  > SUPERSEDED (2026-10-31): the rules were revised twice by the owner's rulings, and the first hand-written set
+  > is now "seen"; the fresh set is their real test - see the last two entries of this section.
 - 2026-10-31: the reviewer error rate, the intake size cap and the live-stream split are Claude's calls
   (section 12).
 - 2026-10-31: the second check is a stricter rule, not a second model: a flag whose only reason is low
@@ -141,8 +143,8 @@ streaming between stages); putting the rules inside the model step (hides which 
 
 Parent section 6, unchanged; PR 3 owns "high-risk tickets missed: 0" and supplies the numbers for "every number
 on screen traces to a measurement". The flag-rate target is added to parent 6 once the owner sets it.
-> SUPERSEDED (2026-10-31): the flag rate is held at each set's start point (parent section 6), not a separate
-> target.
+> SUPERSEDED (2026-10-31): "missed: 0" holds on both hand-written sets; each fold is held at its start point,
+> and the flag rate is held there too, not a separate target (parent section 6).
 
 ## 10. Risks and open questions
 
@@ -174,6 +176,9 @@ owner reviews it in PR 4); how the most instructive misses are ranked.
 - **Intake cap:** set from a measurement in the plan: the masker's time at 2,000 / 5,000 / 10,000 / 20,000
   characters, and the largest size that masks in under 5 ms on the owner's PC. Measured 2026-10-31: 20,000
   characters mask in 0.50 ms (median), so the cap is 20,000.
+  > SUPERSEDED (2026-10-31): that measurement was English text only; Chinese text masks in 23 ms. The cap stays
+  > 20,000, judged on the whole pipeline (English 8 ms, Chinese 27 ms at most) against 50 ms, where a browser
+  > task counts as long - see the plan's Execution Notes.
 - **Live stream split:** all folds, its own seed range (parent 5.2 already says so); the live page has no
   held-out claim, and its accuracy is labelled "on generated tickets".
 - **Who writes the keyword rules:** a fresh builder whose brief gives only parent C1 and this doc, and forbids
