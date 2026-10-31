@@ -280,7 +280,7 @@ describe('slipped spelling next to punctuation', () => {
 describe('long tickets', () => {
   const LONG_TEXT = 20_000;
   const TIMING_RUNS = 5;
-  const TIME_LIMIT_MS = 100;
+  const TIME_LIMIT_MS = 40;
   const median = (values: number[]) => [...values].sort((a, b) => a - b)[TIMING_RUNS >> 1] ?? 0;
 
   it.each([
