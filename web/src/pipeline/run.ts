@@ -10,7 +10,8 @@ import type { Reviewer, TicketTrail } from './types';
 // high-risk ticket is missed; zero on every generated fold needed 0.8, which sends
 // nearly every ticket to a person.
 export const CONFIDENCE_FLOOR = 0.5;
-// Off: clearing low-confidence flags added 45 to 85 misses per fold.
+// Off: at this floor, clearing low-confidence flags added 2 to 49 misses per fold
+// and one on the fresh hand-written set.
 export const SECOND_CHECK_ON = false;
 
 export interface RunDeps {

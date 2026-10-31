@@ -89,7 +89,14 @@ export function measureSet(name: string, model: Model, rows: LabeledRow[], floor
 // did then (flagging everything would miss nothing), and its must-review count
 // must match (labels lost on the way in would hide misses). Lower a number when
 // an improvement lands; a rise is the owner's decision.
-export const START_POINT: Record<string, StartPoint> = {};
+export const START_POINT: Record<string, StartPoint> = {
+  'fold 0': { missed: 10, flagRate: 3587 / 4000, mustReview: 1461 },
+  'fold 1': { missed: 6, flagRate: 3536 / 4000, mustReview: 1461 },
+  'fold 2': { missed: 10, flagRate: 3509 / 4000, mustReview: 1461 },
+  'fold 3': { missed: 46, flagRate: 3570 / 4000, mustReview: 1473 },
+  'hand-written (seen)': { missed: 0, flagRate: 32 / 48, mustReview: 22 },
+  'hand-written (fresh)': { missed: 0, flagRate: 47 / 60, mustReview: 24 },
+};
 
 // Names of the sets that break their start point; empty means the gate passes.
 // A set with no recorded start point always fails.

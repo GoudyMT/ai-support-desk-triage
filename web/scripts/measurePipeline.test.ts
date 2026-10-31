@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadModel } from '../src/model/scorer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON } from '../src/pipeline/run';
-import { assertFreshUnseen, checkExitCode, gateFailures, measureSet, parseRows } from './measurePipeline';
+import { START_POINT, assertFreshUnseen, checkExitCode, gateFailures, measureSet, parseRows } from './measurePipeline';
 
 const MODEL = loadModel(JSON.parse(readFileSync(fileURLToPath(new URL('../src/model/model.json', import.meta.url)), 'utf8')));
 const ROW = { id: 'T-1', text: 'My account was hacked last night', category: 'Security Concern', priority: 'Urgent', mustReview: true };
@@ -28,6 +28,18 @@ describe('parseRows', () => {
 });
 
 describe('the start-point gate', () => {
+  // The recorded start point (2026-10-31, after the rule fixes, the fresh set frozen first).
+  it('holds the recorded start point', () => {
+    expect(START_POINT).toEqual({
+      'fold 0': { missed: 10, flagRate: 3587 / 4000, mustReview: 1461 },
+      'fold 1': { missed: 6, flagRate: 3536 / 4000, mustReview: 1461 },
+      'fold 2': { missed: 10, flagRate: 3509 / 4000, mustReview: 1461 },
+      'fold 3': { missed: 46, flagRate: 3570 / 4000, mustReview: 1473 },
+      'hand-written (seen)': { missed: 0, flagRate: 32 / 48, mustReview: 22 },
+      'hand-written (fresh)': { missed: 0, flagRate: 47 / 60, mustReview: 24 },
+    });
+  });
+
   it('runs at floor 0.5 with the second check off (the owner, 2026-10-31)', () => {
     expect(CONFIDENCE_FLOOR).toBe(0.5);
     expect(SECOND_CHECK_ON).toBe(false);
