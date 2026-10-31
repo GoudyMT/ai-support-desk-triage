@@ -259,6 +259,24 @@ describe('misspelling tolerance', () => {
   });
 });
 
+describe('slipped spelling next to punctuation', () => {
+  it.each([
+    ['Help, hakced', 'security incident', ['hacked']],
+    ['urgent: hakced', 'security incident', ['hacked']],
+    ['ok, somthing is wrong with it', 'vague ticket', ['something is wrong']],
+  ] as [string, ReviewReason, string[]][])('reads %j after punctuation', (text, reason, words) => {
+    // A comma or a colon before a misspelled word is how people write; the word
+    // after it must read like the same word in the middle of a sentence.
+    expect(matchRules(text)).toEqual([{ reason, words }]);
+  });
+
+  it('still wants a phrase written as one run, punctuation or not', () => {
+    // Only spaces or a hyphen may sit between a phrase's words, so a comma
+    // splits "something is wrong" into two thoughts.
+    expect(matchRules('somthing, is wrong')).toEqual([]);
+  });
+});
+
 describe('short tickets', () => {
   it('flags a few words that only say there is a problem', () => {
     // A vague ticket says something is wrong without saying what; when the whole

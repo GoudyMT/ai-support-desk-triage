@@ -110,7 +110,7 @@ function matchesWithOneSlip(entryWords: string[], text: string, written: TextWor
     for (const [offset, wanted] of entryWords.entries()) {
       const here = written[from + offset];
       const before = written[from + offset - 1];
-      if (!here || (before && !/^[\s-]+$/.test(text.slice(before.end, here.start)))) {
+      if (!here || (offset > 0 && before && !/^[\s-]+$/.test(text.slice(before.end, here.start)))) {
         fits = false;
         break;
       }
