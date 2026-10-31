@@ -200,3 +200,21 @@ wrong, with its top words).
   owner's PC, Node 20.11.0 (the shell's default, not fnm's 22.22.3; the margin below makes the difference moot):
   2,000 chars 0.05 ms (0.06); 5,000 0.14 (0.19); 10,000 0.26 (0.27); 20,000 0.50 (0.53). Every size is far
   under the 5 ms bar, so `MAX_TICKET_CHARS = 20000`, the largest size measured.
+- 2026-10-31 Task 6 measurement (`measurePipeline.ts`, fold models from `export_model --folds-out`, rules frozen
+  at 9a33526, 18.9 s). Flagged % / high-risk missed, second check off:
+  floor 0.0: folds 48.9/274, 61.4/220, 46.6/156, 54.0/200; hand-written 45.8/2.
+  floor 0.5: 89.6/20, 88.5/7, 87.9/10, 89.3/46; hand-written 64.6/1.
+  floor 0.6: 93.0/1, 94.6/2, 92.8/2, 94.5/1; hand-written 79.2/1.
+  floor 0.7: 95.6/1, 98.0/0, 95.9/2, 98.2/1; hand-written 87.5/0.
+  floor 0.9: 99.6/0, 99.9/0, 100.0/0, 100.0/0; hand-written 95.8/0 (the only floor with zero everywhere).
+  Second check on, floor 0.7: 77.0/85, 74.3/78, 69.9/53, 76.8/45; hand-written 64.6/0. It adds no miss on
+  the hand-written set (the locked keep rule) but adds 45-85 per fold.
+  Misses by reason at floor 0 (folds): vague 443 of 944; escalated complaint 123 of 864; accessibility 145 of
+  736; security 111 of 1,632; threatening 22 of 644; billing dispute 6 of 68 (typos only). At floor 0.6 the 6
+  fold misses are two-issue and typo tickets; hand-written H-32 (a billing dispute with typos) is missed up
+  to floor 0.6.
+  Design section 10 stop condition met (no floor under 0.9 reaches zero): HARD STOP, brought to the owner.
+- 2026-10-31 owner ruling (option A): one recorded rule revision by a fresh isolated builder, told only the
+  aggregate shortfall by reason and hard-case kind (never ticket texts), before / after numbers logged here,
+  then re-measure; a narrower second pass only if the new numbers call for it. The second check is dropped
+  (adds 45-85 misses per fold): `secondCheckOn` stays false; its code stays, off.
