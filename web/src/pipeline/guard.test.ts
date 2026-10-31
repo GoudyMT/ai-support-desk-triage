@@ -81,7 +81,7 @@ describe('guard priority', () => {
   it('keeps a model priority that is higher than the rule priority', () => {
     const result = guard(prediction('Billing', SURE), 'Urgent', 'I was charged twice', FLOOR);
     expect(result.reasons).toEqual([
-      { kind: 'rule', reason: 'billing dispute', words: ['charged', 'charged twice'] },
+      { kind: 'rule', reason: 'billing dispute', words: ['was charged', 'charged twice'] },
     ]);
     expect(result.priority).toBe('Urgent');
   });
@@ -99,8 +99,8 @@ describe('guard priority', () => {
       FLOOR,
     );
     expect(result.reasons).toEqual([
-      { kind: 'rule', reason: 'billing dispute', words: ['charged', 'charged twice'] },
-      { kind: 'rule', reason: 'threatening language', words: ['sue'] },
+      { kind: 'rule', reason: 'billing dispute', words: ['was charged', 'charged twice'] },
+      { kind: 'rule', reason: 'threatening language', words: ['will sue', 'sue you'] },
     ]);
     expect(result.priority).toBe('Urgent');
   });

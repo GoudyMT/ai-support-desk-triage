@@ -9,7 +9,7 @@ const PLAIN_SENTENCES: [ReviewReason, string, string[]][] = [
   ['security incident', 'someone hacked my account last night', ['hacked']],
   ['accessibility issue', 'the screen reader skips the checkout button', ['screen reader']],
   ['billing dispute', 'i want a refund for this month', ['refund']],
-  ['threatening language', 'fix this or i will sue you', ['sue']],
+  ['threatening language', 'fix this or i will sue you', ['will sue', 'sue you']],
   ['escalated complaint', 'this is unacceptable', ['unacceptable']],
   ['vague ticket', 'something is wrong with it', ['something is wrong']],
 ];
@@ -59,9 +59,9 @@ describe('matchRules', () => {
   });
 
   it.each([
-    ['i was charged twice', ['charged', 'charged twice']],
+    ['i was charged twice', ['was charged', 'charged twice']],
     ['i paid twice for my plan', ['paid twice']],
-    ['i was double charged', ['charged', 'double charged']],
+    ['i was double charged', ['double charged']],
   ])('flags a duplicate charge: %s', (text, words) => {
     // The labeling rules count a duplicate charge as a billing dispute.
     expect(matchRules(text)).toEqual([{ reason: 'billing dispute', words }]);
@@ -91,7 +91,7 @@ describe('matchRules', () => {
     // records every reason and the higher priority must win later.
     expect(matchRules('refund my money or i will sue you')).toEqual([
       { reason: 'billing dispute', words: ['refund'] },
-      { reason: 'threatening language', words: ['sue'] },
+      { reason: 'threatening language', words: ['will sue', 'sue you'] },
     ]);
   });
 
@@ -406,6 +406,8 @@ const NOT_FLAGGED = [
   'my profile picture keeps changing back',
   'the tooltip is overlaid on the save button',
   'is there a charge for adding a second user?',
+  'will i be charged when the trial ends?',
+  'please add sue to our team',
   'who is in charge of my account?',
   // Anger words used innocently.
   'move the logout button higher up please',
@@ -463,7 +465,9 @@ const KEPT_SENSITIVE: [ReviewReason, string, string[]][] = [
   ['accessibility issue', 'i cannot zoom the page to 200 percent', ['zoom the page', 'cannot zoom']],
   ['accessibility issue', 'the flashing lights on the home page trigger my seizures', ['seizures', 'flashing lights']],
   ['billing dispute', 'i see a charge on my card that i never agreed to', ['charge on my']],
-  ['billing dispute', 'my card was charged for a plan i cancelled', ['charged']],
+  ['billing dispute', 'my card was charged for a plan i cancelled', ['was charged']],
+  ['billing dispute', 'they charged me again', ['they charged', 'charged me']],
+  ['threatening language', 'i will sue you', ['will sue', 'sue you']],
   ['threatening language', 'my lawyer will be in touch', ['lawyer']],
   ['threatening language', 'my legal team will contact you', ['legal team will']],
   ['threatening language', 'pay me back or else you will regret it', ['you will regret', 'will regret', 'or else you will']],

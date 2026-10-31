@@ -137,9 +137,18 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'reasonable accommodations',
   ],
   'billing dispute': [
-    // "Charge" alone also asks a price ("a charge for a second user", "in charge
-    // of"), which is a product question; a dispute says what was charged.
-    'charged',
+    // "Charge" and "charged" alone also ask a price ("a charge for a second
+    // user", "will I be charged", "in charge of"), which is a product question;
+    // a dispute says that it happened.
+    'was charged',
+    'were charged',
+    'been charged',
+    'got charged',
+    'being charged',
+    'you charged',
+    'they charged',
+    'charged my card',
+    'charged my account',
     'charge on my',
     'charges on my',
     'charge i',
@@ -184,7 +193,19 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'refunding', 'repayment', 'reimbursed', 'payment dispute', 'charge dispute',
   ],
   'threatening language': [
-    'sue',
+    // "Sue" alone is also a first name, so it needs the words that make it a threat.
+    'will sue',
+    "i'll sue",
+    'going to sue',
+    'gonna sue',
+    'want to sue',
+    'would sue',
+    'could sue',
+    'sue you',
+    'sue your',
+    'sue us',
+    'sue the company',
+    'sue this company',
     'lawsuit',
     'lawyer',
     'attorney',
@@ -441,9 +462,9 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
 // autistic, steaming/sealing/stealing, expose/exposed, regulatory/regulator,
 // caption/captions, subtitle/subtitles, sketch/sketchy, stranger/strange,
 // cautions/captions, changing/charging, overlaid/overpaid, injected/infected,
-// unbelievably/unbelievable, charge/charged.
+// unbelievably/unbelievable.
 export const NOT_A_SLIP = new Set([
-  'charge', 'ignore', 'compromise', 'compromises', 'charger', 'chargers', 'beach', 'beached',
+  'ignore', 'compromise', 'compromises', 'charger', 'chargers', 'beach', 'beached',
   'layer', 'layers', 'compliant', 'treat', 'treats', 'artistic', 'steaming', 'sealing', 'expose',
   'regulatory', 'caption', 'subtitle', 'sketch', 'stranger', 'strangers', 'cautions',
   'changing', 'overlaid', 'injected', 'unbelievably',
