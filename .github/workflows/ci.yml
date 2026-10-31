@@ -9,7 +9,9 @@ permissions:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    # A named image, not ubuntu-latest: a moving image can drop the pinned
+    # Python and Node builds the jobs ask for.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: web
@@ -30,7 +32,7 @@ jobs:
   # Proves on a clean machine that the committed model is the one the code
   # trains, and that the browser scorer agrees with Python.
   model:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,9 +63,9 @@ jobs:
       # compared with; the parity file goes to its usual place.
       - run: python -m triage.export_model --model-out "$RUNNER_TEMP/model.json"
         working-directory: ml
-      # By class, not by digit: the solver stops early, so a Linux fit can differ
-      # from the committed Windows one in the last digits and still agree on
-      # every ticket.
+      # The whole model must match: the same classes and vocabulary, every weight
+      # within a small tolerance (room for a fit on another machine to differ in
+      # the last digits), then the same class on every ticket.
       - run: python -m triage.check_model "$RUNNER_TEMP/model.json" "$GITHUB_WORKSPACE/web/src/model/model.json"
         working-directory: ml
       # The numbers in eval.json come from this run, not from whoever last
