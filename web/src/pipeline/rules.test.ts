@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReviewReason } from '../domain/labels';
-import { matchRules, RULE_PRIORITY } from './rules';
+import { matchRules, REVIEW_RULES, RULE_PRIORITY } from './rules';
 
 // One plain sentence per reason, as a customer would write it. Each must fire
 // its own reason and no other, so a rule list that bleeds into a neighbour's
@@ -100,6 +100,187 @@ describe('matchRules', () => {
     expect(matchRules('SOMEONE HACKED MY ACCOUNT')).toEqual([
       { reason: 'security incident', words: ['hacked'] },
     ]);
+  });
+});
+
+// One sentence per kind of wording the widened lists add, as a customer would
+// write it. Each must fire its own reason alone, so a new entry that bleeds
+// into another reason's topic shows up here.
+const WIDENED_SENTENCES: [ReviewReason, string, string[]][] = [
+  ['security incident', 'i got a login alert from a country i have never visited', ['login alert']],
+  ['security incident', 'i do not recognize this device on my account', ['do not recognize']],
+  [
+    'security incident',
+    'my password was changed without my permission',
+    ['without my permission', 'password was changed'],
+  ],
+  ['security incident', 'i am writing to report a security concern', ['security']],
+  ['security incident', 'an email asked for my password and it looks fishy', ['fishy']],
+  ['security incident', 'someone else has access to my profile', ['someone else has access']],
+  ['security incident', 'a verification code arrived that i did not request', ['did not request']],
+  ['security incident', 'our site has a vulnerability in the login form', ['vulnerability']],
+  ['security incident', 'my account was accessed from another country', ['was accessed']],
+  ['security incident', 'a scammer is impersonating your staff', ['scammer', 'impersonating']],
+  ['accessibility issue', 'my vision is poor and the font is tiny', ['my vision']],
+  ['accessibility issue', 'the font size cannot be changed on the order page', ['font size']],
+  ['accessibility issue', 'the video has no captioning', ['captioning']],
+  ['accessibility issue', 'i use a wheelchair and the store map has no ramp info', ['wheelchair']],
+  ['accessibility issue', 'my hand tremors make the small buttons impossible to press', ['hand tremors']],
+  ['accessibility issue', 'the animation triggers my seizures', ['seizures']],
+  ['accessibility issue', 'please add a screenreader label to the cart icon', ['screenreader']],
+  ['accessibility issue', 'the page does not work without a mouse', ['without a mouse']],
+  ['billing dispute', 'there is a duplicate charge on my statement', ['charge', 'duplicate charge']],
+  ['billing dispute', 'you billed me after i cancelled', ['billed me']],
+  ['billing dispute', 'there is an unexpected fee on my bill', ['unexpected fee']],
+  ['billing dispute', 'the money was taken twice from my account', ['taken twice']],
+  ['billing dispute', 'i was overbilled for march', ['overbilled']],
+  ['billing dispute', 'the total on my invoice is wrong', ['invoice is wrong']],
+  ['threatening language', 'i am talking to my lawyers about this', ['lawyers']],
+  ['threatening language', 'i will call the police', ['police']],
+  ['threatening language', 'you will be sorry for this', ['be sorry']],
+  ['threatening language', 'this is my final warning', ['final warning']],
+  ['threatening language', 'i will leave a bad review everywhere', ['bad review']],
+  ['threatening language', 'you are all liars and crooks', ['liars', 'crooks']],
+  ['threatening language', 'what the hell is going on with you', ['the hell']],
+  ['escalated complaint', 'the service has been horrible', ['horrible']],
+  ['escalated complaint', 'i am tired of waiting for an answer', ['tired of']],
+  ['escalated complaint', 'nobody replied to my last three emails', ['nobody replied']],
+  ['escalated complaint', 'this is a waste of money', ['waste of money']],
+  ['escalated complaint', 'i want to speak with a manager', ['speak with a manager']],
+  ['escalated complaint', 'this is not acceptable', ['not acceptable']],
+  ['escalated complaint', 'i have already told you twice', ['already told']],
+  ['vague ticket', 'nothing works', ['nothing works']],
+  ['vague ticket', 'the app is not working', ['the app is not working']],
+  ['vague ticket', 'it is acting funny', ['acting funny']],
+  ['vague ticket', 'i need some help', ['need some help']],
+  ['vague ticket', 'it is hard to explain', ['hard to explain']],
+  ['vague ticket', 'it was fine yesterday and now it is not right', ['not right']],
+  ['vague ticket', 'there seems to be a problem', ['seems to be a problem']],
+  ['vague ticket', 'could someone help', ['someone help']],
+  ['vague ticket', 'please fix it', ['please fix']],
+  ['vague ticket', "i can't figure out what is going on", ["can't figure out"]],
+];
+
+describe('widened lists', () => {
+  it.each(WIDENED_SENTENCES)(
+    'a plain %s sentence fires that reason alone: %s',
+    (reason, sentence, words) => {
+      // Real tickets rarely use the textbook phrase; each wording is one way a
+      // person says it, and a miss is a ticket nobody reviews.
+      expect(matchRules(sentence)).toEqual([{ reason, words }]);
+    },
+  );
+
+  it.each(Object.entries(REVIEW_RULES))('every %s entry can fire when written alone', (reason, entries) => {
+    // A mistyped entry (capital letter, stray space) would never match and
+    // nobody would notice; a duplicate would list one word twice.
+    expect(new Set(entries).size).toBe(entries.length);
+    for (const entry of entries) {
+      expect(entry).toMatch(/^[a-z0-9' -]+$/);
+      const hit = matchRules(entry).find((found) => found.reason === reason);
+      expect(hit?.words).toContain(entry);
+    }
+  });
+
+  it.each([
+    ['i didnt log in', 'security incident', ["didn't log in"]],
+    ['it doesnt work', 'vague ticket', ["it doesn't work"]],
+  ])('reads %j without its apostrophe', (text, reason, words) => {
+    // Typed fast on a phone, "didn't" often loses its apostrophe.
+    expect(matchRules(text)).toEqual([{ reason, words }]);
+  });
+});
+
+describe('misspelling tolerance', () => {
+  it.each([
+    ['security incident', 'my account was hakced yesterday', ['hacked']],
+    ['security incident', 'our records were compromized', ['compromised']],
+    ['accessibility issue', 'the site has bad accesibility for me', ['accessibility']],
+    ['escalated complaint', 'this is totally unnacceptable', ['unacceptable']],
+    ['billing dispute', 'i want a refnud for this month', ['refund']],
+    ['threatening language', 'i will contact my lawer', ['lawyer']],
+    ['vague ticket', 'somthing is wrong with it', ['something is wrong']],
+  ] as [ReviewReason, string, string[]][])(
+    'a slipped spelling still fires %s: %s',
+    (reason, text, words) => {
+      // Customers type fast on phones; a dropped, doubled or swapped letter
+      // must not hide a sensitive ticket from review.
+      expect(matchRules(text)).toEqual([{ reason, words }]);
+    },
+  );
+
+  it.each([
+    'how do i use this',
+    'can i scan a barcode with the app',
+    'the battery is dead',
+    'does it blend ice',
+  ])('keeps short words exact: %s', (text) => {
+    // "sue", "scam", "deaf" and "blind" sit one letter from everyday words;
+    // letting them stretch would flag "use", "scan", "dead" and "blend".
+    expect(matchRules(text)).toEqual([]);
+  });
+
+  it.each([
+    'we changed the plan last week and the changes look right on my account',
+    'the support agent was polite and quick',
+    'please ignore my earlier message',
+    'we reached a compromise on the price',
+    'how do i reach the support team',
+    'is there a beach towel in the summer range',
+    'there is a layer of foam inside the case',
+    'the item is compliant with the eu rules',
+    'the charger arrived with the wrong plug',
+  ])('does not stretch a spelling onto an everyday word: %s', (text) => {
+    // Each word is one letter from a rule word (changed/charged, polite/police,
+    // ignore/ignored, compromise/compromised, reach and beach/breach, layer/lawyer,
+    // compliant/complaint); reading it as the rule word would flag an ordinary
+    // customer.
+    expect(matchRules(text)).toEqual([]);
+  });
+
+  it.each([
+    'how do i change my shipping address before it ships',
+    'what is the difference between the basic and premium plans',
+    'can you tell me when my order will arrive',
+    'how do i reset my password from the login page',
+    'is the blue jacket available in a larger size',
+    'the tracking page shows my parcel left the warehouse yesterday',
+    'please change the delivery date to friday',
+    'i would like to update the email on my profile',
+    'does the premium plan include extra storage and priority delivery',
+    'how long does standard shipping take to canada',
+    'where can i find the user guide for the camera',
+    'can i add a second user to my team account',
+    'how do i download my receipt as a pdf',
+    'where is my order',
+  ])('does not flag an ordinary product or shipping question: %s', (text) => {
+    // The false flags the new tolerance and lists must not cause: a reviewer's
+    // time is spent on each one.
+    expect(matchRules(text)).toEqual([]);
+  });
+});
+
+describe('short tickets', () => {
+  it('flags a few words that only say there is a problem', () => {
+    // A vague ticket says something is wrong without saying what; when the whole
+    // message is a few words, there is nothing else to read.
+    expect(matchRules('my account has a problem')).toEqual([
+      { reason: 'vague ticket', words: ['short ticket without detail'] },
+    ]);
+  });
+
+  it('leaves a long ticket alone when it names the problem', () => {
+    // The same word in a ticket that goes on to explain is a described issue.
+    expect(
+      matchRules(
+        'the problem seems limited to the mobile checkout page where the discount code box is hidden behind the keyboard on small screens',
+      ),
+    ).toEqual([]);
+  });
+
+  it('leaves a short ticket with no trouble word alone', () => {
+    // Short is not vague: a status question names what it wants.
+    expect(matchRules('what time does the store open')).toEqual([]);
   });
 });
 
