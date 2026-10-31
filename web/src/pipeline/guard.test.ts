@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Priority } from '../domain/labels';
+import type { Category, Priority } from '../domain/labels';
 import type { Prediction } from '../model/scorer';
 import { guard, MUST_REVIEW_CATEGORIES, secondCheck } from './guard';
 
@@ -32,7 +32,9 @@ describe('guard reasons', () => {
   });
 
   it('flags a must-review category the model predicted, without touching the priority', () => {
-    for (const category of MUST_REVIEW_CATEGORIES) {
+    const mustReview: Category[] = ['Security Concern', 'Accessibility Support', 'Urgent Complaint'];
+    expect(MUST_REVIEW_CATEGORIES).toEqual(mustReview);
+    for (const category of mustReview) {
       const result = guard(prediction(category, SURE), 'Low', PLAIN_TEXT, FLOOR);
       expect(result.flagged).toBe(true);
       expect(result.reasons).toEqual([{ kind: 'category', category }]);
@@ -143,6 +145,32 @@ describe('secondCheck', () => {
     expect(secondCheck(flagged, category).clearedBySecondCheck).toBe(false);
   });
 
+  it('keeps a category flag even when the top two classes are both ordinary', () => {
+    const tiedOrdinary = prediction('Accessibility Support', 0.25, {
+      'Accessibility Support': 0.25,
+      Billing: 0.25,
+      'Technical Issue': 0.25,
+      Other: 0.25,
+    });
+    // The tie puts Billing and Technical Issue first, so only the "only reason" rule can keep the flag.
+    const flagged = guard(tiedOrdinary, 'Low', PLAIN_TEXT, FLOOR);
+    expect(flagged.reasons.map((reason) => reason.kind)).toEqual(['category', 'low confidence']);
+    const after = secondCheck(flagged, tiedOrdinary);
+    expect(after.flagged).toBe(true);
+    expect(after.clearedBySecondCheck).toBe(false);
+
+    const priorityShaped = prediction('Accessibility Support', 0.25, {
+      Low: 0.25,
+      Medium: 0.25,
+      High: 0.25,
+      Urgent: 0.25,
+    });
+    const flaggedAgain = guard(priorityShaped, 'Low', PLAIN_TEXT, FLOOR);
+    const afterAgain = secondCheck(flaggedAgain, priorityShaped);
+    expect(afterAgain.flagged).toBe(true);
+    expect(afterAgain.clearedBySecondCheck).toBe(false);
+  });
+
   it('clears a low-only flag when the top two classes are both outside the must-review list', () => {
     const category = torn('Product Question', 'Shipping/Order Issue');
     const flagged = guard(category, 'Medium', PLAIN_TEXT, FLOOR);
@@ -174,6 +202,7 @@ describe('secondCheck', () => {
     expect(secondCheck(flagged, category).flagged).toBe(true);
   });
 
+  // loadModel does not check class names against CATEGORIES, so a model whose class names drift must not count as must-review.
   it('counts a key that is not a category as outside the must-review list', () => {
     const category = prediction('Product Question', UNSURE, {
       'Product Question': UNSURE,
@@ -190,7 +219,11 @@ describe('secondCheck', () => {
   });
 
   it('returns an unflagged result unchanged', () => {
-    const category = prediction('Product Question', SURE);
+    const category = prediction('Product Question', SURE, {
+      'Product Question': SURE,
+      'Shipping/Order Issue': 0.06,
+      Other: 0.04,
+    });
     const unflagged = guard(category, 'Low', PLAIN_TEXT, FLOOR);
     expect(secondCheck(unflagged, category)).toBe(unflagged);
   });
