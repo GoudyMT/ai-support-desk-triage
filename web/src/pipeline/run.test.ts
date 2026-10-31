@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { v0Triage } from '../baseline/v0';
-import { ROUTES } from '../domain/labels';
+import { ROUTES, type Priority } from '../domain/labels';
 import { loadModel, score } from '../model/scorer';
+import { guard } from './guard';
 import { runTicket, runTickets, type RunDeps } from './run';
 import type { ReviewDecision, ReviewInput } from './types';
 
@@ -22,13 +23,19 @@ const TORN_TOWARD_RISK = 'The page layout is hard to read with my tools';
 const PERSONAL_TICKET =
   'Someone hacked my account. Reach me at jordan@mail.example.net or (212) 555-0147. ' +
   'Order #48213 never arrived, and card 4111-1111-1111-1111 was used.';
+// The priority head says Medium and the escalated-complaint rule raises it to High.
+const RAISED_BY_RULE = 'The desk lamp I ordered is awful, please help';
+// "refund" in the address would fire the billing dispute rule on the raw text only.
+const EMAIL_WITH_RULE_WORD = `My contact is refund.team@mail.example.net. ${PLAIN_QUESTION}`;
 const RAW_PERSONAL_VALUES = ['jordan@mail', '555-0147', '48213', '4111'];
 
+// Differs from the model's answer on PERSONAL_TICKET (Security Concern, Urgent, Security Team)
+// in category, priority and route, so a final taken from the model instead of the reviewer shows.
 const DECISION: ReviewDecision = {
-  category: 'Security Concern',
-  priority: 'Urgent',
-  route: ROUTES['Security Concern'],
-  reason: 'The model said Technical Issue; the ticket reports a security incident.',
+  category: 'Urgent Complaint',
+  priority: 'High',
+  route: ROUTES['Urgent Complaint'],
+  reason: 'The model said Security Concern; the reviewer read the ticket as an escalated complaint.',
 };
 
 function stubReviewer() {
@@ -88,7 +95,7 @@ describe('runTicket privacy', () => {
 });
 
 describe('runTicket outcome', () => {
-  it('finishes a confident, unflagged ticket as the model said, without the reviewer', () => {
+  it('finishes an unflagged ticket (floor 0, no rule hit, ordinary category) as the model said, without the reviewer', () => {
     const reviewer = stubReviewer();
     const trail = runTicket(PLAIN_QUESTION, 'T-2', depsWith({ reviewer }));
 
@@ -109,6 +116,10 @@ describe('runTicket outcome', () => {
     const reviewer = stubReviewer();
     const trail = runTicket(PERSONAL_TICKET, 'T-3', depsWith({ reviewer }));
 
+    // The decision must differ from what the model and guard gave, or this test could not tell them apart.
+    expect(trail.category.label).not.toBe(DECISION.category);
+    expect(trail.guard.priority).not.toBe(DECISION.priority);
+    expect(ROUTES[trail.category.label as keyof typeof ROUTES]).not.toBe(DECISION.route);
     expect(reviewer.inputs).toEqual([
       {
         id: 'T-3',
@@ -124,6 +135,17 @@ describe('runTicket outcome', () => {
       route: DECISION.route,
       by: 'reviewer',
     });
+  });
+
+  it('shows the reviewer the priority after the rules, not the priority head alone', () => {
+    const reviewer = stubReviewer();
+    const trail = runTicket(RAISED_BY_RULE, 'T-3b', depsWith({ reviewer }));
+
+    // The priority head says Medium; the escalated-complaint rule raises it to High.
+    expect(trail.priority.label).toBe('Medium');
+    expect(trail.guard.priority).toBe('High');
+    expect(reviewer.inputs).toHaveLength(1);
+    expect(reviewer.inputs[0]?.suggestion.priority).toBe('High');
   });
 
   it('refuses empty text with the static code and never calls the reviewer', () => {
@@ -142,8 +164,23 @@ describe('runTicket outcome', () => {
     expect(call).toBe(2);
   });
 
+  it('reads the rules from the masked text: a rule word inside an email address fires nothing', () => {
+    const trail = runTicket(EMAIL_WITH_RULE_WORD, 'T-5b', depsWith({ reviewer: stubReviewer() }));
+
+    expect(trail.guard.reasons.map((reason) => reason.kind === 'rule' && reason.reason)).not.toContain(
+      'billing dispute',
+    );
+    // The raw text would add a billing dispute flag; the masked text adds none.
+    expect(trail.guard).toEqual(
+      guard(trail.category, trail.priority.label as Priority, trail.maskedText, FLOOR_NOTHING),
+    );
+    expect(trail.guard).not.toEqual(
+      guard(trail.category, trail.priority.label as Priority, EMAIL_WITH_RULE_WORD, FLOOR_NOTHING),
+    );
+  });
+
   it('gives v0 the raw text, because v0 read it raw on the original page', () => {
-    const text = `My contact is refund.team@mail.example.net. ${PLAIN_QUESTION}`;
+    const text = EMAIL_WITH_RULE_WORD;
     const trail = runTicket(text, 'T-6', depsWith({ reviewer: stubReviewer() }));
     expect(trail.v0).toEqual({ category: 'Billing', priority: 'Medium', mustReview: true });
     // The same ticket as masked text would have given v0 a different answer.

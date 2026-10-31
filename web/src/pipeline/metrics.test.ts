@@ -25,6 +25,10 @@ const RULE = (reason: Extract<FlagReason, { kind: 'rule' }>['reason']): FlagReas
 const CATEGORY = (category: Category): FlagReason => ({ kind: 'category', category });
 
 // Twelve tickets, ids T01..T12, whose time taken is 10 ms times the number in the id.
+// Every row is one the guard could produce with a confidence floor of 0.5: reasons in the
+// guard's order (rules, then category, then low confidence), low confidence only below 0.5,
+// and a guard priority that is the higher of the priority head and the rules' priorities.
+// A reviewed row's priority is the true one, so it can differ from the guard's.
 const ROWS: Row[] = [
   { id: 'T01', truth: ['Product Question', 'Medium', false], model: ['Product Question', 0.9], modelPriority: 'Medium', reasons: [], guardPriority: 'Medium', v0: ['Other', 'Medium', false] },
   { id: 'T02', truth: ['Billing', 'Medium', false], model: ['Billing', 0.8], modelPriority: 'Medium', reasons: [], guardPriority: 'Medium', v0: ['Billing', 'Medium', true] },
@@ -32,12 +36,12 @@ const ROWS: Row[] = [
   { id: 'T04', truth: ['Shipping/Order Issue', 'Medium', false], model: ['Account Access', 0.85], modelPriority: 'Medium', reasons: [], guardPriority: 'Medium', v0: ['Other', 'Medium', false] },
   { id: 'T05', truth: ['Security Concern', 'Urgent', true], model: ['Security Concern', 0.95], modelPriority: 'Urgent', reasons: [RULE('security incident'), CATEGORY('Security Concern')], guardPriority: 'Urgent', reviewed: ['Security Concern', 'Urgent'], v0: ['Security Concern', 'Urgent', true] },
   { id: 'T06', truth: ['Accessibility Support', 'High', true], model: ['Technical Issue', 0.6], modelPriority: 'Medium', reasons: [RULE('accessibility issue')], guardPriority: 'High', reviewed: ['Accessibility Support', 'High'], v0: ['Accessibility Support', 'High', true] },
-  { id: 'T07', truth: ['Billing', 'Medium', true], model: ['Billing', 0.9], modelPriority: 'Medium', reasons: [RULE('billing dispute')], guardPriority: 'Medium', reviewed: ['Billing', 'Medium'], v0: ['Billing', 'Medium', true] },
-  { id: 'T08', truth: ['Urgent Complaint', 'High', true], model: ['Product Question', 0.4], modelPriority: 'Low', reasons: [], guardPriority: 'Low', v0: ['Other', 'Medium', false] },
+  { id: 'T07', truth: ['Billing', 'Medium', true], model: ['Billing', 0.9], modelPriority: 'Low', reasons: [RULE('billing dispute')], guardPriority: 'Medium', reviewed: ['Billing', 'Medium'], v0: ['Billing', 'Medium', true] },
+  { id: 'T08', truth: ['Urgent Complaint', 'High', true], model: ['Product Question', 0.55], modelPriority: 'Low', reasons: [], guardPriority: 'Low', v0: ['Other', 'Medium', false] },
   { id: 'T09', truth: ['Other', 'Medium', true], model: ['Product Question', 0.3], modelPriority: 'Medium', reasons: [RULE('vague ticket'), LOW(0.3)], guardPriority: 'Medium', reviewed: ['Other', 'Medium'], v0: ['Other', 'Medium', false] },
   { id: 'T10', truth: ['Other', 'Low', true], model: ['Product Question', 0.3], modelPriority: 'Low', reasons: [LOW(0.3)], cleared: true, guardPriority: 'Low', v0: ['Other', 'Medium', false] },
-  { id: 'T11', truth: ['Account Access', 'High', false], model: ['Technical Issue', 0.45], modelPriority: 'High', reasons: [LOW(0.45)], guardPriority: 'High', reviewed: ['Account Access', 'High'], v0: ['Account Access', 'High', false] },
-  { id: 'T12', truth: ['Urgent Complaint', 'High', true], model: ['Urgent Complaint', 0.75], modelPriority: 'High', reasons: [CATEGORY('Urgent Complaint'), RULE('escalated complaint'), RULE('threatening language')], guardPriority: 'High', reviewed: ['Technical Issue', 'High'], v0: ['Other', 'Medium', false] },
+  { id: 'T11', truth: ['Account Access', 'High', false], model: ['Technical Issue', 0.45], modelPriority: 'Medium', reasons: [LOW(0.45)], guardPriority: 'Medium', reviewed: ['Account Access', 'High'], v0: ['Account Access', 'High', false] },
+  { id: 'T12', truth: ['Urgent Complaint', 'High', true], model: ['Urgent Complaint', 0.75], modelPriority: 'High', reasons: [RULE('threatening language'), RULE('escalated complaint'), CATEGORY('Urgent Complaint')], guardPriority: 'Urgent', reviewed: ['Technical Issue', 'High'], v0: ['Other', 'Medium', false] },
 ];
 
 function trailOf(row: Row): TicketTrail {
@@ -95,8 +99,9 @@ describe('computeMetrics on the twelve-ticket fixture', () => {
     // Model category right on T01 T02 T03 T05 T07 T12 = 6 of 12; after review also T06 T09 T11 but not T12 = 8.
     expect(metrics.categoryAccuracy.model).toBeCloseTo(6 / 12, 10);
     expect(metrics.categoryAccuracy.system).toBeCloseTo(8 / 12, 10);
-    // Model priority wrong on T03 T06 T08 = 9 right; the reviewer fixes T06 = 10.
-    expect(metrics.priorityAccuracy.model).toBeCloseTo(9 / 12, 10);
+    // Model priority right on T01 T02 T04 T05 T09 T10 T12 = 7 of 12; the system is wrong only where no
+    // reviewer fixed it, on T03 and T08 (the guard's raised priority alone, such as T12's Urgent, is not the final one) = 10.
+    expect(metrics.priorityAccuracy.model).toBeCloseTo(7 / 12, 10);
     expect(metrics.priorityAccuracy.system).toBeCloseTo(10 / 12, 10);
   });
 
@@ -141,12 +146,12 @@ describe('computeMetrics on the twelve-ticket fixture', () => {
   });
 
   it('lists the most confident category mistakes first, ties by id, at most five', () => {
-    // Wrong on T04 .85, T06 .6, T11 .45, T08 .4, T09 .3, T10 .3: six, so T10 is cut after the id tie.
+    // Wrong on T04 .85, T06 .6, T08 .55, T11 .45, T09 .3, T10 .3: six, so T10 is cut after the id tie.
     expect(metrics.instructiveMisses).toEqual([
       { id: 'T04', predicted: 'Account Access', truth: 'Shipping/Order Issue', confidence: 0.85, topTerms: [{ term: 'word-T04', weight: 0.85 }] },
       { id: 'T06', predicted: 'Technical Issue', truth: 'Accessibility Support', confidence: 0.6, topTerms: [{ term: 'word-T06', weight: 0.6 }] },
+      { id: 'T08', predicted: 'Product Question', truth: 'Urgent Complaint', confidence: 0.55, topTerms: [{ term: 'word-T08', weight: 0.55 }] },
       { id: 'T11', predicted: 'Technical Issue', truth: 'Account Access', confidence: 0.45, topTerms: [{ term: 'word-T11', weight: 0.45 }] },
-      { id: 'T08', predicted: 'Product Question', truth: 'Urgent Complaint', confidence: 0.4, topTerms: [{ term: 'word-T08', weight: 0.4 }] },
       { id: 'T09', predicted: 'Product Question', truth: 'Other', confidence: 0.3, topTerms: [{ term: 'word-T09', weight: 0.3 }] },
     ]);
   });
