@@ -108,7 +108,7 @@ describe('matchRules', () => {
 // into another reason's topic shows up here.
 const WIDENED_SENTENCES: [ReviewReason, string, string[]][] = [
   ['security incident', 'i got a login alert from a country i have never visited', ['login alert']],
-  ['security incident', 'i do not recognize this device on my account', ['do not recognize']],
+  ['security incident', 'i do not recognize this device on my account', ['recognize this device']],
   [
     'security incident',
     'my password was changed without my permission',
@@ -122,14 +122,14 @@ const WIDENED_SENTENCES: [ReviewReason, string, string[]][] = [
   ['security incident', 'my account was accessed from another country', ['was accessed']],
   ['security incident', 'a scammer is impersonating your staff', ['scammer', 'impersonating']],
   ['accessibility issue', 'my vision is poor and the font is tiny', ['my vision']],
-  ['accessibility issue', 'the font size cannot be changed on the order page', ['font size']],
+  ['accessibility issue', 'the font size cannot be changed on the order page', ['font size cannot']],
   ['accessibility issue', 'the video has no captioning', ['captioning']],
   ['accessibility issue', 'i use a wheelchair and the store map has no ramp info', ['wheelchair']],
   ['accessibility issue', 'my hand tremors make the small buttons impossible to press', ['hand tremors']],
   ['accessibility issue', 'the animation triggers my seizures', ['seizures']],
   ['accessibility issue', 'please add a screenreader label to the cart icon', ['screenreader']],
   ['accessibility issue', 'the page does not work without a mouse', ['without a mouse']],
-  ['billing dispute', 'there is a duplicate charge on my statement', ['charge', 'duplicate charge']],
+  ['billing dispute', 'there is a duplicate charge on my statement', ['charge on my', 'duplicate charge']],
   ['billing dispute', 'you billed me after i cancelled', ['billed me']],
   ['billing dispute', 'there is an unexpected fee on my bill', ['unexpected fee']],
   ['billing dispute', 'the money was taken twice from my account', ['taken twice']],
@@ -139,7 +139,6 @@ const WIDENED_SENTENCES: [ReviewReason, string, string[]][] = [
   ['threatening language', 'i will call the police', ['police']],
   ['threatening language', 'you will be sorry for this', ['be sorry']],
   ['threatening language', 'this is my final warning', ['final warning']],
-  ['threatening language', 'i will leave a bad review everywhere', ['bad review']],
   ['threatening language', 'you are all liars and crooks', ['liars', 'crooks']],
   ['threatening language', 'what the hell is going on with you', ['the hell']],
   ['escalated complaint', 'the service has been horrible', ['horrible']],
@@ -154,7 +153,7 @@ const WIDENED_SENTENCES: [ReviewReason, string, string[]][] = [
   ['vague ticket', 'it is acting funny', ['acting funny']],
   ['vague ticket', 'i need some help', ['need some help']],
   ['vague ticket', 'it is hard to explain', ['hard to explain']],
-  ['vague ticket', 'it was fine yesterday and now it is not right', ['not right']],
+  ['vague ticket', 'it was fine yesterday and now it is not right', ['it is not right']],
   ['vague ticket', 'there seems to be a problem', ['seems to be a problem']],
   ['vague ticket', 'could someone help', ['someone help']],
   ['vague ticket', 'please fix it', ['please fix']],
@@ -281,6 +280,166 @@ describe('short tickets', () => {
   it('leaves a short ticket with no trouble word alone', () => {
     // Short is not vague: a status question names what it wants.
     expect(matchRules('what time does the store open')).toEqual([]);
+  });
+
+  // The rule counts what the customer wrote: filler words after the cue.
+  const FILLER_WORD = 'okay';
+  const SHORT = [{ reason: 'vague ticket', words: ['short ticket without detail'] }];
+
+  it('flags a ticket of 12 words and leaves one of 13', () => {
+    // The limit is where "a few words" ends; one word either side shows it.
+    const ticket = (count: number) => ['problem', ...Array(count - 1).fill(FILLER_WORD)].join(' ');
+    expect(matchRules(ticket(12))).toEqual(SHORT);
+    expect(matchRules(ticket(13))).toEqual([]);
+  });
+
+  it('does not count the words inside a masked token', () => {
+    // [ORDER_NUMBER] is the masker's, so a 12-word ticket with one stays at 12
+    // words and is still flagged; counted as words it would read as 14.
+    const filler = Array(11).fill(FILLER_WORD).join(' ');
+    expect(matchRules(`[ORDER_NUMBER] ${filler} problem`)).toEqual(SHORT);
+  });
+
+  it.each(['a problem', 'problems', 'an issue', 'issues', 'trouble'])(
+    'reads %j as the whole complaint in a short ticket',
+    (cue) => {
+      // Each of these says something is wrong and nothing more.
+      expect(matchRules(`my account has ${cue}`)).toEqual(SHORT);
+    },
+  );
+
+  it.each([
+    ['thanks, no issues so far', 'a customer saying nothing is wrong'],
+    ['how do i issue a credit note?', 'issue as a verb'],
+    ["i'm having trouble resetting my password", 'trouble that names what failed'],
+    ['i am without any problems this week', 'no trouble at all'],
+  ])('does not flag %j (%s)', (text) => {
+    // The cue word is there but the ticket is not vague; a flag here would send
+    // a clear question or a thank-you to a reviewer as a vague ticket.
+    expect(matchRules(text)).toEqual([]);
+  });
+
+  it('flags a very short plea for help but not a request that names its task', () => {
+    // "Help me" says nothing; "help me export my contacts" says what to do.
+    expect(matchRules('can anyone help me out')).toEqual(SHORT);
+    expect(matchRules('can anyone help me out here')).toEqual([]);
+    expect(matchRules('help me')).toEqual(SHORT);
+  });
+});
+
+// Ordinary sentences a sweep found wrongly flagged. A flag sends the ticket to a
+// person, can raise its priority (security and threats to Urgent) and records a
+// reason, so each of these must come back empty.
+const NOT_FLAGGED = [
+  // Security words used for plain product talk.
+  "i can't login from my phone since the update",
+  'i logged in from my work laptop and the page is blank',
+  "i didn't make any changes and now the report is blank",
+  'import fails with an unrecognized file format error',
+  "i'm unfamiliar with the new layout",
+  "i don't recognize this setting",
+  'i get a not authorized error when i open the report',
+  'the new banner has taken over half the screen',
+  'is there a hack to bulk edit tags?',
+  'the script is injected into the page twice',
+  // Threat and insult words used innocently.
+  'my settings get lost when i log out',
+  'should i use the csv import or else enter them by hand?',
+  'i reported to your team last week and it is fixed now',
+  'do you expose your api?',
+  'our legal team needs a copy of the dpa',
+  'the logo looks crooked',
+  'can i get my rights back on the shared folder?',
+  'dumb question, but where is the export button?',
+  "i'm clueless about the new dashboard",
+  'damn, i forgot to attach the screenshot',
+  // Money words in a question about price, or a word one slip from a billing word.
+  'the language keeps changing to french',
+  'my profile picture keeps changing back',
+  'the tooltip is overlaid on the save button',
+  'is there a charge for adding a second user?',
+  'who is in charge of my account?',
+  // Anger words used innocently.
+  'move the logout button higher up please',
+  'can i add our head office address to invoices?',
+  'do you support disaster recovery backups?',
+  'can i get the on-demand report for march?',
+  'thanks once again for your help!',
+  'i clicked save three times and nothing happened',
+  'the page reloads over and over',
+  'the date filter is ignored when i export',
+  'how do i give the supervisor role access?',
+  "i'll leave you my number",
+  'the app is unbelievably fast now, thanks!',
+  // Screen words used for ordinary layout and settings.
+  'the settings page is not accessible from my phone',
+  'the dashboard is inaccessible since this morning',
+  'the screen is flickering when i scroll',
+  'when i zoom in on the chart the labels overlap',
+  'can i change the font size on printed invoices?',
+  'aria from our team cannot see the shared reports',
+  'do the window blinds come in white?',
+  // Requests that name their task.
+  'can you help me export my contacts to csv?',
+  'the totals are not right on the march invoice',
+  // Everyday words one slip from a rule word (the NOT_A_SLIP list).
+  'how do i treat a leather stain',
+  'add a caption to my photo',
+  'is the steaming function safe',
+  'i like the sketch tool',
+  'a stranger sent me a gift card',
+  'the artistic photo filter looks great',
+  'the sealing tape came off in the post',
+  'does the report expose a public link',
+  'this is a regulatory form',
+  'add a subtitle under the heading',
+  'read the safety cautions in the manual',
+  'the cover layers and treats are stored here',
+];
+
+// Wrong-reason cases: the ticket is sensitive, but not in the way the old list said.
+const REASSIGNED: [string, ReviewReason, string[]][] = [
+  ['my antivirus flags a threat in your installer', 'security incident', ['threat']],
+  ['i will leave a one star review if this keeps crashing', 'escalated complaint', ['one star']],
+  ['i will post a bad review if nobody helps', 'escalated complaint', ['bad review']],
+];
+
+// Plainly sensitive wording that the narrowed lists must keep catching.
+const KEPT_SENSITIVE: [ReviewReason, string, string[]][] = [
+  ['security incident', 'someone logged into my account from another country', ['someone logged into']],
+  ['security incident', 'i think my account has been taken over', ['account has been taken over']],
+  ['security incident', 'someone tried to hack my account', ['hack my']],
+  ['security incident', 'there are unrecognized logins on my account', ['unrecognized logins']],
+  ['accessibility issue', 'i use a screen reader and the form is unreadable', ['screen reader']],
+  ['accessibility issue', 'the checkout is not accessible to keyboard users', ['not accessible to']],
+  ['accessibility issue', 'i cannot zoom the page to 200 percent', ['zoom the page', 'cannot zoom']],
+  ['accessibility issue', 'the flashing lights on the home page trigger my seizures', ['seizures', 'flashing lights']],
+  ['billing dispute', 'i see a charge on my card that i never agreed to', ['charge on my']],
+  ['billing dispute', 'my card was charged for a plan i cancelled', ['charged']],
+  ['threatening language', 'my lawyer will be in touch', ['lawyer']],
+  ['threatening language', 'my legal team will contact you', ['legal team will']],
+  ['threatening language', 'pay me back or else you will regret it', ['you will regret', 'will regret', 'or else you will']],
+  ['escalated complaint', 'i want to speak to a supervisor', ['speak to a supervisor']],
+  ['escalated complaint', 'i have emailed you three times and nobody replied', ['emailed you three times', 'nobody replied']],
+  ['escalated complaint', 'i told you over and over', ['told you over and over']],
+  ['escalated complaint', 'i feel ignored by your team', ['feel ignored']],
+  ['vague ticket', 'sorry, it is not right', ['it is not right']],
+];
+
+describe('sweep fixes', () => {
+  it.each(NOT_FLAGGED)('does not flag an ordinary sentence: %s', (text) => {
+    expect(matchRules(text)).toEqual([]);
+  });
+
+  it.each(REASSIGNED)('files %j under the right reason only', (text, reason, words) => {
+    // A bad-review warning is an unhappy customer, and an antivirus alert is a
+    // security matter; neither is a threat that would raise the ticket to Urgent.
+    expect(matchRules(text)).toEqual([{ reason, words }]);
+  });
+
+  it.each(KEPT_SENSITIVE)('still flags %s: %s', (reason, text, words) => {
+    // Narrowing the lists must not hide a ticket a person has to see.
+    expect(matchRules(text)).toEqual([{ reason, words }]);
   });
 });
 

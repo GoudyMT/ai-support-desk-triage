@@ -1,6 +1,6 @@
 import type { Priority, ReviewReason } from '../domain/labels';
 import { MASK_TOKENS } from '../privacy/mask';
-import { NOT_A_SLIP, REVIEW_RULES, SHORT_TICKET_CUE_WORDS } from './ruleWords';
+import { NOT_A_SLIP, REVIEW_RULES, SHORT_HELP_CUES, SHORT_TICKET_CUE_WORDS } from './ruleWords';
 
 // The word lists live in ruleWords.ts; this file is the matching.
 export { REVIEW_RULES };
@@ -130,8 +130,32 @@ function matchesWithOneSlip(entryWords: string[], text: string, written: TextWor
 // message is only a few words and one of them is "problem", "issue" or the
 // like, there is nothing more to read, whatever the exact words.
 const SHORT_TICKET_MAX_WORDS = 12;
+const SHORT_HELP_MAX_WORDS = 5;
 const SHORT_TICKET_WORD = 'short ticket without detail';
 const SHORT_TICKET_CUES = SHORT_TICKET_CUE_WORDS.map(wholeWordPattern);
+const SHORT_HELP_PATTERNS = SHORT_HELP_CUES.map(wholeWordPattern);
+
+// Uses of those words that say nothing is wrong, or say what failed: "no
+// issues", "issue a credit note" (a verb) and "trouble resetting" (names the
+// task). They are blanked before the cues are looked for.
+const NOT_A_COMPLAINT = new RegExp(
+  '(?<![a-z0-9])(?:' +
+    '(?:no|not|without|never)[\\s-]+(?:any[\\s-]+)?(?:problems?|issues?|trouble|glitch)' +
+    '|(?:to|i|we|you|please)[\\s-]+issue' +
+    '|issue[\\s-]+(?:a|an|the|my|your|our|credit|refund|invoice|receipt)' +
+    '|trouble[\\s-]+[a-z]+ing' +
+    ')(?![a-z0-9])',
+  'g',
+);
+
+function isShortAndVague(text: string, wordCount: number): boolean {
+  if (wordCount <= SHORT_HELP_MAX_WORDS && SHORT_HELP_PATTERNS.some((cue) => cue.test(text))) {
+    return true;
+  }
+  if (wordCount > SHORT_TICKET_MAX_WORDS) return false;
+  const detail = text.replace(NOT_A_COMPLAINT, ' ');
+  return SHORT_TICKET_CUES.some((cue) => cue.test(detail));
+}
 
 const COMPILED_RULES = REASON_ORDER.map((reason) => ({
   reason,
@@ -159,12 +183,7 @@ export function matchRules(maskedText: string): { reason: ReviewReason; words: s
         .filter(({ entryWords }) => entryWords && matchesWithOneSlip(entryWords, text, written))
         .map(({ word }) => word);
     }
-    if (
-      words.length === 0 &&
-      reason === 'vague ticket' &&
-      written.length <= SHORT_TICKET_MAX_WORDS &&
-      SHORT_TICKET_CUES.some((cue) => cue.test(text))
-    ) {
+    if (words.length === 0 && reason === 'vague ticket' && isShortAndVague(text, written.length)) {
       words = [SHORT_TICKET_WORD];
     }
     if (words.length > 0) hits.push({ reason, words });

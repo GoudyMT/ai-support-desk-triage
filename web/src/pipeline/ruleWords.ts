@@ -3,8 +3,12 @@ import type { ReviewReason } from '../domain/labels';
 // Keyword rules for the tickets a person must see. The category model reads a
 // billing dispute as plain "Billing" and a vague ticket as plain "Other", so
 // only the words themselves can flag them. Each list is what a support lead
-// listens for under that reason. Lists lean toward catching: a false flag
-// costs a reviewer a glance, a missed sensitive ticket costs far more.
+// listens for under that reason. Lists lean toward catching: a missed
+// sensitive ticket costs far more than a false flag. A false flag is not free,
+// though: it sends the ticket to a person, can raise its priority (a security
+// incident or threatening language goes to Urgent) and records a reason, so a
+// word that is also ordinary talk ("hack", "charge", "supervisor") needs the words
+// around it.
 //
 // Entries are lowercase ASCII. A space inside an entry matches any run of
 // spaces or a hyphen, and an apostrophe matches a straight or curly one.
@@ -21,45 +25,45 @@ const NAMELESS_TROUBLES = [
   'stopped working', 'is broken', 'is acting up',
 ];
 
+// Ways a customer says they contacted the company again and again. The verb
+// names the contact so a button clicked or a page reloaded does not count.
+const CONTACT_VERBS = [
+  'called', 'emailed', 'called you', 'emailed you', 'contacted you', 'contacted support',
+  'asked', 'asking', 'told you', 'told them', 'wrote', 'messaged', 'reported this', 'raised this',
+];
+const REPEAT_COUNTS = ['three', 'four', 'five'];
+
+// What a customer does not recognize on their account. "Unrecognized" and
+// "unfamiliar" alone also describe a file format or a layout, so each is paired
+// with a thing that someone else could have done or opened.
+const UNKNOWN_THINGS = [
+  'device', 'devices', 'login', 'logins', 'sign in', 'activity', 'location', 'transaction',
+  'transactions', 'charge', 'charges', 'purchase', 'purchases',
+];
+
 // The key order below follows the ReviewReason union, which is the order
 // matchRules reports in.
 export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
   'security incident': [
-    'hack',
-    'hacked',
-    'hacker',
-    'hackers',
-    'hacking',
-    'breach',
-    'breached',
-    'data breach',
-    'compromised',
-    'unauthorized',
-    'unauthorised',
-    'stolen',
-    'theft',
-    'identity theft',
-    'phishing',
-    'phished',
-    'scam',
-    'scammed',
-    'fraud',
-    'fraudulent',
-    'malware',
-    'ransomware',
-    'virus',
-    'leaked',
-    'data leak',
-    'account takeover',
-    'taken over',
-    'suspicious login',
-    'suspicious activity',
-    'someone else logged in',
-    'someone logged in',
-    'someone is using my account',
-    'someone accessed',
-    'did not log in',
-    "didn't log in",
+    // "hack" alone is also a trick ("a hack to bulk edit tags"), so it needs an object.
+    'hack my',
+    'hack into',
+    'hack our',
+    'hack your',
+    'hacked', 'hacker', 'hackers', 'hacking', 'breach', 'breached', 'data breach', 'compromised',
+    'unauthorized', 'unauthorised', 'stolen', 'theft', 'identity theft', 'phishing', 'phished',
+    'scam', 'scammed', 'fraud', 'fraudulent', 'malware', 'ransomware', 'virus', 'leaked',
+    'data leak', 'account takeover',
+    // "Taken over" alone is also a banner covering the screen, so it names the account.
+    'account taken over', 'account has been taken over', 'account was taken over',
+    'taken over my account', 'took over my account', 'taken over the account',
+    'took over the account',
+    'suspicious login', 'suspicious activity', 'someone else logged in', 'someone logged in',
+    'someone logged into', 'someone else logged into', 'someone signed in', 'someone signed into',
+    'someone else signed in', 'someone else signed into',
+    // A threat flagged by the customer's own antivirus is a security matter.
+    'threat', 'threats',
+    'someone is using my account', 'someone accessed', 'did not log in', "didn't log in",
     'security incident',
     // How a polite or worried customer says someone got in or tricked them.
     'security', 'suspicious', 'sketchy', 'fishy', 'hijack', 'hijacked', 'intruder', 'intrusion',
@@ -67,92 +71,79 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'exploit', 'exploited', 'vulnerability', 'vulnerabilities', 'exposed', 'stole', 'steal',
     'stealing', 'thief', 'phish', 'scammer', 'scammers', 'scams', 'fraudster', 'impersonate',
     'impersonating', 'impersonation', 'impersonator', 'impostor', 'imposter', 'spoofed', 'spoofing',
-    'unrecognized', 'unrecognised', 'unfamiliar', 'unknown device', 'unknown location', 'dark web',
-    "don't recognize", "don't recognise", 'do not recognize', 'do not recognise',
+    'unknown device', 'unknown location', 'dark web',
+    ...UNKNOWN_THINGS.flatMap((thing) => [
+      ...['unrecognized', 'unrecognised', 'unfamiliar'].map((word) => `${word} ${thing}`),
+      ...['recognize', 'recognise'].flatMap((word) =>
+        ['this', 'that', 'these', 'those'].map((pointer) => `${word} ${pointer} ${thing}`),
+      ),
+    ]),
     'without my permission', 'without my consent', 'without my knowledge',
-    'without my authorization', 'without my authorisation', 'not authorized', 'not authorised',
+    'without my authorization', 'without my authorisation',
     'did not authorize', "didn't authorize", 'did not authorise', "didn't authorise",
     'never authorized', "wasn't me", 'was not me', 'login alert', 'login attempt',
-    'login attempts', 'sign in attempt', 'signed in from', 'logged in from', 'login from',
+    'login attempts', 'sign in attempt',
     'got into my account', 'broke into', 'broken into', 'been accessed', 'was accessed',
     'were accessed', 'being accessed', 'someone is using', 'someone else is using',
     'someone using my', 'used by someone else', 'someone tried to log', 'someone tried to access',
     'someone has access', 'someone else has access', 'password was changed',
     'password has been changed', 'password was reset', 'password has been reset',
-    'email was changed', 'email address was changed', 'did not make any', "didn't make any",
+    'email was changed', 'email address was changed',
     'did not make this', "didn't make this", 'did not make that', "didn't make that",
     'did not request', "didn't request", 'never requested', 'did not sign up', "didn't sign up",
     'never signed up',
   ],
   'accessibility issue': [
     'accessibility',
-    'accessible',
-    'screen reader',
-    'screen readers',
-    'voiceover',
-    'talkback',
-    'nvda',
-    'jaws',
-    'keyboard only',
-    'keyboard navigation',
-    'color blind',
-    'colour blind',
-    'colorblind',
-    'low contrast',
-    'poor contrast',
-    'high contrast',
-    'contrast ratio',
-    'low vision',
-    'blind',
-    'visually impaired',
-    'deaf',
-    'hard of hearing',
-    'hearing impaired',
-    'captions',
-    'closed captions',
-    'subtitles',
-    'alt text',
-    'screen magnifier',
-    'magnifier',
-    'assistive',
-    'speech recognition',
-    'voice control',
-    'sign language',
-    'dyslexia',
-    'dyslexic',
-    'disability',
-    'disabilities',
-    'motor impairment',
-    'tremor',
-    'wcag',
-    'ada compliance',
-    'cannot use a mouse',
+    // "Accessible" alone also means reachable ("not accessible from my phone"),
+    // so it needs the people it is not accessible to.
+    'not accessible to', 'not accessible for', 'inaccessible to', 'inaccessible for',
+    'screen reader', 'screen readers', 'voiceover', 'talkback', 'nvda', 'jaws', 'keyboard only',
+    'keyboard navigation', 'color blind', 'colour blind', 'colorblind', 'low contrast',
+    'poor contrast', 'high contrast', 'contrast ratio', 'low vision', 'blind', 'visually impaired',
+    'deaf', 'hard of hearing', 'hearing impaired', 'captions', 'closed captions', 'subtitles',
+    'alt text', 'screen magnifier', 'magnifier', 'assistive', 'speech recognition',
+    'voice control', 'sign language', 'dyslexia', 'dyslexic', 'disability', 'disabilities',
+    'motor impairment', 'tremor', 'wcag', 'ada compliance', 'cannot use a mouse',
     "can't use a mouse",
     // Sight, hearing, movement and attention, and the words people use for them.
     'screenreader', 'screenreaders', 'screen reading', 'blindness', 'legally blind',
     'partially sighted', 'sighted', 'eyesight', 'vision loss', 'vision impairment',
     'visual impairment', 'impaired', 'impairment', 'poor vision', 'my vision', 'color contrast',
     'colour contrast', 'color blindness', 'colour blindness', 'color vision', 'colour vision',
-    'text size', 'font size', 'larger text', 'large text', 'bigger text', 'text is too small',
-    'too small to read', 'zoom in', 'zooming in', 'zoom level', 'zoom text', "can't zoom", 'cannot zoom', 'unable to zoom',
-    'magnify', 'magnification', 'magnified', 'inaccessible', 'tab key', 'tab order',
+    // Text size and zoom are only about vision when the customer cannot change
+    // them; a chart zoom or a print font is an ordinary question.
+    'text size cannot', "text size can't", 'text size is too small', 'font size cannot',
+    "font size can't", 'font size is too small', 'font is too small', 'increase the text size',
+    'increase the font size', 'larger font', 'bigger font', 'larger text', 'large text',
+    'bigger text', 'text is too small', 'too small to read', 'zoom the page', 'browser zoom',
+    'page zoom', 'zoom to 200', 'zoom in to read', 'zoom text', "can't zoom", 'cannot zoom',
+    'unable to zoom', 'magnify', 'magnification', 'magnified', 'tab key', 'tab order',
     'focus order', 'focus indicator', 'without a mouse', 'without using a mouse',
     "can't use my mouse", 'cannot use my mouse', 'unable to use a mouse', 'one handed',
     'limited mobility', 'wheelchair', 'arthritis', "parkinson's", 'parkinsons', 'cerebral palsy',
     'paralysed', 'paralyzed', 'shaky hands', 'hand tremors', 'dexterity', 'switch control',
     'eye tracking', 'dictation', 'dictate', 'text to speech', 'speech to text', 'read aloud',
-    'reads aloud', 'braille', 'seizure', 'seizures', 'epilepsy', 'flashing', 'flickering',
+    'reads aloud', 'braille', 'seizure', 'seizures', 'epilepsy', 'flashing lights',
+    'flashing images', 'flashing content', 'flashing animation', 'flickering lights',
+    'flickering images', 'flickering content', 'flickering animation', 'strobe', 'strobing',
     'reduce motion', 'reduced motion', 'autism', 'autistic', 'adhd', 'cognitive', 'hearing loss',
     'hearing aid', 'deafness', 'captioning', 'audio description', 'audio descriptions',
-    'alternative text', 'aria', 'aria label', 'aria labels', 'section 508', '508 compliance',
+    // "Aria" alone is also a first name.
+    'alternative text', 'aria label', 'aria labels', 'aria attributes', 'aria roles', 'aria live',
+    'wai aria', 'section 508', '508 compliance',
     'ada compliant', 'handicap', 'handicapped', 'disabled users', 'disabled people',
     'disabled person', 'americans with disabilities', 'reasonable accommodation',
     'reasonable accommodations',
   ],
   'billing dispute': [
-    'charge',
-    'charges',
+    // "Charge" alone also asks a price ("a charge for a second user", "in charge
+    // of"), which is a product question; a dispute says what was charged.
     'charged',
+    'charge on my',
+    'charges on my',
+    'charge i',
+    'charges i',
     'charged twice',
     'double charged',
     'paid twice',
@@ -198,7 +189,14 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'lawyer',
     'attorney',
     'legal action',
-    'legal team',
+    // "Legal team" alone is also a customer's own department.
+    'legal team will',
+    'legal team about this',
+    'legal team involved',
+    'involve legal',
+    'involve my legal team',
+    'involve our legal team',
+    'get legal involved',
     'court',
     'attorney general',
     'consumer protection',
@@ -233,23 +231,30 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     // Legal, public, physical and abusive threats, and plain insults.
     'suing', 'sued', 'lawyers', 'attorneys', 'solicitor', 'litigation', 'law suit', 'class action',
     'small claims', 'legal proceedings', 'legal counsel', 'legal recourse', 'legal remedies',
-    'legal steps', 'legal consequences', 'take legal', 'taking legal', 'pursue legal', 'my rights',
+    'legal steps', 'legal consequences', 'take legal', 'taking legal', 'pursue legal',
+    'my legal rights', 'my rights as a', 'know my rights',
     'consumer rights', 'breach of contract', 'police', 'authorities', 'ftc', 'fcc', 'fbi',
     'ombudsman', 'trading standards', 'consumer affairs', 'better business bureau',
-    'report this to', 'report you to', 'reported to', 'file a lawsuit', 'file charges',
-    'press charges', 'pressing charges', 'threat', 'threats', 'threaten', 'threatening',
+    'report this to', 'report you to', 'reported you', 'file a lawsuit', 'file charges',
+    'press charges', 'pressing charges', 'this is a threat', 'death threat', 'death threats',
+    'threaten', 'threatening',
     'threatened', 'be sorry', 'will regret', 'pay dearly', 'pay the price', 'make them pay',
-    'make this company pay', 'or else', 'last warning', 'final warning', "i am warning you",
+    'make this company pay', 'or else you will', "or else you'll", 'or else i will',
+    "or else i'll", 'or else we will', "or else we'll", 'last warning', 'final warning',
+    "i am warning you",
     "i'm warning you", 'face the consequences', 'there will be consequences',
-    'serious consequences', 'severe consequences', 'expose you', 'expose your', 'expose this',
+    'serious consequences', 'severe consequences', 'expose you', 'expose this company',
+    'expose your company', 'will expose', "i'll expose", 'going to expose',
     'tell everyone', 'warn others', 'warn everyone', 'warn people', 'post about this',
-    'all over the internet', 'go viral', 'bad press', 'bad review', 'negative review', 'one star',
-    '1 star', 'ruin you', 'destroy you', 'destroy this', 'come after you', 'i know where you',
+    'all over the internet', 'go viral',
+    'ruin you', 'destroy you', 'destroy this', 'come after you', 'i know where you',
     'kill yourself', 'kill someone', 'kill them', 'drop dead', 'hope you die', 'piss off',
-    'get lost', 'the hell', 'burn in hell', 'rot in hell', 'damn', 'damned',
+    'the hell', 'burn in hell', 'rot in hell', 'damn you', 'damn your',
     'crap', 'crappy', 'shit', 'shitty', 'bullshit', 'fuck', 'fucking', 'fucked', 'asshole',
-    'bastard', 'bitch', 'dumb', 'dumbass', 'idiotic', 'moronic', 'jerk', 'scum', 'scumbag',
-    'liar', 'liars', 'crook', 'crooks', 'crooked', 'criminals', 'loser', 'losers', 'clueless',
+    'bastard', 'bitch', 'you are dumb', "you're dumb", 'your dumb', 'dumbass', 'idiotic',
+    'moronic', 'jerk', 'scum', 'scumbag',
+    'liar', 'liars', 'crook', 'crooks', 'criminals', 'loser', 'losers', 'you are clueless',
+    "you're clueless", 'you guys are clueless', 'you all are clueless',
     'worthless', 'ignorant', 'imbecile', 'imbeciles',
   ],
   'escalated complaint': [
@@ -281,7 +286,12 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'speak to a manager',
     'talk to a manager',
     'your manager',
-    'supervisor',
+    // "Supervisor" alone is also a user role; it flags when the customer asks for one.
+    'speak to a supervisor',
+    'talk to a supervisor',
+    'your supervisor',
+    'want a supervisor',
+    'get me a supervisor',
     'escalate',
     'escalated',
     'escalation',
@@ -289,7 +299,20 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'fourth time',
     'still waiting',
     'no response',
-    'ignored',
+    // "Ignored" alone also describes a setting or a filter; it flags when the
+    // customer says they were ignored.
+    'ignored me',
+    'ignored us',
+    'ignored my',
+    'ignoring me',
+    'ignoring us',
+    'ignoring my',
+    'feel ignored',
+    'feeling ignored',
+    'felt ignored',
+    'i was ignored',
+    'i am being ignored',
+    'i have been ignored',
     'cancel my account',
     'switching to another',
     'switching to a competitor',
@@ -306,10 +329,19 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'bad support', 'not acceptable', 'not good enough', 'not happy', 'not satisfied',
     'not pleased', 'very upset', 'really upset', 'upset', 'annoyed', 'irritated', 'irate',
     'fuming', 'enraged', 'sick of', 'sick and tired', 'tired of', 'enough is enough',
-    'losing patience', 'lost patience', 'my patience', 'nightmare', 'disaster', 'demand',
+    'losing patience', 'lost patience', 'my patience', 'nightmare', 'total disaster',
+    'absolute disaster', 'utter disaster', 'such a disaster', 'what a disaster', 'we demand',
+    'demand a', 'demand an', 'demand that', 'demand to', 'demand immediate',
     'frustrating', 'frustration', 'disgusting', 'appalled', 'dismissive', 'disrespectful',
-    'yet again', 'once again', 'again and again', 'over and over', 'three times', 'four times',
-    'five times', 'for weeks', 'already told', 'already contacted', 'already emailed',
+    'yet again', 'again and again',
+    // A bad-review warning is an unhappy customer, not a threat.
+    'bad review', 'bad reviews', 'negative review', 'negative reviews', 'one star', '1 star',
+    'bad press',
+    // Repeats count as a complaint when they are contacts with the company; a
+    // page that reloads "over and over" or a button clicked "three times" is not.
+    ...REPEAT_COUNTS.flatMap((count) => CONTACT_VERBS.map((verb) => `${verb} ${count} times`)),
+    ...CONTACT_VERBS.map((verb) => `${verb} over and over`),
+    'for weeks', 'already told', 'already contacted', 'already emailed',
     'already called', 'for the second time', 'for the third time', 'never replied',
     'never responded', 'never answered', 'never heard back', 'nobody replied', 'nobody responded',
     'nobody answered', 'no one replied', 'no one responded', 'no one answered', 'no reply',
@@ -317,8 +349,11 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'without a response', 'no help', 'not helpful', 'unhelpful', 'waste of time',
     'waste of money', 'wasting my time', 'wasted my time', 'rip off', 'ripped off',
     'going elsewhere', 'go elsewhere', 'switch to another', 'switch to a competitor',
-    'leave you', 'speak with a manager', 'speak with your manager', 'speak with a supervisor',
-    'someone senior', 'senior management', 'higher up', 'head office',
+    'leave you for', 'leaving you for', 'leave your service', 'leave your company',
+    'speak with a manager', 'speak with your manager', 'speak with a supervisor',
+    'someone senior', 'senior management', 'someone higher up', 'somebody higher up',
+    'anyone higher up', 'speak to head office', 'speak with head office', 'talk to head office',
+    'complain to head office', 'escalate to head office',
   ],
   'vague ticket': [
     'something is wrong',
@@ -338,7 +373,6 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'having an issue',
     'having issues',
     'having problems',
-    'having trouble',
     'not sure what is wrong',
     "not sure what's wrong",
     "don't know what is wrong",
@@ -363,13 +397,19 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'this is broken',
     'need help',
     'please help',
-    'help me',
     // Other ways to say "something is wrong" or "help" without saying what.
     'something wrong', 'something seems wrong', 'something seems off', 'something looks wrong',
     'something looks off', 'something feels off', 'something feels wrong', 'something weird',
     'something odd', 'something strange', 'something broke', 'went wrong', 'gone wrong',
-    'goes wrong', 'going wrong', 'not right', "isn't right", "doesn't seem right",
-    'does not seem right', 'not working right', 'not working properly', 'not working correctly',
+    'goes wrong', 'going wrong',
+    // "Not right" alone also describes a total or a date ("the totals are not right");
+    // it is vague only when a pronoun stands for the whole thing.
+    "it's not right", "that's not right",
+    ...['it', 'this', 'that'].flatMap((pronoun) => [
+      `${pronoun} is not right`, `${pronoun} isn't right`, `${pronoun} doesn't seem right`,
+      `${pronoun} does not seem right`,
+    ]),
+    'not working right', 'not working properly', 'not working correctly',
     'not working as expected', 'not working as it should', 'not behaving', 'misbehaving',
     'acting funny', 'acting strange', 'acting odd', 'behaving strangely', 'behaving oddly',
     'behaving weirdly', 'odd', 'oddly', 'weirdly', 'strangely', 'glitch', 'glitchy', 'glitching',
@@ -380,7 +420,7 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'difficult to explain', "can't explain", 'cannot explain', "can't figure out",
     'cannot figure out', "can't tell what", 'cannot tell what', 'need some help',
     'need assistance', 'need your help', 'help needed', 'help please', 'please assist',
-    'can you help', 'could you help', 'can anyone help', 'somebody help', 'someone help', 'help with this', 'help with something', 'kindly help',
+    'somebody help', 'someone help', 'help with this', 'help with something', 'kindly help',
     'kindly assist', 'please look into', 'look into this', 'look into it', 'please fix',
     'please resolve', 'please sort', 'sort it out', 'sort this out', 'seems to be a problem',
     'seems to be an issue', 'seems to be something', 'some issue', 'some issues', 'some problem',
@@ -400,14 +440,21 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
 // beach/breach, layer/lawyer, compliant/complaint, treat/threat, artistic/
 // autistic, steaming/sealing/stealing, expose/exposed, regulatory/regulator,
 // caption/captions, subtitle/subtitles, sketch/sketchy, stranger/strange,
-// cautions/captions.
+// cautions/captions, changing/charging, overlaid/overpaid, injected/infected,
+// unbelievably/unbelievable, charge/charged.
 export const NOT_A_SLIP = new Set([
-  'ignore', 'compromise', 'compromises', 'charger', 'chargers', 'beach', 'beached',
+  'charge', 'ignore', 'compromise', 'compromises', 'charger', 'chargers', 'beach', 'beached',
   'layer', 'layers', 'compliant', 'treat', 'treats', 'artistic', 'steaming', 'sealing', 'expose',
   'regulatory', 'caption', 'subtitle', 'sketch', 'stranger', 'strangers', 'cautions',
+  'changing', 'overlaid', 'injected', 'unbelievably',
 ]);
 
 // A short ticket is vague when one of these words is all it says. "Not
 // working" is not a cue: a short sentence with it usually says what ("the
-// page does not work without a mouse").
-export const SHORT_TICKET_CUE_WORDS = ['problem', 'problems', 'issue', 'issues', 'trouble', 'glitch'];
+// page does not work without a mouse"). "Glitch" is not here because it is
+// already a vague-ticket entry at any length.
+export const SHORT_TICKET_CUE_WORDS = ['problem', 'problems', 'issue', 'issues', 'trouble'];
+
+// A plea for help is vague only when nothing follows it: "can you help me"
+// alone says nothing, "can you help me export my contacts" names the task.
+export const SHORT_HELP_CUES = ['help me', 'can you help', 'could you help', 'can anyone help'];
