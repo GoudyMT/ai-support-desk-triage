@@ -84,9 +84,10 @@ describe('loadModel', () => {
     // 1e999 is valid JSON text that reads as Infinity, and would turn every score into NaN.
     ['an infinite weight', JSON.parse(JSON.stringify(tinyModel()).replace('"idf":[1,2,3]', '"idf":[1,2,1e999]')) as unknown],
     // Finite, but the products and sums in score overflow and every probability becomes NaN.
+    // The intercept stays ordinary, so only the coef bound can refuse this one.
     [
-      'coef and intercept values near the largest number',
-      tinyModel({ coef: [[1e308, 0, 0], [0, 1, -0.5], [-1, -1, 0]], intercept: [1e308, 0, 0] }),
+      'a coef value near the largest number',
+      tinyModel({ coef: [[1e308, 0, 0], [0, 1, -0.5], [-1, -1, 0]], intercept: [0.1, 0, -1] }),
     ],
     ['an idf value near the largest number', tinyModel({ idf: [1, 2, 1e308] })],
     ['an intercept value near the largest number', tinyModel({ intercept: [0.1, 0, -1e308] })],

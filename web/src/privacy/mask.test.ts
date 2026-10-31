@@ -79,6 +79,16 @@ describe('maskText on formats the generator never makes', () => {
   // Built at run time so this file stays ASCII: e with a diaeresis, u with an umlaut.
   const E_DIAERESIS = String.fromCharCode(0xeb);
   const U_UMLAUT = String.fromCharCode(0xfc);
+  // Separators people paste in: no-break space, narrow no-break space (French
+  // phone numbers) and en dash.
+  const NBSP = String.fromCharCode(0xa0);
+  const NNBSP = String.fromCharCode(0x202f);
+  const EN_DASH = String.fromCharCode(0x2013);
+  const COMBINING_DIAERESIS = String.fromCharCode(0x308);
+  const ZWNJ = String.fromCharCode(0x200c);
+  const ZWJ = String.fromCharCode(0x200d);
+  const ARABIC_INDIC_DIGITS = String.fromCharCode(0x663, 0x664);
+  const FULLWIDTH_DIGITS = String.fromCharCode(0xff10, 0xff11);
 
   const cases: { kind: MaskKind; value: string; sentence: string }[] = [
     { kind: 'email', value: 'jordan@mail.example.net', sentence: 'Please write to jordan@mail.example.net about it.' },
@@ -109,6 +119,17 @@ describe('maskText on formats the generator never makes', () => {
     { kind: 'phone', value: '2012-10-45', sentence: 'Reach me on 2012-10-45 please.' },
     { kind: 'card', value: '4111/1111/1111/1111', sentence: 'Card 4111/1111/1111/1111' },
     { kind: 'card', value: '4111_1111_1111_1111', sentence: 'Card 4111_1111_1111_1111' },
+    // Pasted from a web page or a phone book: no-break spaces and en dashes
+    // between the groups still leave the digits of a phone or card readable.
+    { kind: 'phone', value: `555${NBSP}123${NBSP}4567`, sentence: `Call 555${NBSP}123${NBSP}4567 today.` },
+    { kind: 'phone', value: `06${NNBSP}12${NNBSP}34${NNBSP}56${NNBSP}78`, sentence: `Appelez le 06${NNBSP}12${NNBSP}34${NNBSP}56${NNBSP}78 demain.` },
+    { kind: 'phone', value: `212${EN_DASH}555${EN_DASH}0147`, sentence: `Ring 212${EN_DASH}555${EN_DASH}0147 after lunch.` },
+    { kind: 'card', value: `4111${NBSP}1111${NBSP}1111${NBSP}1111`, sentence: `I paid with 4111${NBSP}1111${NBSP}1111${NBSP}1111 last week.` },
+    { kind: 'card', value: `4111${NNBSP}1111${NNBSP}1111${NNBSP}1111`, sentence: `I paid with 4111${NNBSP}1111${NNBSP}1111${NNBSP}1111 last week.` },
+    { kind: 'card', value: `4111${EN_DASH}1111${EN_DASH}1111${EN_DASH}1111`, sentence: `I paid with 4111${EN_DASH}1111${EN_DASH}1111${EN_DASH}1111 last week.` },
+    // Day and month bounds of the date rule: one past the last day, month zero.
+    { kind: 'phone', value: '2012-10-32', sentence: 'Reach me on 2012-10-32 please.' },
+    { kind: 'phone', value: '2012-00-10', sentence: 'Reach me on 2012-00-10 please.' },
   ];
 
   it.each(cases)('masks $value as a $kind', ({ kind, value, sentence }) => {
@@ -125,6 +146,17 @@ describe('maskText on formats the generator never makes', () => {
   it.each([
     { label: 'accented local part', address: `zo${E_DIAERESIS}.smith@example.com` },
     { label: 'accented domain', address: `max@m${U_UMLAUT}ller.de` },
+    // A name typed in decomposed form: the letter and its mark are two characters.
+    { label: 'decomposed accent', address: `zoe${COMBINING_DIAERESIS}.smith@mu${COMBINING_DIAERESIS}ller.de` },
+    { label: 'Arabic-Indic digits at the end', address: `user${ARABIC_INDIC_DIGITS}@example.com` },
+    { label: 'fullwidth digits at the end', address: `user${FULLWIDTH_DIGITS}@example.com` },
+    { label: 'zero-width non-joiner', address: `jane${ZWNJ}doe@example.com` },
+    { label: 'zero-width joiner', address: `jane${ZWJ}doe@example.com` },
+    { label: 'apostrophe', address: "jean-luc.o'neill@example.com" },
+    { label: 'apostrophe after one letter', address: "d'angelo.rossi@example.com" },
+    { label: 'hash sign', address: 'jane#doe@example.com' },
+    // The digits are a card-like run, but the "@" after them makes it an address.
+    { label: 'card-like local part', address: '4111_1111_1111_1111@mydomain.com' },
   ])('masks the whole address with an $label', ({ address }) => {
     expect(maskText(`Write to ${address} soon.`)).toEqual({ text: `Write to ${MASK_TOKENS.email} soon.`, found: ['email'] });
   });
@@ -148,6 +180,10 @@ describe('maskText on formats the generator never makes', () => {
     { sentence: 'Order reference 48213', numbers: ['48213'] },
     { sentence: 'order 48213 or 48214', numbers: ['48213', '48214'] },
     { sentence: 'order 48213/48214', numbers: ['48213', '48214'] },
+    // Fifteen or eighteen digits joined by slashes look like a card, but a
+    // labelled order list stays an order.
+    { sentence: 'order 48213/48214/48215', numbers: ['48213', '48214', '48215'] },
+    { sentence: 'My orders 482130/482131/482132 never came.', numbers: ['482130', '482131', '482132'] },
   ])('masks every order number in: $sentence', ({ sentence, numbers }) => {
     const { text, found } = maskText(sentence);
     expect(text).toContain(MASK_TOKENS.order);
@@ -192,6 +228,7 @@ describe('maskText on formats the generator never makes', () => {
     'It failed 3 times today.',
     'Since 2026-10-30 nothing loads.',
     '2026-10-30',
+    '2012-10-31',
     'Shipped on 2026.10.30 as planned.',
     'Due 10/30/2026 at noon.',
     'I keep getting error 404 on the page.',
