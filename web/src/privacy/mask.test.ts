@@ -89,6 +89,10 @@ describe('maskText on formats the generator never makes', () => {
   const ZWJ = String.fromCharCode(0x200d);
   const ARABIC_INDIC_DIGITS = String.fromCharCode(0x663, 0x664);
   const FULLWIDTH_DIGITS = String.fromCharCode(0xff10, 0xff11);
+  const ZWSP = String.fromCodePoint(0x200b);
+  const FULLWIDTH_ZERO = 0xff10;
+  const toFullwidth = (digits: string): string =>
+    [...digits].map((digit) => String.fromCodePoint(FULLWIDTH_ZERO + Number(digit))).join('');
 
   const cases: { kind: MaskKind; value: string; sentence: string }[] = [
     { kind: 'email', value: 'jordan@mail.example.net', sentence: 'Please write to jordan@mail.example.net about it.' },
@@ -130,6 +134,21 @@ describe('maskText on formats the generator never makes', () => {
     // Day and month bounds of the date rule: one past the last day, month zero.
     { kind: 'phone', value: '2012-10-32', sentence: 'Reach me on 2012-10-32 please.' },
     { kind: 'phone', value: '2012-00-10', sentence: 'Reach me on 2012-00-10 please.' },
+    // A card typed one group per line, or with tabs, invisible spaces or a
+    // dash with room around it, is still a card.
+    { kind: 'card', value: '4111\n1111\n1111\n1111', sentence: 'my card\n4111\n1111\n1111\n1111\nplease' },
+    { kind: 'card', value: '4111\r\n1111\r\n1111\r\n1111', sentence: 'my card\r\n4111\r\n1111\r\n1111\r\n1111\r\nplease' },
+    { kind: 'card', value: '4111\t1111\t1111\t1111', sentence: 'Card:\t4111\t1111\t1111\t1111' },
+    { kind: 'card', value: `4111${ZWSP}1111${ZWSP}1111${ZWSP}1111`, sentence: `I paid with 4111${ZWSP}1111${ZWSP}1111${ZWSP}1111 last week.` },
+    { kind: 'card', value: `4111${ZWNJ}1111${ZWNJ}1111${ZWNJ}1111`, sentence: `I paid with 4111${ZWNJ}1111${ZWNJ}1111${ZWNJ}1111 last week.` },
+    { kind: 'card', value: `4111${ZWJ}1111${ZWJ}1111${ZWJ}1111`, sentence: `I paid with 4111${ZWJ}1111${ZWJ}1111${ZWJ}1111 last week.` },
+    { kind: 'card', value: '4111  -  1111  -  1111  -  1111', sentence: 'I paid with 4111  -  1111  -  1111  -  1111 last week.' },
+    { kind: 'card', value: `${toFullwidth('4111')} ${toFullwidth('1111')} ${toFullwidth('1111')} ${toFullwidth('1111')}`, sentence: `Card ${toFullwidth('4111')} ${toFullwidth('1111')} ${toFullwidth('1111')} ${toFullwidth('1111')} ok.` },
+    // A phone number written with slashes.
+    { kind: 'phone', value: '0475/12/34/56', sentence: 'call me on 0475/12/34/56 please' },
+    { kind: 'phone', value: '555/123/4567', sentence: 'Call 555/123/4567 today.' },
+    // Fullwidth digits, as an East Asian keyboard types them.
+    { kind: 'phone', value: toFullwidth('4155551234'), sentence: `phone ${toFullwidth('4155551234')}` },
   ];
 
   it.each(cases)('masks $value as a $kind', ({ kind, value, sentence }) => {
@@ -223,6 +242,19 @@ describe('maskText on formats the generator never makes', () => {
     }
   });
 
+  it('stays fast on 20000 characters of digits split by line breaks', () => {
+    const LONG = 20000;
+    const BUDGET_MS = 200;
+    // One digit per line is a single long card-like run; groups of four with
+    // too wide a gap between them never join, so every start fails early.
+    const inputs = ['1\n'.repeat(LONG / 2), '1234\n\n\n\n\n\n'.repeat(LONG / 10), '1234\n'.repeat(LONG / 5)];
+    for (const input of inputs) {
+      const start = performance.now();
+      maskText(input);
+      expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+    }
+  });
+
   it.each([
     'This broke in version 2.4.1 for me.',
     'It failed 3 times today.',
@@ -233,6 +265,12 @@ describe('maskText on formats the generator never makes', () => {
     'Due 10/30/2026 at noon.',
     'I keep getting error 404 on the page.',
     'The meeting is at 10:45 sharp.',
+    // Dates with slashes, and small numbers one per line, are not a phone or a card.
+    'Shipped on 2026/10/30 as planned.',
+    'Due 30/10/2026 at noon.',
+    'Quantities:\n3\n4\n5',
+    'Sizes\n10\n20\n30\n40\n50\n60',
+    'Parts 1\n2\n3\n4\n5\n6\n7\n8',
   ])('leaves ordinary numbers alone in: %s', (sentence) => {
     expect(maskText(sentence)).toEqual({ text: sentence, found: [] });
   });

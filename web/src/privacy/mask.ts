@@ -38,20 +38,28 @@ const KINDS: readonly MaskKind[] = ['card', 'email', 'order', 'phone'];
 //   Further 4+ digit numbers joined to it by "," / "and" / "or" / "&" / "/"
 //   belong to the same order list and are masked with it. The word and labels
 //   stay; only the numbers go.
-// - card: any run of 13 or more digits with up to 3 spaces, dots, dashes,
-//   slashes, underscores, parentheses, no-break spaces (U+00A0, U+202F) or en
-//   dashes (U+2013) between digits. There is no upper limit, so no digit of a
-//   long run survives; two phone numbers written back to back are such a run.
-// - date: a plausible yyyy-mm-dd / yyyy.mm.dd (year 19xx or 20xx, month 01-12,
-//   day 01-31) with no further "-" or "." group after it. It is matched only to
-//   be skipped, so its digits are never taken for a phone number. Anything
-//   else of that shape, such as 0475-12-34-56, is left to the phone rule.
-// - phone: 7 to 15 digits with optional "+", parentheses, spaces, dots, dashes,
-//   no-break spaces or en dashes. It cannot start right after a digit: a digit
+// - card: any run of 13 or more digits (of any script, so fullwidth digits
+//   count) with up to 5 characters between digits, each a whitespace character
+//   (a space, tab, line break, no-break space), a zero-width space or (non-)
+//   joiner, or one of . ( ) / _ - and the en dash (U+2013). Five leaves room for
+//   "  -  ", and a card typed one group per line. There is no upper limit, so
+//   no digit of a long run survives; two phone numbers written back to back
+//   are such a run. The joiner is an alternative beside the class because the
+//   linter refuses it inside one; it shares no character with the class, so
+//   the repeat has only one way to match and cannot back up exponentially.
+// - date: a plausible yyyy-mm-dd / yyyy.mm.dd / yyyy/mm/dd (year 19xx or 20xx,
+//   month 01-12, day 01-31), or dd/mm/yyyy and mm/dd/yyyy, with no further "-",
+//   "." or "/" group after it. It is matched only to be skipped, so its digits
+//   are never taken for a phone number. Anything else of that shape, such as
+//   0475-12-34-56, is left to the phone rule.
+// - phone: 7 to 15 digits (of any script) with optional "+", parentheses,
+//   spaces, dots, slashes, dashes, no-break spaces or en dashes. Line breaks
+//   are not allowed between its digits, so a list of small numbers one per line
+//   is not a phone number. It cannot start right after a digit: a digit
 //   run too long to be a phone number is left to the card rule, instead of a
 //   phone being cut out of the middle of it with the first digits left behind.
 const PII =
-  /(?<email>(?:[\w.%+'#\p{L}\p{M}\p{Nd}\u{200C}-]|\u{200D}){1,64}@[\p{L}\p{M}\d-]+(?:\.[\p{L}\p{M}\d-]+)+)|(?<order>\bord-\d+|(?<=\b(?:orders?|ord)(?:\s{0,3}(?:numbers?|no\.?|nr\.?|id|ref(?:erence)?|is|was|[#:])){0,3}\s{0,3})#?\d{4,}(?:\s{0,3}(?:,|and|or|&|\/)\s{0,3}#?\d{4,})*)|(?<card>(?<!\d)\d(?:[ .()/_\u{A0}\u{202F}\u{2013}-]{0,3}\d){12,})|(?<date>(?<!\d)(?:19|20)\d{2}[-.](?:0[1-9]|1[0-2])[-.](?:0[1-9]|[12]\d|3[01])(?![-.]?\d))|(?<phone>(?<!\d)\+?\(?\d(?:[ .()\u{A0}\u{202F}\u{2013}-]{0,3}\d){6,14}(?!\d))/giu;
+  /(?<email>(?:[\w.%+'#\p{L}\p{M}\p{Nd}\u{200C}-]|\u{200D}){1,64}@[\p{L}\p{M}\d-]+(?:\.[\p{L}\p{M}\d-]+)+)|(?<order>\bord-\d+|(?<=\b(?:orders?|ord)(?:\s{0,3}(?:numbers?|no\.?|nr\.?|id|ref(?:erence)?|is|was|[#:])){0,3}\s{0,3})#?\d{4,}(?:\s{0,3}(?:,|and|or|&|\/)\s{0,3}#?\d{4,})*)|(?<card>(?<!\p{Nd})\p{Nd}(?:(?:[\s.()/_\u{200B}\u{200C}\u{2013}-]|\u{200D}){0,5}\p{Nd}){12,})|(?<date>(?<!\d)(?:(?:19|20)\d{2}[-./](?:0[1-9]|1[0-2])[-./](?:0[1-9]|[12]\d|3[01])|(?:0?[1-9]|[12]\d|3[01])\/(?:0?[1-9]|[12]\d|3[01])\/(?:19|20)\d{2})(?![-./]?\d))|(?<phone>(?<!\p{Nd})\+?\(?\p{Nd}(?:[ .()/\u{A0}\u{202F}\u{2013}-]{0,3}\p{Nd}){6,14}(?!\p{Nd}))/giu;
 
 export function maskText(text: string): MaskResult {
   const found: MaskKind[] = [];
