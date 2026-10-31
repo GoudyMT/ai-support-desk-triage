@@ -260,7 +260,7 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   every number in it quoted from `eval.json`.
 - [x] Full gate green: `npm --prefix web run gate`, `ml\.venv\Scripts\python.exe -m pytest ml/tests`,
   `npm --prefix web run parity`; adapter A9 updated with all three.
-- [ ] Feature-tier sweep: write the Swarm Contract, run approve.mjs first; APPROVED -> short start notice to the
+- [x] Feature-tier sweep: write the Swarm Contract, run approve.mjs first; APPROVED -> short start notice to the
   owner, then findings; report in `.kit/sweeps/`. Canary counts into the scoreboard.
 - [ ] Tracking files at the milestone; PR body from the pr-body skill shown to the owner; push and PR on the
   owner's go only. Kit 1.9.0 check (owner, 2026-10-30): the PR body passes the audit with no explained failures.
@@ -316,3 +316,9 @@ Not a builder unit. The deciding measurement (spec 6, Q4).
   measured 1.1e-10 shuffle drift (43c6d74). Lead: full gate and every CI step green locally; break check on the floor
   constant red. Deferred to the owner: Python 3.12.2 patch level; shared vocabulary in model.json (PR 4 size).
   Re-sweep: approve.mjs asked the owner (new file check_eval.py; test-value and privacy roles).
+- 2026-10-31: re-sweep (owner chose B, 5 roles): 26 findings, 23 real, one high (ubuntu-latest moving to 26.04 drops
+  Python 3.12.2). Owner chose A (fix all in this PR): runner pinned (856e38b), card limits (2d58f36), masker slash order
+  lists, more email and phone forms (3716482, generated data byte-identical), whole-report eval check, atomic export,
+  browser model rules in check_model (e278e44). Lead: Python 113 passed x3, web gate, every CI step green locally;
+  break checks red then green. Report audited clean (local sweep folder). Kit gap found: the commit check reads the main
+  checkout, so it does not see a worktree's staged files (to report to the kit).
