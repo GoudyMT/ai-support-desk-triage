@@ -102,28 +102,79 @@ function wordsOf(text: string): TextWord[] {
   }));
 }
 
-// True when the entry's words appear in a row with exactly one slipped word.
-function matchesWithOneSlip(entryWords: string[], text: string, written: TextWord[]): boolean {
-  for (let from = 0; from + entryWords.length <= written.length; from += 1) {
-    let slips = 0;
-    let fits = true;
-    for (const [offset, wanted] of entryWords.entries()) {
-      const here = written[from + offset];
-      const before = written[from + offset - 1];
-      if (!here || (offset > 0 && before && !/^[\s-]+$/.test(text.slice(before.end, here.start)))) {
-        fits = false;
-        break;
-      }
-      if (here.word === wanted) continue;
-      if (wanted.length < SLIP_MIN_LENGTH || !isOneSlip(wanted, here.word)) {
-        fits = false;
-        break;
-      }
-      slips += 1;
+// True when the entry's words are the written words from `from` on, in a row,
+// with exactly one of them slipped.
+function fitsWithOneSlip(
+  entryWords: string[],
+  text: string,
+  written: TextWord[],
+  from: number,
+): boolean {
+  let slips = 0;
+  for (const [offset, wanted] of entryWords.entries()) {
+    const here = written[from + offset];
+    const before = written[from + offset - 1];
+    if (!here || (offset > 0 && before && !/^[\s-]+$/.test(text.slice(before.end, here.start)))) {
+      return false;
     }
-    if (fits && slips === 1) return true;
+    if (here.word === wanted) continue;
+    if (wanted.length < SLIP_MIN_LENGTH || !isOneSlip(wanted, here.word)) return false;
+    slips += 1;
   }
-  return false;
+  return slips === 1;
+}
+
+interface SlipEntry {
+  word: string;
+  entryWords: string[];
+}
+
+// Where a written word could be the slipped one: a rule word's first letter and
+// length. A written word of the same first letter and a length within one of it
+// is the only kind isOneSlip accepts, so each written word is compared with
+// those entries alone, not with every entry in the list.
+interface SlipRef {
+  entry: number;
+  position: number;
+}
+
+function slipKey(word: string, length: number): string {
+  return `${word.charAt(0)}${length}`;
+}
+
+function indexSlips(entries: SlipEntry[]): Map<string, SlipRef[]> {
+  const index = new Map<string, SlipRef[]>();
+  for (const [entry, { entryWords }] of entries.entries()) {
+    for (const [position, part] of entryWords.entries()) {
+      if (part.length < SLIP_MIN_LENGTH) continue;
+      for (let length = part.length - 1; length <= part.length + 1; length += 1) {
+        const key = slipKey(part, length);
+        const refs = index.get(key) ?? [];
+        refs.push({ entry, position });
+        index.set(key, refs);
+      }
+    }
+  }
+  return index;
+}
+
+// The entries written with exactly one slipped word, in list order.
+function slippedWords(
+  entries: SlipEntry[],
+  index: Map<string, SlipRef[]>,
+  text: string,
+  written: TextWord[],
+): string[] {
+  const found = new Set<number>();
+  for (const [at, { word }] of written.entries()) {
+    for (const { entry, position } of index.get(slipKey(word, word.length)) ?? []) {
+      const candidate = entries[entry];
+      if (candidate && !found.has(entry) && fitsWithOneSlip(candidate.entryWords, text, written, at - position)) {
+        found.add(entry);
+      }
+    }
+  }
+  return [...found].sort((a, b) => a - b).map((entry) => entries[entry]?.word ?? '');
 }
 
 // A vague ticket says something is wrong without saying what. When the whole
@@ -157,14 +208,16 @@ function isShortAndVague(text: string, wordCount: number): boolean {
   return SHORT_TICKET_CUES.some((cue) => cue.test(detail));
 }
 
-const COMPILED_RULES = REASON_ORDER.map((reason) => ({
-  reason,
-  entries: REVIEW_RULES[reason].map((word) => {
+const COMPILED_RULES = REASON_ORDER.map((reason) => {
+  const entries = REVIEW_RULES[reason].map((word) => ({ word, pattern: wholeWordPattern(word) }));
+  const slippable = REVIEW_RULES[reason].flatMap((word) => {
     const entryWords = word.replace(/'/g, '').split(' ');
-    const canSlip = entryWords.some((part) => part.length >= SLIP_MIN_LENGTH) && /^[a-z0-9' ]+$/.test(word);
-    return { word, pattern: wholeWordPattern(word), entryWords: canSlip ? entryWords : null };
-  }),
-}));
+    const canSlip =
+      entryWords.some((part) => part.length >= SLIP_MIN_LENGTH) && /^[a-z0-9' ]+$/.test(word);
+    return canSlip ? [{ word, entryWords }] : [];
+  });
+  return { reason, entries, slippable, slipIndex: indexSlips(slippable) };
+});
 
 // Never throws and never echoes its input: an empty or odd text just matches nothing.
 export function matchRules(maskedText: string): { reason: ReviewReason; words: string[] }[] {
@@ -174,15 +227,11 @@ export function matchRules(maskedText: string): { reason: ReviewReason; words: s
     .replace(CURLY_APOSTROPHE, "'");
   const written = wordsOf(text);
   const hits: { reason: ReviewReason; words: string[] }[] = [];
-  for (const { reason, entries } of COMPILED_RULES) {
+  for (const { reason, entries, slippable, slipIndex } of COMPILED_RULES) {
     let words = entries.filter(({ pattern }) => pattern.test(text)).map(({ word }) => word);
     // A slipped spelling is only a fallback: where a rule word was written
     // right, its neighbours ("hacker" beside "hackers") add nothing to show.
-    if (words.length === 0) {
-      words = entries
-        .filter(({ entryWords }) => entryWords && matchesWithOneSlip(entryWords, text, written))
-        .map(({ word }) => word);
-    }
+    if (words.length === 0) words = slippedWords(slippable, slipIndex, text, written);
     if (words.length === 0 && reason === 'vague ticket' && isShortAndVague(text, written.length)) {
       words = [SHORT_TICKET_WORD];
     }

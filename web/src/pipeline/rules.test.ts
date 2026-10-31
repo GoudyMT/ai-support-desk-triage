@@ -277,6 +277,36 @@ describe('slipped spelling next to punctuation', () => {
   });
 });
 
+describe('long tickets', () => {
+  const LONG_TEXT = 20_000;
+  const TIMING_RUNS = 5;
+  const TIME_LIMIT_MS = 100;
+  const median = (values: number[]) => [...values].sort((a, b) => a - b)[TIMING_RUNS >> 1] ?? 0;
+
+  it.each([
+    ['a letter and a line break, repeated', 'a\n'.repeat(LONG_TEXT / 2)],
+    ['a letter and a space, repeated', 'i '.repeat(LONG_TEXT / 2)],
+    [
+      'ordinary prose',
+      'the export page loads slowly when the report has many rows and the filter is set to last month. '
+        .repeat(LONG_TEXT)
+        .slice(0, LONG_TEXT),
+    ],
+  ])('reads 20,000 characters of %s well inside the limit', (_name, text) => {
+    // A ticket pasted from a long email thread must not freeze the page: the
+    // slipped-spelling search once compared every word with every rule word.
+    // The limit is generous (the real time is a fraction of it) so a slow
+    // machine passes, while a return of the all-pairs scan does not.
+    matchRules(text);
+    const times = Array.from({ length: TIMING_RUNS }, () => {
+      const start = performance.now();
+      matchRules(text);
+      return performance.now() - start;
+    });
+    expect(median(times)).toBeLessThan(TIME_LIMIT_MS);
+  });
+});
+
 describe('short tickets', () => {
   it('flags a few words that only say there is a problem', () => {
     // A vague ticket says something is wrong without saying what; when the whole
