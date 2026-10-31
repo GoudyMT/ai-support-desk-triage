@@ -50,6 +50,7 @@ vague ticket is still "Other" to a category model. Only rules that read the word
 - 2026-10-29 (parent 10.2): the second check is a PR 3 experiment. It may clear only flags whose only reason is
   low confidence, never a hard-rule flag; its misses count; kept only if it lowers the flag rate with zero
   added misses on the hand-written set.
+  > SUPERSEDED (2026-10-31): built, measured, and kept off by the owner - see the last entry of this section.
 - 2026-10-31: the keyword rules are written only from the review list in parent C1 (security, accessibility,
   billing dispute, threatening language, escalated complaint, vague), frozen before the first measurement, and
   the hand-written set is their real test.
@@ -59,8 +60,15 @@ vague ticket is still "Other" to a category model. Only rules that read the word
   confidence is cleared when the category head's top two classes are both outside the must-review
   categories. Design approved the same day.
 - 2026-10-31 (after measurement): confidence floor 0.5; the bar is zero missed on the hand-written set and no
-  regression on the held-out folds from the recorded start point (parent section 6); the second check is off
-  (it added 45-85 misses per fold). This replaces "zero missed on every held-out fold" in goal 2 and section 8.
+  regression on the held-out folds from the recorded start point (parent section 6); the second check is off.
+  This replaces "zero missed on every held-out fold" in goal 2 and section 8.
+- 2026-10-31 (after the sweep): (1) the rules are narrowed from plain meaning where they flagged ordinary
+  tickets; (2) the first hand-written set shaped the rule revision, so it is reported as "seen", and a fresh
+  set of 60, written blind to the rules, the model, the generator and the old set, was reviewed and frozen by
+  the owner before any measurement on it; (3) each set's flag rate and must-review count are held at its start
+  point too (flagging everything would miss nothing; lost labels would hide misses); (4) the second check stays
+  off: at floor 0.5 it adds 2-49 misses per fold and 1 on the fresh set, although it added none on the seen
+  set (the 2026-10-29 keep rule).
 
 ## 6. The approach
 
@@ -96,10 +104,12 @@ streaming between stages); putting the rules inside the model step (hides which 
    goals 2-3, so the floor and target are set from it. The CI model job, which already retrains, also exports
    the four fold models to a temporary folder and fails if any fold or the hand-written set has a high-risk
    miss. Fold models are never committed.
+   > SUPERSEDED (2026-10-31): it fails when a set breaks its start point (misses, flag rate, must-review count),
+   > over the folds and both hand-written sets (seen and fresh) - see section 5.
 
 **Should**
 - The second-check experiment (section 5), as a stage between guardrails and review that is off unless the
-  measurement keeps it.
+  measurement keeps it. (Built; off - section 5.)
 
 **Later (seams only)**
 - The viewer as reviewer (PR 4 Take over); the run clock, arrival rate and capacity test (PR 4); value saved
@@ -128,6 +138,8 @@ streaming between stages); putting the rules inside the model step (hides which 
 
 Parent section 6, unchanged; PR 3 owns "high-risk tickets missed: 0" and supplies the numbers for "every number
 on screen traces to a measurement". The flag-rate target is added to parent 6 once the owner sets it.
+> SUPERSEDED (2026-10-31): the flag rate is held at each set's start point (parent section 6), not a separate
+> target.
 
 ## 10. Risks and open questions
 
@@ -136,6 +148,7 @@ on screen traces to a measurement". The flag-rate target is added to parent 6 on
 - **Blocking, a probe:** if frozen rules plus any floor under 0.9 still miss tickets on held-out folds, stop
   and bring the misses to the owner. Rule changes after the freeze are a recorded decision with before / after
   numbers on the hand-written set, never quiet tuning (rule:re-plan-on-failure).
+  > RESOLVED (2026-10-31): the stop was hit and brought to the owner; rulings in section 5.
 - **Non-blocking:** keyword rules will flag some non-sensitive tickets that use the words ("security" in a
   question about a plan); that cost shows up in the flag rate, which is the point of measuring it.
 
