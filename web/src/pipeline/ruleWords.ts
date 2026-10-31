@@ -36,6 +36,11 @@ const REPEAT_COUNTS = ['three', 'four', 'five'];
 // What a customer does not recognize on their account. "Unrecognized" and
 // "unfamiliar" alone also describe a file format or a layout, so each is paired
 // with a thing that someone else could have done or opened.
+const NOT_RECOGNIZED = [
+  'i do not recognize', "i don't recognize", 'i dont recognize', 'i do not recognise', "i don't recognise",
+  'i dont recognise',
+];
+
 const UNKNOWN_THINGS = [
   'device', 'devices', 'login', 'logins', 'sign in', 'activity', 'location', 'transaction',
   'transactions', 'charge', 'charges', 'purchase', 'purchases',
@@ -78,6 +83,10 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
         ['this', 'that', 'these', 'those'].map((pointer) => `${word} ${pointer} ${thing}`),
       ),
     ]),
+    // The customer disowning something usually names it first ("a login from
+    // Brazil that I do not recognize"); bare "I don't recognize" also asks what a
+    // setting is, so it needs what comes before it.
+    ...['that', 'on my account', ...UNKNOWN_THINGS].flatMap((lead) => NOT_RECOGNIZED.map((phrase) => `${lead} ${phrase}`)),
     'without my permission', 'without my consent', 'without my knowledge',
     'without my authorization', 'without my authorisation',
     'did not authorize', "didn't authorize", 'did not authorise', "didn't authorise",
@@ -99,7 +108,7 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     // so it needs the people it is not accessible to.
     'not accessible to', 'not accessible for', 'inaccessible to', 'inaccessible for',
     'screen reader', 'screen readers', 'voiceover', 'talkback', 'nvda', 'jaws', 'keyboard only',
-    'keyboard navigation', 'color blind', 'colour blind', 'colorblind', 'low contrast',
+    'keyboard navigation', 'keyboard user', 'keyboard users', 'color blind', 'colour blind', 'colorblind', 'low contrast',
     'poor contrast', 'high contrast', 'contrast ratio', 'low vision', 'blind', 'visually impaired',
     'deaf', 'hard of hearing', 'hearing impaired', 'captions', 'closed captions', 'subtitles',
     'alt text', 'screen magnifier', 'magnifier', 'assistive', 'speech recognition',
@@ -153,6 +162,16 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'charges on my',
     'charge i',
     'charges i',
+    // Pointing at one charge, or saying a bill happened, is a dispute; "the
+    // charge" alone still asks a price ("what is the charge for a seat").
+    'this charge',
+    'that charge',
+    'these charges',
+    'those charges',
+    'was billed',
+    'were billed',
+    'been billed',
+    'still billed',
     'charged twice',
     'double charged',
     'paid twice',
