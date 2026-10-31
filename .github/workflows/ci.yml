@@ -62,7 +62,8 @@ jobs:
       - run: pytest ml/tests
       # Written outside the checkout so the committed model stays what it is
       # compared with; the parity file goes to its usual place.
-      - run: python -m triage.export_model --model-out "$RUNNER_TEMP/model.json"
+      # The fold models are written beside it for the pipeline check below.
+      - run: python -m triage.export_model --model-out "$RUNNER_TEMP/model.json" --folds-out "$RUNNER_TEMP/folds"
         working-directory: ml
       # The whole model must match: the same classes and vocabulary, every weight
       # within a small tolerance (room for a fit on another machine to differ in
@@ -81,3 +82,8 @@ jobs:
         working-directory: web
         env:
           PARITY_MODEL: ${{ runner.temp }}/model.json
+      # The full pipeline on every held-out fold (each with its own fold model) and
+      # the hand-written set: fails if any set misses more high-risk tickets than
+      # its recorded start point.
+      - run: npx tsx scripts/measurePipeline.ts --folds "$RUNNER_TEMP/folds" --check
+        working-directory: web
