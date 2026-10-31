@@ -6,6 +6,13 @@ import { guard, secondCheck } from './guard';
 import { intake } from './intake';
 import type { Reviewer, TicketTrail } from './types';
 
+// Set by the owner from the per-fold measurement (2026-10-31): at 0.5 no hand-written
+// high-risk ticket is missed; zero on every generated fold needed 0.8, which sends
+// nearly every ticket to a person.
+export const CONFIDENCE_FLOOR = 0.5;
+// Off: clearing low-confidence flags added 45 to 85 misses per fold.
+export const SECOND_CHECK_ON = false;
+
 export interface RunDeps {
   model: Model;
   reviewer: Reviewer;

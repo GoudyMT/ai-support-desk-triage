@@ -170,7 +170,10 @@ default is left blank for the viewer to fill.
 2. **Success criteria (the gate for v1):**
    - The model's category accuracy beats v0 on the same tickets on every one of the 4 held-out folds and on the
      frozen hand-written set (both measured, numbers recorded in the README; owner ruling 2026-10-30).
-   - High-risk tickets missed on the held-out set, through the full pipeline: 0.
+   - High-risk tickets missed through the full pipeline: 0 on the frozen hand-written set. On the held-out folds
+     the first honest run is the start point and may not get worse: at confidence floor 0.5, 9 / 6 / 10 / 46
+     missed (71 of 5,856 must-review, 1.2%), with 88-90% of fold tickets flagged and 67% of hand-written ones
+     (owner ruling 2026-10-31; enforced in CI). Improvements lower these numbers and are recorded as they land.
    - TypeScript and Python predictions agree on 100% of the held-out set.
    - The v0 port matches the original HTML on all compared tickets.
    - The demo completes on a mid-range phone at learn speed without dropped frames being noticeable (checked by
@@ -282,3 +285,8 @@ default is left blank for the viewer to fill.
   live page share one masker) and the v0 port (so the comparison is measured before the scorer is built).
 - 2026-10-30 (PR 2 first run): the owner set the raw-accuracy bar to the first run as a floor (section 6); the
   target flag rate moves to PR 3, where the confidence floor that sets it is built.
+- 2026-10-31 (PR 3 measurement): zero high-risk missed on every held-out fold needed a confidence floor of 0.8
+  or more, which sends 97-100% of tickets to a person, even after one recorded revision of the keyword rules
+  (PR 3 plan, Execution Notes). The owner set the confidence floor to 0.5, kept zero missed as the bar on the
+  hand-written set, and made the fold results the recorded start point that later work must improve (section
+  6). The second check was dropped: it added 45-85 misses per fold.

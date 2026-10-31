@@ -6,13 +6,14 @@ import { FOLDS } from '../src/generator/templates';
 import { loadModel, type Model } from '../src/model/scorer';
 import { computeMetrics } from '../src/pipeline/metrics';
 import { createSimulatedReviewer } from '../src/pipeline/reviewer';
-import { runTickets } from '../src/pipeline/run';
+import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTickets } from '../src/pipeline/run';
 import { isRunAsCommand } from './exportDataset';
 
 // Runs the real pipeline over every held-out fold (each scored by its own fold
 // model, so no number comes from a model that saw those templates) and over the
 // hand-written set (scored by the shipped model, which never trained on it).
-// With --check <floor> it is the CI gate: any high-risk ticket missed fails it.
+// With --check it is the CI gate at the chosen floor: a set that misses more
+// high-risk tickets than its recorded start point fails it.
 
 const DATA_DIR = fileURLToPath(new URL('../../ml/data/generated/', import.meta.url));
 const SHIPPED_MODEL = fileURLToPath(new URL('../src/model/model.json', import.meta.url));
@@ -69,9 +70,23 @@ export function measureSet(name: string, model: Model, rows: LabeledRow[], floor
   return { name, tickets: rows.length, flagRate: metrics.flagRate, highRiskMissed: metrics.highRiskMissed };
 }
 
-// Names of the sets that missed a high-risk ticket; empty means the gate passes.
+// The owner's start point (2026-10-31), measured at CONFIDENCE_FLOOR with the
+// second check off: a fold may not miss more than it did then, and the
+// hand-written set may miss none. Lower a number when an improvement lands.
+export const START_POINT_MISSES: Record<string, number> = {
+  'fold 0': 9,
+  'fold 1': 6,
+  'fold 2': 10,
+  'fold 3': 46,
+  'hand-written': 0,
+};
+
+// Names of the sets over their start point; empty means the gate passes. A set
+// with no recorded start point may miss nothing.
 export function gateFailures(results: SetResult[]): string[] {
-  return results.filter((result) => result.highRiskMissed > 0).map((result) => result.name);
+  return results
+    .filter((result) => result.highRiskMissed > (START_POINT_MISSES[result.name] ?? 0))
+    .map((result) => result.name);
 }
 
 function loadSets(foldsDir: string): { name: string; model: Model; rows: LabeledRow[] }[] {
@@ -100,23 +115,21 @@ function argValue(args: string[], flag: string): string | undefined {
 function main(args: string[]): number {
   const foldsDir = argValue(args, '--folds');
   if (foldsDir === undefined) {
-    console.log('usage: measurePipeline --folds <dir> [--check <floor> [--second-check]]');
+    console.log('usage: measurePipeline --folds <dir> [--check]');
     return 2;
   }
   const sets = loadSets(foldsDir);
-  const check = argValue(args, '--check');
   console.log('='.repeat(60));
   console.log('PIPELINE MEASUREMENT');
   console.log('='.repeat(60));
-  if (check !== undefined) {
-    const floor = Number(check);
-    const secondCheckOn = args.includes('--second-check');
-    const results = sets.map((set) => measureSet(set.name, set.model, set.rows, floor, secondCheckOn));
+  if (args.includes('--check')) {
+    const results = sets.map((set) => measureSet(set.name, set.model, set.rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON));
     for (const r of results) {
-      console.log(`    ${r.name}: ${r.tickets} tickets, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed}`);
+      const allowed = START_POINT_MISSES[r.name] ?? 0;
+      console.log(`    ${r.name}: ${r.tickets} tickets, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed} (allowed ${allowed})`);
     }
     const failed = gateFailures(results);
-    console.log(failed.length === 0 ? 'PASS: no high-risk ticket missed' : `FAIL: high-risk tickets missed in ${failed.join(', ')}`);
+    console.log(failed.length === 0 ? 'PASS: every set at or under its start point' : `FAIL: more high-risk tickets missed than the start point in ${failed.join(', ')}`);
     return failed.length === 0 ? 0 : 1;
   }
   for (const secondCheckOn of [false, true]) {
