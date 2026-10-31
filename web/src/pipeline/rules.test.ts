@@ -39,6 +39,53 @@ describe('matchRules', () => {
     expect(matchRules('we are hosting a hackathon')).toEqual([]);
   });
 
+  it.each([
+    ['curly right quote', 0x2019],
+    ['curly left quote', 0x2018],
+  ])('reads a %s as an apostrophe', (_name, codePoint) => {
+    // Phones and word processors turn typed apostrophes into curly ones; the
+    // customer who writes it that way must flag like the one who does not.
+    // Built from a code point so this file stays ASCII.
+    const text = `i didn${String.fromCharCode(codePoint)}t log in`;
+    expect(matchRules(text)).toEqual([{ reason: 'security incident', words: ["didn't log in"] }]);
+  });
+
+  it.each([
+    ['a hyphen', 'the screen-reader skips the button'],
+    ['a line break', 'the screen\nreader skips the button'],
+  ])('matches a phrase written with %s between its words', (_name, text) => {
+    // Pasted tickets wrap lines and people hyphenate; the phrase must still fire.
+    expect(matchRules(text)).toEqual([{ reason: 'accessibility issue', words: ['screen reader'] }]);
+  });
+
+  it.each([
+    ['i was charged twice', ['charged', 'charged twice']],
+    ['i paid twice for my plan', ['paid twice']],
+    ['i was double charged', ['charged', 'double charged']],
+  ])('flags a duplicate charge: %s', (text, words) => {
+    // The labeling rules count a duplicate charge as a billing dispute.
+    expect(matchRules(text)).toEqual([{ reason: 'billing dispute', words }]);
+  });
+
+  it('files "useless" under a complaint, not a threat', () => {
+    // A product called useless is an unhappy customer; calling it a threat
+    // would raise the ticket to Urgent.
+    expect(matchRules('the export button is useless when the file is large')).toEqual([
+      { reason: 'escalated complaint', words: ['useless'] },
+    ]);
+  });
+
+  it.each([
+    'after switching to dark mode the app crashes',
+    'how do i go about cancelling my order?',
+    'in contrast to last month, the page loads slowly',
+    'i use a password manager and autofill fails on login',
+  ])('does not flag an everyday sentence: %s', (text) => {
+    // Each uses a word that reads as a leaving, accessibility or manager cue in
+    // other sentences; here it is routine and must not be flagged.
+    expect(matchRules(text)).toEqual([]);
+  });
+
   it('returns both reasons for a threat inside a billing dispute, in union order', () => {
     // Billing comes before threatening language in ReviewReason; the pipeline
     // records every reason and the higher priority must win later.

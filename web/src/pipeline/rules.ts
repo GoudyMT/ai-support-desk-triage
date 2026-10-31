@@ -64,7 +64,10 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'color blind',
     'colour blind',
     'colorblind',
-    'contrast',
+    'low contrast',
+    'poor contrast',
+    'high contrast',
+    'contrast ratio',
     'low vision',
     'blind',
     'visually impaired',
@@ -96,6 +99,9 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'charge',
     'charges',
     'charged',
+    'charged twice',
+    'double charged',
+    'paid twice',
     'overcharged',
     'double billed',
     'billed twice',
@@ -151,7 +157,6 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'morons',
     'incompetent',
     'pathetic',
-    'useless',
     'screw you',
     'shut up',
     'go to hell',
@@ -173,6 +178,7 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'terrible',
     'awful',
     'worst',
+    'useless',
     'frustrated',
     'unhappy',
     'dissatisfied',
@@ -181,7 +187,9 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'complain',
     'complaining',
     'formal complaint',
-    'manager',
+    'speak to a manager',
+    'talk to a manager',
+    'your manager',
     'supervisor',
     'escalate',
     'escalated',
@@ -192,9 +200,9 @@ export const REVIEW_RULES: Record<ReviewReason, readonly string[]> = {
     'no response',
     'ignored',
     'cancel my account',
-    'cancelling',
-    'canceling',
-    'switching to',
+    'switching to another',
+    'switching to a competitor',
+    'switching providers',
     'never again',
     'never recommend',
     'take my business',
@@ -264,7 +272,12 @@ export const RULE_PRIORITY: Record<ReviewReason, Priority> = {
 const REASON_ORDER = Object.keys(REVIEW_RULES) as ReviewReason[];
 
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
-const CURLY_APOSTROPHE = new RegExp(String.fromCharCode(0x2019), 'g');
+// Curly quotes (U+2018 and U+2019) are what phones and word processors type
+// for an apostrophe; they are built from code points to keep this file ASCII.
+const CURLY_APOSTROPHE = new RegExp(
+  `[${String.fromCharCode(0x2018)}${String.fromCharCode(0x2019)}]`,
+  'g',
+);
 
 // The masker's tokens (such as [CARD_NUMBER]) hold words like "card" and
 // "number" that the customer never wrote. They are blanked before matching.
