@@ -78,7 +78,8 @@ stay a fair test of it.
   them, and 48 rows is a small sample; any of these could account for the gap, and none has been measured.
 - **Words, not meaning.** The model counts words and word pairs; it does not understand negation or context.
 - **Masking is pattern-based.** Some formats are still missed, for example an email typed with spaces around
-  "@", a no-break space between card digits, an en dash in a phone number, a phone written with "/" or "_", or
-  a phone that looks like a year-first date ("2010-12-31"). Long digit runs and 7+ digit ids are masked even
-  when they are not personal data.
+  "@" or spelled out ("jane at example dot com"), full-width digits or "@", card digits split by tabs, line
+  breaks or commas, a phone written with "/" or "_", or a phone that looks like a year-first date
+  ("2010-12-31"). Long digit runs, slash-written date ranges and 7+ digit ids are masked even when they are not
+  personal data, and in text without spaces (Chinese, Japanese) the words joined to an email are masked with it.
 - **Size.** `model.json` is 3,825,908 bytes (about 1.4 MB gzipped).
