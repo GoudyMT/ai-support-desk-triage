@@ -149,6 +149,30 @@ describe('maskText on formats the generator never makes', () => {
     { kind: 'phone', value: '555/123/4567', sentence: 'Call 555/123/4567 today.' },
     // Fullwidth digits, as an East Asian keyboard types them.
     { kind: 'phone', value: toFullwidth('4155551234'), sentence: `phone ${toFullwidth('4155551234')}` },
+    // Any dash, space or invisible character a keyboard, phone or word processor
+    // puts between digit groups: fullwidth and em dashes, the minus sign, the
+    // non-breaking hyphen, the soft hyphen, the word joiner, thin and ideographic
+    // spaces, and commas or bars typed between card groups.
+    ...[0xff0d, 0x2014, 0x2212, 0x2011, 0xad, 0x2060, ',', ', ', '*', '|'].map((gap) => {
+      const sep = typeof gap === 'number' ? String.fromCodePoint(gap) : gap;
+      const value = ['4111', '1111', '1111', '1111'].join(sep);
+      return { kind: 'card' as const, value, sentence: `I paid with ${value} last week.` };
+    }),
+    {
+      kind: 'card',
+      value: [toFullwidth('4111'), toFullwidth('1111'), toFullwidth('1111'), toFullwidth('1111')].join(String.fromCodePoint(0xff0d)),
+      sentence: `Card ${[toFullwidth('4111'), toFullwidth('1111'), toFullwidth('1111'), toFullwidth('1111')].join(String.fromCodePoint(0xff0d))} ok.`,
+    },
+    ...[0xff0d, 0x3000, 0x2009, 0x200b, 0x2014, 0x2011, '\t', '    '].map((gap) => {
+      const sep = typeof gap === 'number' ? String.fromCodePoint(gap) : gap;
+      const value = ['555', '123', '4567'].join(sep);
+      return { kind: 'phone' as const, value, sentence: `Call ${value} today.` };
+    }),
+    {
+      kind: 'phone',
+      value: `${String.fromCodePoint(0xff08)}${toFullwidth('03')}${String.fromCodePoint(0xff09)}${toFullwidth('1234')}${String.fromCodePoint(0xff0d)}${toFullwidth('5678')}`,
+      sentence: `TEL ${String.fromCodePoint(0xff08)}${toFullwidth('03')}${String.fromCodePoint(0xff09)}${toFullwidth('1234')}${String.fromCodePoint(0xff0d)}${toFullwidth('5678')}`,
+    },
   ];
 
   it.each(cases)('masks $value as a $kind', ({ kind, value, sentence }) => {
@@ -176,6 +200,13 @@ describe('maskText on formats the generator never makes', () => {
     { label: 'hash sign', address: 'jane#doe@example.com' },
     // The digits are a card-like run, but the "@" after them makes it an address.
     { label: 'card-like local part', address: '4111_1111_1111_1111@mydomain.com' },
+    // Characters an address may carry before the "@", and the forms a phone or
+    // an East Asian keyboard types.
+    { label: 'slash', address: 'jane/doe@example.com' },
+    { label: 'ampersand', address: 'jane&doe@example.com' },
+    { label: 'exclamation mark', address: 'jane!doe@example.com' },
+    { label: 'spaced at sign', address: 'jane.doe @ example.com' },
+    { label: 'fullwidth at sign', address: `jane${String.fromCodePoint(0xff20)}example.com` },
   ])('masks the whole address with an $label', ({ address }) => {
     expect(maskText(`Write to ${address} soon.`)).toEqual({ text: `Write to ${MASK_TOKENS.email} soon.`, found: ['email'] });
   });
@@ -203,6 +234,13 @@ describe('maskText on formats the generator never makes', () => {
     // labelled order list stays an order.
     { sentence: 'order 48213/48214/48215', numbers: ['48213', '48214', '48215'] },
     { sentence: 'My orders 482130/482131/482132 never came.', numbers: ['482130', '482131', '482132'] },
+    // The order code with another dash, a gap, an underscore or fullwidth digits.
+    { sentence: `ORD${String.fromCodePoint(0x2013)}123456`, numbers: ['123456'] },
+    { sentence: `ORD${String.fromCodePoint(0xff0d)}123456`, numbers: ['123456'] },
+    { sentence: 'ORD - 123456', numbers: ['123456'] },
+    { sentence: 'ORD_123456', numbers: ['123456'] },
+    { sentence: 'order-123456', numbers: ['123456'] },
+    { sentence: `ORD-${[...'123456'].map((d) => String.fromCodePoint(0xff10 + Number(d))).join('')}`, numbers: [[...'123456'].map((d) => String.fromCodePoint(0xff10 + Number(d))).join('')] },
   ])('masks every order number in: $sentence', ({ sentence, numbers }) => {
     const { text, found } = maskText(sentence);
     expect(text).toContain(MASK_TOKENS.order);
@@ -235,7 +273,10 @@ describe('maskText on formats the generator never makes', () => {
   it('stays fast on very long input with nothing to mask', () => {
     const LONG = 50000;
     const BUDGET_MS = 200;
-    for (const input of ['a'.repeat(LONG), ' '.repeat(LONG), `order${' '.repeat(LONG)}`]) {
+    // Chinese prose has no spaces, so the address rule reads the most letters
+    // from each position.
+    const chinese = Array.from({ length: LONG }, (_, i) => String.fromCodePoint(0x4e00 + (i % 2000))).join('');
+    for (const input of ['a'.repeat(LONG), ' '.repeat(LONG), `order${' '.repeat(LONG)}`, chinese]) {
       const start = performance.now();
       maskText(input);
       expect(performance.now() - start).toBeLessThan(BUDGET_MS);
@@ -253,6 +294,16 @@ describe('maskText on formats the generator never makes', () => {
       maskText(input);
       expect(performance.now() - start).toBeLessThan(BUDGET_MS);
     }
+  });
+
+  it('gives up at once on twelve digits with two line breaks between each', () => {
+    // One short of a card, so every start fails. A gap a regex can split more
+    // than one way backs up exponentially here: over 100 ms on these 37
+    // characters, and minutes with one more line break per gap.
+    const BUDGET_MS = 50;
+    const start = performance.now();
+    maskText(`${'1\n\n'.repeat(12)}end`);
+    expect(performance.now() - start).toBeLessThan(BUDGET_MS);
   });
 
   it.each([
