@@ -1,19 +1,23 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { v0Triage } from '../src/baseline/v0';
 import { CATEGORIES } from '../src/domain/labels';
 import { HARD_CASE_SHARES, generateTicket, generateTickets, type HardCase } from '../src/generator/generate';
 import { FOLDS } from '../src/generator/templates';
+import { maskText } from '../src/privacy/mask';
 import {
   HELDOUT_COUNT,
   HELDOUT_SEED,
   TRAIN_SEED,
+  assertHandwrittenIsolated,
   buildDatasets,
   exportHeldout,
   exportTickets,
   isRunAsCommand,
+  loadHandwritten,
   normalizeText,
   toJsonl,
   writeDatasets,
@@ -23,11 +27,22 @@ import {
 const SEED = 7;
 const HARD_CASES = Object.keys(HARD_CASE_SHARES) as HardCase[];
 const FOLD_IDS = Array.from({ length: FOLDS }, (_, fold) => fold);
+const HANDWRITTEN_ROWS = 48;
+// Read here on its own, not through the exporter, so the comparison is between
+// two readings of the frozen file.
+const FROZEN_URL = new URL('../../ml/data/handwritten.jsonl', import.meta.url);
+
+function parseJsonl(raw: string): Record<string, unknown>[] {
+  return raw
+    .trimEnd()
+    .split('\n')
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
 
 describe('toJsonl', () => {
   // The Python trainer reads these lines; a missing or renamed key would break
   // it, or silently train on the wrong column.
-  it('writes one line per ticket with all nine keys, null for absent fields, and the fold of the file', () => {
+  it('writes one line per ticket with all eleven keys, null for absent fields, the fold of the file, and null fold for the all-wording file', () => {
     const tickets = generateTickets(SEED, 400);
     const plain = tickets.find((t) => t.label.secondary === undefined && t.hardCase === undefined);
     const rich = tickets.find((t) => t.label.secondary !== undefined && t.label.reviewReason !== undefined && t.hardCase !== undefined);
@@ -39,12 +54,14 @@ describe('toJsonl', () => {
     const lines = output.slice(0, -1).split('\n');
     expect(lines).toHaveLength(2);
     const [first, second] = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
-    const KEYS = ['category', 'fold', 'hardCase', 'id', 'mustReview', 'priority', 'reviewReason', 'secondary', 'text'];
+    const KEYS = ['category', 'fold', 'hardCase', 'id', 'maskedText', 'mustReview', 'priority', 'reviewReason', 'secondary', 'text', 'v0'];
     expect(Object.keys(first ?? {}).sort()).toEqual(KEYS);
     expect(Object.keys(second ?? {}).sort()).toEqual(KEYS);
     expect(first).toEqual({
       id: plain.id,
       text: plain.text,
+      maskedText: maskText(plain.text).text,
+      v0: v0Triage(plain.text),
       category: plain.label.category,
       secondary: plain.label.secondary ?? null,
       priority: plain.label.priority,
@@ -56,6 +73,8 @@ describe('toJsonl', () => {
     expect(second).toEqual({
       id: rich.id,
       text: rich.text,
+      maskedText: maskText(rich.text).text,
+      v0: v0Triage(rich.text),
       category: rich.label.category,
       secondary: rich.label.secondary,
       priority: rich.label.priority,
@@ -64,6 +83,37 @@ describe('toJsonl', () => {
       hardCase: rich.hardCase,
       fold: 2,
     });
+    expect(JSON.parse(toJsonl([plain], null)) as { fold: unknown }).toMatchObject({ fold: null });
+  });
+
+  // The trainer fits on maskedText, so a ticket with fake personal data must
+  // reach the file already masked, while v0 is scored on the raw wording the
+  // original page would have read.
+  it('masks a ticket that carries fake personal data and runs v0 on the raw text', () => {
+    const tickets = generateTickets(SEED, 400);
+    const withData = tickets.find((t) => maskText(t.text).text !== t.text);
+    if (withData === undefined) {
+      throw new Error('E_TEST_SAMPLE');
+    }
+    const row = JSON.parse(toJsonl([withData], 0)) as { text: string; maskedText: string; v0: unknown };
+    expect(row.text).toBe(withData.text);
+    expect(row.maskedText).not.toBe(withData.text);
+    expect(row.maskedText).toBe(maskText(withData.text).text);
+    expect(row.v0).toEqual(v0Triage(withData.text));
+  });
+
+  // The original page read the visitor's raw words. An address whose name holds
+  // a v0 keyword ("ada") makes raw and masked wording score differently, so a
+  // v0 run on the masked text would be measured against the wrong baseline.
+  it('gives v0 the answer for the raw text even when masking would change it', () => {
+    const [base] = generateTickets(SEED, 1);
+    if (base === undefined) {
+      throw new Error('E_TEST_SAMPLE');
+    }
+    const ticket = { ...base, text: 'You can reach me at ada@example.test about the invoice.' };
+    expect(v0Triage(maskText(ticket.text).text)).not.toEqual(v0Triage(ticket.text));
+    const row = JSON.parse(toJsonl([ticket], 0)) as { v0: unknown };
+    expect(row.v0).toEqual(v0Triage(ticket.text));
   });
 });
 
@@ -76,22 +126,95 @@ describe('writeDatasets', () => {
     heldout: generateTickets(HELDOUT_SEED, 2, { fold, side: 'heldout' }),
   }));
 
-  it('writes train_<k>.jsonl and heldout_<k>.jsonl for every fold, no train.jsonl or heldout.jsonl, and reports each with its row count', () => {
+  const TRAIN_ALL_ROWS = 4;
+  const TRAIN_ALL = generateTickets(TRAIN_SEED, TRAIN_ALL_ROWS);
+  const HANDWRITTEN = loadHandwritten();
+
+  it('writes train_<k>, heldout_<k>, train_all and handwritten, no train.jsonl or heldout.jsonl, and reports each with its row count', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'export-folds-'));
     try {
-      const written = writeDatasets(join(scratch, 'nested'), SMALL);
-      const expected = FOLD_IDS.flatMap((fold) => [`train_${fold}.jsonl`, `heldout_${fold}.jsonl`]);
+      const written = writeDatasets(join(scratch, 'nested'), SMALL, TRAIN_ALL, HANDWRITTEN);
+      const expected = [...FOLD_IDS.flatMap((fold) => [`train_${fold}.jsonl`, `heldout_${fold}.jsonl`]), 'train_all.jsonl', 'handwritten.jsonl'];
       expect(readdirSync(join(scratch, 'nested')).sort()).toEqual([...expected].sort());
       expect(written.map(({ target }) => target.split(/[\\/]/).pop())).toEqual(expected);
-      expect(written.map(({ rows }) => rows)).toEqual(FOLD_IDS.flatMap(() => [3, 2]));
+      expect(written.map(({ rows }) => rows)).toEqual([...FOLD_IDS.flatMap(() => [3, 2]), TRAIN_ALL_ROWS, HANDWRITTEN_ROWS]);
       for (const { target, rows } of written) {
         const lines = readFileSync(target, 'utf8').trimEnd().split('\n');
         expect(lines).toHaveLength(rows);
-        const fold = Number(/_(\d)\.jsonl$/.exec(target)?.[1]);
-        for (const line of lines) {
-          expect((JSON.parse(line) as { fold: number }).fold).toBe(fold);
+        const fold = /_(\d)\.jsonl$/.exec(target)?.[1];
+        if (target.endsWith('train_all.jsonl')) {
+          // The shipped model is fit on all wording, so no row belongs to a fold.
+          for (const line of lines) {
+            expect((JSON.parse(line) as { fold: unknown }).fold).toBeNull();
+          }
+        } else if (fold !== undefined) {
+          for (const line of lines) {
+            expect((JSON.parse(line) as { fold: number }).fold).toBe(Number(fold));
+          }
         }
       }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // The hand-written set is the one score the model never saw in any form, so
+  // the file must keep the frozen answers byte for byte and only add columns.
+  it('writes the 48 hand-written rows in order with every frozen field unchanged plus maskedText and v0', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'export-hand-'));
+    try {
+      writeDatasets(scratch, SMALL, TRAIN_ALL, HANDWRITTEN);
+      const frozen = parseJsonl(readFileSync(FROZEN_URL, 'utf8'));
+      const out = parseJsonl(readFileSync(join(scratch, 'handwritten.jsonl'), 'utf8'));
+      expect(out).toHaveLength(HANDWRITTEN_ROWS);
+      expect(out.map(({ id }) => id)).toEqual(frozen.map(({ id }) => id));
+      for (const [position, row] of out.entries()) {
+        const { maskedText, v0, ...original } = row;
+        expect(original).toEqual(frozen[position]);
+        expect(maskedText).toBe(maskText(String(row.text)).text);
+        expect(v0).toEqual(v0Triage(String(row.text)));
+      }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // No frozen hand-written row holds personal data, so the rows above cannot
+  // tell a writer that masks from one that copies the text. This row does: the
+  // address is masked in maskedText, and its name ("ada") is a v0 keyword that
+  // only the raw text carries.
+  it('masks a hand-written row that carries fake personal data and runs v0 on its raw text', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'export-hand-pii-'));
+    try {
+      const text = 'You can reach me at ada@example.test about the invoice.';
+      expect(v0Triage(maskText(text).text)).not.toEqual(v0Triage(text));
+      writeDatasets(scratch, SMALL, TRAIN_ALL, [{ id: 'H-fake', text }]);
+      const [row] = parseJsonl(readFileSync(join(scratch, 'handwritten.jsonl'), 'utf8'));
+      expect(row?.text).toBe(text);
+      expect(row?.maskedText).toBe('You can reach me at [EMAIL_ADDRESS] about the invoice.');
+      expect(row?.v0).toEqual(v0Triage(text));
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // A hand-written text found in a training list would make the hand-written
+  // score a memory test, so the export must stop before it writes anything.
+  it('throws E_HANDWRITTEN_IN_TRAIN, writing no file, when a training list holds a hand-written text with other case and punctuation', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'export-guard-'));
+    try {
+      const [sample] = generateTickets(TRAIN_SEED, 1);
+      const handwritten = HANDWRITTEN[0]?.text ?? '';
+      if (sample === undefined || handwritten === '') {
+        throw new Error('E_TEST_SAMPLE');
+      }
+      const leaked = [{ ...sample, text: `${handwritten.toUpperCase()}!!` }];
+      const target = join(scratch, 'nested');
+      expect(() => writeDatasets(target, SMALL, leaked, HANDWRITTEN)).toThrow('E_HANDWRITTEN_IN_TRAIN');
+      expect(existsSync(target)).toBe(false);
+      const inFold = SMALL.map((dataset) => ({ ...dataset, train: leaked }));
+      expect(() => writeDatasets(target, inFold, TRAIN_ALL, HANDWRITTEN)).toThrow('E_HANDWRITTEN_IN_TRAIN');
+      expect(existsSync(target)).toBe(false);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
@@ -103,6 +226,14 @@ describe('the exported sets', () => {
 
   it('builds one dataset per fold, in order', () => {
     expect(DATASETS.map(({ fold }) => fold)).toEqual(FOLD_IDS);
+  });
+
+  // The real export must pass its own guard: no hand-written text is in any
+  // fold's training list or in the all-wording list the shipped model is fit on.
+  it('keeps every hand-written text out of the four fold training sets and the all-wording set', () => {
+    const trainingLists = [...DATASETS.map(({ train }) => train), exportTickets(TRAIN_SEED, 20_000)];
+    expect(trainingLists).toHaveLength(FOLDS + 1);
+    expect(() => assertHandwrittenIsolated(loadHandwritten(), trainingLists)).not.toThrow();
   });
 
   // A model scored on a text it trained on looks better than it is. Ids can

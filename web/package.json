@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "parity": "vitest run --config vitest.parity.config.ts",
     "export-data": "tsx scripts/exportDataset.ts",
     "gate": "npm run lint && npm run typecheck && npm run test"
   },

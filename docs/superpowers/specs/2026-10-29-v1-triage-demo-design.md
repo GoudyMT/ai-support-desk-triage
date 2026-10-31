@@ -168,8 +168,8 @@ default is left blank for the viewer to fill.
 1. **Expectations.** A visitor understands in the first minute what the system does and where the human
    decides; the demo runs 2 to 5 minutes without help and ends in a report; nothing on screen is invented.
 2. **Success criteria (the gate for v1):**
-   - The held-out category accuracy (mean over the 4 folds) beats v0 on the same held-out tickets (both measured, numbers recorded in
-     the README).
+   - The model's category accuracy beats v0 on the same tickets on every one of the 4 held-out folds and on the
+     frozen hand-written set (both measured, numbers recorded in the README; owner ruling 2026-10-30).
    - High-risk tickets missed on the held-out set, through the full pipeline: 0.
    - TypeScript and Python predictions agree on 100% of the held-out set.
    - The v0 port matches the original HTML on all compared tickets.
@@ -179,6 +179,9 @@ default is left blank for the viewer to fill.
    - Every number on screen traces to a measurement or a visible assumption (checked in the launch sweep).
    - The bar for raw model accuracy is not set from a guess: it is written down after the first honest
      training run and before any tuning, with the owner (rule:goal-before-mechanism, deciding measurement first).
+     Set 2026-10-30 from the first run (`ml/reports/eval.json`): that run is the floor. Category accuracy on
+     each fold may not fall more than 1 point below its first-run value (folds 0-3: 0.5813, 0.4855, 0.6240,
+     0.6012), and the hand-written set stays at 39 of 48 or better.
 3. **Options considered.** Keyword rules only (v0; rejected, the point is growth); word-weight model (chosen);
    pretrained sentence model in the browser (stretch); live language model calls (rejected: keys, cost,
    privacy for a public demo).
@@ -193,8 +196,8 @@ default is left blank for the viewer to fill.
 | PR | Delivers | Main risk | Check |
 |---|---|---|---|
 | 1 | TypeScript project setup (Vite, tests, lint, CI) and the ticket generator with labels and hard cases | Generator realism and label correctness | Opus checker |
-| 2 | Python training and evaluation, model export, TypeScript scorer with the parity test | Leakage between train and test; parity | Opus checker |
-| 3 | The pipeline: intake, privacy, guardrails, simulated reviewer, report metrics, v0 port | Guardrail logic; privacy masking | Opus checker + security sweep |
+| 2 | Privacy masker, v0 port, Python training and evaluation against v0, model export, TypeScript scorer with the parity test | Leakage between train and test; parity | Opus checker |
+| 3 | The pipeline: intake, privacy stage (wires in the PR 2 masker), guardrails, simulated reviewer, report metrics | Guardrail logic; privacy masking | Opus checker + security sweep |
 | 4 | The Under the Hood page: layout D, controls, two speeds, narration, Take over | Visual and accessibility quality | Owner wireframe lock first; Sonnet builders |
 | 5 | Landing page, Try it yourself, end report, value assumptions panel | Honest numbers | Content sweep |
 | 6 | Deploy to Pages via Actions with v0 kept at its link, README for v1, launch sweep | Breaking the v0 link | Launch-gate sweep |
@@ -274,3 +277,8 @@ default is left blank for the viewer to fill.
   with the choice of held-out templates, the owner chose 4 template folds with grouped cross-validation; and two
   more C1 rulings (lost work counts as loss; general price questions are Product Question, own-bill questions
   Billing).
+- 2026-10-30 (PR 2 planning): the owner set "beats v0" to hold on every fold and on the hand-written set, not on
+  the mean alone; and moved two PR 3 pieces into PR 2: the masking part of the privacy stage (training and the
+  live page share one masker) and the v0 port (so the comparison is measured before the scorer is built).
+- 2026-10-30 (PR 2 first run): the owner set the raw-accuracy bar to the first run as a floor (section 6); the
+  target flag rate moves to PR 3, where the confidence floor that sets it is built.
