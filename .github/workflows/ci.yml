@@ -85,5 +85,6 @@ jobs:
       # The full pipeline on every held-out fold (each with its own fold model) and
       # the hand-written set: fails if any set misses more high-risk tickets than
       # its recorded start point.
-      - run: npx tsx scripts/measurePipeline.ts --folds "$RUNNER_TEMP/folds" --check
+      # --no: use the tsx that npm ci installed from the lockfile, never fetch one.
+      - run: npm exec --no -- tsx scripts/measurePipeline.ts --folds "$RUNNER_TEMP/folds" --check
         working-directory: web
