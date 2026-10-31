@@ -80,6 +80,15 @@ def test_each_fold_model_is_written_and_reloads_to_that_folds_answers(tmp_path):
             assert [predict_class(head, text) for text in texts] == list(expected[head_name].predict(texts))
 
 
+def test_each_fold_file_names_the_fold_it_holds_out(tmp_path):
+    # The pipeline check refuses a fold file under another fold's name, so a
+    # copied or stale file cannot score templates its model trained on.
+    folds = [(make_rows(ROW_COUNT, seed=10), make_rows(20, seed=20)), (make_rows(ROW_COUNT, seed=11), make_rows(20, seed=21))]
+    export_model.export_folds(folds, tmp_path / "folds")
+    for k in range(len(folds)):
+        assert json.loads((tmp_path / "folds" / f"fold_{k}.json").read_text()).get("heldOutFold") == k
+
+
 def test_a_held_out_text_in_training_writes_no_fold_file(tmp_path):
     # The leak sits in the second fold: a clean first fold must not be written
     # before the second is checked, or a failed export leaves a mixed folder.

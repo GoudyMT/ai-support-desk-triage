@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +23,9 @@ const FLOORS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 // The reviewer only acts on flagged tickets, so its seed cannot change a flag or
 // a miss; it is fixed so the printed accuracies replay.
 const REVIEWER_SEED = 1;
+// The owner froze the fresh set on 2026-10-31; any change to a ticket, label or
+// id changes this fingerprint of its parsed rows and fails the run.
+const FRESH_SET_SHA256 = '86f91d18c878c5bf911008544dbc7fcb2edaa413ee04d5fa5227b3d6c361975b';
 
 export interface LabeledRow {
   id: string;
@@ -38,6 +42,7 @@ export interface SetResult {
 }
 
 export interface StartPoint {
+  tickets: number;
   missed: number;
   flagRate: number;
   mustReview: number;
@@ -45,8 +50,10 @@ export interface StartPoint {
 
 // A row is refused rather than guessed at: a missing mustReview read as false
 // would turn every miss into "not high-risk", and the gate would pass on nothing.
+// Truth is looked up by id, so a repeated id would let one row's label replace
+// another's.
 export function parseRows(jsonl: string): LabeledRow[] {
-  return jsonl
+  const rows = jsonl
     .split('\n')
     .filter((line) => line.trim() !== '')
     .map((line) => {
@@ -64,6 +71,10 @@ export function parseRows(jsonl: string): LabeledRow[] {
       const label: TicketLabel = { category: category as Category, priority: priority as Priority, mustReview };
       return { id, text, label };
     });
+  if (new Set(rows.map((row) => row.id)).size !== rows.length) {
+    throw new Error('E_DUPLICATE_ID');
+  }
+  return rows;
 }
 
 export function measureSet(name: string, model: Model, rows: LabeledRow[], floor: number, secondCheckOn: boolean): SetResult {
@@ -86,32 +97,37 @@ export function measureSet(name: string, model: Model, rows: LabeledRow[], floor
 
 // The owner's start point, measured at CONFIDENCE_FLOOR with the second check
 // off. A set may not miss more high-risk tickets or flag a larger share than it
-// did then (flagging everything would miss nothing), and its must-review count
-// must match (labels lost on the way in would hide misses). Lower a number when
+// did then (flagging everything would miss nothing), and its ticket and
+// must-review counts must match (rows or labels lost on the way in would hide
+// misses). Lower a number when
 // an improvement lands; a rise is the owner's decision.
 export const START_POINT: Record<string, StartPoint> = {
-  'fold 0': { missed: 10, flagRate: 3587 / 4000, mustReview: 1461 },
-  'fold 1': { missed: 6, flagRate: 3536 / 4000, mustReview: 1461 },
-  'fold 2': { missed: 10, flagRate: 3509 / 4000, mustReview: 1461 },
-  'fold 3': { missed: 46, flagRate: 3570 / 4000, mustReview: 1473 },
-  'hand-written (seen)': { missed: 0, flagRate: 32 / 48, mustReview: 22 },
-  'hand-written (fresh)': { missed: 0, flagRate: 47 / 60, mustReview: 24 },
+  'fold 0': { tickets: 4000, missed: 10, flagRate: 3587 / 4000, mustReview: 1461 },
+  'fold 1': { tickets: 4000, missed: 6, flagRate: 3536 / 4000, mustReview: 1461 },
+  'fold 2': { tickets: 4000, missed: 10, flagRate: 3509 / 4000, mustReview: 1461 },
+  'fold 3': { tickets: 4000, missed: 46, flagRate: 3570 / 4000, mustReview: 1473 },
+  'hand-written (seen)': { tickets: 48, missed: 0, flagRate: 32 / 48, mustReview: 22 },
+  'hand-written (fresh)': { tickets: 60, missed: 0, flagRate: 47 / 60, mustReview: 24 },
 };
 
 // Names of the sets that break their start point; empty means the gate passes.
-// A set with no recorded start point always fails.
+// A set with no recorded start point fails, and so does a start-point set with
+// no result (a set that never loaded would otherwise drop out of the gate).
 export function gateFailures(results: SetResult[], start: Record<string, StartPoint> = START_POINT): string[] {
-  return results
+  const measured = new Set(results.map((result) => result.name));
+  const broken = results
     .filter((result) => {
       const point = start[result.name];
       return (
         point === undefined ||
+        result.tickets !== point.tickets ||
         result.highRiskMissed > point.missed ||
         result.flagRate > point.flagRate ||
         result.mustReview !== point.mustReview
       );
     })
     .map((result) => result.name);
+  return [...broken, ...Object.keys(start).filter((name) => !measured.has(name))];
 }
 
 export function checkExitCode(results: SetResult[], start: Record<string, StartPoint> = START_POINT): number {
@@ -127,13 +143,29 @@ export function assertFreshUnseen(fresh: readonly LabeledRow[], trainingTexts: I
   }
 }
 
-function loadSets(foldsDir: string): { name: string; model: Model; rows: LabeledRow[] }[] {
-  const read = (path: string): string => readFileSync(path, 'utf8');
+function readText(path: string): string {
+  return readFileSync(path, 'utf8');
+}
+
+function rowsSha256(rows: readonly LabeledRow[]): string {
+  return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+}
+
+// The file and fingerprint are parameters so a test can run the real loader on
+// small stand-in files; the command uses the defaults.
+export function loadSets(
+  foldsDir: string,
+  read: (path: string) => string = readText,
+  freshSha256: string = FRESH_SET_SHA256,
+): { name: string; model: Model; rows: LabeledRow[] }[] {
   const sets = [];
   for (let k = 0; k < FOLDS; k += 1) {
+    const foldModel = JSON.parse(read(join(foldsDir, `fold_${k}.json`))) as Record<string, unknown>;
+    // A fold model that trained on the fold it scores would miss less and pass.
+    if (foldModel['heldOutFold'] !== k) throw new Error('E_WRONG_FOLD');
     sets.push({
       name: `fold ${k}`,
-      model: loadModel(JSON.parse(read(join(foldsDir, `fold_${k}.json`)))),
+      model: loadModel(foldModel),
       rows: parseRows(read(join(DATA_DIR, `heldout_${k}.jsonl`))),
     });
   }
@@ -142,6 +174,7 @@ function loadSets(foldsDir: string): { name: string; model: Model; rows: Labeled
   // as seen; the fresh one was written blind to the rules and the model.
   sets.push({ name: 'hand-written (seen)', model: shipped, rows: parseRows(read(join(DATA_DIR, 'handwritten.jsonl'))) });
   const fresh = parseRows(read(FRESH_SET));
+  if (rowsSha256(fresh) !== freshSha256) throw new Error('E_FRESH_CHANGED');
   assertFreshUnseen(fresh, parseRows(read(join(DATA_DIR, 'train_all.jsonl'))).map((row) => row.text));
   sets.push({ name: 'hand-written (fresh)', model: shipped, rows: fresh });
   return sets;

@@ -153,9 +153,16 @@ def export_folds(folds, folds_dir):
         folds_dir: The folder that receives fold_0.json, fold_1.json, ...
     """
     folds_dir = Path(folds_dir)
+    # Each file names the fold it holds out, so the check can refuse a file
+    # copied or left over under another fold's name.
     texts = [
-        json.dumps(build_model(fit_fold_models(train_rows, heldout_rows)), separators=(",", ":"), allow_nan=False) + "\n"
-        for train_rows, heldout_rows in folds
+        json.dumps(
+            {**build_model(fit_fold_models(train_rows, heldout_rows)), "heldOutFold": k},
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        + "\n"
+        for k, (train_rows, heldout_rows) in enumerate(folds)
     ]
     folds_dir.mkdir(parents=True, exist_ok=True)
     for k, text in enumerate(texts):
