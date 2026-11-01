@@ -7,7 +7,7 @@
 - Next: the owner's answers (fresh-set near-matches, fold 0 at 10), fix check on the re-sweep fixes, full gate,
   PR body; push and PR on the owner's go
 - Branch: feat/v1-pipeline (from main @ c0a2b7c)
-- Open questions (the owner's): keep the fresh set's two near-matches (F-19, F-48)?; accept fold 0 at 10?
+- Open questions: none (the owner answered both on 2026-11-01; Execution Notes)
 
 **Goal:** every ticket passes through the six stages with a record per stage, no high-risk ticket is missed on
 any held-out fold or the hand-written set, and the run's numbers are computed from real outcomes.
@@ -295,7 +295,7 @@ wrong, with its top words).
   | hand-written (fresh) | 60 | 24 | 78.3% | 0 |
 
   Fold 0 went from 9 to 10 missed with the narrowing (fewer false flags, one more miss). The gate holds each set
-  at this point; the rise from 9 is waiting on the owner's yes. The second check at 0.5 adds 2 / 35 / 49 / 44 misses
+  at this point; the owner accepted the rise from 9 on 2026-11-01. The second check at 0.5 adds 2 / 35 / 49 / 44 misses
   per fold and 1 on the fresh set, so it stays off.
 - 2026-10-31 short re-sweep (5 roles at 2ab6df7, report `.kit/sweeps/2026-10-31-pr3-pipeline.md`) and its fixes:
   the check could pass on a missing set, a swapped fold file, a changed fresh set, a duplicate id or dropped
@@ -310,3 +310,6 @@ wrong, with its top words).
   up to 64 letters from each position, and the text has no spaces), so the 5 ms bar from Task 0 held for English
   only. The whole pipeline at 20,000 characters: English 8.4 ms, Chinese 25.6 ms median (26.8 max). The cap stays
   20,000, judged against 50 ms, where a browser task counts as long (29fcad4).
+- 2026-11-01 owner rulings: fold 0's start point is 10 missed (the narrowing traded one miss for 101 fewer false
+  rule flags); the fresh set stays as frozen, and its two near-matches are recorded: F-19 shares an opening
+  with a training template (word overlap 0.67), and F-48 rewords seen ticket H-07. Both were written blind.

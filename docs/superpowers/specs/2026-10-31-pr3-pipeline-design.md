@@ -74,6 +74,8 @@ vague ticket is still "Other" to a category model. Only rules that read the word
   point too (flagging everything would miss nothing; lost labels would hide misses); (4) the second check stays
   off: at floor 0.5 it adds 2-49 misses per fold and 1 on the fresh set, although it added none on the seen
   set (the 2026-10-29 keep rule).
+- 2026-11-01 (after the re-sweep): fold 0's start point is 10 missed, not 9 (the rule narrowing traded one miss
+  for 101 fewer false rule flags); the fresh set stays as frozen, its two near-matches (F-19, F-48) recorded.
 
 ## 6. The approach
 
