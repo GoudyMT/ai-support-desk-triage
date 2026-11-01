@@ -170,7 +170,15 @@ default is left blank for the viewer to fill.
 2. **Success criteria (the gate for v1):**
    - The model's category accuracy beats v0 on the same tickets on every one of the 4 held-out folds and on the
      frozen hand-written set (both measured, numbers recorded in the README; owner ruling 2026-10-30).
-   - High-risk tickets missed on the held-out set, through the full pipeline: 0.
+   - High-risk tickets missed through the full pipeline, at confidence floor 0.5 (owner rulings 2026-10-31;
+     enforced in CI). The recorded start point, which later work may lower but not raise:
+     - the fresh hand-written set (60 tickets, written blind to the rules and the model, frozen by the owner
+       before any measurement): 0 missed of 24 must-review, 78% flagged. This is the untouched test.
+     - the first hand-written set: 0 of 22, 67% flagged. It shaped the keyword rules, so it is reported as seen,
+       not as an independent test.
+     - the held-out folds: 10 / 6 / 10 / 46 missed (72 of 5,856 must-review, 1.2%), 88-90% flagged.
+     A set fails CI if it misses more, flags a larger share, or its ticket or must-review count changes; the
+     check also fails if a set is missing, a fold file names another fold, or the frozen fresh set changed.
    - TypeScript and Python predictions agree on 100% of the held-out set.
    - The v0 port matches the original HTML on all compared tickets.
    - The demo completes on a mid-range phone at learn speed without dropped frames being noticeable (checked by
@@ -246,6 +254,8 @@ default is left blank for the viewer to fill.
    Claude without looking at the model, reviewed by the owner, frozen before the first training run. The share of
    each hard case in the stream is also fixed before training. The README reports generated and hand-written
    scores side by side; the section 6 gate applies to both.
+   > SUPERSEDED in part (2026-10-31): this set shaped the PR 3 keyword rules and is now reported as seen; a fresh
+   > set of 60 is the untouched pipeline test - see section 6 and the revision history.
 2. LOCKED 2026-10-29: a ticket is flagged when a keyword rule fires, when the model predicts a must-review
    category, or when the model's confidence is below the floor. No flag-rate limit now; the flag rate sits beside
    "high-risk missed" on screen; a target flag rate is set with the owner after the first honest training run.
@@ -254,6 +264,8 @@ default is left blank for the viewer to fill.
    confidence, never a flag from a hard rule (security, threats, accessibility); its own misses are counted in
    "high-risk missed". Built as an experiment, measured on the frozen hand-written set, kept only if it lowers the
    flag rate with zero added misses.
+   > SUPERSEDED (2026-10-31): built as a stricter rule and kept off by the owner; no flag-rate target, the flag rate
+   > is held at each set's start point instead - see section 6 and the revision history.
 3. LOCKED 2026-10-29: a run is a script of three acts, about 4 minutes; pause and Take over stop the clock; the
    run advances by itself and the viewer can skip ahead.
    - **Act 1, learn speed:** about 2 minutes, about 30 tickets, narrated.
@@ -282,3 +294,17 @@ default is left blank for the viewer to fill.
   live page share one masker) and the v0 port (so the comparison is measured before the scorer is built).
 - 2026-10-30 (PR 2 first run): the owner set the raw-accuracy bar to the first run as a floor (section 6); the
   target flag rate moves to PR 3, where the confidence floor that sets it is built.
+  > SUPERSEDED (2026-10-31): there is no separate target; each set's flag rate is held at its start point -
+  > see the 2026-10-31 entries below.
+- 2026-10-31 (PR 3 measurement): zero high-risk missed on every held-out fold needed a confidence floor of 0.8
+  or more, which sends 97-100% of tickets to a person, even after one recorded revision of the keyword rules
+  (PR 3 plan, Execution Notes). The owner set the confidence floor to 0.5, kept zero missed as the bar on the
+  hand-written set, and made the fold results the recorded start point that later work must improve (section
+  6). The second check was dropped: it added 45-85 misses per fold.
+  > SUPERSEDED (2026-10-31): those figures were at floor 0.7; at floor 0.5 with the revised rules it adds 2-49
+  > per fold - see the next entry.
+- 2026-10-31 (PR 3 sweep): the first hand-written set had shaped the rule revision, so the owner had a fresh set
+  of 60 written blind and frozen it before measuring; the first set is now reported as seen. The rules were
+  narrowed where they flagged ordinary tickets; the start point was recorded again (section 6), with each set's
+  flag rate and must-review count held as well. Corrected figure for the second check at floor 0.5: it adds 2-49
+  misses per fold and 1 on the fresh set (it added none on the seen set), so it stays off.

@@ -62,6 +62,44 @@ def test_written_model_reloads_to_the_fitted_models_answers(tmp_path):
         assert np.max(np.abs(scores - models[head_name].decision_function(texts))) < TOLERANCE
 
 
+def test_each_fold_model_is_written_and_reloads_to_that_folds_answers(tmp_path):
+    # The pipeline check scores each held-out fold with that fold's own model;
+    # a fold file holding another fold's weights would score templates it trained on.
+    # Fold 1 learns the categories under swapped names, so a fold file holding
+    # the other fold's model answers differently and the check can see it.
+    swap = {"Billing": "Account Access", "Account Access": "Billing", "Technical Issue": "Technical Issue"}
+    fold_1_rows = [{**row, "category": swap[row["category"]]} for row in make_rows(ROW_COUNT, seed=11)]
+    folds = [(make_rows(ROW_COUNT, seed=10), make_rows(20, seed=20)), (fold_1_rows, make_rows(20, seed=21))]
+    export_model.export_folds(folds, tmp_path / "folds")
+    texts = [row["maskedText"] for row in make_rows(50, seed=3)]
+    for k, (train_rows, _) in enumerate(folds):
+        model = load_model(tmp_path / "folds" / f"fold_{k}.json")
+        expected = fit_models(train_rows)
+        for head_name in LABEL_FIELDS:
+            head = model["heads"][head_name]
+            assert [predict_class(head, text) for text in texts] == list(expected[head_name].predict(texts))
+
+
+def test_each_fold_file_names_the_fold_it_holds_out(tmp_path):
+    # The pipeline check refuses a fold file under another fold's name, so a
+    # copied or stale file cannot score templates its model trained on.
+    folds = [(make_rows(ROW_COUNT, seed=10), make_rows(20, seed=20)), (make_rows(ROW_COUNT, seed=11), make_rows(20, seed=21))]
+    export_model.export_folds(folds, tmp_path / "folds")
+    for k in range(len(folds)):
+        assert json.loads((tmp_path / "folds" / f"fold_{k}.json").read_text()).get("heldOutFold") == k
+
+
+def test_a_held_out_text_in_training_writes_no_fold_file(tmp_path):
+    # The leak sits in the second fold: a clean first fold must not be written
+    # before the second is checked, or a failed export leaves a mixed folder.
+    clean = (make_rows(ROW_COUNT, seed=10), make_rows(20, seed=20))
+    leaky_train = make_rows(ROW_COUNT, seed=11)
+    with pytest.raises(ValueError):
+        export_model.export_folds([clean, (leaky_train, leaky_train[:1])], tmp_path / "folds")
+    assert not (tmp_path / "folds" / "fold_0.json").exists()
+    assert not (tmp_path / "folds" / "fold_1.json").exists()
+
+
 def test_model_declares_the_settings_it_was_fitted_with_and_lines_up_its_arrays():
     # The scorer refuses a file whose declared settings it does not implement,
     # so the file must say what the vectorizer really did. A vocabulary out of
