@@ -232,3 +232,12 @@ before the first ticket is done; `perSecond` from `ms`, real speed only).
   restored, 11 green): `narrate` always names the simulated reviewer at the review stage; a ticket the viewer
   reviewed (its id in `viewerReviews`) needs "you" instead - Task 6 owns that sentence. Rule words of 3+ tokens
   also match as adjacent tokens; an apostrophe splits a token, as in the scorer.
+- 2026-11-03 Tasks 2-3 (8ebf714, 03fb6c0, fix dbf3b68 -> 2182762, 2b5f7fd, 6ee455e; blobs match). First Opus
+  checker voided by the canary (miss, closed out); fresh checker ESCALATE: 30 of 33 mutants red, 3 surviving
+  (confirm's re-run, confirm's notify, completion's playing flag), a wrong comment, one second proof, and the
+  waiting ticket carried the simulated reviewer's answer. Lead ruling: the engine hides `review` and shows the
+  model's suggestion as `final` while the viewer reviews (a tested guarantee, not a page rule). FIX round 1
+  closed all; lead break check (hide rule off) red on `review` "to be undefined"; full gate 887 tests green.
+  Done is a resting stage: the ticket at 'done' is also the last entry of `done` (Tasks 5 and 6 count from
+  `done` only). One unreproduced suite flake (19 of 20 files, an unhandled error) in the builder's worktree;
+  logged per the crash rule, 3 reruns green.
