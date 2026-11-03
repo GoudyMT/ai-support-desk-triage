@@ -8,6 +8,8 @@ needs on top of them; it does not restate them.
 
 Locked wireframe: https://claude.ai/artifact/BzA8iShtJu6v2ULGKA4w1K (three screens: running at learn speed,
 paused with Explain open, Take over on a flagged ticket).
+> SUPERSEDED in part (2026-11-03): after seeing the built page the owner asked for less on screen at first
+> glance - see the last entry of section 5. The screen layout is re-locked before the page is rebuilt.
 
 ## 1. Intent and why
 
@@ -71,6 +73,12 @@ numbers CI already holds (parent section 6 start point).
   about 1 second each with one sentence per ticket; Pause and Explain give full narration at any point.
 - 2026-11-03: browser tests use `@playwright/test` in Chromium, Firefox and WebKit (a dev dependency; the page
   gains no runtime dependency).
+- 2026-11-03 (owner, on the built page's screenshots): too much is on screen at once. Some viewers want all of
+  it, others do not. The important things go front stage, plain and easy to pick out; the curious expand for
+  more, like the live status feed of a tool working in the background: glance at what is happening now, open it
+  to watch the real-time detail, ignore it if not interested. The redesign uses the latest kit's UI/UX skills
+  and gets a real test. Size limits wait for the redesign's build. Everything behind the page (engine, schedule,
+  word spans, narration, live numbers, fold models) stands.
 
 ## 6. The approach
 

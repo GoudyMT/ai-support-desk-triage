@@ -1,13 +1,18 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 2-4 (agent-team batch)
+- Current task: 6 (PAUSED by the owner: rework the page's front stage after a kit update; see Next)
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
   test red then green, break check (fold 1's file as fold_0) red on `assert 1 == 0`, each fold SAME on 16,048
-  rows, one weight +0.01 DIFFERENT exit 1, pytest 120 passed
-- Next: Tasks 2, 3, 4 in parallel, then 5, then 6
+  rows, one weight +0.01 DIFFERENT exit 1, pytest 120 passed; Tasks 2-5 merged with lead break checks
+  (Execution Notes); Task 6 first build merged UNCHECKED (1733545..a984c9b): lint, typecheck, 948 unit tests,
+  build and 42 e2e green on the branch, `sizes` exit 1 on E_NO_LIMIT as designed; the Opus check was stopped
+  when the owner asked for the redesign
+- Next: in a fresh thread: `/methodology-kit update` (1.12.1 -> latest), load the UI/UX skills, wireframe the
+  front-stage redesign (design section 5, last entry) and lock it; rebuild the panels and view on the same
+  engine; then the Opus check, size limits, and Task 7
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -241,3 +246,12 @@ before the first ticket is done; `perSecond` from `ms`, real speed only).
   Done is a resting stage: the ticket at 'done' is also the last entry of `done` (Tasks 5 and 6 count from
   `done` only). One unreproduced suite flake (19 of 20 files, an unhandled error) in the builder's worktree;
   logged per the crash rule, 3 reruns green.
+- 2026-11-03 Task 5 (9232012, 72d685b -> fb5a45f, cf2b24d; blobs match; lead break check: current ticket added
+  to the count, 2 red, restored). `overrides` mirrors computeMetrics' category-only rule so panel and report agree.
+- 2026-11-03 Task 6 first build (89de640..722d2a5 -> 1733545..a984c9b; blobs match). Measured: page 33,782 bytes
+  gzipped; largest model 3,392,790 raw, 1,224,534 gzipped. `size-budgets.json` limits null. Owed to the rework:
+  the Review stage says "1 reviewed" while a ticket waits for the viewer (a false count); the builder's
+  `npm --prefix web exec -- node <script>` made npm fetch and run a package named `node` (27.0.0-alpha) - never
+  use that form (reported to the owner); the Opus check never finished, so nothing in `web/src/page/` beyond
+  spans.ts is checked yet. Keep in the rework: pacing.ts, the Missed pill, the stage gating in view.ts (every
+  field gated by stage), the focus moves and the e2e specs where the behaviour survives.
