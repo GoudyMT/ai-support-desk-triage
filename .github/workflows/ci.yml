@@ -28,6 +28,11 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run gate
+      # The page's browser tests, in the three engines a visitor may use. The
+      # browsers come from the Playwright version the lockfile pins; --no never
+      # fetches another.
+      - run: npm exec --no -- playwright install --with-deps chromium firefox webkit
+      - run: npm run e2e
 
   # Proves on a clean machine that the committed model is the one the code
   # trains, and that the browser scorer agrees with Python.
