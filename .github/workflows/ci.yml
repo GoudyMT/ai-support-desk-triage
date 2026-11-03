@@ -75,6 +75,11 @@ jobs:
       # the last digits), then the same class on every ticket.
       - run: python -m triage.check_model "$RUNNER_TEMP/model.json" "$GITHUB_WORKSPACE/web/src/model/model.json"
         working-directory: ml
+      # The live page scores each run with a committed fold model, so each one is
+      # held to its fresh retrain the same way. The shell stops at the first fold
+      # that differs.
+      - run: for k in 0 1 2 3; do python -m triage.check_model "$RUNNER_TEMP/folds/fold_$k.json" "$GITHUB_WORKSPACE/web/public/models/fold_$k.json"; done
+        working-directory: ml
       # The numbers in eval.json come from this run, not from whoever last
       # committed them. Counts and row fingerprints must match, and the committed
       # report must clear the owner's accuracy floor.
