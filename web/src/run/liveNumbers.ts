@@ -43,11 +43,11 @@ export function liveNumbers(state: RunState, truthOf: (id: string) => TicketLabe
     };
   }
   const metrics = computeMetrics(state.done, truthOf);
-  // computeMetrics gives only a rate of category changes; a count also needs priority changes.
+  // The count behind computeMetrics' overrideRate (reviewed tickets whose category the reviewer
+  // changed), mirrored here because the metrics expose only the rate; priority-only changes are
+  // left out so the live number agrees with the end report.
   const overrides = state.done.filter(
-    (trail) =>
-      trail.final.by === 'reviewer' &&
-      (trail.final.category !== trail.category.label || trail.final.priority !== trail.guard.priority),
+    (trail) => trail.final.by === 'reviewer' && trail.final.category !== trail.category.label,
   ).length;
   const seconds = state.done.reduce((sum, trail) => sum + trail.ms, 0) / MS_PER_SECOND;
   return {
