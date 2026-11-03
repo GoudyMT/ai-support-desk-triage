@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Under the Hood - AI Support Desk Triage</title>
+  </head>
+  <body>
+    <div class="page">
+      <header class="top">
+        <div class="top-text">
+          <h1>Under the Hood</h1>
+          <p class="muted" id="seed-line"></p>
+          <p class="muted" id="status"></p>
+        </div>
+        <nav aria-label="Run controls" class="controls" id="controls"></nav>
+      </header>
+      <p class="notice" id="notice" hidden></p>
+      <p class="muted" id="loading">Loading the model...</p>
+      <div class="notice error" id="load-error" hidden>
+        <p id="load-error-text">The model could not be loaded.</p>
+        <button class="btn" type="button" id="retry">Retry</button>
+      </div>
+      <main id="app" hidden>
+        <section aria-label="Pipeline stages" class="stages" id="stages"></section>
+        <div class="grid">
+          <section class="panel feed-panel" aria-label="Ticket feed" id="feed"></section>
+          <section class="panel focus-panel" aria-label="Current ticket" id="current"></section>
+          <form class="panel focus-panel" aria-label="Review this ticket" id="take-over" tabindex="-1" hidden></form>
+          <section class="panel numbers-panel" aria-label="Live numbers" id="numbers"></section>
+        </div>
+      </main>
+      <div class="sr-only" id="announcer" aria-live="polite"></div>
+    </div>
+    <script type="module" src="/src/page/main.ts"></script>
+  </body>
+</html>

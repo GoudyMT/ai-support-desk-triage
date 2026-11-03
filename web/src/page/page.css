@@ -1,0 +1,525 @@
+/* Colors are tokens so the light and dark themes change one place. Every text pair is
+   WCAG 2.2 AA (4.5:1) against the surface it sits on; borders that mark a control are 3:1. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --text: #18181b;
+  --muted: #52525b;
+  --panel: #f4f4f5;
+  --raised: #ffffff;
+  --line: #d4d4d8;
+  --row-line: #e4e4e7;
+  --control-line: #71717a;
+  --accent: #1d4ed8;
+  --accent-text: #1d4ed8;
+  --lit-bg: #eff6ff;
+  --lit-text: #1e3a8a;
+  --on-bg: #18181b;
+  --on-text: #ffffff;
+  --chip-bg: #dbeafe;
+  --chip-text: #1e3a8a;
+  --rule-bg: #ffedd5;
+  --rule-text: #9a3412;
+  --mask-bg: #e4e4e7;
+  --mask-text: #27272a;
+  --p-auto-bg: #e4e4e7;
+  --p-auto-text: #27272a;
+  --p-flag-bg: #ffedd5;
+  --p-flag-text: #9a3412;
+  --p-over-bg: #ede9fe;
+  --p-over-text: #5b21b6;
+  --p-miss-bg: #fee2e2;
+  --p-miss-text: #991b1b;
+  --notice-bg: #fef9c3;
+  --notice-text: #713f12;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101012;
+    --text: #f4f4f5;
+    --muted: #b4b4bc;
+    --panel: #1c1c20;
+    --raised: #131316;
+    --line: #3f3f46;
+    --row-line: #2e2e34;
+    --control-line: #8b8b95;
+    --accent: #93c5fd;
+    --accent-text: #93c5fd;
+    --lit-bg: #172554;
+    --lit-text: #dbeafe;
+    --on-bg: #f4f4f5;
+    --on-text: #18181b;
+    --chip-bg: #1e3a8a;
+    --chip-text: #dbeafe;
+    --rule-bg: #431407;
+    --rule-text: #fed7aa;
+    --mask-bg: #3f3f46;
+    --mask-text: #f4f4f5;
+    --p-auto-bg: #3f3f46;
+    --p-auto-text: #f4f4f5;
+    --p-flag-bg: #431407;
+    --p-flag-text: #fed7aa;
+    --p-over-bg: #2e1065;
+    --p-over-text: #ddd6fe;
+    --p-miss-bg: #450a0a;
+    --p-miss-text: #fecaca;
+    --notice-bg: #422006;
+    --notice-text: #fef08a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.4;
+}
+
+a {
+  color: var(--accent-text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.top-text {
+  min-width: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.muted {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.notice {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  font-size: 14px;
+}
+
+.notice p {
+  margin: 0 0 8px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.speed {
+  display: flex;
+}
+
+.speed .btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.speed .btn:last-child {
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--control-line);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-on {
+  border-color: var(--on-bg);
+  background: var(--on-bg);
+  color: var(--on-text);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The border is the same width lit or not, so lighting a stage moves nothing. */
+.stage {
+  flex: 1 1 140px;
+  min-width: 120px;
+  padding: 11px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.stage-lit {
+  border-color: var(--accent);
+  background: var(--lit-bg);
+  color: var(--lit-text);
+}
+
+.stage-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stage-count {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stage-lit .stage-count {
+  color: var(--lit-text);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+
+.feed-panel,
+.numbers-panel {
+  flex: 1 1 260px;
+}
+
+.focus-panel {
+  flex: 2 1 460px;
+  background: var(--raised);
+}
+
+.h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--row-line);
+  font-size: 14px;
+}
+
+.row-current {
+  background: var(--raised);
+  border-radius: 4px;
+}
+
+.feed-scroll {
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.assumption {
+  margin-top: 8px;
+}
+
+.pill {
+  display: inline-block;
+  flex: none;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.p-auto {
+  background: var(--p-auto-bg);
+  color: var(--p-auto-text);
+}
+
+.p-flagged {
+  background: var(--p-flag-bg);
+  color: var(--p-flag-text);
+}
+
+.p-overridden {
+  background: var(--p-over-bg);
+  color: var(--p-over-text);
+}
+
+.p-missed {
+  border-color: var(--p-miss-text);
+  background: var(--p-miss-bg);
+  color: var(--p-miss-text);
+}
+
+.p-working {
+  border-color: var(--control-line);
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.narration {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 68ch;
+}
+
+.technical {
+  margin: 0 0 16px;
+  padding-top: 4px;
+  border-top: 1px solid var(--row-line);
+}
+
+/* Left as a list item so the browser's open/closed marker stays; the padding makes a 44px target. */
+.technical summary {
+  padding: 12px 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tech {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.tech dt {
+  color: var(--muted);
+}
+
+.tech dd {
+  margin: 0;
+}
+
+.ticket-text {
+  margin: 0 0 16px;
+  max-width: 68ch;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.chip {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+
+.rule {
+  padding: 0 3px;
+  border-radius: 4px;
+  outline: 1px solid var(--rule-text);
+  background: var(--rule-bg);
+  color: var(--rule-text);
+}
+
+.mask {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--mask-bg);
+  color: var(--mask-text);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+.trail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.trail-pending {
+  color: var(--muted);
+}
+
+.trail-now {
+  color: var(--lit-text);
+  font-weight: 600;
+}
+
+#take-over {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#take-over > * {
+  margin: 0;
+}
+
+.why {
+  color: var(--p-flag-text);
+  font-size: 14px;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field select {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--control-line);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stage,
+  .btn {
+    transition: background-color 150ms, color 150ms, border-color 150ms;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 16px;
+  }
+
+  .tech {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* Forced colors drop backgrounds, so each mark that was a color gets a shape instead. */
+@media (forced-colors: active) {
+  .stage-lit {
+    border-color: Highlight;
+  }
+
+  .chip {
+    text-decoration-thickness: 2px;
+  }
+
+  .rule {
+    outline: 2px solid CanvasText;
+  }
+
+  .mask {
+    border: 1px solid CanvasText;
+  }
+
+  .pill {
+    border-color: CanvasText;
+  }
+
+  .btn-on {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: -4px;
+  }
+}
