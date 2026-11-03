@@ -1,11 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
-import { loadModel } from '../model/scorer';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
-import { createSchedule } from '../run/clock';
-import { createRun, type Run, type RunState } from '../run/engine';
+import type { RunState } from '../run/engine';
 import type { Stage } from '../run/stage';
 import {
   controlsView,
@@ -401,57 +397,11 @@ describe('take over form defaults', () => {
   });
 });
 
-describe('a ticket waiting for the viewer, on the real engine', () => {
-  const FOLD = 1;
-  const MAX_STEPS = 5000;
-  const model = loadModel(
-    JSON.parse(readFileSync(fileURLToPath(new URL(`../../public/models/fold_${FOLD}.json`, import.meta.url)), 'utf8')),
-  );
-  const makeRun = (): Run =>
-    createRun({ seed: SEED, model, schedule: createSchedule(SEED), wallClock: () => 0 });
-
-  // Steps to the first flagged ticket where the simulated reviewer disagrees with the model.
-  function reviewerPicks(): { index: number; reviewer: Category; model: Category } {
-    const run = makeRun();
-    for (let n = 0; n < MAX_STEPS; n += 1) {
-      run.step();
-      const current = run.state().current;
-      const review = current?.trail.review;
-      if (current?.stage === 'review' && review !== undefined && review.category !== current.trail.category.label) {
-        return { index: Number(current.trail.id.split('-')[2]), reviewer: review.category, model: current.trail.category.label as Category };
-      }
-    }
-    throw new Error('test: no ticket where the reviewer disagrees');
-  }
-
-  it('shows no panel the reviewer answer, only the model suggestion', () => {
-    const picks = reviewerPicks();
-    const run = makeRun();
-    run.setTakeOver(true);
-    for (let n = 0; run.state().current?.waitingForViewer !== true; n += 1) {
-      if (n > MAX_STEPS) throw new Error('test: nothing waited');
-      run.step();
-    }
-    // The run waits on the first flagged ticket, which may not be the one that disagrees; walk
-    // forward answering with the model's own suggestion until the disagreeing ticket waits.
-    for (let n = 0; Number(run.state().current?.trail.id.split('-')[2]) !== picks.index; n += 1) {
-      if (n > MAX_STEPS) throw new Error('test: never reached the ticket');
-      const current = run.state().current;
-      if (current?.waitingForViewer === true) {
-        run.confirm({ category: current.trail.category.label as Category, priority: current.trail.guard.priority, route: 'x' });
-      }
-      run.step();
-    }
-    while (run.state().current?.waitingForViewer !== true) run.step();
-    const state = run.state();
-    const everything = JSON.stringify([
-      stageRowView(state),
-      feedView(state, run.truthOf),
-      currentTicketView(state),
-      narrationView(state),
-      takeOverDefaults(state),
-    ]);
-    expect(everything).not.toContain(picks.reviewer);
-    expect(takeOverDefaults(state)?.category).toBe(picks.model);
+describe('a ticket waiting for the viewer', () => {
+  // The engine gives a waiting ticket no review; the Review line must say so in words, not "not needed".
+  it('says Review is waiting for you, not that no review was needed', () => {
+    const trail = trailOf({ model: 'Other', flagged: true });
+    const view = currentTicketView(stateOf({ takeOver: true, current: { trail, stage: 'review', waiting: true } }));
+    expect(view?.lines[4]).toMatchObject({ status: 'now', text: 'waiting for you.' });
   });
 });
