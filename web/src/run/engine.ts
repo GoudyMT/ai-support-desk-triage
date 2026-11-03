@@ -1,4 +1,4 @@
-import type { Category, Priority, TicketLabel } from '../domain/labels';
+import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import { generateTicket } from '../generator/generate';
 import type { Model } from '../model/scorer';
 import { createSimulatedReviewer } from '../pipeline/reviewer';
@@ -77,6 +77,20 @@ export function createRun(opts: { seed: number; model: Model; schedule: Schedule
   let simTime = 0;
   const done: TicketTrail[] = [];
   const viewerReviews: { id: string; correct: boolean }[] = [];
+
+  // While the viewer reviews, the trail shows what the model suggested, not what the
+  // simulated reviewer decided: seeing that answer first would make the viewer's score
+  // meaningless. The stored trail is untouched, so handing back still uses it.
+  function shownTrail(ticket: Live): TicketTrail {
+    if (!ticket.waiting) {
+      return ticket.trail;
+    }
+    const shown: TicketTrail = { ...ticket.trail };
+    delete shown.review;
+    const category = shown.category.label as Category;
+    shown.final = { category, priority: shown.guard.priority, route: ROUTES[category], by: 'model' };
+    return shown;
+  }
 
   function notify(): void {
     for (const listener of [...listeners]) {
@@ -163,7 +177,7 @@ export function createRun(opts: { seed: number; model: Model; schedule: Schedule
         simTime,
       };
       if (live !== undefined) {
-        state.current = { trail: live.trail, stage: live.stage, waitingForViewer: live.waiting };
+        state.current = { trail: shownTrail(live), stage: live.stage, waitingForViewer: live.waiting };
       }
       return state;
     },

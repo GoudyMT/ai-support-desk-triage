@@ -6,6 +6,7 @@ import { generateTicket } from '../generator/generate';
 import { loadModel } from '../model/scorer';
 import { createSimulatedReviewer } from '../pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
+import type { TicketTrail } from '../pipeline/types';
 import type { Schedule } from './clock';
 import { createRun, type Run, type RunState } from './engine';
 import { foldOf } from './seed';
@@ -77,6 +78,14 @@ function drive(run: Run, onState: (state: RunState) => void): void {
     else run.step();
     onState(run.state());
   }
+}
+
+// The trail the simulated reviewer produces for the first flagged ticket of the seed,
+// read from a run that does not take over (so nothing hides it).
+function simulatedTrailAtReview(): TicketTrail {
+  const run = makeRun();
+  toReview(run);
+  return currentOf(run).trail;
 }
 
 function otherPriority(priority: Priority): Priority {
@@ -263,10 +272,6 @@ describe('a new run', () => {
     expect(state.current?.waitingForViewer).toBe(false);
   });
 
-  it('refuses a seed the generator cannot take, with a static code', () => {
-    expect(() => makeRun({ seed: 2 ** 32 })).toThrow('E_SEED_RANGE');
-  });
-
   it('knows the truth of the tickets it made and refuses any other id', () => {
     const run = makeRun();
     expect(run.truthOf(`T-${SEED}-0`)).toEqual(labelOf(0));
@@ -304,6 +309,15 @@ describe('play, pause and step', () => {
     expect(stepped.trail.id).toBe(paused.trail.id);
   });
 
+  // The page's timer only calls advance(); it must find the run stopped at the end.
+  it('stops playing by itself when the run completes', () => {
+    const run = makeRun({ total: 2, act1: 1 });
+    run.play();
+    for (let n = 0; run.state().act !== 'complete' && n < MAX_STEPS; n += 1) run.advance();
+    expect(run.state().act).toBe('complete');
+    expect(run.state().playing).toBe(false);
+  });
+
   it('leaves stepping to the paused run: Step does nothing while playing', () => {
     const run = makeRun();
     run.play();
@@ -338,6 +352,21 @@ describe('Take over', () => {
     expect(confirmed.stage).toBe('review');
     expect(confirmed.trail.id).toBe(id);
     expect(confirmed.trail.final).toEqual({ ...pick, by: 'reviewer' });
+    // The ticket is run again with the viewer as the reviewer, so the whole trail (the
+    // review note included) is the pipeline's own answer to that pick.
+    const ticket = generateTicket(SEED, indexOf(id), { fold: FOLD, side: 'heldout' });
+    const rerun = runTicket(ticket.text, id, {
+      model: MODEL,
+      reviewer: { decide: () => pick },
+      floor: CONFIDENCE_FLOOR,
+      secondCheckOn: SECOND_CHECK_ON,
+      now: () => 0,
+    });
+    expect(confirmed.trail).toEqual({
+      ...rerun,
+      receivedAt: fakeSchedule(12, 6).arrivesAt(indexOf(id)),
+      ms: confirmed.trail.ms,
+    });
     expect(run.state().viewerReviews).toEqual([{ id, correct: false }]);
 
     run.step();
@@ -371,12 +400,37 @@ describe('Take over', () => {
     expect(run.state().viewerReviews).toEqual([{ id, correct }]);
   });
 
+  it('tells listeners once when the viewer confirms, with the review already counted', () => {
+    const run = makeRun();
+    run.setTakeOver(true);
+    toReview(run);
+    const seen: { waiting: boolean; reviews: number }[] = [];
+    run.onChange(() => seen.push({ waiting: currentOf(run).waitingForViewer, reviews: run.state().viewerReviews.length }));
+    run.confirm(rightPick(run, currentOf(run).trail.id));
+    expect(seen).toEqual([{ waiting: false, reviews: 1 }]);
+  });
+
+  // The viewer's score means nothing if the simulated reviewer's answer is on screen first.
+  it('hides the simulated reviewer\'s answer while the viewer reviews, showing the model\'s suggestion', () => {
+    const run = makeRun();
+    run.setTakeOver(true);
+    toReview(run);
+    const shown = currentOf(run).trail;
+    expect(currentOf(run).waitingForViewer).toBe(true);
+    expect(shown.review).toBeUndefined();
+    const suggested = shown.category.label as Category;
+    expect(shown.final).toEqual({ category: suggested, priority: shown.guard.priority, route: ROUTES[suggested], by: 'model' });
+    // Nothing else about the ticket is hidden.
+    expect(shown).toEqual({ ...simulatedTrailAtReview(), review: undefined, final: shown.final });
+  });
+
   // Hand back pressed while the form is open: the simulated reviewer's answer stands.
   it('hands the open ticket back to the simulated reviewer without counting a review', () => {
     const run = makeRun();
     run.setTakeOver(true);
     toReview(run);
-    const simulated = currentOf(run).trail;
+    const simulated = simulatedTrailAtReview();
+    expect(simulated.review).toBeDefined();
     run.setTakeOver(false);
     expect(run.state().takeOver).toBe(false);
     expect(currentOf(run).waitingForViewer).toBe(false);

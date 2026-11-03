@@ -1,5 +1,6 @@
-// Live seeds start at 1000 (seeds below it belong to the course data sets) and end at
-// the largest 32-bit value the ticket generator accepts.
+// Live seeds start at 1000 (seeds below it are kept for the project's exported
+// training and held-out sets) and end at the largest 32-bit value the ticket
+// generator accepts.
 export const MIN_LIVE_SEED = 1000;
 export const MAX_LIVE_SEED = 4294967295;
 export const FOLD_COUNT = 4;
