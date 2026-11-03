@@ -32,7 +32,9 @@ committed under `web/public/models/` and CI proves each equals its retrain.
   `CONFIDENCE_FLOOR` and `SECOND_CHECK_ON` from `run.ts`.
 - Model files fetched only from `${import.meta.env.BASE_URL}models/fold_<k>.json`; no other request after the
   page's own files.
-- Act 1: about 30 tickets in about 2 minutes at learn speed. Act 2: 100 tickets over one simulated business day
+- Act 1: about 30 tickets in about 2 minutes at learn speed; the page's timer shows each stage of tickets 0-2
+  for about 5 s with full narration, then tickets 3-29 at about 1 s each with one sentence per ticket (owner,
+  2026-11-03; the schedule's simulated arrival times are unchanged). Act 2: 100 tickets over one simulated business day
   in about 90 seconds, more arrivals mid-morning. Pause and Take over stop the clock.
 - Accessibility: WCAG 2.2 AA contrast; every control a real `<button>`; 44 px targets; visible focus; reduced
   motion = no position change; polite live region at learn speed only; no sideways scroll at 375 px.
@@ -226,3 +228,7 @@ before the first ticket is done; `perSecond` from `ms`, real speed only).
   trained locally to scratch): missed 66 / 21 / 35 / 299 of about 7,240 must-review; flagged 88-89%; model
   accuracy 57 / 50 / 62 / 60%; v0 32 / 35 / 30 / 34%; no ticket with the same text as its fold's training.
   Fold files 3,324,892 / 3,339,110 / 3,334,378 / 3,392,789 bytes.
+- 2026-11-03 Task 4 (fd90433 -> 25d677f, blobs match; lead break check: pair span end -> first.end, 4 red,
+  restored, 11 green): `narrate` always names the simulated reviewer at the review stage; a ticket the viewer
+  reviewed (its id in `viewerReviews`) needs "you" instead - Task 6 owns that sentence. Rule words of 3+ tokens
+  also match as adjacent tokens; an apostrophe splits a token, as in the scorer.

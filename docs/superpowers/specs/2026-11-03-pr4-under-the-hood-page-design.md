@@ -66,6 +66,9 @@ numbers CI already holds (parent section 6 start point).
   numbers.
 - 2026-11-03: the fold rotates by seed (fold = seed mod 4) across all four fold models; each run loads only its
   own fold's file. One fixed fold was rejected: any single pick looks chosen for its numbers.
+- 2026-11-03: learn-speed pacing (about 30 tickets in about 2 minutes leaves under a second per stage): the
+  first 3 tickets show each stage for about 5 seconds with full narration (about 90 seconds); the other 27 take
+  about 1 second each with one sentence per ticket; Pause and Explain give full narration at any point.
 - 2026-11-03: browser tests use `@playwright/test` in Chromium, Firefox and WebKit (a dev dependency; the page
   gains no runtime dependency).
 
