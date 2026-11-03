@@ -101,6 +101,8 @@ Other) and four priorities (Low, Medium, High, Urgent).
   any held-out ticket whose text also appears in training dropped. The model is scored on every fold in turn
   (grouped cross-validation), so each template is tested once and each score is reported as a mean and a spread.
   The frozen hand-written set stays the final check. Live tickets use every fold and their own seed range.
+  > SUPERSEDED (2026-11-03): a live run uses one fold's held-out templates (fold = seed mod 4), scored by that
+  > fold's model - see the PR 4 design and the revision history.
 - Every run is random; its seed is shown in a corner so a run can be replayed exactly.
 
 ### 5.3 The model
@@ -308,3 +310,9 @@ default is left blank for the viewer to fill.
   narrowed where they flagged ordinary tickets; the start point was recorded again (section 6), with each set's
   flag rate and must-review count held as well. Corrected figure for the second check at floor 0.5: it adds 2-49
   misses per fold and 1 on the fresh set (it added none on the seen set), so it stays off.
+- 2026-11-03 (PR 4 design): the shipped model, run on live tickets from every fold, missed 696 of 7,253
+  must-review tickets and scored 99.7% category accuracy from memory (it trained on every template). The owner
+  chose to score the live stream with a model that never saw its templates: each run takes one fold's held-out
+  templates (fold = seed mod 4) and that fold's model, so the page shows the numbers CI holds. The four fold
+  models are now committed and checked against their retrain in CI. Design:
+  `docs/superpowers/specs/2026-11-03-pr4-under-the-hood-page-design.md`.
