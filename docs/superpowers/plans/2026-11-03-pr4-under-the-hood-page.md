@@ -1,10 +1,13 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 0 (install Playwright; lockfile shown to the owner first)
-- Done (with evidence): design approved 2026-11-03; plan approved 2026-11-03 with Playwright as the browser
-  test tool (owner); branch created from main @ 524e34d
-- Next: Task 0, then Tasks 1-6 as the batch below
+- Current task: 2-4 (agent-team batch)
+- Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
+  lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
+  on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
+  test red then green, break check (fold 1's file as fold_0) red on `assert 1 == 0`, each fold SAME on 16,048
+  rows, one weight +0.01 DIFFERENT exit 1, pytest 120 passed
+- Next: Tasks 2, 3, 4 in parallel, then 5, then 6
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -120,9 +123,10 @@ Chromium, Firefox and WebKit, the engines of the A21 check set.
 
 **Files:** Create `web/src/run/seed.ts`, `seed.test.ts`, `engine.ts`, `engine.test.ts`.
 **Interfaces (produces):**
-- `MIN_LIVE_SEED = 1000`; `parseSeed(search: string): { seed: number; fromAddress: boolean }` (a valid
-  `?seed=` wins, anything else gives `randomSeed()`); `randomSeed(): number`; `foldOf(seed: number): number`
-- `type Stage = 'intake' | 'privacy' | 'classify' | 'guardrails' | 'review' | 'done'`
+- `MIN_LIVE_SEED = 1000`; `parseSeed(search: string): { seed: number; fromAddress: boolean; ignored: boolean }`
+  (a valid `?seed=` wins; anything else gives `randomSeed()`, with `ignored` true when a `seed` was given but
+  refused); `randomSeed(): number`; `foldOf(seed: number): number`
+- `Stage` and `STAGES` from `web/src/run/stage.ts` (the lead adds it before the batch, so Tasks 2 and 4 share it)
 - `type Speed = 'learn' | 'real'`
 - `interface RunState { seed: number; fold: number; act: 1 | 2 | 'complete'; speed: Speed; playing: boolean;
   takeOver: boolean; current?: { trail: TicketTrail; stage: Stage; waitingForViewer: boolean }; done:
@@ -209,6 +213,9 @@ before the first ticket is done; `perSecond` from `ms`, real speed only).
       the owner's go for push and PR.
 
 ## Parking Lot
+
+- Bump ESLint and typescript-eslint once a release with the fixed `minimatch` is at least 14 days old (11
+  moderate audit findings, lint tools only, never shipped; seen 2026-11-03).
 
 ## Execution Notes & Deviations
 
