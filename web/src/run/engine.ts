@@ -1,12 +1,23 @@
-import { PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
+import type { Category, Priority, TicketLabel } from '../domain/labels';
 import { generateTicket } from '../generator/generate';
 import { createSimulatedReviewer } from '../pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { Reviewer, TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
 import {
+  EVENT_ORDER,
+  compareOpen,
+  hideAnswer,
+  stageMs,
+  type Center,
+  type Due,
+  type EventKind,
+  type Held,
+  type PendingTag,
+  type Queued,
+} from './engineParts';
+import {
   CLOSE_EVERY_MS,
-  DEEP_STAGE_MS,
   DEEP_TICKETS,
   QUICK_STAGE_MS,
   TAG_DELAY_MS,
@@ -15,9 +26,7 @@ import {
   type Run,
   type RunOptions,
   type RunState,
-  type Waiting,
 } from './engineTypes';
-import type { Tag } from './prescreen';
 import { foldOf } from './seed';
 
 export * from './engineTypes';
@@ -25,65 +34,6 @@ export * from './engineTypes';
 const MS_PER_SECOND = 1000;
 
 const CENTER_STAGES: readonly CenterStage[] = ['intake', 'privacy', 'classify', 'guardrails'];
-
-type EventKind = 'close' | 'stage' | 'tag' | 'arrive';
-
-// Events due at the same moment fire in this order: a ticket leaving the center or being
-// closed frees room before a tag or an arrival is dealt with.
-const EVENT_ORDER: readonly EventKind[] = ['close', 'stage', 'tag', 'arrive'];
-
-interface Due {
-  kind: EventKind;
-  at: number;
-}
-
-// A ticket in the line; `text` is what the pipeline reads when it enters the center.
-interface Queued {
-  index: number;
-  text: string;
-  waiting: Waiting;
-}
-
-// A ticket the pipeline has run, in the center or in the open list.
-interface Held {
-  index: number;
-  text: string;
-  trail: TicketTrail;
-}
-
-interface Center extends Held {
-  stage: number;
-  nextAt: number;
-  // One of the first tickets to enter the center, which are given the slow pace.
-  deep: boolean;
-  tag?: Tag;
-}
-
-interface PendingTag {
-  at: number;
-  id: string;
-  maskedText: string;
-}
-
-function compareOpen(a: Held, b: Held): number {
-  const byPriority = PRIORITIES.indexOf(b.trail.guard.priority) - PRIORITIES.indexOf(a.trail.guard.priority);
-  return byPriority !== 0 ? byPriority : a.index - b.index;
-}
-
-// While the viewer can see a ticket that is not closed, the trail shows what the model
-// suggested, not what the simulated reviewer decided: seeing that answer first would make
-// the viewer's score meaningless. The stored trail is untouched.
-function hideAnswer(trail: TicketTrail): TicketTrail {
-  const shown: TicketTrail = { ...trail };
-  delete shown.review;
-  const category = shown.category.label as Category;
-  shown.final = { category, priority: shown.guard.priority, route: ROUTES[category], by: 'model' };
-  return shown;
-}
-
-function stageMs(deep: boolean): number {
-  return deep ? DEEP_STAGE_MS : QUICK_STAGE_MS;
-}
 
 export function createRun(opts: RunOptions): Run {
   const { seed, model, schedule, wallClock, prescreen, timed = true } = opts;
