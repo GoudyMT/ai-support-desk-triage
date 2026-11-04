@@ -303,6 +303,11 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
 - [ ] See The Process plays at once, slow first, Speed up / Slow down in the bar, offers the busy day at the end of the
       slow part -> verify: e2e rows; page within the 43,000 byte limit or a measured shortfall reported
 - [ ] Opus check; a real screen and clip to the owner; a walk with zero-technical eyes -> verify: the owner's look
+- [ ] Check on the way out (owner, 2026-11-04): a small-model agent with no project context walks the built page's
+      screens and words as a non-technical first-time visitor, says back the process in its own words and lists what it
+      did not understand -> verify: its report, each question fixed or answered with the owner
+- [ ] After the clip and that walk, the owner decides whether small eye-drawing cues are needed; none are built before
+      that -> verify: the owner's answer
 
 ### Task 11 (lead, then the owner): close out
 
