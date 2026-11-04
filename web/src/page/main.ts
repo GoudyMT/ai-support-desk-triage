@@ -1,4 +1,4 @@
-import { loadModel, type Model } from '../model/scorer';
+import type { Model } from '../model/scorer';
 import { createSchedule, type Schedule } from '../run/clock';
 import { createRun, type Run } from '../run/engine';
 import { createPrescreener, type Tag } from '../run/prescreen';
@@ -14,6 +14,7 @@ import './a11y.css';
 import { mountCenter } from './center';
 import { mountControls, mountTabs } from './controls';
 import { el, setText } from './dom';
+import { fetchModel } from './fetchModel';
 import { createFocus } from './focus';
 import { mountIncoming } from './incoming';
 import { createMotion } from './motion';
@@ -68,15 +69,6 @@ function byId(id: string): HTMLElement {
     throw new Error('E_PAGE_MARKUP');
   }
   return node;
-}
-
-// The only request the page makes after its own files: the one fold model this run scores with.
-async function fetchModel(fold: number): Promise<Model> {
-  const response = await fetch(`${import.meta.env.BASE_URL}models/fold_${fold}.json`);
-  if (!response.ok) {
-    throw new Error('E_MODEL_LOAD');
-  }
-  return loadModel(await response.json());
 }
 
 function newRun({ seed, model, schedule, prescreen }: Setup): Run {

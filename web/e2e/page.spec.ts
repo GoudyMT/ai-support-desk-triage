@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   FIRST_OPEN_MS,
   SEED,
+  START,
   moreNumber,
   open,
   playToFirstOpen,
@@ -22,6 +23,7 @@ const MIN_TAG_GAP_PX = 4;
 const REVIEWER_CLOSE_MS = 1_600;
 const MAX_STEPS = 120;
 const TOTAL_TICKETS = 130;
+const MODEL_PATIENCE_MS = 60_000;
 
 test.describe('the run, by keyboard alone', () => {
   test('goes from Play through a review to Run complete at real speed', async ({ page }) => {
@@ -430,6 +432,21 @@ test.describe('a model that does not load', () => {
     await page.getByRole('button', { name: 'Retry' }).click();
     await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
     await expect(page.getByText('The model could not be loaded.')).toBeHidden();
+  });
+
+  test('stops waiting after 60 seconds for a file that never arrives, and Retry then works', async ({ page }) => {
+    await page.route('**/models/*', () => undefined);
+    await page.clock.install({ time: START });
+    await page.goto(`/?seed=${SEED}`);
+    await expect(page.locator('#loading')).toBeVisible();
+    await page.clock.runFor(MODEL_PATIENCE_MS - 1000);
+    await expect(page.getByText('The model could not be loaded.')).toBeHidden();
+    await page.clock.runFor(2000);
+    await expect(page.getByText('The model could not be loaded.')).toBeVisible();
+    await expect(page.locator('#loading')).toBeHidden();
+    await page.unroute('**/models/*');
+    await page.getByRole('button', { name: 'Retry' }).click();
+    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
   });
 
   test('shows the same error when the file is not a model', async ({ page }) => {
