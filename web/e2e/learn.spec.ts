@@ -10,6 +10,8 @@ const BREATHING_PX = 4;
 // Longer than the 0.5 s the hole takes to ease to the next lit part.
 const EASE_WAIT_MS = 6_000;
 const EASE_SETTLE_MS = 700;
+// Longer than the reviewer's 1.5 s to close a card, shorter than the nine seconds step 6's words take.
+const STEP_6_WAIT_MS = 4_000;
 
 interface Step {
   title: string;
@@ -29,7 +31,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'One message at a time',
-    text: 'The top message moves to the middle so the system can work on it. This is what the customer wrote. The bars along the top show its steps.',
+    text: 'The top message moves to the middle so the system can work on it. This is what the customer wrote, with any private details already covered. The bars along the top show its steps.',
     lit: '.now-head, .track, .ticket-text',
     stage: 'Intake',
   },
@@ -53,7 +55,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'A person has the final say',
-    text: 'Doubtful messages wait here for a person. In this demo a simulated reviewer stands in, and you can press Review to take its place. The rest go straight to the right team.',
+    text: 'Doubtful messages wait here for a person. In this demo a simulated reviewer stands in. In See The Process, you can press Review to take its place. The rest go straight to the right team.',
     lit: '#outgoing',
   },
   {
@@ -154,6 +156,35 @@ test.describe('Learn The Process, first on every load', () => {
     await expect(page.locator('#outgoing .open > li').first()).toBeVisible();
     await next(page).click();
     await expect(stat(page, 'Tickets done')).not.toHaveText('0');
+  });
+
+  // Step 6 is about the card that waits for a person. The simulated reviewer would close it 1.5 s after it joins
+  // Going out, long before the words are read, so it is held for the step and let go by step 7 and by See.
+  const walkedCard = async (page: Page) => {
+    for (let n = 0; n < 5; n += 1) await next(page).click();
+    const card = page.locator('#outgoing .open > li').first();
+    await expect(card).toBeVisible();
+    const id = (await card.getAttribute('data-ticket')) ?? '';
+    return { open: page.locator(`#outgoing .open > li[data-ticket="${id}"]`), closed: page.locator(`#outgoing .closed li[data-ticket="${id}"]`) };
+  };
+
+  test('keeps the walked card in Going out through step 6, and step 7 lets the reviewer close it', async ({ page }) => {
+    await openLearn(page);
+    const { open, closed } = await walkedCard(page);
+    await page.clock.runFor(STEP_6_WAIT_MS);
+    await expect(count(page)).toHaveText('Step 6 of 7');
+    await expect(open).toBeVisible();
+    await expect(closed).toHaveCount(0);
+    await next(page).click();
+    await expect(closed).toHaveCount(1);
+  });
+
+  test('lets the reviewer close the walked card once See The Process is pressed in step 6', async ({ page }) => {
+    await openLearn(page);
+    const { closed } = await walkedCard(page);
+    await page.getByRole('button', { name: 'See The Process' }).first().click();
+    await page.clock.runFor(STEP_6_WAIT_MS);
+    await expect(closed).toHaveCount(1);
   });
 
   test('says the live ticket\'s own sentence on steps 3, 4 and 5, the one the center shows, and none elsewhere', async ({ page }) => {

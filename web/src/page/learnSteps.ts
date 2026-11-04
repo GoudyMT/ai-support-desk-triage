@@ -15,7 +15,7 @@ export const STEPS: readonly LearnStep[] = [
   },
   {
     title: 'One message at a time',
-    text: 'The top message moves to the middle so the system can work on it. This is what the customer wrote. The bars along the top show its steps.',
+    text: 'The top message moves to the middle so the system can work on it. This is what the customer wrote, with any private details already covered. The bars along the top show its steps.',
     lit: ['.now-head', '.track', '.ticket-text'],
     hold: 'intake',
     ready: (s) => s.current?.stage === 'intake',
@@ -46,10 +46,11 @@ export const STEPS: readonly LearnStep[] = [
   },
   {
     title: 'A person has the final say',
-    text: 'Doubtful messages wait here for a person. In this demo a simulated reviewer stands in, and you can press Review to take its place. The rest go straight to the right team.',
+    text: 'Doubtful messages wait here for a person. In this demo a simulated reviewer stands in. In See The Process, you can press Review to take its place. The rest go straight to the right team.',
     lit: ['#outgoing'],
     tab: 'out',
-    hold: null,
+    // The simulated reviewer would close the card within 1.5 seconds, long before these words are read.
+    hold: 'reviewer',
     ready: (s) => s.open.length > 0,
   },
   {
