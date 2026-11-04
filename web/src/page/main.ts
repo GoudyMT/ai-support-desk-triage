@@ -5,6 +5,7 @@ import { createPrescreener, type Tag } from '../run/prescreen';
 import { foldOf, parseSeed } from '../run/seed';
 import './tokens.css';
 import './page.css';
+import './states.css';
 import './stats.css';
 import './board.css';
 import './cards.css';
