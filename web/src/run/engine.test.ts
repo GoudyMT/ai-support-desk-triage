@@ -10,7 +10,7 @@ import type { TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
 import { createSchedule, type Schedule } from './clock';
 import { CLOSE_EVERY_MS, QUICK_STAGE_MS, createRun, type Run, type RunState } from './engine';
-import type { Tag } from './prescreen';
+import { createPrescreener, type Tag } from './prescreen';
 import { foldOf } from './seed';
 
 const SEED = 1001;
@@ -53,6 +53,17 @@ function criticalAt(indices: number[]): (maskedText: string) => Tag {
     calls += 1;
     return { priority: critical ? 'Urgent' : 'Low', critical };
   };
+}
+
+// The page's own setup: its 130-ticket schedule and the real pre-screener on the fold model.
+function makeRealRun(wallClock: () => number = () => 0): Run {
+  return createRun({
+    seed: SEED,
+    model: MODEL,
+    schedule: createSchedule(SEED),
+    wallClock,
+    prescreen: createPrescreener(MODEL),
+  });
 }
 
 function makeRun(
@@ -128,10 +139,14 @@ function firstOpen(run: Run): TicketTrail {
   return first;
 }
 
-function lastDone(run: Run): TicketTrail {
-  const last = run.state().done.at(-1);
+function lastDoneOf(state: RunState): TicketTrail {
+  const last = state.done.at(-1);
   if (last === undefined) throw new Error('test: nothing is done');
   return last;
+}
+
+function lastDone(run: Run): TicketTrail {
+  return lastDoneOf(run.state());
 }
 
 // What one event did, read from the state before and after it: a close takes a ticket off
@@ -570,6 +585,34 @@ describe('the open list', () => {
     const priorities = [2, 5, 6, 7].map((i) => fullTrails.get(idOf(i))?.guard.priority);
     expect(priorities).toEqual(['Medium', 'High', 'Urgent', 'Medium']);
     expect(ids(runToOpen(joining).state().open)).toEqual(expected.map(idOf));
+  });
+
+  // On the page's own day the reviewer falls behind and the list grows long: every insert has
+  // to find its place among many, and every close takes the ticket on top.
+  it('stays in priority then age order through a whole real day, and every close takes the top', () => {
+    const run = makeRealRun();
+    let peak = 0;
+    let closes = 0;
+    let before = run.state();
+    for (let n = 0; run.state().act !== 'complete' && n <= MAX_STEPS; n += 1) {
+      run.step();
+      const after = run.state();
+      peak = Math.max(peak, after.open.length);
+      after.open.slice(1).forEach((trail, at) => {
+        const above = after.open[at];
+        if (above === undefined) throw new Error('test: the list has a gap');
+        const rank = PRIORITIES.indexOf(above.guard.priority) - PRIORITIES.indexOf(trail.guard.priority);
+        expect(rank > 0 || (rank === 0 && indexOf(above.id) < indexOf(trail.id))).toBe(true);
+      });
+      if (eventKind(before, after) === 'close') {
+        closes += 1;
+        expect(lastDoneOf(after).id).toBe(before.open[0]?.id);
+      }
+      before = after;
+    }
+    expect(peak).toBeGreaterThanOrEqual(3);
+    expect(closes).toBeGreaterThan(0);
+    expect(run.state().act).toBe('complete');
   });
 
   it('puts a handed-back ticket back in its place, by priority and then age', () => {
