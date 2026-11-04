@@ -70,6 +70,46 @@ export async function playToBusyDay(page: Page, stepMs = 1000): Promise<void> {
   await expect(off).toBeVisible();
 }
 
+export interface Ghost {
+  id: string;
+  from: string;
+  to: string;
+  gone: boolean;
+}
+
+// Records every ghost (a card travelling between sections) the page adds to or removes from the document,
+// with where it went. Call it before the page loads.
+export async function watchGhosts(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const seen: { id: string; from: string; to: string; gone: boolean; node: Node }[] = [];
+    Object.assign(window, { seen });
+    const isGhost = (node: Node): node is HTMLElement => node instanceof HTMLElement && node.classList.contains('ghost');
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!isGhost(node)) continue;
+          seen.push({
+            id: node.getAttribute('data-moving') ?? '',
+            from: node.getAttribute('data-from') ?? '',
+            to: node.getAttribute('data-to') ?? '',
+            gone: false,
+            node,
+          });
+        }
+        for (const node of record.removedNodes) {
+          for (const entry of seen) if (entry.node === node) entry.gone = true;
+        }
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
+}
+
+export async function ghosts(page: Page): Promise<Ghost[]> {
+  return page.evaluate(() =>
+    (window as unknown as { seen: Ghost[] }).seen.map(({ id, from, to, gone }) => ({ id, from, to, gone })),
+  );
+}
+
 export function reviewButton(page: Page, id: string) {
   // By label, not by role: on a phone the list is display:none until its tab is chosen.
   return page.locator(`#outgoing button[aria-label="Review ${id}"]`);

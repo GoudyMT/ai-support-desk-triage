@@ -1,5 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, open, playUntilOpenCount, reviewButton, runPlaying } from './helpers';
+import {
+  FIRST_OPEN_MS,
+  SEED,
+  SLOW_TEST_MS,
+  ghosts,
+  open,
+  playUntilOpenCount,
+  reviewButton,
+  runPlaying,
+  watchGhosts,
+} from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -11,45 +21,6 @@ const SETTLE_MS = 600;
 const SHIFT_RUN_MS = 3_000;
 const WALK_STEPS = 30;
 const WALK_LIMIT = 600;
-
-interface Ghost {
-  id: string;
-  from: string;
-  to: string;
-  gone: boolean;
-}
-
-// Records every ghost the page adds to or removes from the document, with where it went.
-async function watchGhosts(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const seen: { id: string; from: string; to: string; gone: boolean; node: Node }[] = [];
-    Object.assign(window, { seen });
-    const isGhost = (node: Node): node is HTMLElement => node instanceof HTMLElement && node.classList.contains('ghost');
-    new MutationObserver((records) => {
-      for (const record of records) {
-        for (const node of record.addedNodes) {
-          if (!isGhost(node)) continue;
-          seen.push({
-            id: node.getAttribute('data-moving') ?? '',
-            from: node.getAttribute('data-from') ?? '',
-            to: node.getAttribute('data-to') ?? '',
-            gone: false,
-            node,
-          });
-        }
-        for (const node of record.removedNodes) {
-          for (const entry of seen) if (entry.node === node) entry.gone = true;
-        }
-      }
-    }).observe(document, { childList: true, subtree: true });
-  });
-}
-
-async function ghosts(page: Page): Promise<Ghost[]> {
-  return page.evaluate(() =>
-    (window as unknown as { seen: Ghost[] }).seen.map(({ id, from, to, gone }) => ({ id, from, to, gone })),
-  );
-}
 
 const layerCount = (page: Page) => page.locator('.ghost-layer').evaluate((layer) => layer.childElementCount);
 
