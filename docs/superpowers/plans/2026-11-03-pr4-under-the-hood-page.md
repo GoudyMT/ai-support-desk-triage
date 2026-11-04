@@ -292,11 +292,11 @@ Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, an
 
 ## Parking Lot
 
-- Bump ESLint and typescript-eslint once a release with the fixed `minimatch` is at least 14 days old (11
-  moderate audit findings, lint tools only, never shipped; seen 2026-11-03).
-
 ## Execution Notes & Deviations
 
+- 2026-11-04 device test: the owner chose an emulator over the S26. Emulated phone (384 x 832, touch, Android user agent,
+  4x CPU slowdown): 0 console errors, no sideways scroll, no tap target under 44 px, tabs, review form, All numbers and
+  real speed work; real speed 319 ms for 130 tickets. A real device stays unproven. Limits set: 43,000 and 3,600,000.
 - 2026-11-04 HARD STOP answer (L-05): the owner saw the real-data screens at 1280 and 375, light and dark, in two rounds,
   asked for the changes in design section 5, then "change that and lets continue". Deviation: the deep read-only type
   on RunState was dropped (it reached pipeline files to guard a write nothing makes); panels must not write to state.
