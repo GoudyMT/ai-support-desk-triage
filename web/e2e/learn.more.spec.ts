@@ -114,6 +114,37 @@ test.describe('going back in Learn', () => {
   }
 });
 
+// On the last step the Next button is called See The Process, which is longer. On a phone the row must hold it
+// without the bar growing or the Pause button moving, or the button a viewer is about to press jumps away.
+for (const width of [360, 375, 390]) {
+  test.describe(`the bar on the last step at ${width} px`, () => {
+    test.use({ viewport: { width, height: 812 } });
+
+    test('is as tall as before and keeps Back and Pause where they were', async ({ page }) => {
+      await openLearn(page);
+      for (let n = 0; n < 5; n += 1) await next(page).click();
+      const where = () =>
+        page.evaluate(() => {
+          const rect = (name: string) => {
+            const button = [...document.querySelectorAll<HTMLElement>('#learn-controls button')].find((b) => b.textContent?.trim() === name);
+            const box = button?.getBoundingClientRect();
+            return box === undefined ? null : { x: box.x, y: box.y, w: box.width };
+          };
+          return { bar: document.getElementById('bar')?.getBoundingClientRect().height ?? 0, back: rect('Back'), pause: rect('Pause'), sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+        });
+      await expect(count(page)).toHaveText('Step 6 of 7');
+      const before = await where();
+      await next(page).click();
+      await expect(count(page)).toHaveText('Step 7 of 7');
+      const after = await where();
+      expect(after.bar).toBe(before.bar);
+      expect(after.back).toEqual(before.back);
+      expect(after.pause).toEqual(before.pause);
+      expect(after.sideways).toBe(false);
+    });
+  });
+}
+
 test.describe('keyboard focus in Learn', () => {
   // Back cannot be used on step 1, so pressing it there takes the key's own target away. Focus goes to the main
   // button of the row instead of to nowhere.

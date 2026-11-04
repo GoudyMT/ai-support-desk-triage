@@ -79,6 +79,17 @@
     order: 1;
     padding-left: 0;
   }
+
+  /* The last step's Next is called See The Process: Back, Pause and it fit one row on a phone only if each button
+     is a little closer, so the bar is not taller on that step and the Pause button does not move. */
+  #learn-controls {
+    gap: var(--space-1);
+  }
+
+  #learn-controls .btn {
+    padding-inline: var(--space-3);
+    font-size: var(--fs-phone-button);
+  }
 }
 
 /* The switch has a place of its own in the header, above the dim layer, so it is never dimmed. */
