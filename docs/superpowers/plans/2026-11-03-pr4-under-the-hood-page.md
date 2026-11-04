@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 7 (fix round from the Opus check), then 9
+- Current task: 9 and 10 fix round from the Opus check, then 11
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -11,7 +11,9 @@
   build and 42 e2e green on the branch, `sizes` exit 1 on E_NO_LIMIT as designed; the Opus check was stopped
   when the owner asked for the redesign; redesign Task 6 - d6c738e, 5de0485; Task 7 - fc8e5da, c5dea90, Opus check
   FIX (no engine defect, test gaps); Task 8 - f4a856f, lead break check red, 969 unit tests green
-- Next: Task 7 fix round, then 9 to the real-data screen for the owner
+  Task 7 fix round - 63f25d7..2ac1c36, lead break check red, 977 green; Task 9 - ff616ec and the owner's round
+  a950b44-picks..81e1fa1, 69 e2e green, Opus check ESCALATE (Execution Notes); Task 10 - motion, 99 e2e green
+- Next: the check's fixes and the owner's four calls, then Task 11
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -261,23 +263,23 @@ what the stage has reached (today they show the result at Intake).
 Replace `stageRow.ts`, `feed.ts`, `currentTicket.ts`, `numbers.ts` with `stats.ts`, `incoming.ts`, `center.ts`, `outgoing.ts`;
 Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, and the engine now holds their values); Rewrite
 `web/e2e/page.spec.ts` where behaviour changed, keeping specs whose behaviour survives.
-- [ ] Playwright specs, each in all three engines: keyboard-only from Play through a review to Run complete with `?seed=`
+- [x] Playwright specs, each in all three engines: keyboard-only from Play through a review to Run complete with `?seed=`
       fixed and the real speed button; with `reducedMotion: 'reduce'` no element has a running transition; at 375 px
       `scrollWidth <= clientWidth` and the tabs work; exactly one request under `models/`, and it is `fold_<seed mod 4>.json`;
       a routed 404 shows the error and Retry and no ticket; the review form defaults to the model's picks; collapse shows
       the pending count; no CSP violation in the console -> verify: `npm --prefix web run e2e` red first, for the right reason
-- [ ] Build the top stats and the three columns to the locked canvas, tag colors as tokens in light and dark, with the
+- [x] Build the top stats and the three columns to the locked canvas, tag colors as tokens in light and dark, with the
       CSP meta tag -> verify: unit tests and e2e pass
-- [ ] HARD STOP (L-05): the lead shows the owner one real-data screen at 1280 and 375, light and dark, before the rest of
+- [x] HARD STOP (L-05): the lead shows the owner one real-data screen at 1280 and 375, light and dark, before the rest of
       the states are polished -> verify: the owner's answer in Execution Notes
-- [ ] Commit `feat: rebuild the page as three columns`
+- [x] Commit `feat: rebuild the page as three columns`
 
 ### Task 10 (lead, after the owner's yes on the static screen): motion
 
-- [ ] Cards slide between sections (left, center, right) and up the line, timed so a person can follow; no other motion
+- [x] Cards slide between sections (left, center, right) and up the line, timed so a person can follow; no other motion
       but the waiting dots (owner, 2026-11-04: too much motion is hard to follow); nothing moves under reduced motion ->
       verify: e2e reduced-motion spec green; the owner's look on the running page
-- [ ] Commit `feat: animate the cards`
+- [x] Commit `feat: animate the cards`
 
 ### Task 11 (lead, then the owner): close out
 
@@ -295,6 +297,10 @@ Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, an
 
 ## Execution Notes & Deviations
 
+- 2026-11-04 HARD STOP answer (L-05): the owner saw the real-data screens at 1280 and 375, light and dark, in two rounds,
+  asked for the changes in design section 5, then "change that and lets continue". Deviation: the deep read-only type
+  on RunState was dropped (it reached pipeline files to guard a write nothing makes); panels must not write to state.
+  The tag event after Run complete stays open: reachable only at QUICK_STAGE_MS <= 100, we are at 250.
 - 2026-11-04 redesign: the owner locked the three-column layout, the small-model pre-screener and one review close a
   second (design section 5). This replaces the first page build's panels and the old Take over and speed switch; the
   old Task 6 and 7 are now Tasks 6-11. Measured: on seeds 1000-1011 the incoming line peaks at 22-28 with 1 s per ticket

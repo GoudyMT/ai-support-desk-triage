@@ -90,6 +90,12 @@ numbers CI already holds (parent section 6 start point).
   same tickets with no pacing and shows the software's real speed (43-64 ms for 130 tickets on the owner's PC, in Node).
 - 2026-11-04 (owner): real speed and the live test are one thing: a single text call to action. Details and value
   numbers expand from the top stats. The chosen layout is locked.
+- 2026-11-04 (owner, on the real-data screens): Privacy, Classify and Guardrails rows show from Intake, with small waiting
+  dots until each result is there; each row names what it is (rules, trained model); the team shows on the Classify row
+  and on each open card; open cards are short, with Review beside the reason and clear of the tag (6 of 13 fit at
+  1280x800, measured); Why this choice carries a note on the highlighted words: "The highlighted words moved the model
+  most. It counts words and does not read meaning, so small words can show up."; All numbers has the same arrow as Why
+  this choice; the center takes the room when Going out folds.
 - 2026-11-04 (owner): the reviewer's pace changes to one ticket every 1.5 seconds, the center stays at about 1 second
   per ticket. Measured on the real engine, 8 seeds: at one close a second the open list never holds more than 1 ticket,
   so the right column has nothing to show; at 1.5 s it peaks at 17-25 and a run takes about 4:15.
@@ -150,8 +156,8 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
    Why this choice, Review, Collapse; each a real button with a visible focus ring and a 44 px target.
 4. **Layout as locked:** top: live stats (tickets done, flagged for a person, pending review, high-risk missed) and
    All numbers. Left: Coming in, each card showing the ticket id, its first words and its tag once tagged, next ticket
-   on top. Center, the widest: the current ticket, its stage track, its masked text, and details added as each stage
-   is reached. Right: Going out, open tickets on top as large cards with a Review button, highest priority first;
+   on top. Center, the widest: the current ticket, its stage track, its masked text, and a row for each of Privacy, Classify and
+   Guardrails, with waiting dots until the stage is reached. Right: Going out, open tickets on top as short cards with the team, the reason and a Review button, highest priority first;
    closed tickets below as one gray line each, newest first. The right column collapses to a rail showing the number
    pending review. Under 768 px: stats, the current ticket, then Coming in / Going out tabs; the tab shows the pending
    count.
