@@ -447,6 +447,13 @@ describe('controls', () => {
     const some = stepUntil(run, (s) => s.done.length === 3);
     expect(controlsView(some, TOTAL).realSpeedLabel).toBe(`Run the last ${TOTAL - 3} tickets at real speed`);
   });
+
+  // The button names one ticket as "the last ticket", never "the last 1 tickets".
+  it('reads in the singular when one ticket is left', () => {
+    const run = makeRun();
+    const lastOne = stepUntil(run, (s) => s.done.length === TOTAL - 1);
+    expect(controlsView(lastOne, TOTAL).realSpeedLabel).toBe('Run the last ticket at real speed');
+  });
 });
 
 describe('status and the explanation', () => {

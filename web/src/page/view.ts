@@ -287,11 +287,12 @@ export function controlsView(
   total: number,
 ): { playLabel: 'Play' | 'Pause'; playDisabled: boolean; stepDisabled: boolean; realSpeedLabel: string | null } {
   const blocked = state.act === 'complete' || state.reviewing !== undefined;
+  const left = total - state.done.length;
   return {
     playLabel: state.playing ? 'Pause' : 'Play',
     playDisabled: blocked,
     stepDisabled: blocked || state.playing,
-    realSpeedLabel: blocked ? null : `Run the last ${total - state.done.length} tickets at real speed`,
+    realSpeedLabel: blocked ? null : `Run the last ${left === 1 ? 'ticket' : `${left} tickets`} at real speed`,
   };
 }
 
