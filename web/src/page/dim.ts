@@ -4,6 +4,8 @@ import { placeBlock, unionBox, type Box, type LearnStep } from './learnView';
 const WIDE = '(min-width: 1024px)';
 // Room kept between a lit element scrolled into view and the top of the screen.
 const SCROLL_MARGIN_PX = 8;
+// Room between a lit element and the outline of the hole.
+const BREATHING_PX = 4;
 
 export interface Dim {
   // Lights the step's parts of the page and shows its words; `line` is the live ticket's sentence.
@@ -42,8 +44,16 @@ export function createDim(): Dim {
   const barHeight = (): number => byId('bar').offsetHeight;
   const room = (): number => window.innerHeight - barHeight();
 
+  // The lit parts with a little room around them, so text never touches the outline.
   function litBox(): Box | undefined {
-    return unionBox(lit.flatMap((selector) => [...document.querySelectorAll(selector)]).filter(drawn).map(boxOf));
+    const box = unionBox(lit.flatMap((selector) => [...document.querySelectorAll(selector)]).filter(drawn).map(boxOf));
+    if (box === undefined) return undefined;
+    return {
+      left: box.left - BREATHING_PX,
+      top: box.top - BREATHING_PX,
+      width: box.width + 2 * BREATHING_PX,
+      height: box.height + 2 * BREATHING_PX,
+    };
   }
 
   // On a phone the block covers the bottom of the screen, so what is lit goes above it.
@@ -59,7 +69,8 @@ export function createDim(): Dim {
     const box = litBox();
     if (hole.hidden || box === undefined) return;
     const wide = window.matchMedia(WIDE).matches;
-    const bottom = wide ? room() : room() - block.offsetHeight;
+    // On a wide screen the hole may run under the bar, which is above the dim layer; on a phone it stops above the block.
+    const bottom = wide ? Number.POSITIVE_INFINITY : room() - block.offsetHeight;
     const top = Math.max(box.top, 0);
     const shown = { left: box.left, top, width: box.width, height: Math.max(Math.min(box.top + box.height, bottom) - top, 0) };
     hole.style.left = `${shown.left}px`;
