@@ -37,7 +37,8 @@ function cutHead(head: Head): Head {
     .slice(0, PRESCREEN_WORDS)
     .map((word) => word.column)
     .sort((a, b) => a - b);
-  const vocabulary = ranked.map((column) => head.vocabulary[column] ?? '');  return {
+  const vocabulary = ranked.map((column) => head.vocabulary[column] ?? '');
+  return {
     classes: [...head.classes],
     vocabulary,
     index: new Map(vocabulary.map((term, i) => [term, i] as const)),
