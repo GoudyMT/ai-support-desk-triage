@@ -232,6 +232,32 @@ for (const viewport of [
   });
 }
 
+// Below 1024 px the header wraps: the stats can sit on their own row under the switch, and never beside or under it.
+for (const viewport of [
+  { width: 768, height: 1024 },
+  { width: 375, height: 812 },
+]) {
+  test.describe(`the header at ${viewport.width} px`, () => {
+    test.use({ viewport });
+
+    test('has its stats clear of the switch and the note, in Learn and in See', async ({ page }) => {
+      await openLearn(page);
+      const learn = await boxes(page, ['#views', '#view-note', '#stats', '#more-toggle']);
+      for (const [name, other] of [
+        ['stats', learn['#stats']],
+        ['All numbers', learn['#more-toggle']],
+      ] as const) {
+        expect(apart(learn['#views'], other), `the switch and ${name} in Learn`).toBe(true);
+        expect(apart(learn['#view-note'], other), `the note and ${name} in Learn`).toBe(true);
+      }
+      await page.getByRole('button', { name: 'See The Process' }).click();
+      const see = await boxes(page, ['#views', '#stats', '#more-toggle']);
+      expect(apart(see['#views'], see['#stats']), 'the switch and the stats in See').toBe(true);
+      expect(apart(see['#views'], see['#more-toggle']), 'the switch and All numbers in See').toBe(true);
+    });
+  });
+}
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
