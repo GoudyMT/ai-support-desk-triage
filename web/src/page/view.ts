@@ -4,7 +4,8 @@
 import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
 import { MASK_TOKENS } from '../privacy/mask';
-import { ACT2_TICKETS_PER_DAY } from '../run/clock';
+import { REVIEWER_ERROR_RATE } from '../pipeline/reviewer';
+import { ACT2_SECONDS, ACT2_TICKETS_PER_DAY } from '../run/clock';
 import { CLOSE_EVERY_MS, type RunState } from '../run/engine';
 import { liveNumbers } from '../run/liveNumbers';
 import { NONE_FOUND, narrate } from '../run/narrate';
@@ -234,15 +235,16 @@ export function moreNumbersView(
   const { correct, total } = live.viewerCorrect;
   return {
     rows: [
-      { label: 'Accuracy so far', value: share(live.modelAccuracy) },
-      { label: 'v0 on the same tickets', value: share(live.v0Accuracy) },
-      { label: 'Reviewer overrides', value: String(live.overrides) },
+      { label: "Model's category right so far (closed tickets)", value: share(live.modelAccuracy) },
+      { label: 'Old keyword rules (v0), same tickets', value: share(live.v0Accuracy) },
+      { label: 'Simulated reviewer overrides', value: String(live.overrides) },
       { label: 'Tickets per second', value: perSecond === null ? NO_VALUE : perSecond.toFixed(1) },
       { label: 'Your reviews correct', value: total === 0 ? NO_VALUE : `${correct} of ${total}` },
     ],
     assumptions: [
-      `Assumed arrivals: ${ACT2_TICKETS_PER_DAY} tickets per business day`,
+      `Assumed arrivals: ${ACT2_TICKETS_PER_DAY} tickets in a business day shown as ${ACT2_SECONDS} seconds`,
       `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / MS_PER_SECOND} seconds`,
+      `Assumed: the simulated reviewer is wrong ${Math.round(REVIEWER_ERROR_RATE * PERCENT)}% of the time`,
     ],
   };
 }

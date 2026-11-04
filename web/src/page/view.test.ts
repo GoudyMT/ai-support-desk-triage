@@ -74,15 +74,16 @@ describe('more numbers', () => {
   it('shows a dash for every number that has no value yet, and states both assumptions', () => {
     const view = moreNumbersView(makeRun().state(), noTruth);
     expect(view.rows.map((row) => [row.label, row.value])).toEqual([
-      ['Accuracy so far', '-'],
-      ['v0 on the same tickets', '-'],
-      ['Reviewer overrides', '0'],
+      ["Model's category right so far (closed tickets)", '-'],
+      ['Old keyword rules (v0), same tickets', '-'],
+      ['Simulated reviewer overrides', '0'],
       ['Tickets per second', '-'],
       ['Your reviews correct', '-'],
     ]);
     expect(view.assumptions).toEqual([
-      'Assumed arrivals: 100 tickets per business day',
+      'Assumed arrivals: 100 tickets in a business day shown as 90 seconds',
       `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / 1000} seconds`,
+      'Assumed: the simulated reviewer is wrong 5% of the time',
     ]);
   });
 
@@ -94,8 +95,10 @@ describe('more numbers', () => {
       (trail) => trail.final.by === 'reviewer' && trail.final.category !== trail.category.label,
     ).length;
     expect(overrides).toBeGreaterThan(0);
-    expect(value(state, 'Accuracy so far', run.truthOf)).toBe(`${Math.round((right / TOTAL) * 100)}%`);
-    expect(value(state, 'Reviewer overrides', run.truthOf)).toBe(String(overrides));
+    expect(value(state, "Model's category right so far (closed tickets)", run.truthOf)).toBe(
+      `${Math.round((right / TOTAL) * 100)}%`,
+    );
+    expect(value(state, 'Simulated reviewer overrides', run.truthOf)).toBe(String(overrides));
   });
 
   it('reads the real speed run as tickets per second, and a dash when its time was zero', () => {

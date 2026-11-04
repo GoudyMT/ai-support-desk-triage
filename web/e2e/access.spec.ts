@@ -103,8 +103,9 @@ test.describe('what the page says and shows', () => {
     await page.getByRole('button', { name: 'All numbers' }).click();
     const notes = page.locator('#numbers .assumptions li');
     await expect(notes).toHaveText([
-      'Assumed arrivals: 100 tickets per business day',
+      'Assumed arrivals: 100 tickets in a business day shown as 90 seconds',
       'Assumed: the simulated reviewer closes one ticket every 1.5 seconds',
+      'Assumed: the simulated reviewer is wrong 5% of the time',
     ]);
   });
 });
