@@ -1,63 +1,27 @@
 import { PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import { generateTicket } from '../generator/generate';
-import type { Model } from '../model/scorer';
 import { createSimulatedReviewer } from '../pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { Reviewer, TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
-import type { Schedule } from './clock';
+import {
+  CLOSE_EVERY_MS,
+  DEEP_STAGE_MS,
+  DEEP_TICKETS,
+  QUICK_STAGE_MS,
+  TAG_DELAY_MS,
+  type CenterStage,
+  type Hold,
+  type Run,
+  type RunOptions,
+  type RunState,
+  type Waiting,
+} from './engineTypes';
 import type { Tag } from './prescreen';
 import { foldOf } from './seed';
 
-export interface Waiting {
-  id: string;
-  maskedText: string;
-  tag?: Tag;
-}
+export * from './engineTypes';
 
-export type CenterStage = 'intake' | 'privacy' | 'classify' | 'guardrails';
-
-export interface RunState {
-  seed: number;
-  fold: number;
-  act: 1 | 2 | 'complete';
-  playing: boolean;
-  // Run time in ms: the time of the last event fired.
-  simTime: number;
-  incoming: Waiting[];
-  // `deep`: one of the first tickets, which are narrated at every stage.
-  current?: { trail: TicketTrail; stage: CenterStage; tag?: Tag; deep: boolean };
-  open: TicketTrail[];
-  done: TicketTrail[];
-  reviewing?: TicketTrail;
-  viewerReviews: { id: string; correct: boolean }[];
-  realSpeed?: { tickets: number; ms: number };
-}
-
-export interface Run {
-  state(): RunState;
-  nextDelayMs(): number | null;
-  advance(): void;
-  step(): void;
-  play(): void;
-  pause(): void;
-  review(id: string): void;
-  confirm(d: { category: Category; priority: Priority; route: string }): void;
-  handBack(): void;
-  finishNow(): void;
-  truthOf(id: string): TicketLabel;
-  onChange(fn: () => void): () => void;
-}
-
-// The first tickets stay in the center long enough to read the full narration of each stage;
-// every other ticket takes about a second there.
-export const DEEP_TICKETS = 3;
-export const DEEP_STAGE_MS = 5000;
-export const QUICK_STAGE_MS = 250;
-// The pre-screener answers a little after the ticket arrives; nothing waits for it.
-export const TAG_DELAY_MS = 400;
-// The simulated reviewer closes one open ticket every 1.5 seconds of run time.
-export const CLOSE_EVERY_MS = 1500;
 const MS_PER_SECOND = 1000;
 
 const CENTER_STAGES: readonly CenterStage[] = ['intake', 'privacy', 'classify', 'guardrails'];
@@ -121,17 +85,6 @@ function stageMs(deep: boolean): number {
   return deep ? DEEP_STAGE_MS : QUICK_STAGE_MS;
 }
 
-export interface RunOptions {
-  seed: number;
-  model: Model;
-  schedule: Schedule;
-  wallClock: () => number;
-  prescreen: (maskedText: string) => Tag;
-  // False only for the throwaway run that times a pass: it times nothing itself, which is
-  // what stops a timing run from starting a timing run of its own.
-  timed?: boolean;
-}
-
 export function createRun(opts: RunOptions): Run {
   const { seed, model, schedule, wallClock, prescreen, timed = true } = opts;
   const fold = foldOf(seed);
@@ -148,9 +101,13 @@ export function createRun(opts: RunOptions): Run {
 
   let now = 0;
   let playing = false;
+  let held: Hold = null;
+  // Tickets still to enter the center at the slow pace.
+  let slowLeft = DEEP_TICKETS;
+  // The count reached zero by tickets entering, not by the viewer: the end of the slow part is then offered.
+  let slowRanOut = false;
+  let offerSpeedUp = false;
   let nextArrival = 0;
-  // How many tickets have entered the center; a Critical ticket can enter before a lower number.
-  let entered = 0;
   let closeAt: number | null = null;
   let center: Center | undefined;
   let reviewing: Held | undefined;
@@ -199,18 +156,21 @@ export function createRun(opts: RunOptions): Run {
   }
 
   function fillCenter(): void {
-    if (center !== undefined) {
+    if (center !== undefined || held === 'line') {
       return;
     }
     const next = line.shift();
     if (next === undefined) {
       return;
     }
-    const held = { index: next.index, text: next.text };
-    const trail = runWith(held, next.waiting.id, simulatedReviewer);
-    const deep = entered < DEEP_TICKETS;
-    entered += 1;
-    center = { ...held, trail, stage: 0, nextAt: now + stageMs(deep), deep };
+    const ticket = { index: next.index, text: next.text };
+    const trail = runWith(ticket, next.waiting.id, simulatedReviewer);
+    const deep = slowLeft > 0;
+    if (deep) {
+      slowLeft -= 1;
+      slowRanOut = slowLeft === 0;
+    }
+    center = { ...ticket, trail, stage: 0, nextAt: now + stageMs(deep), deep };
     if (next.waiting.tag !== undefined) {
       center.tag = next.waiting.tag;
     }
@@ -259,6 +219,11 @@ export function createRun(opts: RunOptions): Run {
       return;
     }
     const { index, text, trail } = center;
+    if (center.deep && slowRanOut) {
+      slowRanOut = false;
+      offerSpeedUp = true;
+      playing = false;
+    }
     center = undefined;
     if (trail.guard.flagged) {
       addOpen({ index, text, trail });
@@ -289,7 +254,7 @@ export function createRun(opts: RunOptions): Run {
     if (closeAt !== null) {
       due.push({ kind: 'close', at: closeAt });
     }
-    if (center !== undefined) {
+    if (center !== undefined && !(held !== null && CENTER_STAGES[center.stage] === held)) {
       due.push({ kind: 'stage', at: center.nextAt });
     }
     const pending = pendingTags[0];
@@ -380,9 +345,14 @@ export function createRun(opts: RunOptions): Run {
     if (reviewing !== undefined || (isComplete() && (realSpeed !== undefined || !timed))) {
       return;
     }
+    // Real speed is the software's own pace: a hold, the slow count and the offer's pause are the viewer's.
+    held = null;
+    fillCenter();
     for (let event = nextEvent(); event !== undefined; event = nextEvent()) {
       fire(event);
     }
+    slowRanOut = false;
+    offerSpeedUp = false;
     if (timed) {
       realSpeed = { tickets: schedule.total, ms: timeFullPass() };
     }
@@ -390,11 +360,15 @@ export function createRun(opts: RunOptions): Run {
   }
 
   function state(): RunState {
+    // A finished run has nothing left to speed up.
+    const offered = offerSpeedUp && !isComplete();
     const snapshot: RunState = {
       seed,
       fold,
       act: currentAct(),
       playing,
+      pace: slowLeft > 0 || offered || center?.deep === true ? 'slow' : 'fast',
+      offerSpeedUp: offered,
       simTime: now,
       incoming: line.map((q) => ({ ...q.waiting })),
       open: open.map((held) => hideAnswer(held.trail)),
@@ -442,6 +416,7 @@ export function createRun(opts: RunOptions): Run {
     play() {
       if (!playing && !isComplete()) {
         playing = true;
+        offerSpeedUp = false;
         notify();
       }
     },
@@ -455,6 +430,27 @@ export function createRun(opts: RunOptions): Run {
     confirm,
     handBack,
     finishNow,
+    hold(where) {
+      held = where;
+      fillCenter();
+      notify();
+    },
+    // The ticket in the center is sped up too: waiting out its slow stages would make the button feel broken.
+    speedUp() {
+      slowLeft = 0;
+      slowRanOut = false;
+      offerSpeedUp = false;
+      if (center !== undefined) {
+        center.deep = false;
+        center.nextAt = Math.min(center.nextAt, now + QUICK_STAGE_MS);
+      }
+      notify();
+    },
+    slowDown() {
+      slowLeft = DEEP_TICKETS;
+      offerSpeedUp = false;
+      notify();
+    },
     truthOf,
     onChange(fn) {
       listeners.add(fn);

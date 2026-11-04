@@ -106,6 +106,8 @@ function stateOf(parts: {
     fold: 1,
     act: 1,
     playing: true,
+    pace: 'slow',
+    offerSpeedUp: false,
     simTime: 0,
     incoming: [],
     open: parts.open ?? [],

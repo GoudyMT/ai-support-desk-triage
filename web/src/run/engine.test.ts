@@ -36,6 +36,8 @@ describe('a new run', () => {
       fold: FOLD,
       act: 1,
       playing: false,
+      pace: 'slow',
+      offerSpeedUp: false,
       simTime: 0,
       incoming: [],
       open: [],
