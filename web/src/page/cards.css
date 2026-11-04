@@ -75,10 +75,12 @@
   margin-top: 0;
 }
 
+/* The button starts below the first line, with clear space under the tag, so the two never meet. */
 .card-open .btn {
   grid-column: 2;
   grid-row: 2 / span 2;
   align-self: center;
+  margin-top: var(--tag-clear);
 }
 
 .line {

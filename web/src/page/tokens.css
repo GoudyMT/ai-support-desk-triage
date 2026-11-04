@@ -76,6 +76,7 @@
   --turn-closed: -45deg;
   --turn-open: 45deg;
   --target: 44px;
+  --tag-clear: 5px;
   --focus-width: 2px;
   --focus-offset: 2px;
   --col-in: 15rem;

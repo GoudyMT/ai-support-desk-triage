@@ -7,6 +7,7 @@ const PROBE_SETTLE_MS = 300;
 const FREED_PX = 200;
 const OPEN_CARDS = 13;
 const CARDS_THAT_FIT = 6;
+const MIN_TAG_GAP_PX = 4;
 const REVIEWER_CLOSE_MS = 1_600;
 const MAX_TABS = 30;
 const MAX_STEPS = 120;
@@ -186,6 +187,36 @@ test.describe('open cards', () => {
     expect(fit).toBeGreaterThanOrEqual(CARDS_THAT_FIT);
   });
 });
+
+// The smallest clear space between a card's priority tag and its Review button, over all open cards.
+// Two boxes are apart by the larger of their horizontal and vertical gaps (zero or less: they touch).
+function tagToButtonGap(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const gaps = [...document.querySelectorAll('#outgoing .open > li')].map((card) => {
+      const tag = card.querySelector('.tag')?.getBoundingClientRect();
+      const button = card.querySelector('button')?.getBoundingClientRect();
+      if (tag === undefined || button === undefined) return -Infinity;
+      return Math.max(button.left - tag.right, tag.left - button.right, button.top - tag.bottom, tag.top - button.bottom);
+    });
+    return Math.min(...gaps);
+  });
+}
+
+for (const [name, width, height] of [
+  ['1280', 1280, 800],
+  ['375', 375, 812],
+] as const) {
+  test.describe(`open cards at ${name} px`, () => {
+    test.use({ viewport: { width, height } });
+
+    test('keep a visible gap between the priority tag and the Review button', async ({ page }) => {
+      await open(page);
+      await playUntilOpenCount(page, OPEN_CARDS);
+      if (width < 768) await page.getByRole('tab', { name: /Going out/ }).click();
+      expect(await tagToButtonGap(page)).toBeGreaterThanOrEqual(MIN_TAG_GAP_PX);
+    });
+  });
+}
 
 test.describe('what the viewer hears', () => {
   test('speaks each stage at learn pace and stays quiet on the busy day', async ({ page }) => {
