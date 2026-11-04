@@ -172,17 +172,6 @@ function lineText(trail: TicketTrail, stage: LineStage): string {
   }
 }
 
-function plainSentence(state: RunState, trail: TicketTrail, stage: Stage): string {
-  if (viewerReviewed(state, trail) && stage === 'review' && trail.review !== undefined) {
-    return `You read the ticket and chose ${trail.review.category} with ${trail.review.priority} priority.`;
-  }
-  if (viewerReviewed(state, trail) && stage === 'done') {
-    const { route, category, priority } = trail.final;
-    return `The ticket goes to ${route} as ${category}, priority ${priority}, decided by you.`;
-  }
-  return narrate(trail, stage).plain;
-}
-
 // The first stage whose result a "Why this choice" row tells.
 function revealedAt(label: string): Stage {
   if (label === 'Masked') return 'privacy';
@@ -255,7 +244,7 @@ export function centerView(state: RunState): CenterView | undefined {
       label: STAGE_NAMES[line],
       text: lineText(trail, line),
     })),
-    plain: plainSentence(state, trail, stage),
+    plain: narrate(trail, stage).plain,
     why: narrate(trail, stage).detail.filter((row) => stageIndex(revealedAt(row.label)) <= at),
   };
 }
