@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROUTES, type TicketLabel } from '../domain/labels';
+import type { TicketTrail } from '../pipeline/types';
 import { CLOSE_EVERY_MS, type CenterStage, type RunState } from '../run/engine';
 import {
   centerView,
@@ -176,6 +177,13 @@ describe('the ticket being worked', () => {
       'The highlighted words moved the model most. It counts words and does not read meaning, so small words can show up.';
     expect(note('classify')).toBe(text);
     expect(note('guardrails')).toBe(text);
+  });
+
+  it('says in the Privacy row what was masked, or which four kinds were looked for and not found', () => {
+    const privacy = (found: TicketTrail['found']) =>
+      must(centerView(withState({ current: { trail: trailOf({ found }), stage: 'privacy', deep: true } }))).lines[0]?.text;
+    expect(privacy([])).toBe('no email, phone, order or card number found.');
+    expect(privacy(['phone', 'phone', 'card'])).toBe('masked 2 phone numbers, 1 card number.');
   });
 
   it('ends the Classify line with the team the model category sends the ticket to', () => {

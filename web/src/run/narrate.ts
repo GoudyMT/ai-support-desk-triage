@@ -25,6 +25,9 @@ const KIND_NOUNS: Record<MaskKind, string> = {
   card: 'card number',
 };
 
+// The masker looks for these four kinds and nothing else, so this is all a clean ticket can claim.
+export const NONE_FOUND = 'no email, phone, order or card number found';
+
 function percent(share: number): string {
   return `${Math.round(share * PERCENT)}%`;
 }
@@ -86,7 +89,7 @@ function plainFor(trail: TicketTrail, stage: Stage): string {
     case 'privacy': {
       const counts = maskedCounts(trail.found);
       return counts.length === 0
-        ? 'Privacy: nothing personal was found, so nothing was masked.'
+        ? `Privacy: ${NONE_FOUND}, so nothing was masked.`
         : `Privacy: masked ${joinList(counts)}.`;
     }
     case 'classify': {

@@ -7,7 +7,7 @@ import { MASK_TOKENS } from '../privacy/mask';
 import { ACT2_TICKETS_PER_DAY } from '../run/clock';
 import { CLOSE_EVERY_MS, type RunState } from '../run/engine';
 import { liveNumbers } from '../run/liveNumbers';
-import { narrate } from '../run/narrate';
+import { NONE_FOUND, narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
 import { findSpans } from './spans';
 
@@ -175,7 +175,7 @@ function lineText(trail: TicketTrail, stage: LineStage): string {
   switch (stage) {
     case 'privacy': {
       const masked = narrate(trail, 'privacy').detail.find((row) => row.label === 'Masked')?.value ?? 'nothing';
-      return masked === 'nothing' ? 'nothing personal found.' : `masked ${masked}.`;
+      return masked === 'nothing' ? `${NONE_FOUND}.` : `masked ${masked}.`;
     }
     case 'classify':
       return (

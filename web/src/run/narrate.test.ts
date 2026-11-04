@@ -116,8 +116,12 @@ describe('narrate: privacy', () => {
     expect(plain).toContain('1 email address');
   });
 
-  it('says plainly when nothing personal was found', () => {
-    expect(narrate(CALM, 'privacy').plain).toMatch(/nothing/i);
+  // The masker looks for four kinds only, so the sentence names them and does not claim a name or an
+  // address was checked.
+  it('names the four kinds it looked for when none was found', () => {
+    expect(narrate(CALM, 'privacy').plain).toBe(
+      'Privacy: no email, phone, order or card number found, so nothing was masked.',
+    );
   });
 });
 
