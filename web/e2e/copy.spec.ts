@@ -1,8 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { SEED, playToFirstOpen, reviewButton } from './helpers';
+import { SEED, open, playToFirstOpen, reviewButton } from './helpers';
 
 // Words a first-time visitor reads: each row pins one sentence the page must say, so a change to the
 // copy has to be a deliberate one.
+test.describe('the title block', () => {
+  test('says what the demo is under the title', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#purpose')).toHaveText(
+      "A live demo. Made-up support tickets go through a trained model and safety rules, and a person checks the doubtful ones. The model has never seen these tickets' wording.",
+    );
+  });
+});
+
 test.describe('what the review form says', () => {
   test('tells the viewer what is scored and what is not', async ({ page }) => {
     await playToFirstOpen(page);

@@ -78,6 +78,12 @@ p {
   min-width: 0;
 }
 
+/* The first thing a newcomer reads, so it is body size, not the small muted size. */
+.purpose {
+  max-width: var(--measure);
+  margin: var(--space-1) 0 var(--space-2);
+}
+
 h1 {
   font-size: var(--fs-h1);
   font-weight: var(--w-strong);
