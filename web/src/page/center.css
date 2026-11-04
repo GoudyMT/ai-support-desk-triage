@@ -150,7 +150,8 @@
 }
 
 /* Two lines of room are kept even with no sentence, so the center does not jump when one comes and goes. */
-.say {
+.say,
+.idle-say {
   margin: 0;
   min-height: calc(var(--say-lines) * var(--lh-tight) * 1em);
   max-width: var(--measure);

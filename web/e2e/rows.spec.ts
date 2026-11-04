@@ -58,28 +58,32 @@ test.describe('the measured real speed result', () => {
 });
 
 test.describe('the narration', () => {
+  // What the viewer can see: the sentence that is drawn (the ticket's, or the idle line's when no ticket is in the center).
   const said = (page: Page) =>
     page.evaluate(() => ({
-      shown: (document.querySelector('#ticket .say') as HTMLElement | null)?.innerText ?? '',
+      shown: [...document.querySelectorAll<HTMLElement>('#ticket .say, #ticket .idle-say')].find((n) => n.getClientRects().length > 0)?.innerText ?? '',
       spoken: document.getElementById('announcer')?.textContent ?? '',
     }));
 
-  test('is spoken exactly as shown: one sentence per later ticket, none on the busy day, always on Pause', async ({ page }) => {
+  test('is spoken exactly as shown: one sentence per later ticket held until the next, none on the busy day, always on Pause', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Play' }).click();
     // The first three tickets take 20 s each and are narrated at every stage; after them, one sentence each.
     await page.clock.runFor(DEEP_TICKETS_MS);
-    let withSentence = 0;
-    let without = 0;
+    let held = 0;
+    let own = 0;
     for (let n = 0; n < NARRATION_POLLS; n += 1) {
       await page.clock.runFor(POLL_MS);
       const now = await said(page);
       expect(now.spoken).toBe(now.shown);
-      if (now.shown === '') without += 1;
-      else withSentence += 1;
+      // A later ticket's sentence is on screen for a quarter of a second per stage, so it stays up, with
+      // its ticket id in front, until the next ticket's sentence replaces it.
+      expect(now.shown).not.toBe('');
+      if (/^T-1001-\d+: /.test(now.shown)) held += 1;
+      else own += 1;
     }
-    expect(withSentence).toBeGreaterThan(3);
-    expect(without).toBeGreaterThan(3);
+    expect(held).toBeGreaterThan(3);
+    expect(own).toBeGreaterThanOrEqual(2);
 
     for (let n = 0; n < BUSY_LIMIT && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
       await page.clock.runFor(1000);

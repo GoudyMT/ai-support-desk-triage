@@ -20,6 +20,7 @@ import { mountIncoming } from './incoming';
 import { createMotion } from './motion';
 import { mountOutgoing } from './outgoing';
 import { mountReviewForm } from './reviewForm';
+import { createSentence } from './sentence';
 import { createSpeech } from './speech';
 import { mountStats } from './stats';
 import {
@@ -101,6 +102,7 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
   });
   return {
     motion: createMotion(),
+    sentence: createSentence(),
     speech: createSpeech(byId('announcer')),
     focus: createFocus({ form, center, controls }),
     stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
@@ -134,15 +136,18 @@ function render(mounted: Mounted): void {
   byId('ticket').hidden = review !== undefined;
   byId('review').hidden = review === undefined;
   panels.form.render(review);
+  const ticket = centerView(state);
+  const sentence = panels.sentence.next(state, ticket);
   panels.center.render({
-    ticket: centerView(state),
+    ticket,
+    sentence,
     explain: explainMode(state),
     explainOpen: page.explain,
     idle: idleText(state, setup.schedule.total),
     realSpeedLabel: controls.realSpeedLabel,
     result,
   });
-  panels.speech.say(centerView(state));
+  panels.speech.say(sentence);
   panels.focus.after(review !== undefined, result !== undefined);
   // Real speed shows the finished run in one render, so no card travels.
   panels.motion.play(result === undefined);
@@ -166,6 +171,7 @@ function restart(mounted: Mounted): void {
   page.stopListening = page.run.onChange(() => sync(mounted));
   page.explain = false;
   panels.motion.skipNext();
+  panels.sentence.reset();
   panels.speech.reset();
   sync(mounted);
   panels.controls.focusPrimary();

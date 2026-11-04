@@ -3,6 +3,8 @@ import type { CenterView, realSpeedView } from './view';
 
 export interface CenterInput {
   ticket: CenterView | undefined;
+  // The plain sentence to show, held past the ticket it was for; null for none.
+  sentence: string | null;
   explain: 'offered' | 'off';
   explainOpen: boolean;
   // What to say when no ticket is in the center.
@@ -150,7 +152,7 @@ function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView
   reconcile(panel.track, ticket.steps, (s) => s.name, makeStep, updateStep);
   panel.text.replaceChildren(...segmentNodes(ticket.segments));
   reconcile(panel.lines, ticket.lines, (line) => line.label, makeLine, updateLine);
-  setText(panel.say, ticket.plain ?? '');
+  setText(panel.say, input.sentence ?? '');
   const offered = input.explain === 'offered';
   const open = offered && input.explainOpen;
   panel.toggle.hidden = !offered;
@@ -176,10 +178,12 @@ export function mountCenter(
   const result = buildResult(actions);
   const panel = buildTicket(actions);
   const idle = el('p', 'muted idle');
+  // With no ticket in the center the last sentence is still shown here, so it is not lost with the ticket.
+  const idleSay = el('p', 'idle-say');
   const cta = el('div', 'cta');
   const real = button('btn btn-link', '', actions.finishNow);
   cta.append(real);
-  root.replaceChildren(result.box, panel.box, idle, cta);
+  root.replaceChildren(result.box, panel.box, idle, idleSay, cta);
   return {
     render(input) {
       const { ticket } = input;
@@ -187,6 +191,8 @@ export function mountCenter(
       result.box.hidden = !finished;
       panel.box.hidden = finished || ticket === undefined;
       idle.hidden = finished || ticket !== undefined;
+      idleSay.hidden = idle.hidden || input.sentence === null;
+      setText(idleSay, input.sentence ?? '');
       cta.hidden = finished || input.realSpeedLabel === null;
       if (input.result !== undefined) {
         setText(result.line, resultLine(input.result));
