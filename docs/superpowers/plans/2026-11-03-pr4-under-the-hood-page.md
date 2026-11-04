@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 6 (PAUSED by the owner: rework the page's front stage after a kit update; see Next)
+- Current task: 6 and 7 (the owner locked the three-column redesign 2026-11-04)
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -10,9 +10,7 @@
   (Execution Notes); Task 6 first build merged UNCHECKED (1733545..a984c9b): lint, typecheck, 948 unit tests,
   build and 42 e2e green on the branch, `sizes` exit 1 on E_NO_LIMIT as designed; the Opus check was stopped
   when the owner asked for the redesign
-- Next: in a fresh thread: `/methodology-kit update` (1.12.1 -> latest), load the UI/UX skills, wireframe the
-  front-stage redesign (design section 5, last entry) and lock it; rebuild the panels and view on the same
-  engine; then the Opus check, size limits, and Task 7
+- Next: Tasks 6 and 7 in parallel, then 8, then 9 to the real-data screen for the owner
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -20,9 +18,11 @@
 word chips, Take over and live numbers, all scored by a model that never saw the tickets' templates.
 **Design:** `docs/superpowers/specs/2026-11-03-pr4-under-the-hood-page-design.md` (approved 2026-11-03); parent
 `docs/superpowers/specs/2026-10-29-v1-triage-demo-design.md` sections 5.4, 5.5, 6, 10.3 and C1-C3; the locked
-wireframe https://claude.ai/artifact/BzA8iShtJu6v2ULGKA4w1K. Builders read the PR 4 design in full.
-**Approach:** a pure run engine in `web/src/run/` drives the PR 3 `runTicket` unchanged, one ticket and one
-stage at a time; plain TypeScript panels in `web/src/page/` render the engine's state. Fold models are
+wireframe https://claude.ai/artifact/LC8C8ggtnybnGDzrCe1QKY, page "Chosen layout". Builders read the PR 4 design
+in full.
+**Approach:** a pure run engine in `web/src/run/` holds an incoming line, a center and outgoing lists, and steps
+through a timed list of events; the PR 3 `runTicket` stays unchanged. Plain TypeScript panels in `web/src/page/`
+render the engine's state, static first, motion after the owner sees it. Fold models are
 committed under `web/public/models/` and CI proves each equals its retrain.
 **Stack:** TypeScript 5.9.3, Vite 6.4.4, Vitest 5.0.5, Node 22.22.3, tsx; Python 3.12 venv `ml/.venv`
 (adapter A6, A11); `@playwright/test` for browser tests in Chromium, Firefox and WebKit (owner, 2026-11-03).
@@ -37,14 +37,15 @@ committed under `web/public/models/` and CI proves each equals its retrain.
   `CONFIDENCE_FLOOR` and `SECOND_CHECK_ON` from `run.ts`.
 - Model files fetched only from `${import.meta.env.BASE_URL}models/fold_<k>.json`; no other request after the
   page's own files.
-- Act 1: about 30 tickets in about 2 minutes at learn speed; the page's timer shows each stage of tickets 0-2
-  for about 5 s with full narration, then tickets 3-29 at about 1 s each with one sentence per ticket (owner,
-  2026-11-03; the schedule's simulated arrival times are unchanged). Act 2: 100 tickets over one simulated business day
-  in about 90 seconds, more arrivals mid-morning. Pause and Take over stop the clock.
+- Pacing (owner, 2026-11-03 and 2026-11-04): tickets 0-2 show each center stage for about 5 s with full narration;
+  every other ticket takes about 1 s in the center. Arrivals follow the schedule in seconds (Act 1 every 4 s; Act 2,
+  100 tickets over 90 s, more mid-morning). The simulated reviewer closes one ticket a second. Pause and an open
+  review form stop the clock.
 - Accessibility: WCAG 2.2 AA contrast; every control a real `<button>`; 44 px targets; visible focus; reduced
-  motion = no position change; polite live region at learn speed only; no sideways scroll at 375 px.
-- Copy names each stage for what it is: the model, a rule, the simulated reviewer, you. Never "AI" for a rule
-  or the reviewer.
+  motion = no sliding; a tag is a word plus a color; polite live region during Act 1 only; no sideways scroll at 375 px.
+- A Content-Security-Policy meta tag with `default-src 'self'` (adapter A3).
+- Copy names each stage for what it is: the model, a rule, the pre-screener, the simulated reviewer, you. Never "AI"
+  for a rule or the reviewer.
 - Errors are static codes: `E_MODEL_LOAD`, `E_MODEL_SHAPE` (from `loadModel`), `E_SEED_RANGE`.
 - Commits one line, `type: subject`, no AI trailer (project rule).
 
@@ -52,23 +53,22 @@ committed under `web/public/models/` and CI proves each equals its retrain.
 
 1. `?seed=abc`, `?seed=999`, `?seed=1.5`, `?seed=99999999999`: each falls back to a fresh random seed and the
    page says so, never throws -> Task 2 test.
-2. Pause pressed mid-stage, then Step: the next stage of the same ticket runs, never a new ticket -> Task 2 test.
-3. Take over switched on while a flagged ticket is already in Review with the simulated reviewer: that ticket
-   finishes with the reviewer; the next flagged one waits for the viewer -> Task 2 test.
+2. Pause pressed mid-stage, then Step: the next event runs, and Play resumes from it -> Task 7 test.
+3. Review pressed on the ticket the simulated reviewer closes next: the form holds it; the reviewer takes the next
+   open ticket after Confirm or Hand back -> Task 7 test.
 4. A top term that is a word pair split by a one-letter word or by a mask token (`"me on"` in "me on
    [PHONE_NUMBER]") -> Task 4 tests.
-5. Hand back pressed while the form is open: the open ticket goes to the simulated reviewer, and the viewer's
-   count does not change -> Task 2 test.
+5. The real speed button with a ticket open and the form closed, and again on the last ticket: every ticket closes,
+   Run complete shows, nothing is counted twice -> Task 7 test.
 
 ## Execution approach
 
-Agent-team batch, as PRs 2 and 3 (adapter: agent-teams fields 1-11). The lead runs Tasks 0, 1 and 7; Sonnet
-builders build Tasks 2-6 test-first in their own worktrees, from this branch. Opus checker on Task 2 (the
-engine: replay, Take over and the clock carry the design's guarantees) and Task 6 (the page: accessibility and
-the single-fetch rule). Order: 1 first (the engine's tests load a committed fold model); 2, 3 and 4 in parallel;
-5 needs 2 and 3; 6 needs 0 and 2-5. Reason: six units with clear interfaces; the engine and the page are where a
-mistake reaches a visitor. Expected: two working sessions, with owner stops at Task 0 (the lockfile), Task 6
-(budgets) and Task 7.
+Agent-team batch, as PRs 2 and 3 (adapter: agent-teams fields 1-11). Sonnet builders build Tasks 6-9 test-first in
+their own worktrees, from this branch; the lead runs Tasks 10 and 11. Opus checker on Task 7 (replay, Review and the
+event order carry the design's guarantees) and Task 9 (accessibility and the single-fetch rule). Order: 6 and 7 in
+parallel (the engine takes the pre-screener as an argument), then 8, then 9. Reason: four units with clear interfaces;
+the engine and the page are where a mistake reaches a visitor. Owner stops: the real-data screen in Task 9, budgets,
+and Task 11.
 
 ## Sweep tier
 
@@ -89,7 +89,8 @@ Every changed workflow file parsed with a YAML parser before the push (L-02).
 | `web/src/run/liveNumbers.ts` | The live numbers from the trails done so far (Task 5) |
 | `web/src/run/narrate.ts` | Plain narration and the technical detail per stage (Task 4) |
 | `web/src/page/spans.ts` | Where a term or rule word is written in the masked text (Task 4) |
-| `web/index.html`, `web/vite.config.ts`, `web/src/page/*.ts`, `web/src/page/page.css` | The page (Task 6) |
+| `web/src/run/prescreen.ts` | The small model cut from the fold model, and the tag it gives (Task 6) |
+| `web/index.html`, `web/vite.config.ts`, `web/src/page/*.ts`, `web/src/page/page.css` | The page (Tasks 8, 9) |
 | `web/size-budgets.json`, `web/scripts/checkSizes.ts`, `web/package.json` | Budgets and the gate (Task 6) |
 | `web/playwright.config.ts`, `web/e2e/*.spec.ts` | Browser tests against `vite preview` (Tasks 0, 6) |
 | Tests beside each file (`*.test.ts`) | |
@@ -194,26 +195,92 @@ before the first ticket is done; `perSecond` from `ms`, real speed only).
 - [ ] Implement over `computeMetrics` -> verify: `npm --prefix web test -- liveNumbers` passes
 - [ ] Commit `feat: add the live numbers from the tickets done so far`
 
-### Task 6: The page, budgets and the gate (Opus checker)
+### Task 6: Pre-screener
 
-**Files:** Create `web/index.html`, `web/vite.config.ts`, `web/src/page/main.ts` and one module per panel
-(stage row, feed, current ticket, numbers, controls, take-over form), `web/src/page/page.css`,
-`web/size-budgets.json`, `web/scripts/checkSizes.ts`; Modify `web/package.json` (`build`, `preview`, `sizes`;
-`gate` adds build and sizes after test); Create `web/e2e/page.spec.ts`.
-- [ ] Playwright specs, each in all three engines: keyboard-only run from Play to Run complete (`?seed=` fixed,
-      real speed to keep it short); with `reducedMotion: 'reduce'` no element's box moves during a stage
-      change; at 375 px `scrollWidth <= clientWidth`; exactly one request under `models/`, and it is
-      `fold_<seed mod 4>.json`; a routed 404 on the model shows the error and Retry and no ticket; the Take
-      over form defaults to the model's picks -> verify: `npm --prefix web run e2e` red first, for the right
-      reason
-- [ ] Build the panels to the locked wireframe -> verify: unit tests and `e2e` pass; the lead's visual check at 375 /
-      768 / 1280, light and dark, forced colors
+**Files:** Create `web/src/run/prescreen.ts`, `prescreen.test.ts`.
+**Interfaces (produces):** `PRESCREEN_WORDS = 3000`; `interface Tag { priority: Priority; critical: boolean }`;
+`createPrescreener(model: Model): (maskedText: string) => Tag`. Critical when `matchRules` hits a reason whose
+`RULE_PRIORITY` is Urgent, or the small model's priority is Urgent; `priority` is Urgent then, else the small model's
+label. The cut keeps the 3,000 words with the largest `max over classes |coef| * idf`, the Urgent class counted double
+(measured form: the scratch script in Execution Notes 2026-11-04). A small export from `scorer.ts` is allowed if the
+cut needs one, with no change to scoring.
+- [ ] Tests: a rule word gives critical with the small model saying otherwise; a Low text gives priority Low, not
+      critical; the cut keeps exactly 3,000 words and leaves the source model's scores unchanged; on seeds 3000-3011
+      with each fold's own model, at least 70% of truly urgent tickets are critical (a seed set not used to choose the
+      cut) -> verify: red on an assertion
+- [ ] Implement -> verify: `npm --prefix web test -- prescreen` passes
+- [ ] Commit `feat: add the pre-screener cut from the fold model`
+
+### Task 7: The run engine as timed events (Opus checker)
+
+**Files:** Modify `web/src/run/engine.ts`, `engine.test.ts`, `web/src/run/liveNumbers.ts`, `liveNumbers.test.ts`;
+Delete `web/src/page/pacing.ts`, `pacing.test.ts` once their rules live in the engine (keep their values).
+**Interfaces (produces):**
+- `createRun(opts: { seed; model; schedule; wallClock; prescreen: (maskedText: string) => Tag }): Run`
+- `interface Waiting { id: string; maskedText: string; tag?: Tag }`
+- `RunState`: `seed, fold, act, playing, simTime`; `incoming: Waiting[]` (next on top); `current?: { trail: TicketTrail;
+  stage: 'intake' | 'privacy' | 'classify' | 'guardrails'; tag?: Tag }`; `open: TicketTrail[]` (the hide rule applied:
+  no `review`, `final` is the model's suggestion; highest `guard.priority` first, then lowest index); `done: TicketTrail[]`
+  (closed, oldest first; `liveNumbers` keeps reading it); `reviewing?: TicketTrail` (hidden the same way);
+  `viewerReviews`; `realSpeed?: { tickets: number; ms: number }`
+- `Run`: `state(); nextDelayMs(): number | null` (null when paused, reviewing or complete); `advance()` fires the next event when
+  playing; `step()` fires it when paused; `play(); pause(); review(id: string); confirm(d); handBack();
+  finishNow()` (fires every event at once, measures with `wallClock`, fills `realSpeed`); `truthOf; onChange`
+- Removed: `Speed`, `setSpeed`, `setTakeOver`, `takeOver`, `waitingForViewer`.
+- Events, in run time ms: `arrive` at `schedule.arrivesAt(i) * 1000`, with ticket 0 at 0; `tag` 400 ms later; center stage
+  steps of 5000 ms for tickets 0-2 and 250 ms for the rest; `close` every 1000 ms while `open` is not empty. Ties break
+  in a fixed order: `close`, `stage`, `tag`, `arrive`.
+- A Critical ticket moves ahead of every waiting ticket that is not Critical and behind earlier Critical ones.
+- `runTicket` runs when a ticket enters the center. The run is complete when every ticket is closed.
+
+- [ ] Tests: same seed gives identical `state()` sequences except `ms`; a critical ticket jumps as above; the center takes
+      a ticket whose tag has not come yet; open order; one close a second, and none while the form is open; Review Focus
+      2, 3 and 5; `finishNow` gives the same trails as a paced run of that seed; a flagged ticket's hidden fields stay hidden
+      until it closes; a correct viewer review needs category and priority right, route ignored; `receivedAt` equals the
+      schedule's time -> verify: red on an assertion
+- [ ] Implement -> verify: `npm --prefix web test -- run/` passes
+- [ ] Commit `feat: run the engine as timed events with incoming and outgoing lists`
+
+### Task 8: The view model
+
+**Files:** Modify `web/src/page/view.ts`, `view.test.ts`.
+**Interfaces (produces):** pure functions over `RunState`: `statsView` (four: Tickets done, Flagged for a person, Pending
+review, High-risk missed), `moreNumbersView`, `incomingView` (id, first 60 characters of masked text, tag word), `centerView`
+(id, tag, stage name, six-step track, text segments, lines reached, plain sentence, Why this choice rows), `outgoingView`
+(open cards with priority word and reason; closed rows with the pill), `controlsView`, `reviewDefaults`, `statusView`.
+Tag words: Critical, High, Medium, Low. Keep the Missed pill and the stage gating; the Why this choice rows show only
+what the stage has reached (today they show the result at Intake).
+- [ ] Tests: each view on a fixed small run; at Intake the rows hold no confidence or flag; a Missed row; the review view
+      shows no reviewer answer; the real speed label counts the tickets left -> verify: red on an assertion
+- [ ] Implement -> verify: `npm --prefix web test -- view` passes
+- [ ] Commit `feat: rebuild the view model for the three columns`
+
+### Task 9: The static page (Opus checker)
+
+**Files:** Modify `web/index.html`, `web/src/page/main.ts`, `page.css`, `controls.ts`, `takeOverForm.ts` (rename `reviewForm.ts`);
+Replace `stageRow.ts`, `feed.ts`, `currentTicket.ts`, `numbers.ts` with `stats.ts`, `incoming.ts`, `center.ts`, `outgoing.ts`; Rewrite
+`web/e2e/page.spec.ts` where behaviour changed, keeping specs whose behaviour survives.
+- [ ] Playwright specs, each in all three engines: keyboard-only from Play through a review to Run complete with `?seed=`
+      fixed and the real speed button; with `reducedMotion: 'reduce'` no element has a running transition; at 375 px
+      `scrollWidth <= clientWidth` and the tabs work; exactly one request under `models/`, and it is `fold_<seed mod 4>.json`;
+      a routed 404 shows the error and Retry and no ticket; the review form defaults to the model's picks; collapse shows
+      the pending count; no CSP violation in the console -> verify: `npm --prefix web run e2e` red first, for the right reason
+- [ ] Build the top stats and the three columns to the locked canvas, tag colors as tokens in light and dark, with the
+      CSP meta tag -> verify: unit tests and e2e pass
+- [ ] HARD STOP (L-05): the lead shows the owner one real-data screen at 1280 and 375, light and dark, before the rest of
+      the states are polished -> verify: the owner's answer in Execution Notes
+- [ ] Commit `feat: rebuild the page as three columns`
+
+### Task 10 (lead, after the owner's yes on the static screen): motion
+
+- [ ] Cards slide between places and up the line, timed so a person can follow; nothing moves under reduced motion ->
+      verify: e2e reduced-motion spec green; the owner's look on the running page
+- [ ] Commit `feat: animate the cards`
+
+### Task 11 (lead, then the owner): close out
+
 - [ ] HARD STOP: the owner sets the two budget limits from the measured build (adapter A12) -> verify:
       `npm --prefix web run gate` exit 0 with the limits in `size-budgets.json`
-- [ ] Commit `feat: add the Under the Hood page` and `chore: set the page and model size budgets`
-
-### Task 7 (lead, then the owner): close out
-
 - [ ] Owner review on the built page: narration wording (parent 8) and the device test on the Samsung S26 at
       learn speed (parent 6) -> verify: the owner's answers in Execution Notes
 - [ ] ui-review; full gate (both CI jobs' commands); parking-lot triage; sweep at the tier above; PR body;
@@ -225,6 +292,13 @@ before the first ticket is done; `perSecond` from `ms`, real speed only).
   moderate audit findings, lint tools only, never shipped; seen 2026-11-03).
 
 ## Execution Notes & Deviations
+
+- 2026-11-04 redesign: the owner locked the three-column layout, the small-model pre-screener and one review close a
+  second (design section 5). This replaces the first page build's panels and the old Take over and speed switch; the
+  old Task 6 and 7 are now Tasks 6-11. Measured: on seeds 1000-1011 the incoming line peaks at 22-28 with 1 s per ticket
+  in the center; the open list peaks at 13-21 with one close a second; fresh seeds 2000-2011 as in design section 5. The
+  cut's measured form: rank words by `max over classes |coef| * idf`, Urgent class doubled, keep 3,000. Plain-score
+  rate: 6-11 microseconds per ticket in Node. A cut under 3,000 words flags far too many tickets (100 words: 44%).
 
 - 2026-11-01 measurement (shipped model, live tickets from every fold, seeds 1000-1009 x 2,000): 696 of 7,253
   must-review missed, 686 of them vague; flagged 34%; model category accuracy 99.7%; 4,642 tickets with the same

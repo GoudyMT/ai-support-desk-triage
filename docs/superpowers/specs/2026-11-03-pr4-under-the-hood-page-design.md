@@ -6,10 +6,8 @@ needs on top of them; it does not restate them.
 
 **Status:** approved by the owner 2026-11-03.
 
-Locked wireframe: https://claude.ai/artifact/BzA8iShtJu6v2ULGKA4w1K (three screens: running at learn speed,
-paused with Explain open, Take over on a flagged ticket).
-> SUPERSEDED in part (2026-11-03): after seeing the built page the owner asked for less on screen at first
-> glance - see the last entry of section 5. The screen layout is re-locked before the page is rebuilt.
+Locked wireframe: https://claude.ai/artifact/LC8C8ggtnybnGDzrCe1QKY, page "Chosen layout" (locked 2026-11-04). It
+replaces https://claude.ai/artifact/BzA8iShtJu6v2ULGKA4w1K; the owner's decisions are in section 5.
 
 ## 1. Intent and why
 
@@ -36,18 +34,18 @@ numbers CI already holds (parent section 6 start point).
 1. A first-time visitor at learn speed can say, for the current ticket, which stage it is in and why it was or
    was not sent to a person (the narration and the stage trail carry this).
 2. Every number on the page is computed from the run's own trails, on tickets the scoring model never saw.
-3. Play / Pause, Step, the speed switch, Explain and Take over all work by keyboard alone, and reduced motion
-   is respected.
+3. Play / Pause, Step, the real speed button, Why this choice and Review all work by keyboard alone, and reduced
+   motion is respected.
 4. A run replays exactly from its seed.
 
 ## 3. Non-goals and anti-goals
 
 - **Non-goals:** the landing page, Try it yourself, the end report and the value assumptions panel (PR 5);
-  the deploy (PR 6); retraining or tuning any model; the manual-versus-assisted queue view and the capacity
-  test (moved to PR 5, section 12).
+  the deploy (PR 6); retraining or tuning any model (the pre-screener is cut from a fold model, not trained); the
+  manual-versus-assisted queue view, the capacity test and the value saved number (PR 5, section 12).
 - **Anti-goals:** a number from a model that saw the ticket's templates; narration that calls a rule or the
   simulated reviewer "AI" (parent anti-goal); motion that ignores reduced motion; any network request other
-  than the page's own files; a hidden miss (every miss shows in the feed and the count).
+  than the page's own files; a hidden miss (every miss shows in the closed list and the count).
 
 ## 4. Constraints
 
@@ -79,20 +77,52 @@ numbers CI already holds (parent section 6 start point).
   to watch the real-time detail, ignore it if not interested. The redesign uses the latest kit's UI/UX skills
   and gets a real test. Size limits wait for the redesign's build. Everything behind the page (engine, schedule,
   word spans, narration, live numbers, fold models) stands.
+- 2026-11-03 (owner, replacing the line above on the engine): three columns - tickets coming in, the ticket being
+  worked with its stage and details, tickets going out (open ones on top by priority, closed ones collapsed and
+  grayed) - with live stats on top, and critical tickets moving up the incoming column. The run engine may change
+  so the cards move and are easy to follow. Build order: static first, to show it works; card movement and other
+  motion come after.
+- 2026-11-04 (owner): wide center (version 2 of the canvas https://claude.ai/artifact/LC8C8ggtnybnGDzrCe1QKY),
+  with a brief section of each card shown in the left column; a colored tag system for priority from the
+  pre-screener; an optional expandable explanation of the ticket's choices at learn speed, off at real speed; the
+  right column collapses and shows a count of tickets pending human review.
+- 2026-11-04 (owner): the simulated reviewer closes one ticket a second, shown as an assumption. A Live test runs the
+  same tickets with no pacing and shows the software's real speed (43-64 ms for 130 tickets on the owner's PC, in Node).
+- 2026-11-04 (owner): real speed and the live test are one thing: a single text call to action. Details and value
+  numbers expand from the top stats. The chosen layout is locked.
+- 2026-11-04 (owner): the pre-screener is a small version of the first-stage model, beside the keyword rules. It is a
+  second set of eyes that moves higher-value tickets along at high volume; it need not be perfect, and the main check
+  never waits for its label. Measured on fresh seeds 2000-2011 (1,560 tickets, 226 truly urgent; one ticket per second
+  in the center; waits are Act 2): no pre-screener, urgent wait 12.6 s; rules only, 96 marks, 89% right, 38% caught, 8.7 s;
+  rules plus the small model (top 3,000 words of the fold model's priority head, cut when the fold model loads, so no
+  new file or download), 379 marks, 47% right, 80% caught, 4.2 s. Average wait for all tickets stays 11.9 s.
 
 ## 6. The approach
 
-A **run engine** (pure TypeScript, tested in Node) owns the run: it picks the fold from the seed, generates
-ticket i with `generateTicket(seed, i, { fold, side: 'heldout' })`, passes it through the PR 3 `runTicket`
-unchanged, and emits one event per stage so the page can light the stage row in order. A **clock** drives it:
-learn speed steps one stage at a time on a fixed interval; real speed releases tickets on a simulated business
-day. The **page** is plain TypeScript modules, one per panel, that render the engine's state; it holds no
-pipeline logic.
+A **run engine** (pure TypeScript, tested in Node) owns the run as a timed list of events, so a replay is exact and
+the page only decides when to fire the next one. Three things hold tickets: the **incoming line**, the **center**
+(one ticket at a time, one stage per event), and the **outgoing lists** (open, then closed). A ticket arrives, the
+**pre-screener** tags it, and a Critical tag moves it up the line behind any earlier Critical ticket. When the center
+is free it takes the top of the line. Guardrails sends a flagged ticket to the open list, kept highest priority
+first, then oldest first; an unflagged ticket goes straight to closed. The **simulated reviewer** closes the top open
+ticket once a second. The PR 3 `runTicket` stays unchanged and runs when the ticket enters the center; the engine
+only decides when each result is shown.
 
-**Take over** keeps the pipeline untouched (PR 3 section 6 seam): the engine runs the ticket with the simulated
-reviewer to learn the trail up to the guardrails; when the ticket is flagged and the viewer has taken over, it
-waits, then runs the ticket again with a reviewer that returns the viewer's choice. Both passes are
-deterministic, so the trail shown is the trail scored.
+The **pre-screener** reads masked text only. A ticket is Critical when a keyword rule of Urgent priority matches or
+the small model says Urgent; otherwise its tag is the small model's priority. The small model is the fold model's
+priority head cut to its 3,000 most useful words when the page loads: no new file, no download, no training. Nothing
+waits for it, and its tag never changes the pipeline's answer.
+
+**Review:** the viewer may press Review on any open ticket. The clock stops while the form is open, the simulated
+reviewer's answer stays hidden, and Confirm runs that ticket again with a reviewer that returns the viewer's choice,
+so the trail shown is the trail scored (PR 3 section 6 seam). Hand back returns it to the open list.
+
+**Real speed** is one text button, "Run the last N tickets at real speed": the engine finishes the run with no pacing
+and no cards drawn, and the page shows the measured time. The final numbers then stand as Run complete.
+
+The **page** is plain TypeScript modules, one per panel, that render the engine's state; it holds no pipeline logic.
+It ships static first: cards change column and order with no sliding. Motion comes after the owner has seen the
+static screen (section 5).
 
 **Fold models** are committed under `web/public/models/fold_<k>.json`, one per fold, and the CI model job
 checks each against its fresh retrain the way it checks `model.json` today. The page fetches only the file its
@@ -100,7 +130,8 @@ run needs.
 
 Rejected, one line each: the shipped model (its live numbers are memory, section 1); a UI framework (no view
 here needs one, and it costs a dependency and bytes against a budget set this PR); a web worker (the pipeline
-takes at most 27 ms per ticket on the owner's PC, PR 3 Execution Notes; revisit for the capacity test).
+takes at most 27 ms per ticket on the owner's PC, PR 3 Execution Notes; revisit for the capacity test); a separate
+trained pre-screener file (a cut of the loaded model caught 80% with no download, section 5).
 
 ## 7. Requirements
 
@@ -108,42 +139,53 @@ takes at most 27 ms per ticket on the owner's PC, PR 3 Execution Notes; revisit 
 1. **Fold models:** the four fold models are committed and CI fails if any differs from its retrain beyond the
    existing tolerance; `measurePipeline --check` keeps running on the CI retrain.
 2. **Run engine:** a random seed of 1000 or more (parent 5.2's live range), shown on the page; a `?seed=` in the
-   address replays that run; the fold is the seed mod 4 (section 5); Act 1 at learn speed, about
-   30 tickets in about 2 minutes, then Act 2 at real speed, one simulated business day in about 90 seconds with
-   more arrivals mid-morning (parent 10.3); the run ends with a "Run complete" state that keeps the final numbers.
-3. **Controls:** Play / Pause, Step (one stage at a time, paused), the speed switch (the viewer may skip to real
-   speed), Explain, Take over; each a real button with a visible focus ring and a 44 px target.
-4. **Layout D** as locked: the stage row with a live count per stage and the current stage lit; the feed, latest
-   first, with an Auto / Flagged / Overridden pill; the current ticket with its masked text, word chips, rule
-   word and stage trail; the live numbers.
-5. **Live numbers:** tickets done, tickets per second (measured at real speed), the model's category accuracy
-   so far beside v0's category accuracy on the same tickets (the parent C2 comparison), share flagged, reviewer
-   overrides as a count, and high-risk tickets missed so far (must-review tickets that reached Done without
-   review). All from `computeMetrics` over the trails done so far.
+   address replays that run; the fold is the seed mod 4 (section 5); Act 1 at learn speed, about 30 tickets in about 2
+   minutes, then Act 2, the busy day: one simulated business day with about 1 second per ticket in the center and more
+   arrivals mid-morning (parent 10.3); the run ends with a "Run complete" state that keeps the final numbers once every
+   ticket is closed.
+3. **Controls:** Play / Pause, Step (one event at a time, paused), Restart, the real speed text button, All numbers,
+   Why this choice, Review, Collapse; each a real button with a visible focus ring and a 44 px target.
+4. **Layout as locked:** top: live stats (tickets done, flagged for a person, pending review, high-risk missed) and
+   All numbers. Left: Coming in, each card showing the ticket id, its first words and its tag once tagged, next ticket
+   on top. Center, the widest: the current ticket, its stage track, its masked text, and details added as each stage
+   is reached. Right: Going out, open tickets on top as large cards with a Review button, highest priority first;
+   closed tickets below as one gray line each, newest first. The right column collapses to a rail showing the number
+   pending review. Under 768 px: stats, the current ticket, then Coming in / Going out tabs; the tab shows the pending
+   count.
+5. **Live numbers:** on top as in Must 4. All numbers expands: the model's category accuracy so far beside v0's on the
+   same tickets (the parent C2 comparison), reviewer overrides as a count, tickets per second (after a real speed run),
+   and your reviews correct. All from `computeMetrics` over the tickets closed so far; pending review is the open
+   list's length; high-risk missed counts must-review tickets that closed without review.
 6. **Word chips:** each top term is highlighted where it is written in the masked text, found with the model's
    own tokenizer (a word pair is two adjacent tokens, so "so cannot" spans "so I cannot"); a rule word is found
    the same way (PR 3 Parking Lot); a term with no written span appears only in the technical detail.
-7. **Narration:** at learn speed and on Pause or Explain, one or two plain sentences for the current stage,
-   built from the trail; "Show technical detail" lists confidence, the floor, each reason that fired, the top
-   words and what was masked. Rules, the model and the simulated reviewer are named for what they are.
-8. **Take over:** available at both speeds; the run and its clock stop on each flagged ticket (parent 10.3);
-   the viewer picks category, priority and team (defaults: the model's picks; the team follows the category
-   until the viewer changes it); Confirm continues; "Hand back to the reviewer" returns to the simulated
-   reviewer. A review counts as correct when category and priority both match the truth; the team is shown
-   but not scored (parent C3).
+7. **Narration:** one or two plain sentences for the current stage, built from the trail, at learn speed and on Pause.
+   "Why this choice" expands to list confidence, the floor, each reason that fired, the top words and what was masked;
+   it is closed by default, offered at learn speed and on Pause, and replaced on the busy day by a line that says to
+   pause. It shows only what the current stage has reached. Rules, the model, the pre-screener and the simulated
+   reviewer are named for what they are.
+8. **Review:** available on any open ticket at either act; the clock stops while the form is open; the viewer picks
+   category, priority and team (defaults: the model's picks; the team follows the category until the viewer changes
+   it); Confirm closes it; "Hand back to the reviewer" returns it to the open list. A review counts as correct when
+   category and priority both match the truth; the team is shown but not scored (parent C3).
 9. **Loading and failure:** a loading state while the fold model loads; if it fails to load or parse, a plain
    error with a Retry button, and no run starts.
-10. **Accessibility:** keyboard-only from Play to Run complete; reduced motion = no sliding, stages change by
-    color and text only; a polite live region announces each stage at learn speed only (real speed would flood
-    it); contrast WCAG 2.2 AA; works at 375, 768 and 1280 px.
+10. **Accessibility:** keyboard-only from Play to Run complete; reduced motion = no sliding: cards change place at once
+    and stages change by color and text only; a tag is a word and a color, never color alone; a polite live region
+    announces each stage at learn speed only (the busy day would flood it); contrast WCAG 2.2 AA; works at 375, 768 and
+    1280 px; a Content-Security-Policy meta tag (`default-src 'self'`, adapter A3).
 11. **Size budgets:** `web/size-budgets.json` with the two A12 budgets; `npm run gate` gains a production
     build and the size check after its tests (today it has no build step); limits set with the owner from the
     first real build.
-12. **Time:** the trail's `receivedAt` is simulated-clock time and `ms` is measured wall time; the page's
-    "tickets per second" reads `ms`. Replay equality covers every field except `ms`.
+12. **Time:** the trail's `receivedAt` is simulated-clock time and `ms` is measured wall time; "tickets per second"
+    reads the real speed run's measured time. Replay equality covers every field except `ms`.
+13. **Pre-screener:** as in section 6; a test holds it to at least 70% of truly urgent tickets caught and urgent waits at
+    least halved against no pre-screener, on a fixed seed set not used to choose it.
 
 **Should**
 - Shared vocabulary in the model file (parked item), only if the first build shows the model budget needs it.
+- Motion, after the static screen is approved: cards slide between places and up the line, timed so a person can
+  follow them; none under reduced motion.
 
 **Later (seams only)**
 - The end report and its link from "Run complete", the assumptions panel and the time-saved number, the
@@ -157,15 +199,21 @@ takes at most 27 ms per ticket on the owner's PC, PR 3 Execution Notes; revisit 
 - Given seed S, every ticket comes from fold `S mod 4`'s held-out templates and is scored by that fold's model;
   no other model file is fetched.
 - Given a committed fold model that differs from its retrain, the CI model job fails.
-- Given a flagged ticket in Take over, the run does not advance until Confirm or Hand back; the viewer's pick is
-  the trail's final answer and is scored against the truth.
+- Given Review pressed on an open ticket, the run does not advance until Confirm or Hand back, the simulated reviewer's
+  answer is not visible, and the viewer's pick is the trail's final answer, scored against the truth.
+- Given a ticket tagged Critical, it moves ahead of every waiting ticket without that tag and behind earlier Critical
+  ones; given no tag yet, the center still takes it in its turn.
+- Given two open tickets, the higher priority is on top; at equal priority, the older.
+- Given the real speed button with N tickets left, the run reaches Run complete with the same trails a paced run of
+  that seed gives, and the page shows the measured time.
+- Given the right column collapsed, the rail shows the open list's length and every ticket keeps moving.
 - Given a must-review ticket that reaches Done unflagged, "High-risk tickets missed so far" goes up by one and
-  the feed shows it; a flagged ticket still in Review does not count.
+  its closed line shows Missed; a flagged ticket still open does not count.
 - Given each live number, it equals a hand count on a fixed small fixture run.
 - Given the top term "so cannot" and the text "so I cannot follow", the chip spans "so I cannot"; given a rule
   word that is a list entry not written in the text, no span is highlighted and the detail still lists it.
-- Given `prefers-reduced-motion: reduce`, no element moves position during a run.
-- Given keyboard only, a person can start, pause, step, explain, take over, confirm and finish a run.
+- Given `prefers-reduced-motion: reduce`, nothing slides: a card changes place in one frame with no transition.
+- Given keyboard only, a person can start, pause, step, open Why this choice, review, confirm and finish a run.
 - Given a fold model that fails to load, the page shows the error and Retry, and no ticket is generated.
 - Given a viewport of 375 px, no content is cut off and the page does not scroll sideways.
 
@@ -199,14 +247,17 @@ tickets in about 2 minutes".
 - **No UI framework:** plain TypeScript and the DOM; four panels and a control bar do not need one, and the
   page-size budget starts this PR.
 - **Replay by `?seed=`:** the seed is shown and the address replays it; no input field.
-- **Live numbers shown:** model accuracy beside v0, as the "beats v0" gate compares them (parent C2); the
-  accuracy after review goes to the PR 5 report.
+- **Numbers shown:** model accuracy beside v0, as the "beats v0" gate compares them (parent C2); the accuracy after
+  review goes to the PR 5 report.
 - **Viewer review scoring:** correct = category and priority both right; team not scored (parent C3).
 - **Arrival volume:** Act 2 uses a fixed default of 100 tickets per business day (500 a week, read from the
   course's "hundreds of tickets a week"), shown on screen as an assumption; its presets come with the
-  PR 5 assumptions panel, as do the time-saved number, the manual queue and the capacity test, because each
-  needs an assumption with a cited source that PR 5 adds. Until then the wireframe's "Time saved" row is not
-  shown rather than shown empty.
+  PR 5 assumptions panel, as do the value saved number, the manual queue and the capacity test, because each
+  needs an assumption with a cited source that PR 5 adds. Until then All numbers has no value saved row rather than
+  an empty or invented one; PR 5 adds it there.
+- **Real speed button:** finishes the rest of the run unpaced, since a card cannot be drawn at about 2,000 tickets a
+  second; the busy day stays as the paced Act 2.
+- **Reviewer pace is wall time:** one close a second at both acts; shown on the page as an assumption.
 - **"High-risk missed so far"** counts must-review tickets that reached Done unflagged, the same rule as
   `computeMetrics`, so the live count and the report agree.
-- **Live region at learn speed only,** so a screen reader is not flooded at real speed.
+- **Live region at learn speed only,** so a screen reader is not flooded on the busy day.
