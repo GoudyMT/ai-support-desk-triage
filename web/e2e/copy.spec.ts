@@ -9,7 +9,7 @@ test.describe('the title block', () => {
   test('says what the demo is under the title', async ({ page }) => {
     await open(page);
     await expect(page.locator('#purpose')).toHaveText(
-      "A live demo. Made-up support tickets go through a trained model and safety rules, and a person checks the doubtful ones. The model has never seen these tickets' wording.",
+      'A live demo. Made-up support tickets go through a trained model and safety rules, and a simulated reviewer checks the doubtful ones. The model was trained on different messages.',
     );
   });
 });
