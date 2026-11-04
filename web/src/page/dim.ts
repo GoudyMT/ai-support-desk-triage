@@ -100,10 +100,22 @@ export function createDim(): Dim {
     document.documentElement.style.setProperty('--block-h', `${height}px`);
   };
 
-  window.addEventListener('resize', measure);
+  // Everything a step does for the screen it is on: the room kept for the docked block, the lit part brought into
+  // view, and the hole measured. Run when a step is shown and again when the screen changes (a turned phone, a
+  // window, a larger text size), which can take the layout from docked to beside the hole, or move the lit part.
+  function layOut(): void {
+    if (hole.hidden) return;
+    const docked = !window.matchMedia(WIDE).matches;
+    keepRoom(docked ? block.offsetHeight : 0);
+    if (docked) scrollAbove();
+    else scrollLit();
+    measure();
+  }
+
+  window.addEventListener('resize', layOut);
   window.addEventListener('scroll', measure, true);
   // The bar's height decides how tall the board is, so a change to it moves what is lit.
-  new ResizeObserver(measure).observe(byId('bar'));
+  new ResizeObserver(layOut).observe(byId('bar'));
   return {
     show(step, line) {
       lit = step.lit;
@@ -112,12 +124,8 @@ export function createDim(): Dim {
       ticket.hidden = line === null;
       setText(ticket, `This ticket: ${line ?? ''}`);
       block.hidden = false;
-      const docked = !window.matchMedia(WIDE).matches;
-      keepRoom(docked ? block.offsetHeight : 0);
-      if (docked) scrollAbove();
-      else scrollLit();
       hole.hidden = false;
-      measure();
+      layOut();
     },
     measure,
     hide() {

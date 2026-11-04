@@ -1,10 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openLearn } from './helpers';
-import { LIT, eachStep, litBox, zoomText } from './learnKit';
+import { LIT, count, eachStep, litBox, next, zoomText } from './learnKit';
 
 // Learn on a small screen and at a large text size: the words stay reachable, the lit part stays on the screen above
 // the bar, and what the viewer had open (All numbers) does not push it away. Each is held to every step.
 const LIT_SHOWING_PX = 44; // a card's height
+const SETTLE_MS = 700; // the hole eases for half a second
+const LIT_BREATHING_PX = 4; // the room the hole keeps round the lit part
+const HOLE_TOLERANCE_PX = 2;
 
 // The block's title and text can both be scrolled into its own box, and the box is on the screen above the bar.
 async function wordsReachable(page: Page, at: number): Promise<void> {
@@ -59,5 +62,64 @@ test.describe('the docked block, on a very small screen and at a large text size
       await openLearn(page);
       await eachStep(page, (at) => wordsReachable(page, at));
     });
+  });
+});
+
+// A phone turned on its side, a window made narrower or wider: the walk is laid out again as when a step is shown
+// (the room under the page, the lit part scrolled to), so the hole is where the lit part is.
+const THIRD_STEP = 3;
+
+async function holeOnLit(page: Page, at: number, label: string): Promise<void> {
+  await page.waitForTimeout(SETTLE_MS);
+  const seen = await page.evaluate((selector) => {
+    const hole = document.querySelector('.dim')?.getBoundingClientRect();
+    const boxes = [...document.querySelectorAll(selector)].filter((n) => n.getClientRects().length > 0).map((n) => n.getBoundingClientRect());
+    const bar = document.getElementById('bar')?.getBoundingClientRect();
+    const block = document.querySelector('.learn-block')?.getBoundingClientRect();
+    return {
+      holeHeight: hole?.height ?? 0,
+      holeTop: hole?.top ?? 0,
+      litTop: Math.min(...boxes.map((b) => b.top)),
+      litBottom: Math.max(...boxes.map((b) => b.bottom)),
+      barTop: bar?.top ?? 0,
+      blockTop: block?.top ?? 0,
+      blockBottom: block?.bottom ?? 0,
+      blockHeight: Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-h')) || 0,
+    };
+  }, LIT[at] ?? '');
+  expect(seen.holeHeight, `${label}: the hole is there`).toBeGreaterThan(0);
+  expect(seen.litTop, `${label}: lit top`).toBeGreaterThanOrEqual(-0.5);
+  expect(seen.litBottom, `${label}: lit bottom over the bar`).toBeLessThanOrEqual(seen.barTop + 0.5);
+  expect(Math.abs(seen.holeTop - (seen.litTop - LIT_BREATHING_PX)), `${label}: the hole at the lit part`).toBeLessThanOrEqual(HOLE_TOLERANCE_PX);
+  expect(seen.blockTop, `${label}: block top`).toBeGreaterThanOrEqual(-0.5);
+}
+
+test.describe('the walk when the screen changes size', () => {
+  async function toStepFour(page: Page): Promise<void> {
+    await openLearn(page);
+    for (let n = 0; n < THIRD_STEP; n += 1) await next(page).click();
+    await expect(count(page)).toHaveText('Step 4 of 7');
+  }
+
+  test('lays the lit part out again when a window goes from wide to narrow and back', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await toStepFour(page);
+    await holeOnLit(page, THIRD_STEP, 'wide');
+    await page.setViewportSize({ width: 375, height: 812 });
+    await holeOnLit(page, THIRD_STEP, 'narrow');
+    expect(await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-h')))).toBeGreaterThan(0);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await holeOnLit(page, THIRD_STEP, 'wide again');
+    expect(await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-h')))).toBe(0);
+  });
+
+  test('lays it out again when a phone is turned on its side', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await toStepFour(page);
+    await holeOnLit(page, THIRD_STEP, 'upright');
+    await page.setViewportSize({ width: 812, height: 375 });
+    await holeOnLit(page, THIRD_STEP, 'on its side');
+    await page.setViewportSize({ width: 375, height: 812 });
+    await holeOnLit(page, THIRD_STEP, 'upright again');
   });
 });
