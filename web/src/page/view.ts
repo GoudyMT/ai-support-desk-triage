@@ -296,9 +296,10 @@ export function incomingView(state: RunState): { id: string; preview: string; ta
 }
 
 // A paused run always says what the current stage did. While playing, a slowed-down ticket (one of the first, or of
-// the three after a Slow down on the busy day) is narrated at every stage; a quick ticket of Act 1 only at its last
-// stage (Guardrails); and the busy day at full speed says nothing: it moves too fast to read, and would flood a
-// screen reader.
+// the three after a Slow down on the busy day) is narrated at every stage, and the busy day at full speed says nothing:
+// it moves too fast to read, and would flood a screen reader. A quick ticket of Act 1 is narrated at its last stage
+// (Guardrails) only. A viewer's Speed up goes straight to the busy day, so that tier is reached only when Learn plays
+// on at the end of the slow part; it is kept so that run reads the same in either view.
 function sentenceShown(state: RunState, deep: boolean, stage: Stage): boolean {
   if (!state.playing) return true;
   return deep || (state.act === 1 && stage === 'guardrails');
