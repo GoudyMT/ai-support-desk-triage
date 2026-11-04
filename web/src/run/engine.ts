@@ -6,12 +6,8 @@ import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { Reviewer, TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
 import type { Schedule } from './clock';
+import type { Tag } from './prescreen';
 import { foldOf } from './seed';
-
-export interface Tag {
-  priority: Priority;
-  critical: boolean;
-}
 
 export interface Waiting {
   id: string;

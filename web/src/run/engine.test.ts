@@ -9,7 +9,8 @@ import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
 import { createSchedule, type Schedule } from './clock';
-import { createRun, type Run, type RunState, type Tag } from './engine';
+import { createRun, type Run, type RunState } from './engine';
+import type { Tag } from './prescreen';
 import { foldOf } from './seed';
 
 const SEED = 1001;
