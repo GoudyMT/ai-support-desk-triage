@@ -5,6 +5,10 @@ import { FIRST_OPEN_MS, SEED, open, reviewButton, stat, tabTo } from './helpers'
 const REVIEWER_CLOSE_MS = 1_600;
 const STEP_LIMIT = 40;
 const LATE_PRESSES = 5000;
+const DEEP_TICKETS_MS = 61_000;
+const POLL_MS = 250;
+const NARRATION_POLLS = 60;
+const BUSY_LIMIT = 600;
 
 async function playTo(page: Page, ms: number): Promise<void> {
   await open(page);
@@ -50,6 +54,46 @@ test.describe('the measured real speed result', () => {
     await expect(real).toHaveText(/last [1-3] tickets? at real speed/);
     await real.click();
     await expect(page.locator('#ticket')).toContainText(/130 tickets through every stage in [1-9]\d* ms, about [\d,]+ tickets a second\./);
+  });
+});
+
+test.describe('the narration', () => {
+  const said = (page: Page) =>
+    page.evaluate(() => ({
+      shown: (document.querySelector('#ticket .say') as HTMLElement | null)?.innerText ?? '',
+      spoken: document.getElementById('announcer')?.textContent ?? '',
+    }));
+
+  test('is spoken exactly as shown: one sentence per later ticket, none on the busy day, always on Pause', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    // The first three tickets take 20 s each and are narrated at every stage; after them, one sentence each.
+    await page.clock.runFor(DEEP_TICKETS_MS);
+    let withSentence = 0;
+    let without = 0;
+    for (let n = 0; n < NARRATION_POLLS; n += 1) {
+      await page.clock.runFor(POLL_MS);
+      const now = await said(page);
+      expect(now.spoken).toBe(now.shown);
+      if (now.shown === '') without += 1;
+      else withSentence += 1;
+    }
+    expect(withSentence).toBeGreaterThan(3);
+    expect(without).toBeGreaterThan(3);
+
+    for (let n = 0; n < BUSY_LIMIT && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
+      await page.clock.runFor(1000);
+    }
+    await expect(page.locator('#status')).toHaveText('Busy day');
+    for (let n = 0; n < NARRATION_POLLS; n += 1) {
+      await page.clock.runFor(POLL_MS);
+      expect(await said(page)).toEqual({ shown: '', spoken: '' });
+    }
+
+    await page.getByRole('button', { name: 'Pause' }).click();
+    const paused = await said(page);
+    expect(paused.shown).not.toBe('');
+    expect(paused.spoken).toBe(paused.shown);
   });
 });
 

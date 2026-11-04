@@ -313,7 +313,7 @@ describe('the ticket being worked', () => {
 
   it('ends the Classify line with the team the model category sends the ticket to', () => {
     const trail = trailOf({ model: 'Accessibility Support' });
-    const view = must(centerView(withState({ current: { trail, stage: 'classify' } })));
+    const view = must(centerView(withState({ current: { trail, stage: 'classify', deep: true } })));
     expect(view.lines[1]?.text).toMatch(/Priority Medium, 85% sure\. Goes to Accessibility Team\.$/);
     expect(ROUTES['Accessibility Support']).toBe('Accessibility Team');
   });
@@ -323,7 +323,7 @@ describe('the ticket being worked', () => {
       model: 'Accessibility Support',
       reasons: [RULE_CAPTIONS, { kind: 'category', category: 'Accessibility Support' }],
     });
-    const view = must(centerView(withState({ current: { trail, stage: 'guardrails' } })));
+    const view = must(centerView(withState({ current: { trail, stage: 'guardrails', deep: true } })));
     expect(view.lines.at(-1)?.text).toBe(
       'flagged. A rule caught "captions", and Accessibility Support tickets always go to a person.',
     );
@@ -332,6 +332,47 @@ describe('the ticket being worked', () => {
   it('speaks for the stage it is at, in plain words', () => {
     expect(must(centerView(atStage('intake'))).plain).toContain('The ticket arrived');
     expect(must(centerView(atStage('classify'))).plain).toContain('The model reads the masked text');
+  });
+
+  describe('the plain sentence', () => {
+    const trail = trailOf({ model: 'Accessibility Support', reasons: [RULE_CAPTIONS] });
+    const sentence = (opts: { playing: boolean; act: 1 | 2; deep: boolean; stage: CenterStage }): string | null =>
+      must(
+        centerView(
+          withState({ playing: opts.playing, act: opts.act, current: { trail, stage: opts.stage, deep: opts.deep } }),
+        ),
+      ).plain;
+    const STAGES: CenterStage[] = ['intake', 'privacy', 'classify', 'guardrails'];
+
+    it('is on every stage of a deep ticket at learn pace', () => {
+      for (const stage of STAGES) expect(sentence({ playing: true, act: 1, deep: true, stage })).not.toBeNull();
+    });
+
+    it('is one sentence, when Guardrails is reached, for a later ticket at learn pace', () => {
+      expect(STAGES.map((stage) => sentence({ playing: true, act: 1, deep: false, stage }) !== null)).toEqual([
+        false,
+        false,
+        false,
+        true,
+      ]);
+    });
+
+    it('is absent on the busy day while playing, for any ticket and stage', () => {
+      for (const deep of [true, false]) {
+        for (const stage of STAGES) expect(sentence({ playing: true, act: 2, deep, stage })).toBeNull();
+      }
+    });
+
+    it('is always there on Pause, for the stage the ticket is at', () => {
+      for (const [act, deep] of [[1, false], [2, false], [2, true]] as const) {
+        for (const stage of STAGES) {
+          const plain = sentence({ playing: false, act, deep, stage });
+          expect(plain).toBe(centerView(withState({ playing: false, act, current: { trail, stage, deep } }))?.plain);
+          expect(plain).not.toBeNull();
+        }
+      }
+      expect(sentence({ playing: false, act: 2, deep: false, stage: 'intake' })).toContain('The ticket arrived');
+    });
   });
 
   it('carries the tag once the pre-screener has answered, and none before', () => {
@@ -354,7 +395,7 @@ describe('the ticket being worked', () => {
       terms: ['so cannot', 'follow'],
       reasons: [RULE_CAPTIONS],
     });
-    const at = (stage: CenterStage, shown = trail) => must(centerView(withState({ current: { trail: shown, stage } })));
+    const at = (stage: CenterStage, shown = trail) => must(centerView(withState({ current: { trail: shown, stage, deep: true } })));
     const marked = (stage: CenterStage) =>
       at(stage)
         .segments.filter((segment) => segment.kind !== 'plain')

@@ -154,7 +154,7 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
   it('counts only closed tickets, not the center, the open list or the review form', () => {
     const state = stateOf({
       done: ['T01', 'T02', 'T03', 'T04'].map((id) => trail(id)),
-      current: { trail: trail('T05'), stage: 'guardrails' },
+      current: { trail: trail('T05'), stage: 'guardrails', deep: false },
       open: [trail('T06'), trail('T09')],
       reviewing: trail('T12'),
     });
@@ -168,7 +168,7 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
 
   // Guards the first moments of a run, before any ticket is done: no division by zero, no NaN on screen.
   it('gives zeros and nulls before any ticket is done', () => {
-    const current = { trail: trail('T01'), stage: 'intake' as const };
+    const current = { trail: trail('T01'), stage: 'intake' as const, deep: true };
     const numbers = liveNumbers(stateOf({ done: [], realSpeed: { tickets: 12, ms: 780 }, current }), truthOf);
     expect(numbers).toEqual({
       done: 0,

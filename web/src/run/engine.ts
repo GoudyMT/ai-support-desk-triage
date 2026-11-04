@@ -25,7 +25,8 @@ export interface RunState {
   // Run time in ms: the time of the last event fired.
   simTime: number;
   incoming: Waiting[];
-  current?: { trail: TicketTrail; stage: CenterStage; tag?: Tag };
+  // `deep`: one of the first tickets, which are narrated at every stage.
+  current?: { trail: TicketTrail; stage: CenterStage; tag?: Tag; deep: boolean };
   open: TicketTrail[];
   done: TicketTrail[];
   reviewing?: TicketTrail;
@@ -394,7 +395,11 @@ export function createRun(opts: RunOptions): Run {
       viewerReviews: viewerReviews.map((entry) => ({ ...entry })),
     };
     if (center !== undefined) {
-      snapshot.current = { trail: hideAnswer(center.trail), stage: CENTER_STAGES[center.stage] ?? 'intake' };
+      snapshot.current = {
+        trail: hideAnswer(center.trail),
+        stage: CENTER_STAGES[center.stage] ?? 'intake',
+        deep: center.index < DEEP_TICKETS,
+      };
       if (center.tag !== undefined) {
         snapshot.current.tag = center.tag;
       }

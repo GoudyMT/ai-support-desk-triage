@@ -124,12 +124,19 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
   };
 }
 
-// Only learn speed and a paused run are spoken: the busy day would flood a screen reader.
+// The live region says exactly what the center shows: its sentence, once per stage. With no
+// sentence shown (later tickets between stages, the busy day) it is emptied and stays quiet.
 function announce({ page }: Mounted, state: RunState): void {
   const view = centerView(state);
-  const key = view === undefined ? '' : `${view.id}|${view.stageName}`;
-  if (view !== undefined && explainMode(state) === 'offered' && key !== page.announced) {
-    setText(byId('announcer'), view.plain);
+  const text = view?.plain ?? null;
+  if (view === undefined || text === null) {
+    setText(byId('announcer'), '');
+    page.announced = '';
+    return;
+  }
+  const key = `${view.id}|${view.stageName}`;
+  if (key !== page.announced) {
+    setText(byId('announcer'), text);
     page.announced = key;
   }
 }

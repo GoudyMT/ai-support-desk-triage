@@ -90,6 +90,7 @@
   --motion: 150ms;
   --disabled: 0.5;
   --sr-size: 1px;
+  --say-lines: 2;
   --dot: 0.375rem;
   --twinkle: 1200ms;
   --twinkle-low: 0.25;

@@ -34,7 +34,8 @@ export interface CenterView {
   // One row per stage from Privacy on, so the center never changes height as stages are reached.
   // A row whose stage is not reached has `text: null`: nothing of a later result is shown early.
   lines: { label: string; text: string | null }[];
-  plain: string;
+  // The sentence for this stage, or null when none is shown (see `sentenceShown`).
+  plain: string | null;
   why: { label: string; value: string }[];
   // A caution about the highlighted words, from Classify on, when the words are first shown.
   whyNote: string | null;
@@ -244,6 +245,14 @@ export function incomingView(state: RunState): { id: string; preview: string; ta
   }));
 }
 
+// A paused run always says what the current stage did. While playing, learn pace narrates every
+// stage of the first tickets and only the last stage (Guardrails) of the others, and the busy day
+// says nothing: it moves too fast to read, and would flood a screen reader.
+function sentenceShown(state: RunState, deep: boolean, stage: Stage): boolean {
+  if (!state.playing) return true;
+  return state.act === 1 && (deep || stage === 'guardrails');
+}
+
 export function centerView(state: RunState): CenterView | undefined {
   const { current } = state;
   if (current === undefined) {
@@ -264,7 +273,7 @@ export function centerView(state: RunState): CenterView | undefined {
       label: LINE_LABELS[line],
       text: stageIndex(line) <= at ? lineText(trail, line) : null,
     })),
-    plain: narrate(trail, stage).plain,
+    plain: sentenceShown(state, current.deep, stage) ? narrate(trail, stage).plain : null,
     why: narrate(trail, stage).detail.filter((row) => stageIndex(revealedAt(row.label)) <= at),
     whyNote: at >= stageIndex('classify') ? WHY_NOTE : null,
   };

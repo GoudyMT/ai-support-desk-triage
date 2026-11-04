@@ -124,6 +124,18 @@ describe('the whole run', () => {
   });
 });
 
+describe('the tickets that are narrated stage by stage', () => {
+  it('marks the first three tickets in the center as deep, and the others as not', () => {
+    const run = makeRun();
+    const deep = new Map<string, boolean>();
+    stepToEnd(run, (state) => {
+      if (state.current !== undefined) deep.set(state.current.trail.id, state.current.deep);
+    });
+    expect([...deep.keys()].length).toBe(TOTAL);
+    for (let i = 0; i < TOTAL; i += 1) expect(deep.get(idOf(i))).toBe(i < 3);
+  });
+});
+
 describe('a whole real day', () => {
   const steppedDay = (wallClock: () => number): { outlines: string[]; end: RunState } => {
     const run = makeRealRun(wallClock);

@@ -144,7 +144,7 @@ function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView
   reconcile(panel.track, ticket.steps, (s) => s.name, makeStep, updateStep);
   panel.text.replaceChildren(...segmentNodes(ticket.segments));
   reconcile(panel.lines, ticket.lines, (line) => line.label, makeLine, updateLine);
-  setText(panel.say, ticket.plain);
+  setText(panel.say, ticket.plain ?? '');
   const offered = input.explain === 'offered';
   const open = offered && input.explainOpen;
   panel.toggle.hidden = !offered;
