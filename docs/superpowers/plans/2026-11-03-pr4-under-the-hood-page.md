@@ -274,7 +274,8 @@ Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, an
 
 ### Task 10 (lead, after the owner's yes on the static screen): motion
 
-- [ ] Cards slide between places and up the line, timed so a person can follow; nothing moves under reduced motion ->
+- [ ] Cards slide between sections (left, center, right) and up the line, timed so a person can follow; no other motion
+      but the waiting dots (owner, 2026-11-04: too much motion is hard to follow); nothing moves under reduced motion ->
       verify: e2e reduced-motion spec green; the owner's look on the running page
 - [ ] Commit `feat: animate the cards`
 

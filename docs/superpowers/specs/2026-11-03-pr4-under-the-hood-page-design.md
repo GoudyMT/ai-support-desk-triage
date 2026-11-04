@@ -187,8 +187,10 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
 
 **Should**
 - Shared vocabulary in the model file (parked item), only if the first build shows the model budget needs it.
-- Motion, after the static screen is approved: cards slide between places and up the line, timed so a person can
-  follow them; none under reduced motion.
+- Motion, after the static screen is approved (owner, 2026-11-04): the one big motion is cards moving between sections:
+  left incoming, center focused, right completed or pending, and up the line when tagged, timed so a person can follow
+  them. The only other movement is the small waiting dots. None of it under reduced motion. A later second review gets
+  its own area on the board, so its cards move the same way.
 
 **Later (seams only)**
 - The end report and its link from "Run complete", the assumptions panel and the time-saved number, the
