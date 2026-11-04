@@ -1,0 +1,80 @@
+/* Motion only where the viewer allows it, and a shape for each mark in forced colors. This file
+   is loaded last so that its rules win over the panels' where they overlap. */
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .tab,
+  .step-bar {
+    transition:
+      background-color var(--motion),
+      color var(--motion),
+      border-color var(--motion);
+  }
+
+  .chevron {
+    transition: transform var(--motion);
+  }
+
+  /* The three dots of a waiting stage row light in turn. */
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: var(--twinkle-low);
+    }
+
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .dot {
+    animation: twinkle var(--twinkle) infinite;
+  }
+
+  .dot:nth-child(2) {
+    animation-delay: calc(var(--twinkle) / 3);
+  }
+
+  .dot:nth-child(3) {
+    animation-delay: calc(var(--twinkle) * 2 / 3);
+  }
+}
+
+/* Forced colors drop backgrounds, so each mark that was a color gets a shape instead. */
+@media (forced-colors: active) {
+  .tag,
+  .pill,
+  .rail-count {
+    border-color: CanvasText;
+  }
+
+  .step-done .step-bar {
+    background: CanvasText;
+  }
+
+  .step-now .step-bar {
+    background: Highlight;
+  }
+
+  .tab[aria-selected='true'] {
+    border-color: Highlight;
+    outline: var(--stroke) solid Highlight;
+    outline-offset: calc(-1 * var(--space-1));
+  }
+
+  .btn-solid {
+    border-color: Highlight;
+  }
+
+  .chip {
+    text-decoration-thickness: var(--stroke);
+  }
+
+  .rule {
+    outline-width: var(--stroke);
+    outline-color: CanvasText;
+  }
+
+  .mask {
+    border: var(--border) solid CanvasText;
+  }
+}

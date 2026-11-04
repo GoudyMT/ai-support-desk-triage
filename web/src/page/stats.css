@@ -1,0 +1,51 @@
+/* The four live numbers across the top, and the All numbers panel that opens under them. */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.stat-value {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--w-strong);
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-alert .stat-value {
+  color: var(--alert);
+}
+
+.numbers {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.more-value {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.assumptions {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
