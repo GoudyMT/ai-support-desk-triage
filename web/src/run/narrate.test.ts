@@ -132,6 +132,13 @@ describe('narrate: classify', () => {
 });
 
 describe('narrate: guardrails', () => {
+  it('speaks the first reasons as a whole sentence and leaves the rest to the detail', () => {
+    const { plain, detail } = narrate(EVERYTHING_FLAGGED, 'guardrails');
+    expect(plain).toMatch(/"[^"]+".$|floor.$|person.$/);
+    expect(plain).not.toContain('more');
+    expect(detail.filter((row) => row.label.startsWith('Flag'))).toHaveLength(EVERYTHING_FLAGGED.guard.reasons.length);
+  });
+
   it('names the reason a rule fired, the word it saw and the category check', () => {
     const { plain } = narrate(ACCESSIBILITY, 'guardrails');
     expect(plain).toContain('accessibility issue');

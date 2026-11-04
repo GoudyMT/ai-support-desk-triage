@@ -65,8 +65,7 @@ function guardrailsPlain(trail: TicketTrail): string {
   const { guard, category } = trail;
   if (guard.flagged) {
     const spoken = guard.reasons.slice(0, REASONS_SPOKEN).map(reasonPhrase);
-    const more = guard.reasons.length - spoken.length;
-    return `This ticket waits for a person because ${spoken.join(' and ')}${more > 0 ? `, plus ${more} more` : ''}.`;
+    return `This ticket waits for a person because ${spoken.join(' and ')}.`;
   }
   if (guard.clearedBySecondCheck) {
     return (
