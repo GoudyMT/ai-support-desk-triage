@@ -141,6 +141,21 @@ test.describe('a focus ring is drawn whole', () => {
   });
 });
 
+test.describe('the Coming in list, which scrolls', () => {
+  // A keyboard user can only scroll a region they can focus.
+  test('can be reached with the Tab key, and has a name', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#incoming')).toHaveAttribute('tabindex', '0');
+    await expect(page.getByRole('region', { name: 'Coming in' })).toHaveCount(1);
+    let reached = false;
+    for (let n = 0; n < PRESS_LIMIT && !reached; n += 1) {
+      await page.keyboard.press('Tab');
+      reached = await page.evaluate(() => document.activeElement?.id === 'incoming');
+    }
+    expect(reached).toBe(true);
+  });
+});
+
 test.describe('while a review form is open', () => {
   test('the other Review buttons are disabled, and come back when it closes', async ({ page }) => {
     await open(page);
