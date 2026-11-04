@@ -142,6 +142,16 @@ function eventKind(before: RunState, after: RunState): 'close' | 'leave' | 'othe
   return 'other';
 }
 
+// Steps to the next close and returns the run time it happened at.
+function stepToClose(run: Run): number {
+  for (let n = 0; n <= MAX_STEPS; n += 1) {
+    const before = run.state();
+    run.step();
+    if (eventKind(before, run.state()) === 'close') return run.state().simTime;
+  }
+  throw new Error('test: no ticket was closed');
+}
+
 // A run stopped the moment ticket `index` joins the open list. The reviewer closes slower
 // than the center sends tickets on, so older tickets are still open beside it.
 function runToOpen(index: number): Run {
@@ -287,6 +297,17 @@ describe('events in run time', () => {
     stepUntil(run, (s) => s.done.some((t) => t.id === id));
     expect(run.state().simTime).toBe(opened + CLOSE_EVERY_MS);
     expect(lastDone(run).id).toBe(id);
+  });
+
+  // The reviewer keeps going: after one close the next open ticket closes exactly one
+  // CLOSE_EVERY_MS later, not at once, not never.
+  it('closes the second of two open tickets CLOSE_EVERY_MS after the first', () => {
+    // Ticket 3 joins ticket 2, the first time two are open; no earlier close left one waiting.
+    const run = runToOpen(3);
+    expect(ids(run.state().open)).toEqual([3, 2].map(idOf));
+    const firstClosedAt = stepToClose(run);
+    expect(lastDone(run).id).toBe(idOf(3));
+    expect(stepToClose(run)).toBe(firstClosedAt + CLOSE_EVERY_MS);
   });
 
   it.each([
