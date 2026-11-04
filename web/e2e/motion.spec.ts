@@ -8,6 +8,7 @@ const GHOST_GONE_MS = 5_000;
 const SETTLE_MS = 600;
 const SHIFT_RUN_MS = 3_000;
 const WALK_STEPS = 30;
+const WALK_LIMIT = 600;
 
 interface Ghost {
   id: string;
@@ -119,9 +120,16 @@ test.describe('the cases with no motion or no harm', () => {
   test('real speed makes no ghost and leaves the layer empty', async ({ page }) => {
     await watchGhosts(page);
     await playTo(page, FIRST_OPEN_MS);
+    // Late in the run, so the tickets still on screen are the ones that finish at the top of the closed
+    // list: with an earlier start their landing places would be off screen and nothing could be seen to move.
+    const real = page.getByRole('button', { name: /at real speed$/ });
+    for (let n = 0; n < WALK_LIMIT && !/last [1-3] tickets?/.test(await real.innerText()); n += 1) {
+      await page.clock.runFor(1000);
+    }
+    await expect(real).toHaveText(/last [1-3] tickets? at real speed/);
     await expect.poll(async () => (await ghosts(page)).every((ghost) => ghost.gone), { timeout: GHOST_GONE_MS }).toBe(true);
     const before = (await ghosts(page)).length;
-    await page.getByRole('button', { name: /at real speed$/ }).click();
+    await real.click();
     await expect(page.locator('#status')).toHaveText('Run complete');
     expect((await ghosts(page)).length).toBe(before);
     expect(await layerCount(page)).toBe(0);
