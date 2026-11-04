@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { openLearn, playToFirstOpen, tabTo } from './helpers';
 import { block, count, next } from './learnKit';
 
+// Long enough for a slow ticket to move from one stage to the next (five seconds), short of the end of step 7.
+const STEP_7_LISTEN_MS = 5_500;
+
 // Longer than the reviewer's 1.5 s to close a card, shorter than the nine seconds step 6's words take.
 const STEP_6_WAIT_MS = 4_000;
 
@@ -52,6 +55,25 @@ test.describe('the bar on a phone', () => {
 });
 
 test.describe('what a screen reader is told in Learn', () => {
+  // Two voices at once cannot be followed: Learn speaks its steps, and the run's own sentences stay quiet. The
+  // steps that hold the ticket keep the run from changing its sentence, so this listens on step 7, where nothing
+  // is held and the live ticket moves on every five seconds.
+  test('hears the step and not the run, on a step where the run moves', async ({ page }) => {
+    await openLearn(page);
+    for (let n = 0; n < 6; n += 1) await next(page).click();
+    await expect(count(page)).toHaveText('Step 7 of 7');
+    const heard = await page.locator('#announcer').innerText();
+    const [title, text] = await block(page).locator('h2, p').allInnerTexts();
+    expect(heard).toBe(`${title}. ${text}`);
+    const sentence = () => page.locator('#ticket .say').innerText();
+    const before = await sentence();
+    await page.clock.runFor(STEP_7_LISTEN_MS);
+    await expect(count(page)).toHaveText('Step 7 of 7');
+    // The run did speak on screen, and the announcer held to the step.
+    expect(await sentence()).not.toBe(before);
+    expect(await page.locator('#announcer').innerText()).toBe(heard);
+  });
+
   test('on steps 3, 4 and 5 is the step and the live ticket sentence together, as the block shows them', async ({ page }) => {
     await openLearn(page);
     for (let at = 1; at <= 4; at += 1) {

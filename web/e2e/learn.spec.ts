@@ -10,6 +10,7 @@ const BREATHING_PX = 4;
 // Longer than the 0.5 s the hole takes to ease to the next lit part.
 const EASE_WAIT_MS = 6_000;
 const EASE_SETTLE_MS = 700;
+const LIT_SHOWING_PX = 44; // a card's height of the lit part, above the docked block on a phone
 interface Step {
   title: string;
   text: string;
@@ -388,11 +389,9 @@ test.describe('on a phone', () => {
           .filter((node) => node.getClientRects().length > 0)
           .filter((node) => node.getBoundingClientRect().width < 43.5 || node.getBoundingClientRect().height < 43.5)
           .map((node) => node.textContent?.trim() ?? '');
-        const overlap =
-          hole !== undefined && learn !== undefined && hole.left < learn.right && learn.left < hole.right && hole.top < learn.bottom && learn.top < hole.bottom;
         return {
           sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          overlap,
+          blockTop: learn?.top ?? 0,
           holeHeight: hole?.height ?? 0,
           blockEnd: learn?.bottom ?? Number.POSITIVE_INFINITY,
           barTop: bar?.top ?? 0,
@@ -400,7 +399,9 @@ test.describe('on a phone', () => {
         };
       });
       expect(seen.sideways, `step ${at + 1} scrolls sideways`).toBe(false);
-      expect(seen.overlap, `step ${at + 1} block covers the hole`).toBe(false);
+      // The hole stops at the block by design, so it never overlaps it; the lit element itself must show above it.
+      const lit = await union(page, step.lit);
+      expect(Math.min(lit.y + lit.height, seen.blockTop) - Math.max(lit.y, 0), `step ${at + 1} lit part above the block`).toBeGreaterThanOrEqual(Math.min(lit.height, LIT_SHOWING_PX));
       expect(seen.holeHeight, `step ${at + 1} hole`).toBeGreaterThan(0);
       expect(seen.blockEnd, `step ${at + 1} block over the bar`).toBeLessThanOrEqual(seen.barTop + 0.5);
       expect(seen.small, `step ${at + 1} small targets`).toEqual([]);
