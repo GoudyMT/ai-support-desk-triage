@@ -39,11 +39,15 @@ export function mountStats(
   const rows = el('dl', 'more');
   const notes = el('ul', 'assumptions');
   panel.replaceChildren(rows, notes);
+  // The same chevron as "Why this choice", so both read as something that opens.
+  const label = el('span', undefined, 'All numbers');
+  toggle.replaceChildren(el('span', 'chevron'), label);
   toggle.addEventListener('click', () => {
     const open = panel.hidden;
     panel.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
-    setText(toggle, open ? 'Fewer numbers' : 'All numbers');
+    toggle.classList.toggle('open', open);
+    setText(label, open ? 'Fewer numbers' : 'All numbers');
   });
   return {
     render(stats, more) {

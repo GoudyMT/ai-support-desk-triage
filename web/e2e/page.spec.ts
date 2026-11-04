@@ -267,6 +267,25 @@ test.describe('the stage rows in the center', () => {
   });
 });
 
+test.describe('All numbers', () => {
+  test('looks expandable: a chevron that turns when the panel opens', async ({ page }) => {
+    await open(page);
+    const toggle = page.locator('#more-toggle');
+    const chevron = toggle.locator('.chevron');
+    const turn = () => chevron.evaluate((node) => getComputedStyle(node).transform);
+    await expect(chevron).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const closed = await turn();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#numbers')).toBeVisible();
+    await expect.poll(turn).not.toBe(closed);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect.poll(turn).toBe(closed);
+  });
+});
+
 test.describe('Why this choice', () => {
   test('adds the note on the highlighted words once Classify is reached, and not before', async ({ page }) => {
     await open(page);
