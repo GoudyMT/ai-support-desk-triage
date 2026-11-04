@@ -81,12 +81,13 @@ export function unionBox(boxes: Box[]): Box | undefined {
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(value, high));
 
 // The block goes to the right of the hole, else the left, below, above: the first place where all of it
-// is on the screen (above the bar). With no such place it sits on the bottom edge of the room, which
+// is on the screen (above the bar) and off everything in `keepClear`. With no such place it sits on the bottom edge of the room, which
 // keeps it clear of the bar and covers the hole only as a last resort.
 export function placeBlock(
   hole: Box,
   block: { width: number; height: number },
   view: { width: number; height: number },
+  keepClear: Box[] = [],
 ): { left: number; top: number } {
   const maxLeft = view.width - block.width;
   const maxTop = view.height - block.height;
@@ -96,6 +97,13 @@ export function placeBlock(
     { left: clamp(hole.left, 0, maxLeft), top: hole.top + hole.height + GAP_PX },
     { left: clamp(hole.left, 0, maxLeft), top: hole.top - GAP_PX - block.height },
   ];
-  const fits = tries.find((at) => at.left >= 0 && at.top >= 0 && at.left <= maxLeft && at.top <= maxTop);
+  const clearOf = (at: { left: number; top: number }, other: Box): boolean =>
+    at.left + block.width <= other.left ||
+    other.left + other.width <= at.left ||
+    at.top + block.height <= other.top ||
+    other.top + other.height <= at.top;
+  const fits = tries.find(
+    (at) => at.left >= 0 && at.top >= 0 && at.left <= maxLeft && at.top <= maxTop && keepClear.every((other) => clearOf(at, other)),
+  );
   return fits ?? { left: clamp(hole.left, 0, maxLeft), top: maxTop };
 }

@@ -339,6 +339,35 @@ test.describe('by keyboard and for assistive technology', () => {
   });
 });
 
+for (const viewport of [
+  { width: 1024, height: 768 },
+  { width: 1280, height: 800 },
+  { width: 1920, height: 1080 },
+]) {
+  test.describe(`at ${viewport.width} px`, () => {
+    test.use({ viewport });
+
+    test('keeps the block clear of the view switch, the lit part and the bar on every step', async ({ page }) => {
+      await openLearn(page);
+      for (const [at, step] of STEPS.entries()) {
+        if (at > 0) await next(page).click();
+        await expect(block(page).locator('h2')).toHaveText(step.title);
+        // Polled: the hole eases to its new place, and only where it lands counts.
+        const seen = () => page.evaluate(() => {
+          const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+          const learn = rect('.learn-block');
+          const apart = (other: DOMRect | undefined): boolean =>
+            learn !== undefined &&
+            other !== undefined &&
+            (learn.right <= other.left || other.right <= learn.left || learn.bottom <= other.top || other.bottom <= learn.top);
+          return { view: apart(rect('#view-learn')) && apart(rect('#view-see')), hole: apart(rect('.dim')), bar: apart(rect('#bar')) };
+        });
+        await expect.poll(seen, { message: `step ${at + 1}`, timeout: EASE_WAIT_MS }).toEqual({ view: true, hole: true, bar: true });
+      }
+    });
+  });
+}
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 

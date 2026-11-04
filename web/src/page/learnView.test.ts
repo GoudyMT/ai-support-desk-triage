@@ -132,6 +132,16 @@ describe('where the context block goes', () => {
     expect(inside(box)).toBe(true);
     expect(overlaps(box, hole)).toBe(false);
   });
+
+  it('moves on to the next place when the first one would sit on something that must stay clear', () => {
+    const hole = { left: 660, top: 8, width: 500, height: 56 };
+    const view = { left: 340, top: 12, width: 290, height: 46 };
+    const at = placeBlock(hole, BLOCK, VIEW, [view]);
+    const box = { ...at, ...BLOCK };
+    expect(inside(box)).toBe(true);
+    expect(overlaps(box, hole)).toBe(false);
+    expect(overlaps(box, view)).toBe(false);
+  });
 });
 
 describe('the box a hole covers', () => {
