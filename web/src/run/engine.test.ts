@@ -530,6 +530,22 @@ describe('the whole run', () => {
   });
 });
 
+// A state boiled down to what the page draws, with ticket ids for the trails, so a whole
+// real day can be compared step by step without holding hundreds of copies of every trail.
+function outline(state: RunState): string {
+  return JSON.stringify({
+    time: state.simTime,
+    act: state.act,
+    playing: state.playing,
+    incoming: state.incoming,
+    current: state.current && { id: state.current.trail.id, stage: state.current.stage, tag: state.current.tag },
+    open: ids(state.open),
+    reviewing: state.reviewing?.id,
+    done: ids(state.done),
+    viewerReviews: state.viewerReviews,
+  });
+}
+
 function placeOf(state: RunState, id: string): string | undefined {
   if (state.incoming.some((w) => w.id === id)) return 'incoming';
   if (state.current?.trail.id === id) return state.current.stage;
@@ -540,6 +556,40 @@ function placeOf(state: RunState, id: string): string | undefined {
 }
 
 // The viewer's score means nothing if the simulated reviewer's answer is on screen first.
+describe('a whole real day', () => {
+  const steppedDay = (wallClock: () => number): { outlines: string[]; end: RunState } => {
+    const run = makeRealRun(wallClock);
+    const outlines: string[] = [];
+    stepToEnd(run, (s) => outlines.push(outline(s)));
+    return { outlines, end: run.state() };
+  };
+
+  it('replays the same, step for step, whatever the wall clock reads', () => {
+    let ticks = 0;
+    const first = steppedDay(() => 0);
+    const second = steppedDay(() => (ticks += 5));
+    expect(first.end.act).toBe('complete');
+    expect(second.outlines).toEqual(first.outlines);
+    expect(second.end.done.map(withoutMsTrail)).toEqual(first.end.done.map(withoutMsTrail));
+    // Without this the comparison could hide an engine that never measured anything.
+    expect(JSON.stringify(second.end.done)).not.toBe(JSON.stringify(first.end.done));
+  });
+
+  it.each([
+    ['the start', (s: RunState) => s.simTime >= 0],
+    ['a pile of five open tickets', (s: RunState) => s.open.length >= 5],
+  ])('gives the same trails, in the same order, when finished at once from %s as when stepped', (_name, ready) => {
+    const stepped = steppedDay(() => 0).end;
+    const run = makeRealRun();
+    stepUntil(run, ready);
+    run.finishNow();
+    const finished = run.state();
+    expect(finished.act).toBe('complete');
+    expect(finished.done).toHaveLength(createSchedule(SEED).total);
+    expect(finished.done.map(withoutMsTrail)).toEqual(stepped.done.map(withoutMsTrail));
+  });
+});
+
 describe('what stays hidden until a ticket is done', () => {
   it('never shows the reviewer\'s answer in the center, the open list or the review form', () => {
     let hiddenSeen = 0;
