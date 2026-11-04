@@ -1,3 +1,5 @@
+import { CATEGORIES, PRIORITIES } from '../domain/labels';
+
 export type HeadName = 'category' | 'priority';
 
 export interface Prediction {
@@ -64,7 +66,11 @@ function at<T>(items: readonly T[], i: number): T {
   return item;
 }
 
-function parseHead(raw: unknown): ScoringHead {
+// The class names the app knows how to show: the pipeline reads a category's team and a priority's
+// tag from them, so a model may name no others.
+const KNOWN_CLASSES: Record<HeadName, readonly string[]> = { category: CATEGORIES, priority: PRIORITIES };
+
+function parseHead(raw: unknown, known: readonly string[]): ScoringHead {
   if (!isRecord(raw)) {
     throw new Error(SHAPE_ERROR);
   }
@@ -85,7 +91,7 @@ function parseHead(raw: unknown): ScoringHead {
     // merge two classes, and one that is an inherited key ("toString") would
     // replace a method of the record.
     new Set(classes).size !== classes.length ||
-    classes.some((name) => name in {}) ||
+    classes.some((name) => name in {} || !known.includes(name)) ||
     index.size !== vocabulary.length ||
     idf.length !== vocabulary.length ||
     coef.length !== classes.length ||
@@ -119,8 +125,8 @@ export function loadModel(json: unknown): Model {
   const heads = json['heads'];
   return {
     heads: {
-      category: parseHead(heads['category']),
-      priority: parseHead(heads['priority']),
+      category: parseHead(heads['category'], KNOWN_CLASSES.category),
+      priority: parseHead(heads['priority'], KNOWN_CLASSES.priority),
     },
   };
 }

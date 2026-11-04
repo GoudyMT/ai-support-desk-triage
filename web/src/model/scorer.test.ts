@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES, PRIORITIES } from '../domain/labels';
-import { loadModel, score, tokenize } from './scorer';
+import { loadModel, score, tokenize, type Model } from './scorer';
 
 // The Python constant in ml/triage/features.py. The scorer cannot use it (the
 // inline flag is a syntax error in JavaScript), so a change on either side has
@@ -17,8 +17,14 @@ interface RawHead {
   intercept: number[];
 }
 
+// Class names must be labels the app knows, so the tiny heads borrow three of each kind.
+const A = 'Billing';
+const B = 'Technical Issue';
+const C = 'Account Access';
+const TINY_PRIORITIES = ['Low', 'Medium', 'High'];
+
 const TINY_HEAD: RawHead = {
-  classes: ['A', 'B', 'C'],
+  classes: [A, B, C],
   vocabulary: ['red', 'blue', 'red blue'],
   idf: [1, 2, 3],
   coef: [
@@ -35,7 +41,7 @@ function tinyModel(headPatch: Partial<RawHead> = {}, topPatch: Record<string, un
     tokenPattern: PYTHON_TOKEN_PATTERN,
     ngramRange: [1, 2],
     sublinearTf: true,
-    heads: { category: { ...TINY_HEAD, ...headPatch }, priority: TINY_HEAD },
+    heads: { category: { ...TINY_HEAD, ...headPatch }, priority: { ...TINY_HEAD, classes: TINY_PRIORITIES } },
     ...topPatch,
   };
 }
@@ -74,7 +80,7 @@ describe('loadModel', () => {
     ['fewer coef rows than classes', tinyModel({ coef: [[1, 0, 0.5], [0, 1, -0.5]] })],
     ['intercept shorter than the classes', tinyModel({ intercept: [0.1, 0] })],
     ['a non-number weight', tinyModel({ idf: [1, 'x', 3] as unknown as number[] })],
-    ['two classes (the scorer reads the multi-class form)', tinyModel({ classes: ['A', 'B'], coef: [[1, 0, 0.5], [0, 1, -0.5]], intercept: [0, 0] })],
+    ['two classes (the scorer reads the multi-class form)', tinyModel({ classes: [A, B], coef: [[1, 0, 0.5], [0, 1, -0.5]], intercept: [0, 0] })],
     ['a missing head', tinyModel({}, { heads: { category: TINY_HEAD } })],
     ['another version', tinyModel({}, { version: 2 })],
     ['a longer n-gram range', tinyModel({}, { ngramRange: [1, 3] })],
@@ -92,10 +98,22 @@ describe('loadModel', () => {
     ['an idf value near the largest number', tinyModel({ idf: [1, 2, 1e308] })],
     ['an intercept value near the largest number', tinyModel({ intercept: [0.1, 0, -1e308] })],
     // Two classes with one name would collapse into one entry of the probabilities.
-    ['a repeated class name', tinyModel({ classes: ['A', 'A', 'B'] })],
+    ['a repeated class name', tinyModel({ classes: [A, A, B] })],
     // A class named like an inherited key would replace a method of the probabilities record.
-    ['a class named toString', tinyModel({ classes: ['A', 'toString', 'C'] })],
-    ['a class named __proto__', tinyModel({ classes: ['A', '__proto__', 'C'] })],
+    ['a class named toString', tinyModel({ classes: [A, 'toString', C] })],
+    ['a class named __proto__', tinyModel({ classes: [A, '__proto__', C] })],
+    // The page reads a class name as a category or a priority and looks it up (the team, the tag), so
+    // a name it does not know would reach the screen as a blank or a crash.
+    ['a category head with a name that is not a category', tinyModel({ classes: ['Billing', 'Technical Issue', 'Refunds'] })],
+    ['a category head holding priorities', tinyModel({ classes: ['Low', 'Medium', 'High'] })],
+    [
+      'a priority head with a name that is not a priority',
+      tinyModel({}, { heads: { category: TINY_HEAD, priority: { ...TINY_HEAD, classes: ['Low', 'Medium', 'Critical'] } } }),
+    ],
+    [
+      'a priority head holding categories',
+      tinyModel({}, { heads: { category: TINY_HEAD, priority: { ...TINY_HEAD, classes: ['Billing', 'Other', 'Low'] } } }),
+    ],
     // The scorer implements one token pattern; another splits text differently without any error.
     ['another token pattern', tinyModel({}, { tokenPattern: String.raw`(?u)\b\w+\b` })],
     ['no token pattern', tinyModel({}, { tokenPattern: undefined })],
@@ -110,7 +128,7 @@ describe('loadModel', () => {
       tinyModel({ idf: [1e6, 1, 1], coef: [[1e6, 0, 0], [0, 1, -0.5], [-1, -1, 0]], intercept: [1e6, 0, 0] }),
     );
     const prediction = score(model, 'category', 'red');
-    expect(prediction.label).toBe('A');
+    expect(prediction.label).toBe(A);
     expect(Number.isFinite(prediction.confidence)).toBe(true);
   });
 
@@ -131,11 +149,11 @@ describe('score', () => {
   // Expected numbers computed independently with numpy from the tiny model.
   it('weighs terms as scikit-learn does: 1 + ln(count), idf, length 1, then softmax', () => {
     const prediction = score(loadModel(tinyModel()), 'category', 'red red blue');
-    expect(prediction.label).toBe('A');
+    expect(prediction.label).toBe(A);
     expect(prediction.confidence).toBeCloseTo(0.6228519978818157, 12);
-    expect(prediction.probabilities['A']).toBeCloseTo(0.6228519978818157, 12);
-    expect(prediction.probabilities['B']).toBeCloseTo(0.2866324788336901, 12);
-    expect(prediction.probabilities['C']).toBeCloseTo(0.09051552328449428, 12);
+    expect(prediction.probabilities[A]).toBeCloseTo(0.6228519978818157, 12);
+    expect(prediction.probabilities[B]).toBeCloseTo(0.2866324788336901, 12);
+    expect(prediction.probabilities[C]).toBeCloseTo(0.09051552328449428, 12);
     // "blue" is in the text but adds nothing toward A, so it is no chip.
     expect(prediction.topTerms.map((t) => t.term)).toEqual(['red', 'red blue']);
     expect(prediction.topTerms[0]?.weight).toBeCloseTo(0.42506050925680217, 12);
@@ -144,10 +162,10 @@ describe('score', () => {
 
   it('answers with a class other than the first, and takes the words from that class', () => {
     const prediction = score(loadModel(tinyModel()), 'category', 'blue red');
-    expect(prediction.label).toBe('B');
+    expect(prediction.label).toBe(B);
     expect(prediction.confidence).toBeCloseTo(0.5545199832509413, 12);
-    expect(prediction.probabilities['A']).toBeCloseTo(0.39185397160276764, 12);
-    expect(prediction.probabilities['C']).toBeCloseTo(0.053626045146290914, 12);
+    expect(prediction.probabilities[A]).toBeCloseTo(0.39185397160276764, 12);
+    expect(prediction.probabilities[C]).toBeCloseTo(0.053626045146290914, 12);
     expect(prediction.topTerms.map((t) => t.term)).toEqual(['blue']);
     expect(prediction.topTerms[0]?.weight).toBeCloseTo(0.8944271909999159, 12);
   });
@@ -155,17 +173,17 @@ describe('score', () => {
   it('shows no word that pushed against the answer', () => {
     // The "red blue" phrase is in the text and lowers class B (-0.246).
     const prediction = score(loadModel(tinyModel()), 'category', 'red blue blue blue blue blue');
-    expect(prediction.label).toBe('B');
+    expect(prediction.label).toBe(B);
     expect(prediction.topTerms.map((t) => t.term)).toEqual(['blue']);
     expect(prediction.topTerms[0]?.weight).toBeCloseTo(0.8552470316038023, 12);
   });
 
   it('gives the intercept answer and no terms when no word is known', () => {
     const prediction = score(loadModel(tinyModel()), 'category', 'zzz qqq');
-    expect(prediction.label).toBe('A');
-    expect(prediction.probabilities['A']).toBeCloseTo(0.3671654011109255, 12);
-    expect(prediction.probabilities['B']).toBeCloseTo(0.3322249935333472, 12);
-    expect(prediction.probabilities['C']).toBeCloseTo(0.3006096053557273, 12);
+    expect(prediction.label).toBe(A);
+    expect(prediction.probabilities[A]).toBeCloseTo(0.3671654011109255, 12);
+    expect(prediction.probabilities[B]).toBeCloseTo(0.3322249935333472, 12);
+    expect(prediction.probabilities[C]).toBeCloseTo(0.3006096053557273, 12);
     expect(prediction.topTerms).toEqual([]);
   });
 
@@ -184,25 +202,27 @@ describe('score', () => {
       }),
     );
     const prediction = score(model, 'category', 'aa bb cc dd ee ff gg');
-    expect(prediction.label).toBe('A');
+    expect(prediction.label).toBe(A);
     // Each word has the length-1 value 1/sqrt(7), so its weight is its coef over sqrt(7).
     expect(prediction.topTerms.map((t) => t.term)).toEqual(['dd', 'bb', 'gg', 'ee', 'cc']);
     const expected = [0.9, 0.7, 0.6, 0.5, 0.3].map((c) => c / Math.sqrt(7));
     prediction.topTerms.forEach((t, i) => expect(t.weight).toBeCloseTo(expected[i] ?? NaN, 12));
   });
 
+  // Built by hand: loadModel only reads the app's few labels, but the scorer itself must not depend on
+  // a small class count (spreading that many scores into Math.max overflows the call stack).
   it('scores a model with hundreds of thousands of classes', () => {
     const count = 300_000;
     const classes = Array.from({ length: count }, (_, i) => `c${i}`);
-    const model = loadModel(
-      tinyModel({
-        classes,
-        vocabulary: ['red'],
-        idf: [1],
-        coef: classes.map(() => [0]),
-        intercept: classes.map((_, i) => (i === count - 1 ? 1 : 0)),
-      }),
-    );
+    const head = {
+      classes,
+      vocabulary: ['red'],
+      index: new Map([['red', 0]]),
+      idf: [1],
+      coef: classes.map(() => [0]),
+      intercept: classes.map((_, i) => (i === count - 1 ? 1 : 0)),
+    };
+    const model: Model = { heads: { category: head, priority: head } };
     const prediction = score(model, 'category', 'red');
     expect(prediction.label).toBe(`c${count - 1}`);
     expect(prediction.confidence).toBeGreaterThan(0);

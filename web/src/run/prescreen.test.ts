@@ -11,6 +11,7 @@ import { foldOf } from './seed';
 // the tests build.
 const EXPECTED_WORDS = 3000;
 const CLASSES = ['Low', 'Medium', 'High', 'Urgent'];
+const CATEGORY_CLASSES = ['Billing', 'Technical Issue', 'Other'];
 const STRONG = 5;
 const FILLER_WEIGHT = 0.1;
 const FOLD_COUNT = 4;
@@ -54,12 +55,20 @@ function makeModel(): Model {
     return row;
   });
   const head = { classes: CLASSES, vocabulary, idf, coef, intercept: column(CLASSES.length, { 0: 1 }) };
+  // The pre-screener reads the priority head only; the category head just has to be a valid one.
+  const category = {
+    classes: CATEGORY_CLASSES,
+    vocabulary,
+    idf,
+    coef: CATEGORY_CLASSES.map(() => new Array<number>(size).fill(0)),
+    intercept: new Array<number>(CATEGORY_CLASSES.length).fill(0),
+  };
   return loadModel({
     version: 1,
     sublinearTf: true,
     tokenPattern: String.raw`(?a)\b\w\w+\b`,
     ngramRange: [1, 2],
-    heads: { category: head, priority: head },
+    heads: { category, priority: head },
   });
 }
 
