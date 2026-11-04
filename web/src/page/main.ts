@@ -15,6 +15,7 @@ import { mountCenter } from './center';
 import { mountControls, mountTabs } from './controls';
 import { el, setText } from './dom';
 import { mountIncoming } from './incoming';
+import { createMotion } from './motion';
 import { mountOutgoing } from './outgoing';
 import { mountReviewForm } from './reviewForm';
 import { mountStats } from './stats';
@@ -31,12 +32,10 @@ import {
   statusView,
 } from './view';
 
-const PENDING_LABEL = 'Pending review';
 const IDLE_TEXT: Record<string, string> = {
   'Run complete': 'Run complete',
   Paused: 'Press Play to see the next ticket.',
 };
-const WAITING_IDLE = 'Waiting for the next ticket';
 
 interface Setup {
   seed: number;
@@ -92,6 +91,7 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
     restart,
   });
   return {
+    motion: createMotion(),
     stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
     controls,
     tabs: mountTabs(byId('tabs'), byId('app')),
@@ -141,7 +141,8 @@ function render(mounted: Mounted): void {
   const { run } = page;
   const state = run.state();
   const numbers = statsView(state, run.truthOf);
-  const pending = numbers.find((stat) => stat.label === PENDING_LABEL)?.value ?? '0';
+  const pending = numbers.find((stat) => stat.label === 'Pending review')?.value ?? '0';
+  panels.motion.snapshot();
   const waiting = incomingView(state);
   const review = reviewView(state);
   const result = realSpeedView(state);
@@ -159,12 +160,14 @@ function render(mounted: Mounted): void {
     ticket: centerView(state),
     explain: explainMode(state),
     explainOpen: page.explain,
-    idle: IDLE_TEXT[statusView(state)] ?? WAITING_IDLE,
+    idle: IDLE_TEXT[statusView(state)] ?? 'Waiting for the next ticket',
     realSpeedLabel: controls.realSpeedLabel,
     result,
   });
   announce(mounted, state);
   moveFocus(mounted, review !== undefined, result !== undefined);
+  // Real speed shows the finished run in one render, so no card travels.
+  panels.motion.play(result === undefined);
 }
 
 // The timer is re-armed after every change to the run, so a pause, a viewer's confirm or
@@ -174,9 +177,7 @@ function sync(mounted: Mounted): void {
   render(mounted);
   window.clearTimeout(page.timer);
   const delay = page.run.nextDelayMs();
-  if (delay !== null) {
-    page.timer = window.setTimeout(() => page.run.advance(), delay);
-  }
+  if (delay !== null) page.timer = window.setTimeout(() => page.run.advance(), delay);
 }
 
 function restart(mounted: Mounted): void {
@@ -187,6 +188,7 @@ function restart(mounted: Mounted): void {
   page.stopListening = page.run.onChange(() => sync(mounted));
   page.explain = false;
   page.announced = '';
+  panels.motion.skipNext();
   setText(byId('announcer'), '');
   sync(mounted);
   panels.controls.focusPrimary();

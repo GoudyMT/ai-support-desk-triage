@@ -5,6 +5,7 @@ type Incoming = ReturnType<typeof incomingView>;
 
 function makeCard(item: Incoming[number]): HTMLElement {
   const card = el('li', 'card');
+  card.dataset.ticket = item.id;
   const head = el('div', 'card-head');
   head.append(el('span', 'card-title', item.id), el('span', 'tag', ''));
   card.append(head, el('p', 'card-line', ''));

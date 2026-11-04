@@ -19,6 +19,8 @@ export interface CenterActions {
 
 interface TicketPanel {
   box: HTMLElement;
+  // Carries the ticket id, so a card travelling here or away has a small place to land or leave.
+  titleBox: HTMLElement;
   title: HTMLElement;
   tag: HTMLElement;
   stage: HTMLElement;
@@ -129,11 +131,12 @@ function buildTicket(actions: CenterActions): TicketPanel {
   const note = el('p', 'muted why-note');
   const off = el('p', 'muted', 'Explanations are off on the busy day. Pause to read one.');
   box.append(head, track, text, lines, say, toggle, why, note, off);
-  return { box, title, tag, stage, track, text, lines, say, toggle, why, note, off };
+  return { box, titleBox, title, tag, stage, track, text, lines, say, toggle, why, note, off };
 }
 
 function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView): void {
   setText(panel.title, `Ticket ${ticket.id}`);
+  panel.titleBox.dataset.ticket = ticket.id;
   panel.tag.hidden = ticket.tag === null;
   setText(panel.tag, ticket.tag?.word ?? '');
   setClass(panel.tag, `tag tag-${ticket.tag?.level ?? 'low'}`);

@@ -10,6 +10,7 @@ export interface OutgoingActions {
 function makeOpenCard(actions: OutgoingActions) {
   return (item: Outgoing['open'][number]): HTMLElement => {
     const card = el('li', 'card card-open');
+    card.dataset.ticket = item.id;
     const head = el('div', 'card-head');
     head.append(el('span', 'card-title', ''), el('span', 'tag', ''));
     const review = el('button', 'btn btn-line', 'Review');
@@ -39,6 +40,7 @@ function updateOpenCard(card: HTMLElement, item: Outgoing['open'][number]): void
 
 function makeClosedLine(item: Outgoing['closed'][number]): HTMLElement {
   const line = el('li', 'line');
+  line.dataset.ticket = item.id;
   line.append(
     el('span', 'line-title', `${item.id} ${item.category}`),
     el('span', `pill pill-${item.pill.kind}`, item.pill.word),

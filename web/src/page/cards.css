@@ -83,6 +83,35 @@
   margin-top: var(--tag-clear);
 }
 
+/* The card that travels between sections: one fixed layer above the page that takes no clicks, so
+   it can cross clipped, scrolling columns and never add to the page's width. */
+.ghost-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.ghost-id {
+  font-variant-numeric: tabular-nums;
+}
+
 .line {
   display: flex;
   align-items: center;
