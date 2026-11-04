@@ -16,6 +16,7 @@ export interface ReviewActions {
 type ReviewData = NonNullable<ReturnType<typeof reviewView>>;
 
 const PICK_SUFFIX = " (model's pick)";
+const RAISED_SUFFIX = ' (raised by a rule)';
 const TEAMS = [...new Set(Object.values(ROUTES))];
 
 // The tags say Critical for the Urgent priority, so the choices do too.
@@ -38,9 +39,9 @@ function field(id: string, label: string, values: readonly string[]): { box: HTM
   return { box, select };
 }
 
-function markPick(select: HTMLSelectElement, pick: string): void {
+function markPick(select: HTMLSelectElement, pick: string, suffix = PICK_SUFFIX): void {
   for (const option of select.options) {
-    option.textContent = option.value === pick ? `${shown(option.value)}${PICK_SUFFIX}` : shown(option.value);
+    option.textContent = option.value === pick ? `${shown(option.value)}${suffix}` : shown(option.value);
   }
   select.value = pick;
 }
@@ -112,7 +113,7 @@ export function mountReviewForm(
       why.textContent = `Why it was flagged: ${view.why}`;
       text.replaceChildren(...segmentNodes(view.segments));
       markPick(category.select, view.category);
-      markPick(priority.select, view.priority);
+      markPick(priority.select, view.priority, view.priorityRaised ? RAISED_SUFFIX : PICK_SUFFIX);
       team.select.value = view.route;
     },
     focus() {

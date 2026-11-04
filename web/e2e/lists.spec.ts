@@ -66,6 +66,27 @@ test.describe('the lists', () => {
     expect(TAG_WORDS).toContain(await card.locator('.tag').innerText());
   });
 
+  test('Coming in says the tags are a quick first guess from a small model', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#incoming .col-note')).toHaveText('Tags are a quick first guess from a small model.');
+  });
+
+  test('the review form names where each default came from', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    await runUntilOpen(page, 'T-1001-3');
+    await reviewButton(page, 'T-1001-3').click();
+    // The model picked Low for T-1001-3; a rule raised it to Urgent, shown as Critical.
+    await expect(page.getByLabel('Priority').locator('option:checked')).toHaveText('Critical (raised by a rule)');
+    await expect(page.getByLabel('Category').locator('option:checked')).toHaveText("Other (model's pick)");
+  });
+
+  test('the review form calls the model\'s own priority its pick when no rule raised it', async ({ page }) => {
+    await playToFirstOpen(page);
+    await reviewButton(page, 'T-1001-0').click();
+    await expect(page.getByLabel('Priority').locator('option:checked')).toHaveText("Medium (model's pick)");
+  });
+
   test('an open card shows its category, tag, team and reason', async ({ page }) => {
     await playToFirstOpen(page);
     const card = page.locator('#outgoing .open li', { hasText: 'T-1001-0' });

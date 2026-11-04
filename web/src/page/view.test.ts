@@ -602,6 +602,14 @@ describe('the review form', () => {
     });
   });
 
+  it('says when a rule raised the priority above the model pick, and not otherwise', () => {
+    const raised: TicketTrail = trailOf({ priority: 'Low', reasons: [RULE_CAPTIONS] });
+    raised.guard = { ...raised.guard, priority: 'Urgent' };
+    expect(reviewView(withState({ reviewing: raised }))).toMatchObject({ priority: 'Urgent', priorityRaised: true });
+    const plain = trailOf({ priority: 'Medium', reasons: [{ kind: 'low confidence', confidence: 0.4 }] });
+    expect(reviewView(withState({ reviewing: plain }))).toMatchObject({ priority: 'Medium', priorityRaised: false });
+  });
+
   it('starts from the model picks and shows nothing of the simulated reviewer answer', () => {
     const reference = finishedRun().state();
     const overridden = must(

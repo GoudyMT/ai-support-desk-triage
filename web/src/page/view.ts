@@ -339,7 +339,16 @@ export function realSpeedView(state: RunState): { tickets: number; ms: number; p
 }
 
 export function reviewView(state: RunState):
-  | { id: string; segments: Segment[]; why: string; category: Category; priority: Priority; route: string }
+  | {
+      id: string;
+      segments: Segment[];
+      why: string;
+      category: Category;
+      priority: Priority;
+      // A rule (or the guard) put the priority above what the model itself picked.
+      priorityRaised: boolean;
+      route: string;
+    }
   | undefined {
   const { reviewing } = state;
   if (reviewing === undefined) {
@@ -352,6 +361,7 @@ export function reviewView(state: RunState):
     why: `${whyFlagged(reviewing)}.`,
     category,
     priority: reviewing.guard.priority,
+    priorityRaised: reviewing.guard.priority !== reviewing.priority.label,
     route: ROUTES[category],
   };
 }
