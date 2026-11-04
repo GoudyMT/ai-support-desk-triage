@@ -1,16 +1,39 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, open, reviewButton } from './helpers';
+import { FIRST_OPEN_MS, open, reviewButton, stat, tabTo } from './helpers';
 
 // Small rows, each pinning one thing a viewer sees or does, so a break in any of them goes red.
 const REVIEWER_CLOSE_MS = 1_600;
-
-const stat = (page: Page, label: string) => page.locator('#stats > div', { hasText: label }).locator('dd');
+const STEP_LIMIT = 40;
 
 async function playTo(page: Page, ms: number): Promise<void> {
   await open(page);
   await page.getByRole('button', { name: 'Play' }).click();
   await page.clock.runFor(ms);
 }
+
+test.describe('by keyboard alone', () => {
+  test('Pause, Step and Why this choice all work', async ({ page }) => {
+    await open(page);
+    await tabTo(page, 'Play');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#status')).toHaveText('Learning pace');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#status')).toHaveText('Paused');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Step' })).toBeFocused();
+    const stage = page.locator('#ticket .now-stage');
+    for (let n = 0; n < STEP_LIMIT && (await stage.innerText().catch(() => '')) !== 'Now: Privacy'; n += 1) {
+      await page.keyboard.press('Enter');
+    }
+    await expect(stage).toHaveText('Now: Privacy');
+    await tabTo(page, 'Why this choice');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Why this choice' })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#ticket .why-list')).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(page.locator('#ticket .why-list')).toBeHidden();
+  });
+});
 
 test.describe('forced colors', () => {
   test.use({ forcedColors: 'active' });

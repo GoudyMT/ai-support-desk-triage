@@ -31,6 +31,33 @@ export async function runUntilOpen(page: Page, id: string): Promise<void> {
   await expect(reviewButton(page, id)).toBeVisible();
 }
 
+export async function playToFirstOpen(page: Page): Promise<void> {
+  await open(page);
+  await page.getByRole('button', { name: 'Play' }).click();
+  await page.clock.runFor(FIRST_OPEN_MS);
+  await expect(reviewButton(page, 'T-1001-0')).toHaveCount(1);
+}
+
+export function stat(page: Page, label: string) {
+  return page.locator('#stats > div', { hasText: label }).locator('dd');
+}
+
+export function moreNumber(page: Page, label: string) {
+  return page.locator('#numbers > dl > div', { hasText: label }).locator('dd');
+}
+
+const MAX_TABS = 30;
+
+// Presses Tab until the focused control's text matches; keyboard only, so no pointer and no focus().
+export async function tabTo(page: Page, name: string | RegExp): Promise<void> {
+  for (let n = 0; n < MAX_TABS; n += 1) {
+    await page.keyboard.press('Tab');
+    const label = await page.evaluate(() => document.activeElement?.textContent?.trim() ?? '');
+    if (typeof name === 'string' ? label === name : name.test(label)) return;
+  }
+  throw new Error(`test: Tab never reached ${String(name)}`);
+}
+
 // Plays the run until the open list holds at least `count` tickets.
 export async function playUntilOpenCount(page: Page, count: number): Promise<void> {
   await page.getByRole('button', { name: 'Play' }).click();

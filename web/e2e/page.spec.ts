@@ -1,5 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, open, playUntilOpenCount, reviewButton, runUntilOpen } from './helpers';
+import {
+  FIRST_OPEN_MS,
+  SEED,
+  moreNumber,
+  open,
+  playToFirstOpen,
+  playUntilOpenCount,
+  reviewButton,
+  runUntilOpen,
+  stat,
+  tabTo,
+} from './helpers';
 
 // Ticket T-1001-1 is flagged later with the picks Urgent Complaint, Medium and the Escalations
 // Team, where the simulated reviewer would choose Account Access.
@@ -9,38 +20,8 @@ const OPEN_CARDS = 13;
 const CARDS_THAT_FIT = 6;
 const MIN_TAG_GAP_PX = 4;
 const REVIEWER_CLOSE_MS = 1_600;
-const MAX_TABS = 30;
 const MAX_STEPS = 120;
 const TOTAL_TICKETS = 130;
-
-async function playToFirstOpen(page: Page): Promise<void> {
-  await open(page);
-  await page.getByRole('button', { name: 'Play' }).click();
-  await page.clock.runFor(FIRST_OPEN_MS);
-  await expect(reviewButton(page, 'T-1001-0')).toHaveCount(1);
-}
-
-function stat(page: Page, label: string) {
-  return page.locator('#stats > div', { hasText: label }).locator('dd');
-}
-
-function moreNumber(page: Page, label: string) {
-  return page.locator('#numbers > dl > div', { hasText: label }).locator('dd');
-}
-
-async function activeLabel(page: Page): Promise<string> {
-  return page.evaluate(() => document.activeElement?.textContent?.trim() ?? '');
-}
-
-// Presses Tab until the focused control's text matches; keyboard only, so no pointer and no focus().
-async function tabTo(page: Page, name: string | RegExp): Promise<void> {
-  for (let n = 0; n < MAX_TABS; n += 1) {
-    await page.keyboard.press('Tab');
-    const label = await activeLabel(page);
-    if (typeof name === 'string' ? label === name : name.test(label)) return;
-  }
-  throw new Error(`test: Tab never reached ${String(name)}`);
-}
 
 test.describe('the run, by keyboard alone', () => {
   test('goes from Play through a review to Run complete at real speed', async ({ page }) => {
