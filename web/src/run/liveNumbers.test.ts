@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
-import type { RunState, Speed } from './engine';
+import type { RunState } from './engine';
 import { liveNumbers } from './liveNumbers';
 
 interface Row {
@@ -95,22 +95,26 @@ function trail(id: string, ms?: number): TicketTrail {
 
 function stateOf(parts: {
   done: TicketTrail[];
-  speed?: Speed;
+  realSpeed?: NonNullable<RunState['realSpeed']>;
   current?: NonNullable<RunState['current']>;
+  open?: TicketTrail[];
+  reviewing?: TicketTrail;
   viewerReviews?: RunState['viewerReviews'];
 }): RunState {
   const state: RunState = {
     seed: 1001,
     fold: 1,
     act: 1,
-    speed: parts.speed ?? 'learn',
     playing: true,
-    takeOver: false,
+    simTime: 0,
+    incoming: [],
+    open: parts.open ?? [],
     done: parts.done,
     viewerReviews: parts.viewerReviews ?? [],
-    simTime: 0,
   };
   if (parts.current !== undefined) state.current = parts.current;
+  if (parts.reviewing !== undefined) state.reviewing = parts.reviewing;
+  if (parts.realSpeed !== undefined) state.realSpeed = parts.realSpeed;
   return state;
 }
 
@@ -119,7 +123,7 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
   it('equals the hand count when all twelve tickets are done', () => {
     const state = stateOf({
       done: TRAILS,
-      speed: 'real',
+      realSpeed: { tickets: 12, ms: 780 },
       viewerReviews: [
         { id: 'T05', correct: true },
         { id: 'T06', correct: false },
@@ -141,17 +145,18 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
     // end report's override rate (4 of 6 reviewed), or the panel and the report disagree.
     expect(numbers.overrides).toBe(4);
     expect(numbers.viewerCorrect).toEqual({ correct: 2, total: 3 });
-    // 10 ms * (1 + ... + 12) = 780 ms, so 12 tickets in 0.78 s.
+    // The real speed run measured 12 tickets in 780 ms.
     expect(numbers.perSecond).toBeCloseTo(12 / 0.78, 10);
   });
 
-  // Guards the "High-risk missed so far" figure: a flagged ticket is still being reviewed, so it
-  // is not missed, and it must not inflate the done count or the flag share.
-  it('does not count a flagged ticket that is still in review', () => {
-    const inReview = trail('T05');
+  // Guards the "High-risk missed so far" figure: a flagged ticket still in the center, open or in
+  // the review form is not missed, and must not inflate the done count or the flag share.
+  it('counts only closed tickets, not the center, the open list or the review form', () => {
     const state = stateOf({
       done: ['T01', 'T02', 'T03', 'T04'].map((id) => trail(id)),
-      current: { trail: inReview, stage: 'review', waitingForViewer: false },
+      current: { trail: trail('T05'), stage: 'guardrails' },
+      open: [trail('T06'), trail('T09')],
+      reviewing: trail('T12'),
     });
     const numbers = liveNumbers(state, truthOf);
     expect(numbers.done).toBe(4);
@@ -161,22 +166,10 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
     expect(numbers.modelAccuracy).toBeCloseTo(3 / 4, 10);
   });
 
-  // Guards double counting: the engine has already pushed a ticket at stage done onto done.
-  it('does not add the current ticket again when it is at stage done', () => {
-    const done = ['T01', 'T02', 'T03', 'T04'].map((id) => trail(id));
-    const last = done[3];
-    if (last === undefined) throw new Error('E_TEST_FIXTURE');
-    const state = stateOf({ done, current: { trail: last, stage: 'done', waitingForViewer: false } });
-    const numbers = liveNumbers(state, truthOf);
-    // T04 is a model miss: 3 of 4, not 3 of 5.
-    expect(numbers.done).toBe(4);
-    expect(numbers.modelAccuracy).toBeCloseTo(3 / 4, 10);
-  });
-
   // Guards the first moments of a run, before any ticket is done: no division by zero, no NaN on screen.
   it('gives zeros and nulls before any ticket is done', () => {
-    const current = { trail: trail('T01'), stage: 'intake' as const, waitingForViewer: false };
-    const numbers = liveNumbers(stateOf({ done: [], speed: 'real', current }), truthOf);
+    const current = { trail: trail('T01'), stage: 'intake' as const };
+    const numbers = liveNumbers(stateOf({ done: [], realSpeed: { tickets: 12, ms: 780 }, current }), truthOf);
     expect(numbers).toEqual({
       done: 0,
       perSecond: null,
@@ -193,19 +186,19 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
 describe('liveNumbers perSecond', () => {
   const two = ['T01', 'T02'].map((id) => trail(id));
 
-  // Guards the speed rule: at learn speed the page paces itself, so the measured rate would mislead.
-  it('is null at learn speed', () => {
-    expect(liveNumbers(stateOf({ done: two, speed: 'learn' }), truthOf).perSecond).toBeNull();
+  // Guards the paced run: its tickets carry measured times, but the page waits between them, so
+  // a rate from those times would mislead. Only the real speed run is a rate.
+  it('is null until a real speed run has been measured', () => {
+    expect(liveNumbers(stateOf({ done: two }), truthOf).perSecond).toBeNull();
   });
 
-  it('is tickets over measured seconds at real speed', () => {
-    // T01 10 ms + T02 20 ms = 0.03 s for 2 tickets.
-    expect(liveNumbers(stateOf({ done: two, speed: 'real' }), truthOf).perSecond).toBeCloseTo(2 / 0.03, 10);
+  it('is the real speed run\'s tickets over its measured seconds', () => {
+    // 130 tickets in 50 ms, whatever the per-ticket times add up to.
+    expect(liveNumbers(stateOf({ done: two, realSpeed: { tickets: 130, ms: 50 } }), truthOf).perSecond).toBeCloseTo(2600, 10);
   });
 
-  // Guards a coarse browser timer that measures every ticket as 0 ms: no Infinity on screen.
-  it('is null when the measured time adds up to zero', () => {
-    const instant = ['T01', 'T02'].map((id) => trail(id, 0));
-    expect(liveNumbers(stateOf({ done: instant, speed: 'real' }), truthOf).perSecond).toBeNull();
+  // Guards a coarse browser timer that measures the whole run as 0 ms: no Infinity on screen.
+  it('is null when the measured time is zero', () => {
+    expect(liveNumbers(stateOf({ done: two, realSpeed: { tickets: 130, ms: 0 } }), truthOf).perSecond).toBeNull();
   });
 });

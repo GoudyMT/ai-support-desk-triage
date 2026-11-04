@@ -15,15 +15,24 @@ export interface LiveNumbers {
 
 const MS_PER_SECOND = 1000;
 
+// Only the real speed run is a rate: a paced run waits between tickets. A zero reading (a coarse
+// browser timer) gives no rate rather than Infinity.
+function perSecondOf(realSpeed: RunState['realSpeed']): number | null {
+  if (realSpeed === undefined || realSpeed.ms <= 0) {
+    return null;
+  }
+  return (realSpeed.tickets / realSpeed.ms) * MS_PER_SECOND;
+}
+
 /**
  * The numbers the page shows while a run goes on, from the tickets that reached Done only.
- * A ticket at stage done is already the last entry of `state.done`, so `state.current` is
- * never counted; a flagged ticket still in review is not counted anywhere.
+ * The center, the open list and the review form are never counted: a ticket counts once
+ * it is closed.
  *
  * @param state The run's state now.
  * @param truthOf The true answer for a ticket id.
  * @returns Counts, and ratios that are null until a ticket is done; `perSecond` is null
- *   outside real speed or when the measured time adds up to zero.
+ *   until a real speed run was measured or when its measured time is zero.
  */
 export function liveNumbers(state: RunState, truthOf: (id: string) => TicketLabel): LiveNumbers {
   const viewerCorrect = {
@@ -49,10 +58,9 @@ export function liveNumbers(state: RunState, truthOf: (id: string) => TicketLabe
   const overrides = state.done.filter(
     (trail) => trail.final.by === 'reviewer' && trail.final.category !== trail.category.label,
   ).length;
-  const seconds = state.done.reduce((sum, trail) => sum + trail.ms, 0) / MS_PER_SECOND;
   return {
     done: state.done.length,
-    perSecond: state.speed === 'real' && seconds > 0 ? state.done.length / seconds : null,
+    perSecond: perSecondOf(state.realSpeed),
     modelAccuracy: metrics.categoryAccuracy.model,
     v0Accuracy: metrics.v0.category,
     flaggedShare: metrics.flagRate,
