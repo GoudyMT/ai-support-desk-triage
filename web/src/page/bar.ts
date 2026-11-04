@@ -39,7 +39,8 @@ function icon(name: IconName): SVGElement {
   return svg;
 }
 
-// The icon always sits beside its word. Rebuilt only when the face changes, so a focused button stays put.
+// The icon always sits beside its word, at every width: a phone wraps the row rather than hiding a word. Rebuilt
+// only when the face changes, so a focused button stays put.
 function face(node: HTMLButtonElement, name: IconName, label: string): void {
   if (node.dataset.face === `${name} ${label}`) return;
   node.dataset.face = `${name} ${label}`;
@@ -72,12 +73,12 @@ export function mountBar(root: HTMLElement, actions: BarActions, steps: number):
   const progress = byId('bars');
   const status = byId('status');
   const play = button('btn btn-solid', '', actions.playPause);
-  const step = button('btn bar-quiet', '', actions.step);
-  const restart = button('btn bar-quiet', '', actions.restart);
+  const step = button('btn', '', actions.step);
+  const restart = button('btn', '', actions.restart);
   const speed = button('btn btn-speed', '', actions.speed);
   seeRow.prepend(play, step, restart);
   seeRow.append(speed);
-  const back = button('btn bar-quiet', '', actions.back);
+  const back = button('btn', '', actions.back);
   const main = button('btn btn-solid', '', actions.learnPause);
   const next = button('btn', '', actions.next);
   const count = el('p', 'bar-status bar-count');
