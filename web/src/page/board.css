@@ -51,6 +51,18 @@
   color: var(--solid-text);
 }
 
+.tab[aria-selected='false']:hover {
+  background: var(--hover-bg);
+}
+
+.tab[aria-selected='false']:active {
+  background: var(--active-bg);
+}
+
+.tab[aria-selected='true']:hover {
+  background: var(--solid-hover-bg);
+}
+
 .tab-count {
   font-variant-numeric: tabular-nums;
 }
@@ -174,6 +186,14 @@
     font: inherit;
     font-size: var(--fs-meta);
     cursor: pointer;
+  }
+
+  .rail:hover {
+    background: var(--hover-bg);
+  }
+
+  .rail:active {
+    background: var(--active-bg);
   }
 
   /* The rail fills the width of a column that scrolls, and the column clips what is drawn past its

@@ -48,6 +48,37 @@ test.describe('focus and targets', () => {
     expect(await smallTargets(page)).toEqual([]);
   });
 
+  // Every state exists: the pointer over a button, and pressing it, each change its color. Color only,
+  // so nothing moves. Reduced motion is asked for so that no fade is still running when it is read.
+  test('a button changes color under the pointer and again when pressed', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page);
+    for (const name of ['Step', 'Play', 'All numbers']) {
+      const button = page.getByRole('button', { name, exact: true });
+      await page.mouse.move(0, 0);
+      const rest = await button.evaluate((node) => getComputedStyle(node).backgroundColor);
+      await button.hover();
+      const hovered = await button.evaluate((node) => getComputedStyle(node).backgroundColor);
+      expect(hovered, `${name} hovered`).not.toBe(rest);
+      await page.mouse.down();
+      const pressed = await button.evaluate((node) => getComputedStyle(node).backgroundColor);
+      await page.mouse.up();
+      expect(pressed, `${name} pressed`).not.toBe(hovered);
+      expect(pressed, `${name} pressed`).not.toBe(rest);
+    }
+  });
+
+  test('a disabled button does not react to the pointer', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    const step = page.getByRole('button', { name: 'Step', exact: true });
+    await expect(step).toBeDisabled();
+    const rest = await step.evaluate((node) => getComputedStyle(node).backgroundColor);
+    await step.hover({ force: true });
+    expect(await step.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(rest);
+  });
+
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 375, height: 812 } });
 

@@ -16,6 +16,10 @@
   --lit-text: #1e3a8a;
   --solid-bg: #18181b;
   --solid-text: #ffffff;
+  --hover-bg: #f4f4f5;
+  --active-bg: #e4e4e7;
+  --solid-hover-bg: #3f3f46;
+  --solid-active-bg: #52525b;
   --alert: #991b1b;
   --step-done: #52525b;
   --chip-bg: #dbeafe;
@@ -110,6 +114,10 @@
     --lit-text: #dbeafe;
     --solid-bg: #f4f4f5;
     --solid-text: #18181b;
+    --hover-bg: #1c1c20;
+    --active-bg: #2e2e34;
+    --solid-hover-bg: #d4d4d8;
+    --solid-active-bg: #a1a1aa;
     --alert: #fca5a5;
     --step-done: #b4b4bc;
     --chip-bg: #1e3a8a;

@@ -172,6 +172,25 @@ h1 {
   cursor: default;
 }
 
+/* Under the pointer and pressed: a change of color only. A button that cannot be used does not react. */
+.btn:not(:disabled):hover {
+  background: var(--hover-bg);
+}
+
+.btn:not(:disabled):active {
+  background: var(--active-bg);
+}
+
+.btn-solid:not(:disabled):hover {
+  border-color: var(--solid-hover-bg);
+  background: var(--solid-hover-bg);
+}
+
+.btn-solid:not(:disabled):active {
+  border-color: var(--solid-active-bg);
+  background: var(--solid-active-bg);
+}
+
 .chevron {
   width: var(--chevron);
   height: var(--chevron);
