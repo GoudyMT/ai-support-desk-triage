@@ -250,14 +250,14 @@ export function moreNumbersView(
   const share = (value: number | null): string => (value === null ? NO_VALUE : percent(value));
   const perSecond = realSpeedView(state)?.perSecond ?? null;
   const { correct, total } = live.viewerCorrect;
-  const saved = valueSaved(state);
+  const saved = valueSaved(state, truthOf);
   return {
     rows: [
-      { label: 'Time saved', value: minutesText(saved.minutes), level: saved.untouched, flash: 'time', source: { text: TIME_SAVED_SOURCE } },
+      { label: 'Time saved', value: minutesText(saved.minutes), level: saved.counted, flash: 'time', source: { text: TIME_SAVED_SOURCE } },
       {
         label: 'Value saved',
         value: dollarsText(saved.dollars),
-        level: saved.untouched,
+        level: saved.counted,
         flash: 'value',
         source: { text: VALUE_SAVED_SOURCE, link: VALUE_SOURCE_LINK },
       },

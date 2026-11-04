@@ -1,29 +1,38 @@
+import { ROUTES, type TicketLabel } from '../domain/labels';
 import type { RunState } from './engine';
 
-// An estimate, not a measurement: the low end of what tool vendors publish for sorting one ticket
-// (2 to 12 minutes), and the US median hourly pay of a customer service representative.
+// An estimate, not a measurement: less than the lowest figure vendors of IT desk tools publish for sorting one
+// ticket (3 to 12 minutes), and the US median hourly pay of a customer service representative.
 export const MINUTES_PER_TICKET = 2;
 export const HOURLY_PAY_USD = 21.53;
 
 const MINUTES_PER_HOUR = 60;
 
 export interface ValueSaved {
-  untouched: number;
+  counted: number;
   minutes: number;
   dollars: number;
 }
 
 /**
- * What the run has saved so far: a closed ticket that no person touched is time nobody spent.
+ * What the run has saved so far: a closed ticket that no person touched and that the system sorted correctly is
+ * time nobody spent. A ticket sent to the wrong team, or one the truth says needed a person and did not get one,
+ * saves nothing: someone would have to find it and do it again.
  *
  * Only `state.done` is read. The open list and the review form hold trails with the reviewer's answer
  * hidden, so a ticket there must not count, and a ticket the viewer reviewed carries the viewer's
  * decision in its stored trail, so it is a touched ticket as well.
+ *
+ * @param truthOf The true answer for a ticket id.
  */
-export function valueSaved(state: RunState): ValueSaved {
-  const untouched = state.done.filter((trail) => trail.review === undefined).length;
-  const minutes = untouched * MINUTES_PER_TICKET;
-  return { untouched, minutes, dollars: (minutes / MINUTES_PER_HOUR) * HOURLY_PAY_USD };
+export function valueSaved(state: RunState, truthOf: (id: string) => TicketLabel): ValueSaved {
+  const counted = state.done.filter((trail) => {
+    if (trail.review !== undefined) return false;
+    const truth = truthOf(trail.id);
+    return !truth.mustReview && trail.final.route === ROUTES[truth.category];
+  }).length;
+  const minutes = counted * MINUTES_PER_TICKET;
+  return { counted, minutes, dollars: (minutes / MINUTES_PER_HOUR) * HOURLY_PAY_USD };
 }
 
 // A number the page showed before and that is now higher. With nothing shown before there is nothing to rise from.

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { CATEGORIES, ROUTES, type TicketLabel } from '../domain/labels';
 import { loadModel } from '../model/scorer';
 import { createSchedule } from './clock';
 import { createRun, type RunState } from './engine';
@@ -10,7 +11,7 @@ import { foldOf } from './seed';
 import { dollarsText, minutesText, rose, valueSaved } from './valueSaved';
 
 // A whole 130-ticket day of one seed, finished at once, scored by the fold model the page loads for it.
-function finishedDay(seed: number): RunState {
+function finishedDay(seed: number): { state: RunState; truthOf: (id: string) => TicketLabel } {
   const file = new URL(`../../public/models/fold_${foldOf(seed)}.json`, import.meta.url);
   const model = loadModel(JSON.parse(readFileSync(fileURLToPath(file), 'utf8')));
   const run = createRun({
@@ -21,40 +22,59 @@ function finishedDay(seed: number): RunState {
     prescreen: createPrescreener(model),
   });
   run.finishNow();
-  return run.state();
+  return { state: run.state(), truthOf: run.truthOf };
 }
 
 describe('value saved', () => {
-  // Counted by the lead on the real engine: the tickets of a whole day that no person touched.
+  // Counted by hand from the closed trails of a whole day, with no tool of this module: tickets with no review,
+  // less those the truth says needed a person (Missed) and those sent to a team other than the true one.
   it.each([
-    { seed: 1001, untouched: 11, minutes: 22, dollars: 7.89 },
-    { seed: 1000, untouched: 18, minutes: 36, dollars: 12.92 },
-  ])('seed $seed leaves $untouched of 130 untouched: $minutes min, $dollars dollars', ({ seed, untouched, minutes, dollars }) => {
-    const saved = valueSaved(finishedDay(seed));
-    expect(saved.untouched).toBe(untouched);
+    { seed: 1001, noReview: 11, missed: 0, wrongTeam: 0, counted: 11, minutes: 22, dollars: 7.89 },
+    { seed: 1000, noReview: 18, missed: 0, wrongTeam: 3, counted: 15, minutes: 30, dollars: 10.77 },
+    { seed: 1003, noReview: 15, missed: 1, wrongTeam: 2, counted: 12, minutes: 24, dollars: 8.61 },
+  ])('seed $seed: $noReview with no review, $missed missed and $wrongTeam to the wrong team leave $counted', ({ seed, counted, minutes, dollars }) => {
+    const { state, truthOf } = finishedDay(seed);
+    const saved = valueSaved(state, truthOf);
+    expect(saved.counted).toBe(counted);
     expect(saved.minutes).toBe(minutes);
     expect(saved.dollars).toBeCloseTo(dollars, 2);
   });
 
+  // Each reason on its own: one counted ticket is made a must-review ticket, then another is given a true team
+  // other than the one the system sent it to.
+  it('does not count a ticket that needed a person, or one sent to the wrong team, and counts the rest', () => {
+    const { state, truthOf } = finishedDay(1001);
+    const counted = state.done.filter((trail) => trail.review === undefined);
+    const [first, second] = counted;
+    if (first === undefined || second === undefined) throw new Error('test: no ticket to change');
+    const otherTeam = CATEGORIES.find((category) => ROUTES[category] !== second.final.route);
+    if (otherTeam === undefined) throw new Error('test: every category has the same team');
+    const asMissed = (id: string): TicketLabel => ({ ...truthOf(id), mustReview: id === first.id || truthOf(id).mustReview });
+    const asWrong = (id: string): TicketLabel => (id === second.id ? { ...truthOf(id), category: otherTeam } : truthOf(id));
+    expect(valueSaved(state, truthOf).counted).toBe(counted.length);
+    expect(valueSaved(state, asMissed).counted).toBe(counted.length - 1);
+    expect(valueSaved(state, asWrong).counted).toBe(counted.length - 1);
+  });
+
   it('starts at nothing, and a ticket in the center or the open list saves nothing yet', () => {
     const run = makeRun();
-    expect(valueSaved(run.state())).toEqual({ untouched: 0, minutes: 0, dollars: 0 });
+    expect(valueSaved(run.state(), run.truthOf)).toEqual({ counted: 0, minutes: 0, dollars: 0 });
     stepUntil(run, (s) => s.open.length > 0);
     const busy = run.state();
     expect(busy.done).toHaveLength(0);
-    expect(valueSaved(busy).untouched).toBe(0);
+    expect(valueSaved(busy, run.truthOf).counted).toBe(0);
   });
 
   it('adds nothing when the viewer reviews a ticket, though it closes', () => {
     const run = makeRun();
     stepUntil(run, (s) => s.open.length > 0);
-    const before = valueSaved(run.state());
+    const before = valueSaved(run.state(), run.truthOf);
     const id = firstOpen(run).id;
     run.review(id);
     run.confirm(rightPick(run, id));
     const after = run.state();
     expect(after.done.map((trail) => trail.id)).toContain(id);
-    expect(valueSaved(after)).toEqual(before);
+    expect(valueSaved(after, run.truthOf)).toEqual(before);
   });
 });
 

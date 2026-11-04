@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ROUTES } from '../domain/labels';
 import { minutesText } from '../run/valueSaved';
 import { moreNumbersView } from './view';
 import { finishedRun, makeRun, noTruth } from './viewTestKit';
@@ -21,12 +22,16 @@ describe('time saved and value saved in All numbers', () => {
     expect(value?.source?.text).toContain(value?.source?.link?.phrase ?? 'no link');
   });
 
-  it('reads the saved numbers from the tickets no person touched, as time and as dollars', () => {
-    const state = finishedRun().state();
-    const untouched = state.done.filter((trail) => !trail.guard.flagged).length;
-    expect(untouched).toBeGreaterThan(0);
-    const rows = moreNumbersView(state, noTruth).rows;
-    expect(rows[0]?.value).toBe(minutesText(untouched * 2));
-    expect(rows[1]?.value).toBe(`$${((untouched * 2 * 21.53) / 60).toFixed(2)}`);
+  it('reads the saved numbers from the tickets sorted correctly with no review, as time and as dollars', () => {
+    const run = finishedRun();
+    const state = run.state();
+    const sorted = state.done.filter((trail) => {
+      const truth = run.truthOf(trail.id);
+      return trail.review === undefined && !truth.mustReview && trail.final.route === ROUTES[truth.category];
+    }).length;
+    expect(sorted).toBeGreaterThan(0);
+    const rows = moreNumbersView(state, run.truthOf).rows;
+    expect(rows[0]?.value).toBe(minutesText(sorted * 2));
+    expect(rows[1]?.value).toBe(`$${((sorted * 2 * 21.53) / 60).toFixed(2)}`);
   });
 });
