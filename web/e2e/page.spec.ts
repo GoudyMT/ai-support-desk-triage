@@ -10,6 +10,9 @@ const FIRST_OPEN_MS = 20_500;
 const OPEN_POLL_MS = 250;
 const PROBE_SETTLE_MS = 300;
 const FREED_PX = 200;
+const OPEN_CARDS = 13;
+const MAX_OPEN_POLLS = 4000;
+const CARDS_THAT_FIT = 6;
 const REVIEWER_CLOSE_MS = 1_600;
 const MAX_TABS = 30;
 const MAX_STEPS = 120;
@@ -195,6 +198,26 @@ test.describe('the right column', () => {
     await expect(page.getByRole('button', { name: 'Collapse' })).toBeFocused();
     expect(await centerWidth()).toBe(openWidth);
     await expect(page.locator('#outgoing .closed li', { hasText: 'T-1001-0' })).toBeVisible();
+  });
+});
+
+test.describe('open cards', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('are short enough that six of thirteen show without scrolling the column', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    const cards = page.locator('#outgoing .open > li');
+    for (let n = 0; n < MAX_OPEN_POLLS && (await cards.count()) < OPEN_CARDS; n += 1) {
+      await page.clock.runFor(OPEN_POLL_MS);
+    }
+    expect(await cards.count()).toBeGreaterThanOrEqual(OPEN_CARDS);
+    const fit = await page.evaluate(() => {
+      const column = document.getElementById('outgoing')?.getBoundingClientRect();
+      const boxes = [...document.querySelectorAll('#outgoing .open > li')].map((card) => card.getBoundingClientRect());
+      return boxes.filter((box) => column !== undefined && box.bottom <= column.bottom).length;
+    });
+    expect(fit).toBeGreaterThanOrEqual(CARDS_THAT_FIT);
   });
 });
 
