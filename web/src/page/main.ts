@@ -95,7 +95,11 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
       render();
     },
     finishNow: () => page.run.finishNow(),
-    restart,
+    // Replay is a call to start again, so it plays; the header's Restart waits for Play.
+    restart: () => {
+      restart();
+      page.run.play();
+    },
   });
   const form = mountReviewForm(byId('review'), {
     confirm: (decision) => {
