@@ -9,6 +9,7 @@ const START = new Date('2026-01-01T09:00:00');
 const FIRST_OPEN_MS = 20_500;
 const OPEN_POLL_MS = 250;
 const PROBE_SETTLE_MS = 300;
+const FREED_PX = 200;
 const REVIEWER_CLOSE_MS = 1_600;
 const MAX_TABS = 30;
 const MAX_STEPS = 120;
@@ -173,7 +174,12 @@ test.describe('reviewing a ticket', () => {
 test.describe('the right column', () => {
   test('collapses to a rail with the pending count while every ticket keeps moving', async ({ page }) => {
     await playToFirstOpen(page);
+    const centerWidth = async () => (await page.locator('#center').boundingBox())?.width ?? 0;
+    const openWidth = await centerWidth();
     await page.getByRole('button', { name: 'Collapse' }).click();
+    // The center takes the room the column gives up: the column is 280 px and its rail 72 px.
+    const railWidth = await centerWidth();
+    expect(railWidth - openWidth).toBeGreaterThanOrEqual(FREED_PX);
     const rail = page.getByRole('button', { name: 'Show tickets going out, 1 pending human review' });
     await expect(rail).toBeFocused();
     await expect(rail.locator('.rail-count')).toHaveText('1');
@@ -185,6 +191,7 @@ test.describe('the right column', () => {
     await expect(emptyRail.locator('.rail-count')).toHaveText('0');
     await emptyRail.click();
     await expect(page.getByRole('button', { name: 'Collapse' })).toBeFocused();
+    expect(await centerWidth()).toBe(openWidth);
     await expect(page.locator('#outgoing .closed li', { hasText: 'T-1001-0' })).toBeVisible();
   });
 });
