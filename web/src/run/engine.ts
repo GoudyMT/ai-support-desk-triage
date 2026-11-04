@@ -325,7 +325,6 @@ export function createRun(opts: {
     done.push(runWith(held, id, { decide: () => decision }));
     const truth = truthOf(id);
     viewerReviews.push({ id, correct: d.category === truth.category && d.priority === truth.priority });
-    armClose();
     if (isComplete()) {
       playing = false;
     }
