@@ -8,6 +8,9 @@ const MOVE_EASING = 'ease-out';
 const MIN_MOVE_PX = 1;
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
+// The one gate for motion: read when a move starts, so a change in the middle of a run takes effect.
+export const reducedMotion = (): boolean => window.matchMedia(REDUCED_MOTION).matches;
+
 type Zone = 'incoming' | 'center' | 'open' | 'closed';
 
 interface Spot {
@@ -127,7 +130,7 @@ export function createMotion(): { snapshot(): void; play(animate: boolean): void
       // seen, and the new slide starts from there.
       for (const animation of slides) animation.cancel();
       slides.clear();
-      const calm = skip || !animate || window.matchMedia(REDUCED_MOTION).matches;
+      const calm = skip || !animate || reducedMotion();
       skip = false;
       if (calm) {
         clear();

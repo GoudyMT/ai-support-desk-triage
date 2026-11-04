@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { open } from './helpers';
+import { open, playToFirstOpen, reviewButton } from './helpers';
 
 const TIME_COPY =
   'Estimate, not a measurement. Each ticket no person touched counts as 2 minutes saved. Tool vendors publish 2 to 12 minutes for sorting one ticket and we found no independent study, so we use the low end.';
@@ -158,3 +158,192 @@ for (const viewport of [
     });
   });
 }
+
+// The numbers rise only when a ticket that no person touched closes: one ticket, 2 minutes, at a time.
+const MINUTES_PER_TICKET = 2;
+const STEP_MS = 250;
+const MAX_STEPS = 600;
+
+const timeText = (page: Page) => row(page, 'Time saved').locator('.more-text');
+const valueText = (page: Page) => row(page, 'Value saved').locator('.more-text');
+const doneText = (page: Page) => page.locator('#stats > div', { hasText: 'Tickets done' }).locator('dd');
+
+async function playOn(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+}
+
+// One small step of the page's clock. The run waits for the viewer at the end of the slow part; carrying on is
+// the viewer's press of Play.
+async function tick(page: Page): Promise<void> {
+  await page.clock.runFor(STEP_MS);
+  const play = page.getByRole('button', { name: 'Play', exact: true });
+  if (await play.isVisible()) await play.dispatchEvent('click');
+}
+
+// Runs the clock in small steps until Time saved reads something other than nothing.
+async function runUntilSaved(page: Page): Promise<void> {
+  for (let n = 0; n < MAX_STEPS && (await timeText(page).innerText()) === '0 min'; n += 1) await tick(page);
+  expect(await timeText(page).innerText()).not.toBe('0 min');
+}
+
+test.describe('what the saved numbers count', () => {
+  test('rise only when a ticket no person touched closes, by 2 minutes for each', async ({ page }) => {
+    await openNumbers(page);
+    await playOn(page);
+    let sawTouched = false;
+    let sawUntouched = false;
+    let was = { done: 0, minutes: 0 };
+    for (let n = 0; n < MAX_STEPS && !(sawTouched && sawUntouched); n += 1) {
+      await tick(page);
+      const now = { done: Number(await doneText(page).innerText()), minutes: Number.parseInt(await timeText(page).innerText(), 10) };
+      if (now.minutes !== was.minutes) {
+        // Every rise comes with a ticket closing, and counts that one ticket only.
+        expect(now.done - was.done, `done at step ${n}`).toBe(1);
+        expect(now.minutes - was.minutes, `minutes at step ${n}`).toBe(MINUTES_PER_TICKET);
+        sawUntouched = true;
+      } else if (now.done > was.done) {
+        // A ticket a person looked at (here the simulated reviewer) closed and saved nothing.
+        sawTouched = true;
+      }
+      was = now;
+    }
+    expect(sawTouched && sawUntouched).toBe(true);
+    await expect(valueText(page)).toHaveText(`$${((was.minutes / 60) * 21.53).toFixed(2)}`);
+  });
+
+  test('add nothing when the viewer reviews a ticket', async ({ page }) => {
+    await playToFirstOpen(page);
+    await page.locator('#more-toggle').click();
+    await expect(timeText(page)).toHaveText('0 min');
+    await reviewButton(page, 'T-1001-0').click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect(doneText(page)).toHaveText('1');
+    await expect(timeText(page)).toHaveText('0 min');
+    await expect(valueText(page)).toHaveText('$0.00');
+  });
+});
+
+interface Flash {
+  row: string;
+  bg: string;
+  ink: string;
+}
+
+// Records every pulse the page starts on a number (the call to element.animate), so a test can tell a pulse
+// that ran from one that did not, however short it lasts. Call it before the page loads.
+async function watchFlashes(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const flashes: { row: string; bg: string; ink: string }[] = [];
+    Object.assign(window, { flashes });
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (
+      this: Element,
+      keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
+      options?: number | KeyframeAnimationOptions,
+    ) {
+      if (this.classList.contains('more-text')) {
+        const first = Array.isArray(keyframes) ? keyframes[0] : undefined;
+        flashes.push({
+          row: this.closest('.more-row')?.querySelector('dt')?.textContent ?? '',
+          bg: String(first?.backgroundColor),
+          ink: String(first?.color),
+        });
+      }
+      return animate.call(this, keyframes, options);
+    };
+  });
+}
+
+const flashes = (page: Page) => page.evaluate(() => (window as unknown as { flashes: Flash[] }).flashes);
+
+// The three channels of a `#rrggbb` token or an `rgb(r, g, b)` color, 0 to 255.
+function channels(color: string): number[] {
+  if (color.startsWith('#')) return [1, 3, 5].map((at) => Number.parseInt(color.slice(at, at + 2), 16));
+  return (color.match(/\d+/g) ?? []).map(Number);
+}
+
+// WCAG contrast of two colors.
+function contrast(a: string, b: string): number {
+  const light = (color: string): number => {
+    const [r = 0, g = 0, blue = 0] = channels(color).map((part) => part / 255);
+    const lin = (c: number): number => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(blue);
+  };
+  const [hi, lo] = [light(a), light(b)].sort((x, y) => y - x);
+  return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
+}
+
+const WHITE = [255, 255, 255];
+const AA = 4.5;
+
+test.describe('the pulse when a saved number goes up', () => {
+  test('runs once on each number when it rises, and not on the first drawing', async ({ page }) => {
+    await watchFlashes(page);
+    await openNumbers(page);
+    expect(await flashes(page)).toEqual([]);
+    await playOn(page);
+    await runUntilSaved(page);
+    const seen = await flashes(page);
+    expect(seen.map((flash) => flash.row)).toEqual(['Time saved', 'Value saved']);
+    // Green for the value, a pale neutral for the time: told apart by color.
+    expect(seen[0]?.bg).not.toBe(seen[1]?.bg);
+  });
+
+  test('does not run when Restart takes the numbers back to zero', async ({ page }) => {
+    await watchFlashes(page);
+    await openNumbers(page);
+    await playOn(page);
+    await runUntilSaved(page);
+    const before = (await flashes(page)).length;
+    await page.getByRole('button', { name: 'Restart' }).click();
+    await expect(timeText(page)).toHaveText('0 min');
+    expect((await flashes(page)).length).toBe(before);
+  });
+
+  test('does not run when real speed lands the whole day in one drawing', async ({ page }) => {
+    await watchFlashes(page);
+    await openNumbers(page);
+    await playOn(page);
+    await runUntilSaved(page);
+    const before = (await flashes(page)).length;
+    const minutes = await timeText(page).innerText();
+    await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
+    await expect(timeText(page)).not.toHaveText(minutes);
+    expect((await flashes(page)).length).toBe(before);
+  });
+
+  test.describe('with reduced motion', () => {
+    test.use({ reducedMotion: 'reduce' });
+
+    test('the number still rises and nothing pulses', async ({ page }) => {
+      await watchFlashes(page);
+      await openNumbers(page);
+      await playOn(page);
+      await runUntilSaved(page);
+      expect(await flashes(page)).toEqual([]);
+    });
+  });
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test.describe(`in the ${scheme} theme`, () => {
+      test.use({ colorScheme: scheme });
+
+      test('keeps its text at AA on the colour, and shows against the page', async ({ page }) => {
+        await watchFlashes(page);
+        await openNumbers(page);
+        await playOn(page);
+        await runUntilSaved(page);
+        const [time, value] = await flashes(page);
+        expect(contrast(time?.bg ?? '', time?.ink ?? ''), `time ${time?.bg} ${time?.ink}`).toBeGreaterThanOrEqual(AA);
+        expect(contrast(value?.bg ?? '', value?.ink ?? ''), `value ${value?.bg} ${value?.ink}`).toBeGreaterThanOrEqual(AA);
+        const pageColor = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+        for (const flash of [time, value]) {
+          expect(contrast(flash?.bg ?? '', pageColor), `${flash?.row} against the page`).toBeGreaterThan(1.2);
+        }
+        // White is for the dark theme: on the light page it could not be seen.
+        if (scheme === 'dark') expect(channels(time?.bg ?? '')).toEqual(WHITE);
+        else expect(channels(time?.bg ?? '')).not.toEqual(WHITE);
+      });
+    });
+  }
+});

@@ -7,7 +7,7 @@ import { createRun, type RunState } from './engine';
 import { firstOpen, makeRun, rightPick, stepUntil } from './engineTestKit';
 import { createPrescreener } from './prescreen';
 import { foldOf } from './seed';
-import { dollarsText, minutesText, valueSaved } from './valueSaved';
+import { dollarsText, minutesText, rose, valueSaved } from './valueSaved';
 
 // A whole 130-ticket day of one seed, finished at once, scored by the fold model the page loads for it.
 function finishedDay(seed: number): RunState {
@@ -55,6 +55,22 @@ describe('value saved', () => {
     const after = run.state();
     expect(after.done.map((trail) => trail.id)).toContain(id);
     expect(valueSaved(after)).toEqual(before);
+  });
+});
+
+// The page pulses a number only when it goes up from a value it had shown: not on its first drawing, and
+// not when a restart takes it back to zero.
+describe('when a saved number has risen', () => {
+  it.each([
+    [undefined, 0, false],
+    [undefined, 5, false],
+    [3, 3, false],
+    [3, 4, true],
+    [4, 3, false],
+    [5, 0, false],
+    [0, 1, true],
+  ])('from %s to %i it is %s', (before, after, expected) => {
+    expect(rose(before, after)).toBe(expected);
   });
 });
 

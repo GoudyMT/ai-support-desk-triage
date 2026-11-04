@@ -69,7 +69,8 @@ function render(mounted: Mounted): void {
   const review = reviewView(state);
   const result = realSpeedView(state);
   const controls = controlsView(state, setup.schedule.total);
-  panels.stats.render(numbers, moreNumbersView(state, run.truthOf));
+  // A real speed finish lands the whole day in one drawing, and Learn is a narrated walk: neither pulses.
+  panels.stats.render(numbers, moreNumbersView(state, run.truthOf), result === undefined && page.mode === 'see');
   panels.bar.renderSee({ controls, speed: speedView(state), status: statusView(state) });
   panels.tabs.render({ in: `${waiting.length} waiting`, out: `${pending} pending` });
   panels.incoming.render(waiting);

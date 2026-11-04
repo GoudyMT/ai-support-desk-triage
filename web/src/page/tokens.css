@@ -47,6 +47,10 @@
   --pill-missed-text: #991b1b;
   --pill-you-bg: #dbeafe;
   --pill-you-text: #1e3a8a;
+  --flash-time-bg: #d4d4d8;
+  --flash-time-text: #18181b;
+  --flash-value-bg: #86efac;
+  --flash-value-text: #18181b;
   --dim: rgb(16 16 18 / 0.68);
   --lift: 0 6px 24px rgb(0 0 0 / 0.3);
 
@@ -162,6 +166,10 @@
     --pill-missed-text: #fecaca;
     --pill-you-bg: #1e3a8a;
     --pill-you-text: #dbeafe;
+    --flash-time-bg: #ffffff;
+    --flash-time-text: #18181b;
+    --flash-value-bg: #166534;
+    --flash-value-text: #f4f4f5;
     --dim: rgb(0 0 0 / 0.74);
   }
 }

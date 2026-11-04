@@ -1,4 +1,6 @@
+import { rose } from '../run/valueSaved';
 import { el, reconcile, setClass, setText } from './dom';
+import { pulse } from './flash';
 import { mountSource } from './sourcePanel';
 import type { moreNumbersView, statsView } from './view';
 
@@ -29,9 +31,17 @@ function makeRow(item: More['rows'][number]): HTMLElement {
   return node;
 }
 
-function updateRow(node: HTMLElement, item: { value: string }): void {
-  const value = node.querySelector('.more-text');
-  if (value !== null) setText(value, item.value);
+// The level each pulsing number had when it was last drawn, so a drawing knows whether it went up.
+const SHOWN = new WeakMap<HTMLElement, number>();
+
+function updateRow(node: HTMLElement, item: More['rows'][number], pulsing: boolean): void {
+  const value = node.querySelector<HTMLElement>('.more-text');
+  if (value === null) return;
+  setText(value, item.value);
+  if (item.level === undefined) return;
+  // The level is kept even when the pulse is held back, so the next drawing compares with what is on screen.
+  if (pulsing && item.flash !== undefined && rose(SHOWN.get(node), item.level)) pulse(value, item.flash);
+  SHOWN.set(node, item.level);
 }
 
 /**
@@ -42,7 +52,7 @@ export function mountStats(
   strip: HTMLElement,
   toggle: HTMLElement,
   panel: HTMLElement,
-): { render(stats: Stats, more: More): void } {
+): { render(stats: Stats, more: More, pulsing: boolean): void } {
   const rows = el('dl', 'more');
   const notes = el('ul', 'assumptions');
   // The panel already holds the seed line, which stays last.
@@ -58,9 +68,10 @@ export function mountStats(
     setText(label, open ? 'Fewer numbers' : 'All numbers');
   });
   return {
-    render(stats, more) {
+    // `pulsing` is false when the drawing is not one a viewer watches move (the real speed finish).
+    render(stats, more, pulsing) {
       reconcile(strip, stats, (s) => s.label, makeStat, updateStat);
-      reconcile(rows, more.rows, (r) => r.label, makeRow, updateRow);
+      reconcile(rows, more.rows, (r) => r.label, makeRow, (node, item) => updateRow(node, item, pulsing));
       reconcile(notes, more.assumptions, (text) => text, (text) => el('li', 'muted', text), () => undefined);
     },
   };

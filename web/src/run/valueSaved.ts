@@ -26,6 +26,11 @@ export function valueSaved(state: RunState): ValueSaved {
   return { untouched, minutes, dollars: (minutes / MINUTES_PER_HOUR) * HOURLY_PAY_USD };
 }
 
+// A number the page showed before and that is now higher. With nothing shown before there is nothing to rise from.
+export function rose(before: number | undefined, after: number): boolean {
+  return before !== undefined && after > before;
+}
+
 export function minutesText(minutes: number): string {
   const hours = Math.floor(minutes / MINUTES_PER_HOUR);
   const rest = minutes % MINUTES_PER_HOUR;
