@@ -8,7 +8,6 @@
   --panel: #f4f4f5;
   --raised: #ffffff;
   --line: #d4d4d8;
-  --row-line: #e4e4e7;
   --control-line: #71717a;
   --text: #18181b;
   --muted: #52525b;
@@ -59,7 +58,6 @@
   --fs-h3: 1.125rem;
   --fs-h2: 1.27rem;
   --fs-h1: 1.42rem;
-  --w-regular: 400;
   --w-medium: 500;
   --w-strong: 600;
   --lh-tight: 1.25;
@@ -123,7 +121,6 @@
     --panel: #1c1c20;
     --raised: #131316;
     --line: #3f3f46;
-    --row-line: #2e2e34;
     --control-line: #8b8b95;
     --text: #f4f4f5;
     --muted: #b4b4bc;
