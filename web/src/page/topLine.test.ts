@@ -18,7 +18,12 @@ describe('the line under the title', () => {
     ['see', true, 'fast', false, 'purpose'],
     ['see', false, 'fast', false, 'purpose'],
   ] as const)('%s, playing %s at the %s pace, busy day just started %s: %s', (view, playing, pace, busy, shows) => {
-    expect(topLineView(view, { ...makeRun().state(), playing, pace }, busy)).toBe(shows);
+    expect(topLineView(view, { ...makeRun().state(), act: 2, playing, pace }, busy)).toBe(shows);
+  });
+
+  // "Busy-day speed" is only true once the run is on the busy day, which is Act 2.
+  it('does not say busy-day speed is back while the run is still in Act 1', () => {
+    expect(topLineView('see', { ...makeRun().state(), act: 1, playing: true, pace: 'fast' }, true)).toBe('purpose');
   });
 
   it('says the first few tickets are slowed down, and that busy-day speed is back', () => {

@@ -387,7 +387,9 @@ export function statusView(state: RunState): string {
   if (state.act === 'complete') return 'Run complete';
   if (state.offerSpeedUp) return 'That was the slow part. Press Speed up to see a busy day.';
   if (!state.playing) return 'Paused';
-  return state.pace === 'slow' ? 'Slowed down so you can follow along.' : 'Busy day: full speed.';
+  if (state.pace === 'slow') return 'Slowed down so you can follow along.';
+  // The busy day is Act 2: before it the pace is quick, but the day is not yet busy.
+  return state.act === 2 ? 'Busy day: full speed.' : 'Full speed.';
 }
 
 // The button changes the pace to the other one; it is the main button while the busy day is on offer.
@@ -403,9 +405,9 @@ export type TopLine = 'purpose' | 'slow' | 'busy';
 
 // Which words the line under the title shows. Learn and a run at rest keep the page's purpose; the bar's
 // status already says the same of the pace, so neither notice is announced.
-export function topLineView(view: 'learn' | 'see', state: Pick<RunState, 'playing' | 'pace'>, busyJustStarted: boolean): TopLine {
+export function topLineView(view: 'learn' | 'see', state: Pick<RunState, 'act' | 'playing' | 'pace'>, busyJustStarted: boolean): TopLine {
   if (view === 'learn') return 'purpose';
-  if (state.pace === 'fast') return busyJustStarted ? 'busy' : 'purpose';
+  if (state.pace === 'fast') return busyJustStarted && state.act === 2 ? 'busy' : 'purpose';
   return state.playing ? 'slow' : 'purpose';
 }
 

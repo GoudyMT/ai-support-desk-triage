@@ -461,7 +461,9 @@ describe('status and the explanation', () => {
 
   it('names the pace the viewer chose: slowed down or full speed, then paused, the offer or complete', () => {
     expect(statusView({ ...base, pace: 'slow', playing: true })).toBe('Slowed down so you can follow along.');
-    expect(statusView({ ...base, pace: 'fast', playing: true })).toBe('Busy day: full speed.');
+    expect(statusView({ ...base, act: 2, pace: 'fast', playing: true })).toBe('Busy day: full speed.');
+    // The busy day is Act 2: at full speed before it, the words do not claim it.
+    expect(statusView({ ...base, act: 1, pace: 'fast', playing: true })).toBe('Full speed.');
     expect(statusView({ ...base, pace: 'fast', playing: false })).toBe('Paused');
     expect(statusView({ ...base, pace: 'slow', playing: false, offerSpeedUp: true })).toBe(
       'That was the slow part. Press Speed up to see a busy day.',
