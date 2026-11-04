@@ -16,8 +16,6 @@ function updateCard(card: HTMLElement, item: Incoming[number]): void {
   const tag = card.querySelector<HTMLElement>('.tag');
   const line = card.querySelector('.card-line');
   if (tag !== null) {
-    // The property, not toggleAttribute('hidden', ...): WebKit reports that call as an inline
-    // style, which the page's content security policy refuses.
     tag.hidden = item.tag === null;
     setText(tag, item.tag?.word ?? '');
     setClass(tag, `tag tag-${item.tag?.level ?? 'low'}`);
