@@ -18,7 +18,7 @@
 
 .bar-progress span {
   flex: 1;
-  height: var(--progress);
+  height: var(--bar);
   overflow: hidden;
   background: var(--line);
 }
