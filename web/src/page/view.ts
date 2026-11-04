@@ -30,7 +30,8 @@ export interface CenterView {
   // The pre-screener's guess, worded as one so it is not mistaken for the model's final answer.
   tag: (TagView & { text: string }) | null;
   stageName: string;
-  steps: { name: string; status: 'done' | 'now' | 'pending' }[];
+  // `next`: the step Guardrails leads to, worded so a viewer sees where the ticket is going.
+  steps: { name: string; status: 'done' | 'now' | 'next' | 'pending' }[];
   segments: Segment[];
   // One row per stage from Privacy on, so the center never changes height as stages are reached.
   // A row whose stage is not reached has `text: null`: nothing of a later result is shown early.
@@ -78,6 +79,13 @@ const LINE_LABELS: Record<'privacy' | 'classify' | 'guardrails', string> = {
 // The stages that write a line in the center; Intake only shows the ticket arriving.
 const LINE_STAGES = ['privacy', 'classify', 'guardrails'] as const;
 type LineStage = (typeof LINE_STAGES)[number];
+
+// What follows Guardrails: the guard's own result already shows on the Guardrails row, so naming the
+// next step gives nothing away. It never reads the reviewer's answer.
+const NEXT_WORDS: Partial<Record<Stage, string>> = {
+  review: 'Next: Review by a person',
+  done: 'Next: Done, no review needed',
+};
 
 const stageIndex = (stage: Stage): number => STAGES.indexOf(stage);
 const percent = (share: number): string => `${Math.round(share * PERCENT)}%`;
@@ -258,6 +266,14 @@ function sentenceShown(state: RunState, deep: boolean, stage: Stage): boolean {
   return state.act === 1 && (deep || stage === 'guardrails');
 }
 
+function stepsOf(trail: TicketTrail, at: number): CenterView['steps'] {
+  const upNext: Stage | undefined = at === stageIndex('guardrails') ? (trail.guard.flagged ? 'review' : 'done') : undefined;
+  return STAGES.map((name, i) => {
+    if (name === upNext) return { name: NEXT_WORDS[name] ?? STAGE_NAMES[name], status: 'next' };
+    return { name: STAGE_NAMES[name], status: i < at ? 'done' : i === at ? 'now' : 'pending' };
+  });
+}
+
 export function centerView(state: RunState): CenterView | undefined {
   const { current } = state;
   if (current === undefined) {
@@ -269,10 +285,7 @@ export function centerView(state: RunState): CenterView | undefined {
     id: trail.id,
     tag: current.tag === undefined ? null : centerTag(current.tag.priority),
     stageName: STAGE_NAMES[stage],
-    steps: STAGES.map((name, i) => ({
-      name: STAGE_NAMES[name],
-      status: i < at ? 'done' : i === at ? 'now' : 'pending',
-    })),
+    steps: stepsOf(trail, at),
     segments: segmentsOf(trail, at),
     lines: LINE_STAGES.map((line) => ({
       label: LINE_LABELS[line],

@@ -141,6 +141,19 @@ test.describe('the center', () => {
     await expect(page.locator('#ticket .step-now')).toHaveAttribute('aria-current', 'step');
   });
 
+  test('marks the step after Guardrails as next, in words, and not as the current one', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Step' }).click();
+    await stepTo(page, 'Classify');
+    await expect(page.locator('#ticket .step-next')).toHaveCount(0);
+    await stepTo(page, 'Guardrails');
+    await expect(page.locator('#ticket .step-now .step-name')).toHaveText('Guardrails');
+    await expect(page.locator('#ticket .step-next .step-name')).toHaveText(
+      /^Next: (Review by a person|Done, no review needed)$/,
+    );
+    await expect(page.locator('#ticket .step-next')).not.toHaveAttribute('aria-current', 'step');
+  });
+
   test('words the center tag as a first guess, and the Classify row uses the same priority words', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Play' }).click();

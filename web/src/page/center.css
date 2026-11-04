@@ -69,6 +69,17 @@
   background: var(--accent);
 }
 
+/* Next is an empty dashed bar in the accent color: a different shape from the filled bars, so it is
+   not told apart by color alone. */
+.step-next .step-bar {
+  border: var(--border) dashed var(--accent);
+  background: none;
+}
+
+.step-next .step-name {
+  color: var(--lit-text);
+}
+
 .step-name {
   color: var(--muted);
   font-size: var(--fs-meta);

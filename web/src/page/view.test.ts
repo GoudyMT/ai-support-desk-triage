@@ -153,6 +153,48 @@ describe('the ticket being worked', () => {
     expect(reached(must(centerView(atStage('guardrails'))))).toEqual([true, true, true]);
   });
 
+  describe('the step after Guardrails', () => {
+    const stepsAt = (trail: TicketTrail, stage: CenterStage) =>
+      must(centerView(withState({ current: { trail, stage, deep: true } }))).steps;
+    const flagged = trailOf({ reasons: [RULE_CAPTIONS], flagged: true });
+    const passed = trailOf({ flagged: false });
+
+    it('is marked next, with its words, when Guardrails is reached and a person will look', () => {
+      expect(stepsAt(flagged, 'guardrails')).toEqual([
+        { name: 'Intake', status: 'done' },
+        { name: 'Privacy', status: 'done' },
+        { name: 'Classify', status: 'done' },
+        { name: 'Guardrails', status: 'now' },
+        { name: 'Next: Review by a person', status: 'next' },
+        { name: 'Done', status: 'pending' },
+      ]);
+    });
+
+    it('is Done, with its words, when no person is needed', () => {
+      const steps = stepsAt(passed, 'guardrails');
+      expect(steps.slice(3)).toEqual([
+        { name: 'Guardrails', status: 'now' },
+        { name: 'Review', status: 'pending' },
+        { name: 'Next: Done, no review needed', status: 'next' },
+      ]);
+    });
+
+    it('is not marked at any earlier stage', () => {
+      for (const stage of ['intake', 'privacy', 'classify'] as const) {
+        expect(stepsAt(flagged, stage).filter((step) => step.status === 'next')).toEqual([]);
+      }
+    });
+
+    // The simulated reviewer's answer stays hidden until the ticket is closed.
+    it('says nothing of what the reviewer will decide', () => {
+      const answered: TicketTrail = {
+        ...flagged,
+        review: { category: 'Security Concern', priority: 'Urgent', route: ROUTES['Security Concern'] },
+      };
+      expect(JSON.stringify(stepsAt(answered, 'guardrails'))).toBe(JSON.stringify(stepsAt(flagged, 'guardrails')));
+    });
+  });
+
   it('holds no text from the trail in a row whose stage has not been reached', () => {
     const view = must(centerView(atStage('intake')));
     expect(view.lines).toEqual([
