@@ -374,9 +374,10 @@ export function createRun(opts: RunOptions): Run {
     return wallClock() - started;
   }
 
-  // Finishes the live run with no pacing and no timing, then reports the measured pass.
+  // Finishes the live run with no pacing and no timing, then reports the measured pass. A run that
+  // ended by itself has nothing left to finish and is only timed, and only once.
   function finishNow(): void {
-    if (reviewing !== undefined || isComplete()) {
+    if (reviewing !== undefined || (isComplete() && (realSpeed !== undefined || !timed))) {
       return;
     }
     for (let event = nextEvent(); event !== undefined; event = nextEvent()) {

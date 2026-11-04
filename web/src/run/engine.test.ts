@@ -287,7 +287,6 @@ describe('play, pause and step', () => {
     run.play();
     run.advance();
     run.step();
-    run.finishNow();
     expect(withoutMs(run.state())).toBe(withoutMs(end));
     expect(run.state().realSpeed).toBeUndefined();
   });

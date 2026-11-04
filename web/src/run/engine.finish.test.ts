@@ -122,6 +122,49 @@ describe('finishNow', () => {
   });
 });
 
+// The page offers "See how fast this runs at real speed" once a paced run has ended: a viewer who
+// watched the whole day can still see the software's real speed.
+describe('finishNow after a run that ended by itself', () => {
+  function completedRun() {
+    let reads = 0;
+    const clock = tickingClock();
+    const run = makeRun({
+      wallClock: () => {
+        reads += 1;
+        return clock();
+      },
+    });
+    stepUntil(run, (s) => s.act === 'complete');
+    return { run, reads: () => reads };
+  }
+
+  it('times the full pass and changes nothing else', () => {
+    const { run } = completedRun();
+    const ended = run.state();
+    expect(ended.realSpeed).toBeUndefined();
+    run.finishNow();
+    const timed = run.state();
+    expect(timed.realSpeed?.tickets).toBe(TOTAL);
+    expect(timed.realSpeed?.ms).toBeGreaterThan(0);
+    expect(withoutMs({ ...timed, realSpeed: undefined })).toBe(withoutMs(ended));
+  });
+
+  it('times the pass once: a second press measures nothing more and tells nobody', () => {
+    const { run, reads } = completedRun();
+    run.finishNow();
+    const first = run.state().realSpeed;
+    const readsAfterFirst = reads();
+    let told = 0;
+    run.onChange(() => {
+      told += 1;
+    });
+    run.finishNow();
+    expect(reads()).toBe(readsAfterFirst);
+    expect(told).toBe(0);
+    expect(run.state().realSpeed).toEqual(first);
+  });
+});
+
 describe('onChange', () => {
   it('tells listeners once after each change, with the new state in place, and stops after unsubscribe', () => {
     const run = makeRun();
