@@ -91,6 +91,12 @@ h1 {
   font-weight: var(--w-strong);
 }
 
+/* All numbers stays as the viewer left it but is not drawn in Learn: it is behind the dim, and on a screen one
+   page tall it would take the room the lit part of the board needs. */
+body[data-view='learn'] #numbers {
+  display: none;
+}
+
 .top-live {
   display: flex;
   flex-wrap: wrap;

@@ -141,6 +141,7 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
   const { page, panels } = mounted;
   const from = page.mode;
   page.mode = mode;
+  document.body.dataset.view = mode;
   for (const which of ['learn', 'see']) {
     const view = byId(`view-${which}`);
     view.setAttribute('aria-pressed', String(which === mode));

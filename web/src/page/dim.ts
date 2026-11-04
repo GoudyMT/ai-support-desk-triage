@@ -65,6 +65,13 @@ export function createDim(): Dim {
     }
   }
 
+  // On a wide screen the columns scroll inside themselves, and an element of a column behind the dim is inert: a
+  // viewer cannot scroll it, so the page does. The first lit part is the one that must show, so it is scrolled last.
+  function scrollLit(): void {
+    const nodes = lit.flatMap((selector) => [...document.querySelectorAll(selector)]).filter(drawn);
+    for (const node of nodes.reverse()) node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
   function measure(): void {
     const box = litBox();
     if (hole.hidden || box === undefined) return;
@@ -108,6 +115,7 @@ export function createDim(): Dim {
       const docked = !window.matchMedia(WIDE).matches;
       keepRoom(docked ? block.offsetHeight : 0);
       if (docked) scrollAbove();
+      else scrollLit();
       hole.hidden = false;
       measure();
     },
