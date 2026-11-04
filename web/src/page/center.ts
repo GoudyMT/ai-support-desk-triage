@@ -28,6 +28,7 @@ interface TicketPanel {
   say: HTMLElement;
   toggle: HTMLButtonElement;
   why: HTMLElement;
+  note: HTMLElement;
   off: HTMLElement;
 }
 
@@ -125,9 +126,10 @@ function buildTicket(actions: CenterActions): TicketPanel {
   const toggle = button('btn btn-link', '', actions.toggleExplain);
   toggle.append(el('span', 'chevron'), document.createTextNode('Why this choice'));
   const why = el('dl', 'why-list');
+  const note = el('p', 'muted why-note');
   const off = el('p', 'muted', 'Explanations are off on the busy day. Pause to read one.');
-  box.append(head, track, text, lines, say, toggle, why, off);
-  return { box, title, tag, stage, track, text, lines, say, toggle, why, off };
+  box.append(head, track, text, lines, say, toggle, why, note, off);
+  return { box, title, tag, stage, track, text, lines, say, toggle, why, note, off };
 }
 
 function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView): void {
@@ -147,6 +149,8 @@ function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView
   panel.toggle.setAttribute('aria-expanded', String(open));
   panel.off.hidden = offered;
   panel.why.hidden = !open;
+  panel.note.hidden = !open || ticket.whyNote === null;
+  setText(panel.note, ticket.whyNote ?? '');
   if (open) panel.why.replaceChildren(...whyNodes(ticket.why));
 }
 

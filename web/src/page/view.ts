@@ -36,6 +36,8 @@ export interface CenterView {
   lines: { label: string; text: string | null }[];
   plain: string;
   why: { label: string; value: string }[];
+  // A caution about the highlighted words, from Classify on, when the words are first shown.
+  whyNote: string | null;
 }
 
 const PERCENT = 100;
@@ -60,6 +62,9 @@ const TAG_VIEWS: Record<Priority, TagView> = {
   Medium: { word: 'Medium', level: 'medium' },
   Low: { word: 'Low', level: 'low' },
 };
+
+const WHY_NOTE =
+  'The highlighted words moved the model most. It counts words and does not read meaning, so small words can show up.';
 
 // Each row names its stage for what it is: the checks are rules, the Classify step is the trained model.
 const LINE_LABELS: Record<'privacy' | 'classify' | 'guardrails', string> = {
@@ -261,6 +266,7 @@ export function centerView(state: RunState): CenterView | undefined {
     })),
     plain: narrate(trail, stage).plain,
     why: narrate(trail, stage).detail.filter((row) => stageIndex(revealedAt(row.label)) <= at),
+    whyNote: at >= stageIndex('classify') ? WHY_NOTE : null,
   };
 }
 

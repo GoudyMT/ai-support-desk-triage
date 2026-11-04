@@ -267,6 +267,27 @@ test.describe('the stage rows in the center', () => {
   });
 });
 
+test.describe('Why this choice', () => {
+  test('adds the note on the highlighted words once Classify is reached, and not before', async ({ page }) => {
+    await open(page);
+    const stage = page.locator('#ticket .now-stage');
+    const note = page.locator('#ticket .why-note');
+    const stepTo = async (name: string) => {
+      for (let n = 0; n < MAX_STEPS && (await stage.innerText().catch(() => '')) !== name; n += 1) {
+        await page.getByRole('button', { name: 'Step' }).click();
+      }
+    };
+    await stepTo('Now: Privacy');
+    await page.getByRole('button', { name: 'Why this choice' }).click();
+    await expect(page.locator('#ticket .why-list')).toBeVisible();
+    await expect(note).toBeHidden();
+    await stepTo('Now: Classify');
+    await expect(note).toHaveText(
+      'The highlighted words moved the model most. It counts words and does not read meaning, so small words can show up.',
+    );
+  });
+});
+
 test.describe('reduced motion', () => {
   test('declares no transition or animation on any element and runs none', async ({ page }) => {
     const longest = () =>

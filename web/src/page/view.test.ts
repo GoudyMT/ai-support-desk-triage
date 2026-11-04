@@ -301,6 +301,16 @@ describe('the ticket being worked', () => {
     expect(guardrails).toEqual({ label: 'Guardrails (rules)', text: null });
   });
 
+  it('gives one note on the highlighted words once Classify is reached, and none before', () => {
+    const note = (stage: CenterStage) => centerView(atStage(stage))?.whyNote;
+    expect(note('intake')).toBeNull();
+    expect(note('privacy')).toBeNull();
+    const text =
+      'The highlighted words moved the model most. It counts words and does not read meaning, so small words can show up.';
+    expect(note('classify')).toBe(text);
+    expect(note('guardrails')).toBe(text);
+  });
+
   it('ends the Classify line with the team the model category sends the ticket to', () => {
     const trail = trailOf({ model: 'Accessibility Support' });
     const view = must(centerView(withState({ current: { trail, stage: 'classify' } })));
