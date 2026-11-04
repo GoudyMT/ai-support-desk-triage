@@ -1,4 +1,4 @@
-import type { MaskKind } from '../privacy/mask';
+import { MASK_TOKENS, type MaskKind } from '../privacy/mask';
 import { CONFIDENCE_FLOOR } from '../pipeline/run';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
 import type { Stage } from './stage';
@@ -82,6 +82,15 @@ function guardrailsPlain(trail: TicketTrail): string {
   );
 }
 
+// The model reads the masked text, where a label such as [CARD_NUMBER] is one word of its own (card_number). A
+// label is the page's, not the customer's, so it is not spoken as a word the model leaned on; the technical
+// detail still lists it.
+const MASK_WORDS = new Set(Object.values(MASK_TOKENS).map((token) => token.slice(1, -1).toLowerCase()));
+
+function spokenTerms(trail: TicketTrail): string[] {
+  return trail.category.topTerms.map((top) => top.term).filter((term) => !term.split(' ').some((word) => MASK_WORDS.has(word)));
+}
+
 function plainFor(trail: TicketTrail, stage: Stage): string {
   switch (stage) {
     case 'intake':
@@ -93,10 +102,10 @@ function plainFor(trail: TicketTrail, stage: Stage): string {
         : `Privacy: hid ${joinList(counts)}.`;
     }
     case 'classify': {
-      const leaning = trail.category.topTerms.slice(0, TOP_WORDS_SPOKEN).map((top) => top.term);
+      const leaning = spokenTerms(trail).slice(0, TOP_WORDS_SPOKEN);
       const leaned = leaning.length > 0 ? `, leaning most on ${quoted(leaning)}` : '';
       return (
-        `The model reads the text with private details hidden and picks ${trail.category.label}, ` +
+        `After the privacy step, the model picks ${trail.category.label}, ` +
         `${percent(trail.category.confidence)} sure${leaned}.`
       );
     }

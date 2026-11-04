@@ -257,7 +257,7 @@ describe('the ticket being worked', () => {
 
   it('speaks for the stage it is at, in plain words', () => {
     expect(must(centerView(atStage('intake'))).plain).toContain('The ticket arrived');
-    expect(must(centerView(atStage('classify'))).plain).toContain('The model reads the text with private details hidden');
+    expect(must(centerView(atStage('classify'))).plain).toContain('After the privacy step, the model picks');
   });
 
   describe('the plain sentence', () => {

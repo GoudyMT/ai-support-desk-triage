@@ -71,7 +71,7 @@ describe('the other moments', () => {
 
   it('gives the current stage on Pause, on the busy day too', () => {
     const paused = say(createSentence(), { ticket: SIX, stage: 'classify', playing: false, act: 2 });
-    expect(paused).toContain('The model reads the text with private details hidden');
+    expect(paused).toContain('After the privacy step, the model picks');
   });
 
   it('says nothing once the run is complete', () => {

@@ -133,6 +133,36 @@ describe('narrate: classify', () => {
     expect(plain).toContain('95%');
     expect(plain).toContain('"cannot"');
   });
+
+  it('starts from where the privacy step left the text', () => {
+    expect(narrate(ACCESSIBILITY, 'classify').plain).toMatch(/^After the privacy step, the model picks Accessibility Support, 95% sure/);
+  });
+
+  // The model reads the masked text, so a mask label can be among its top words. A viewer hears "leaning most on
+  // card_number", which is a label the page put there, not a word the customer wrote.
+  describe('with a mask label among the top words', () => {
+    const withTerms = (terms: string[]): TicketTrail => ({
+      ...ACCESSIBILITY,
+      category: { ...ACCESSIBILITY.category, topTerms: terms.map((term, i) => ({ term, weight: 3 - i })) },
+    });
+
+    it('does not speak a label, alone or inside a pair, and speaks the next words instead', () => {
+      const { plain } = narrate(withTerms(['card_number', 'my email_address', 'cannot', 'follow', 'screen']), 'classify');
+      expect(plain).toContain('leaning most on "cannot" and "follow"');
+      expect(plain).not.toMatch(/card_number|email_address|phone_number|order_number/);
+    });
+
+    it('leaves out the leaning clause when every top word is a label', () => {
+      const { plain } = narrate(withTerms(['phone_number', 'order_number']), 'classify');
+      expect(plain).not.toContain('leaning');
+      expect(plain).toMatch(/95% sure\.$/);
+    });
+
+    it('keeps every word in the technical detail', () => {
+      const rows = narrate(withTerms(['card_number', 'cannot']), 'classify').detail.filter((row) => row.label === 'Top word');
+      expect(rows.map((row) => row.value.split(' ')[0])).toEqual(['"card_number"', '"cannot"']);
+    });
+  });
 });
 
 describe('narrate: guardrails', () => {
