@@ -38,7 +38,8 @@ export function mountStats(
 ): { render(stats: Stats, more: More): void } {
   const rows = el('dl', 'more');
   const notes = el('ul', 'assumptions');
-  panel.replaceChildren(rows, notes);
+  // The panel already holds the seed line, which stays last.
+  panel.prepend(rows, notes);
   // The same chevron as "Why this choice", so both read as something that opens.
   const label = el('span', undefined, 'All numbers');
   toggle.replaceChildren(el('span', 'chevron'), label);

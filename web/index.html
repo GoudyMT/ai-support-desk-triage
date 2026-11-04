@@ -13,7 +13,6 @@
       <header class="top">
         <div class="top-text">
           <h1>Under the Hood</h1>
-          <p class="muted" id="seed-line"></p>
         </div>
         <div class="views" id="views" role="group" aria-label="Choose a view" hidden>
           <button class="btn btn-solid view" type="button" id="view-learn" aria-pressed="true">Learn The Process</button>
@@ -28,7 +27,9 @@
           <button class="btn btn-link" type="button" id="more-toggle" aria-expanded="false" aria-controls="numbers">All numbers</button>
         </div>
       </header>
-      <section class="numbers" id="numbers" aria-label="All numbers" hidden></section>
+      <section class="numbers" id="numbers" aria-label="All numbers" hidden>
+        <p class="muted" id="seed-line"></p>
+      </section>
       <p class="notice" id="notice" hidden></p>
       <p class="muted" id="loading">Loading the model...</p>
       <div class="notice error" id="load-error" hidden>

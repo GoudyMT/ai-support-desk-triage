@@ -58,12 +58,12 @@ p {
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
   max-width: var(--page-max);
   margin: 0 auto;
   padding: var(--space-4);
   /* The bar is fixed over the bottom of the screen; its height is kept clear under the content. */
-  padding-bottom: calc(var(--space-4) + var(--bar-h) + var(--block-h));
+  padding-bottom: calc(var(--bar-h) + var(--block-h));
 }
 
 .top {
@@ -71,8 +71,8 @@ p {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
-  padding-bottom: var(--space-3);
+  gap: var(--space-1) var(--space-5);
+  padding-bottom: var(--space-1);
   border-bottom: var(--border) solid var(--line);
 }
 

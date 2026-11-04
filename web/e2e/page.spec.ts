@@ -480,6 +480,10 @@ test.describe('the seed', () => {
   test('shows a seed from the address with a link that replays it', async ({ page }) => {
     await open(page);
     await expect(page.locator('#notice')).toBeHidden();
+    // The seed line lives in the All numbers panel, closed until asked for.
+    await expect(page.locator('#seed-line')).toBeHidden();
+    await page.getByRole('button', { name: 'All numbers' }).click();
+    await expect(page.locator('#seed-line')).toBeVisible();
     await expect(page.locator('#seed-line')).toContainText(`Seed ${SEED}`);
     await expect(page.getByRole('link', { name: 'replay this run with the same seed' })).toHaveAttribute(
       'href',

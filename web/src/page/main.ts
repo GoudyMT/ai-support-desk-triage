@@ -51,7 +51,7 @@ interface Mounted {
 }
 
 // Learn lights one part of the page at a time; the board and the numbers behind the dim take no clicks.
-const BEHIND_THE_DIM = ['app', 'top-live', 'numbers', 'seed-line'];
+const BEHIND_THE_DIM = ['app', 'top-live', 'numbers'];
 
 function newRun({ seed, model, schedule, prescreen }: Setup): Run {
   return createRun({ seed, model, schedule, wallClock: () => performance.now(), prescreen });
