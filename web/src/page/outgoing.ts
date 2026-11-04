@@ -1,3 +1,4 @@
+import { reviewerNote } from './copy';
 import { el, reconcile, setClass, setText } from './dom';
 import type { outgoingView } from './view';
 
@@ -67,7 +68,10 @@ export function mountOutgoing(
   collapse.type = 'button';
   collapse.setAttribute('aria-expanded', 'true');
   const head = el('div', 'col-head');
-  head.append(el('h2', 'col-title', 'Going out'), collapse);
+  const note = el('p', 'muted col-head-note', reviewerNote());
+  const heading = el('div', 'col-head-text');
+  heading.append(el('h2', 'col-title', 'Going out'), note);
+  head.append(heading, collapse);
   const rail = el('button', 'rail');
   rail.type = 'button';
   rail.setAttribute('aria-expanded', 'false');

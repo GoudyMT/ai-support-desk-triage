@@ -12,6 +12,15 @@ test.describe('the title block', () => {
   });
 });
 
+test.describe('Going out', () => {
+  test('says that a simulated reviewer closes the tickets, and how often', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#outgoing .col-head-note')).toHaveText(
+      'A simulated reviewer stands in for a person here. It closes one ticket every 1.5 seconds.',
+    );
+  });
+});
+
 test.describe('what the review form says', () => {
   test('tells the viewer what is scored and what is not', async ({ page }) => {
     await playToFirstOpen(page);

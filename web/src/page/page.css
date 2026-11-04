@@ -78,10 +78,13 @@ p {
   min-width: 0;
 }
 
-/* The first thing a newcomer reads, so it is body size, not the small muted size. */
+/* What the page is, on a row of its own so the title block and the controls stay on one row. On a
+   wide screen it sits below them: the three columns need the height. */
 .purpose {
+  flex: 1 0 100%;
   max-width: var(--measure);
-  margin: var(--space-1) 0 var(--space-2);
+  margin: 0;
+  font-size: var(--fs-sm);
 }
 
 h1 {

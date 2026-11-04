@@ -63,13 +63,24 @@
 
 .col-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-2);
 }
 
+.col-head-text {
+  min-width: 0;
+}
+
+/* The note sits beside the Collapse button rather than under it, so it costs the open list little height. */
+.col-head-note {
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+}
+
 .col-head .btn {
   display: none;
+  flex: none;
 }
 
 .col-title {
@@ -101,6 +112,12 @@
 
   .tabs {
     display: none;
+  }
+
+  /* A single line below the title block and the controls, rather than a block that takes the columns' height. */
+  .purpose {
+    order: 1;
+    max-width: none;
   }
 
   .col {
