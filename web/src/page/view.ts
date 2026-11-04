@@ -11,7 +11,7 @@ import { liveNumbers } from '../run/liveNumbers';
 import { NONE_FOUND, narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
 import { HOURLY_PAY_USD, MINUTES_PER_TICKET, dollarsText, minutesText, valueSaved } from '../run/valueSaved';
-import { OFFER_WORDS, TIME_SAVED_SOURCE, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINK } from './copy';
+import { OFFER_WORDS, TIME_SAVED_SOURCE, TIME_SOURCE_LINKS, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINKS } from './copy';
 import { findSpans } from './spans';
 
 export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'you';
@@ -49,7 +49,7 @@ export interface CenterView {
 // Where a number comes from: the words of its panel, and the part of them that is a link, if any.
 export interface SourceView {
   text: string;
-  link?: { phrase: string; href: string };
+  links?: { phrase: string; href: string }[];
 }
 
 export interface MoreRow {
@@ -253,13 +253,19 @@ export function moreNumbersView(
   const saved = valueSaved(state, truthOf);
   return {
     rows: [
-      { label: 'Time saved', value: minutesText(saved.minutes), level: saved.counted, flash: 'time', source: { text: TIME_SAVED_SOURCE } },
+      {
+        label: 'Time saved',
+        value: minutesText(saved.minutes),
+        level: saved.counted,
+        flash: 'time',
+        source: { text: TIME_SAVED_SOURCE, links: TIME_SOURCE_LINKS },
+      },
       {
         label: 'Value saved',
         value: dollarsText(saved.dollars),
         level: saved.counted,
         flash: 'value',
-        source: { text: VALUE_SAVED_SOURCE, link: VALUE_SOURCE_LINK },
+        source: { text: VALUE_SAVED_SOURCE, links: VALUE_SOURCE_LINKS },
       },
       { label: "Model's category right so far (closed tickets)", value: share(live.modelAccuracy) },
       { label: 'Old keyword rules, same tickets', value: share(live.v0Accuracy) },
@@ -271,7 +277,7 @@ export function moreNumbersView(
       `Assumed arrivals: ${ACT2_TICKETS_PER_DAY} tickets in a business day shown as ${ACT2_SECONDS} seconds`,
       `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / MS_PER_SECOND} seconds`,
       `Assumed: the simulated reviewer is wrong ${Math.round(REVIEWER_ERROR_RATE * PERCENT)}% of the time`,
-      `Assumed: each ticket no person touched saves ${MINUTES_PER_TICKET} minutes`,
+      `Assumed: each ticket sorted correctly with no review saves ${MINUTES_PER_TICKET} minutes`,
       `Assumed: a person's time is worth $${HOURLY_PAY_USD} an hour`,
     ],
   };

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { open, playToFirstOpen, reviewButton } from './helpers';
 
 const TIME_COPY =
-  'Estimate, not a measurement. Each ticket no person touched counts as 2 minutes saved. Tool vendors publish 2 to 12 minutes for sorting one ticket and we found no independent study, so we use the low end.';
+  'Estimate, not a measurement. Each ticket the system sorted correctly with no review counts as 2 minutes saved. Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant Rocketship) and we found no independent study, so we use less than their lowest figure.';
 const VALUE_COPY =
   'Estimate, not a measurement. Time saved x $21.53 an hour, the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). Benefits are not added, which keeps it low.';
 const BLS_URL = 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm';
@@ -101,7 +101,7 @@ test.describe('where the saved numbers come from', () => {
     });
   });
 
-  test('Value saved links to the Bureau of Labor Statistics and Time saved has no link', async ({ page }) => {
+  test('Value saved links to the Bureau of Labor Statistics and Time saved to the two vendors', async ({ page }) => {
     await openNumbers(page);
     await source(page, 'Value saved').click();
     const link = panel(page, 'Value saved').getByRole('link');
@@ -109,7 +109,12 @@ test.describe('where the saved numbers come from', () => {
     await expect(link).toHaveAttribute('href', BLS_URL);
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     await source(page, 'Time saved').click();
-    await expect(panel(page, 'Time saved').getByRole('link')).toHaveCount(0);
+    const vendors = panel(page, 'Time saved').getByRole('link');
+    await expect(vendors).toHaveText(['Mizo', 'Giant Rocketship']);
+    expect(await vendors.evaluateAll((nodes) => nodes.map((node) => [node.getAttribute('href'), node.getAttribute('rel')]))).toEqual([
+      ['https://mizo.tech/blog/ticket-triaging-practical-guide-msp/', 'noopener noreferrer'],
+      ['https://giantrocketship.com/blog/the-5-minute-ticket-why-your-triage-process-costs-more-than-you-think', 'noopener noreferrer'],
+    ]);
   });
 
   test('is plain, undimmed text on a solid panel', async ({ page }) => {

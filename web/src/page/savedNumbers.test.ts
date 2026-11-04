@@ -10,16 +10,27 @@ describe('time saved and value saved in All numbers', () => {
   it('puts time saved and value saved first, each with its source', () => {
     const [time, value] = moreNumbersView(makeRun().state(), noTruth).rows;
     expect(time?.source).toEqual({
-      text: 'Estimate, not a measurement. Each ticket no person touched counts as 2 minutes saved. Tool vendors publish 2 to 12 minutes for sorting one ticket and we found no independent study, so we use the low end.',
+      text: 'Estimate, not a measurement. Each ticket the system sorted correctly with no review counts as 2 minutes saved. Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant Rocketship) and we found no independent study, so we use less than their lowest figure.',
+      links: [
+        { phrase: 'Mizo', href: 'https://mizo.tech/blog/ticket-triaging-practical-guide-msp/' },
+        {
+          phrase: 'Giant Rocketship',
+          href: 'https://giantrocketship.com/blog/the-5-minute-ticket-why-your-triage-process-costs-more-than-you-think',
+        },
+      ],
     });
     expect(value?.source).toEqual({
       text: 'Estimate, not a measurement. Time saved x $21.53 an hour, the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). Benefits are not added, which keeps it low.',
-      link: {
-        phrase: 'Bureau of Labor Statistics, May 2025',
-        href: 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm',
-      },
+      links: [
+        {
+          phrase: 'Bureau of Labor Statistics, May 2025',
+          href: 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm',
+        },
+      ],
     });
-    expect(value?.source?.text).toContain(value?.source?.link?.phrase ?? 'no link');
+    for (const source of [time?.source, value?.source]) {
+      for (const link of source?.links ?? []) expect(source?.text).toContain(link.phrase);
+    }
   });
 
   it('reads the saved numbers from the tickets sorted correctly with no review, as time and as dollars', () => {

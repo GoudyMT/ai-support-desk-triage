@@ -14,21 +14,24 @@ export function panelOffset(rowLeft: number, panelWidth: number, screenWidth: nu
   return Math.max(mostLeft, Math.min(0, mostRight));
 }
 
-// The words with the link set inside the phrase it names, so the panel reads the same without the link.
+// The words with each link set inside the phrase it names, so the panel reads the same without the links. The
+// phrases are found in the order they are given, each after the last.
 function panelNodes(source: SourceView): Node[] {
-  const { link } = source;
-  const at = link === undefined ? -1 : source.text.indexOf(link.phrase);
-  if (link === undefined || at === -1) return [document.createTextNode(source.text)];
-  const anchor = el('a', undefined, link.phrase);
-  anchor.href = link.href;
-  // A link is the visitor's choice, and it must not hand the new page this one.
-  anchor.rel = 'noopener noreferrer';
-  anchor.target = '_blank';
-  return [
-    document.createTextNode(source.text.slice(0, at)),
-    anchor,
-    document.createTextNode(source.text.slice(at + link.phrase.length)),
-  ];
+  const nodes: Node[] = [];
+  let from = 0;
+  for (const link of source.links ?? []) {
+    const at = source.text.indexOf(link.phrase, from);
+    if (at === -1) continue;
+    const anchor = el('a', undefined, link.phrase);
+    anchor.href = link.href;
+    // A link is the visitor's choice, and it must not hand the new page this one.
+    anchor.rel = 'noopener noreferrer';
+    anchor.target = '_blank';
+    nodes.push(document.createTextNode(source.text.slice(from, at)), anchor);
+    from = at + link.phrase.length;
+  }
+  nodes.push(document.createTextNode(source.text.slice(from)));
+  return nodes;
 }
 
 /**

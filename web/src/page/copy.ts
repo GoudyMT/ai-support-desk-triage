@@ -16,19 +16,30 @@ export const TOP_LINE_WORDS = {
 // What the source panel of each saved number says. The figures come from the constants the numbers use,
 // so the words cannot drift from the sums.
 export const TIME_SAVED_SOURCE =
-  `Estimate, not a measurement. Each ticket no person touched counts as ${MINUTES_PER_TICKET} minutes saved. ` +
-  'Tool vendors publish 2 to 12 minutes for sorting one ticket and we found no independent study, so we use the low end.';
+  `Estimate, not a measurement. Each ticket the system sorted correctly with no review counts as ${MINUTES_PER_TICKET} minutes saved. ` +
+  'Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant Rocketship) and we found no independent ' +
+  'study, so we use less than their lowest figure.';
 
 export const VALUE_SAVED_SOURCE =
   `Estimate, not a measurement. Time saved x $${HOURLY_PAY_USD} an hour, the US median pay for customer service ` +
   'representatives (Bureau of Labor Statistics, May 2025). Benefits are not added, which keeps it low.';
 
-// The part of VALUE_SAVED_SOURCE that is the link, and where it goes. Opening it is the visitor's choice
-// and sends nothing from the page.
-export const VALUE_SOURCE_LINK = {
-  phrase: 'Bureau of Labor Statistics, May 2025',
-  href: 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm',
-};
+// The parts of each source that are links, and where they go. Opening one is the visitor's choice and sends
+// nothing from the page.
+export const TIME_SOURCE_LINKS = [
+  { phrase: 'Mizo', href: 'https://mizo.tech/blog/ticket-triaging-practical-guide-msp/' },
+  {
+    phrase: 'Giant Rocketship',
+    href: 'https://giantrocketship.com/blog/the-5-minute-ticket-why-your-triage-process-costs-more-than-you-think',
+  },
+];
+
+export const VALUE_SOURCE_LINKS = [
+  {
+    phrase: 'Bureau of Labor Statistics, May 2025',
+    href: 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm',
+  },
+];
 
 // What each mark on a closed line means, in the order they are listed. `word` is how the mark starts.
 export const PILL_KEY: { kind: PillKind; word: string; meaning: string }[] = [

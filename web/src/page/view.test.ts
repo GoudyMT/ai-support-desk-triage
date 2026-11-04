@@ -88,7 +88,7 @@ describe('more numbers', () => {
       'Assumed arrivals: 100 tickets in a business day shown as 90 seconds',
       `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / 1000} seconds`,
       'Assumed: the simulated reviewer is wrong 5% of the time',
-      'Assumed: each ticket no person touched saves 2 minutes',
+      'Assumed: each ticket sorted correctly with no review saves 2 minutes',
       "Assumed: a person's time is worth $21.53 an hour",
     ]);
   });
