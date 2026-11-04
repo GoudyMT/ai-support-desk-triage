@@ -1,4 +1,5 @@
 import { el, reconcile, setClass, setText } from './dom';
+import { mountSource } from './sourcePanel';
 import type { moreNumbersView, statsView } from './view';
 
 type Stats = ReturnType<typeof statsView>;
@@ -16,14 +17,20 @@ function updateStat(node: HTMLElement, item: Stats[number]): void {
   if (value !== null) setText(value, item.value);
 }
 
-function makeRow(item: { label: string }): HTMLElement {
+function makeRow(item: More['rows'][number]): HTMLElement {
   const node = el('div', 'more-row');
-  node.append(el('dt', 'stat-label', item.label), el('dd', 'more-value'));
+  const value = el('dd', 'more-value');
+  value.append(el('span', 'more-text'));
+  if (item.source !== undefined) {
+    const word = item.label.toLowerCase();
+    value.append(...mountSource(node, item.source, `source-${word.replace(/ /g, '-')}`, `Where ${word} comes from`));
+  }
+  node.append(el('dt', 'stat-label', item.label), value);
   return node;
 }
 
 function updateRow(node: HTMLElement, item: { value: string }): void {
-  const value = node.querySelector('dd');
+  const value = node.querySelector('.more-text');
   if (value !== null) setText(value, item.value);
 }
 

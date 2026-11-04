@@ -104,10 +104,13 @@
   --dim-spread: 200vmax;
   --hole-ease: 500ms;
   --block-width: 21rem;
+  --panel-width: 22rem;
+  --mark: 1.25rem;
   /* The bar's own height replaces this once the bar is drawn. */
   --bar-h: 4.5rem;
   /* The height of the docked Learn block on a phone, kept clear under the content as well. */
   --block-h: 0px;
+  --z-popover: 20;
   --z-dim: 30;
   --z-block: 35;
   --z-bar: 40;

@@ -37,11 +37,64 @@
   margin: 0;
 }
 
+.more-row {
+  position: relative;
+}
+
 .more-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   margin: 0;
   font-size: var(--fs-h3);
   font-weight: var(--w-strong);
   font-variant-numeric: tabular-nums;
+}
+
+/* A little room round the number, for the colour behind it when it goes up. */
+.more-text {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+}
+
+/* The button is a full 44 px target; the mark in it is drawn smaller so the row stays light. */
+.source-btn {
+  flex: none;
+  width: var(--target);
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: var(--accent);
+}
+
+.source-btn::before {
+  content: 'i';
+  display: grid;
+  place-items: center;
+  width: var(--mark);
+  height: var(--mark);
+  border: var(--border) solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-meta);
+  font-style: normal;
+}
+
+/* Over the page, under the row: it takes no room, so opening it moves nothing. */
+.source-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: var(--z-popover);
+  width: min(var(--panel-width), calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  box-shadow: var(--lift);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: var(--w-medium);
+  line-height: var(--lh-body);
 }
 
 .assumptions {
