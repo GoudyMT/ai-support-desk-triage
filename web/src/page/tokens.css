@@ -90,6 +90,9 @@
   --label-col: 12rem;
   --field-min: 11rem;
   --page-max: 80rem;
+  --center-min-narrow: 66rem;
+  --center-min-mid: 52rem;
+  --center-min-wide: 42rem;
   --measure: 68ch;
   --motion: 150ms;
   --disabled: 0.5;

@@ -17,6 +17,26 @@
   background: var(--panel);
 }
 
+/* The tabs sit under the center, so a center whose height changes (a short idle line, a long ticket)
+   moves them and the lists under them, many times a minute. It keeps the height of its tallest state
+   instead: measured over every ticket and stage at the narrowest width of each band, with a margin.
+   The three columns of a wide screen scroll inside themselves and need none of this. */
+.col-center {
+  min-height: var(--center-min-narrow);
+}
+
+@media (min-width: 480px) {
+  .col-center {
+    min-height: var(--center-min-mid);
+  }
+}
+
+@media (min-width: 720px) {
+  .col-center {
+    min-height: var(--center-min-wide);
+  }
+}
+
 .show-in .col-out,
 .show-out .col-in {
   display: none;
