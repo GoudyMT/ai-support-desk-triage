@@ -194,7 +194,7 @@
   font-weight: var(--w-medium);
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .track {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }

@@ -194,7 +194,7 @@ for (const [name, width, height] of [
     test('keep a visible gap between the priority tag and the Review button', async ({ page }) => {
       await open(page);
       await playUntilOpenCount(page, OPEN_CARDS);
-      if (width < 768) await page.getByRole('tab', { name: /Going out/ }).click();
+      if (width < 1024) await page.getByRole('tab', { name: /Going out/ }).click();
       expect(await tagToButtonGap(page)).toBeGreaterThanOrEqual(MIN_TAG_GAP_PX);
     });
   });

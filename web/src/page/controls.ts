@@ -46,7 +46,7 @@ const TABS: { name: TabName; label: string; listId: string }[] = [
 ];
 
 /**
- * Under 768 px the two lists share one slot: these tabs choose which one shows, and the
+ * Under 1024 px the two lists share one slot: these tabs choose which one shows, and the
  * tab itself carries the count (the pending count on Going out). CSS hides the tabs, and
  * shows both lists, at wider screens. Arrow keys move between the tabs.
  */

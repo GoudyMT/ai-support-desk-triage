@@ -86,7 +86,7 @@
 }
 
 /* Wide screens: three columns, one screen tall, each scrolling inside itself. */
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .page {
     height: 100dvh;
     padding: var(--space-3) var(--space-4) var(--space-4);
