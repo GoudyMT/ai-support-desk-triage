@@ -1,51 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
+import { FIRST_OPEN_MS, SEED, open, playUntilOpenCount, reviewButton, runUntilOpen } from './helpers';
 
-// Seed 1001 runs on fold 1. At learn pace its first ticket (T-1001-0) leaves the center for the
-// open list 20 s into the run; the model's picks for it are Billing, Medium and the Billing Team.
 // Ticket T-1001-1 is flagged later with the picks Urgent Complaint, Medium and the Escalations
 // Team, where the simulated reviewer would choose Account Access.
-const SEED = 1001;
-const START = new Date('2026-01-01T09:00:00');
-const FIRST_OPEN_MS = 20_500;
-const OPEN_POLL_MS = 250;
 const PROBE_SETTLE_MS = 300;
 const FREED_PX = 200;
 const OPEN_CARDS = 13;
-const MAX_OPEN_POLLS = 4000;
 const CARDS_THAT_FIT = 6;
 const REVIEWER_CLOSE_MS = 1_600;
 const MAX_TABS = 30;
 const MAX_STEPS = 120;
 const TOTAL_TICKETS = 130;
 
-// Opens the page with the clock under the test's control: nothing moves until `runFor`.
-async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
-  await page.clock.install({ time: START });
-  await page.goto(`/${query}`);
-  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
-  await page.clock.pauseAt(new Date(START.getTime() + 1000));
-}
-
 async function playToFirstOpen(page: Page): Promise<void> {
   await open(page);
   await page.getByRole('button', { name: 'Play' }).click();
   await page.clock.runFor(FIRST_OPEN_MS);
   await expect(reviewButton(page, 'T-1001-0')).toHaveCount(1);
-}
-
-// Runs the clock in small steps until the ticket is in the open list, before the simulated
-// reviewer has had time to close it. Tickets reach the center in the order the pre-screener's
-// tags set, so a later ticket's turn is found by looking, not by a fixed time.
-async function runUntilOpen(page: Page, id: string): Promise<void> {
-  for (let n = 0; n < MAX_STEPS * 4 && (await reviewButton(page, id).count()) === 0; n += 1) {
-    await page.clock.runFor(OPEN_POLL_MS);
-  }
-  await expect(reviewButton(page, id)).toBeVisible();
-}
-
-function reviewButton(page: Page, id: string) {
-  // By label, not by role: on a phone the list is display:none until its tab is chosen.
-  return page.locator(`#outgoing button[aria-label="Review ${id}"]`);
 }
 
 function stat(page: Page, label: string) {
@@ -206,12 +177,7 @@ test.describe('open cards', () => {
 
   test('are short enough that six of thirteen show without scrolling the column', async ({ page }) => {
     await open(page);
-    await page.getByRole('button', { name: 'Play' }).click();
-    const cards = page.locator('#outgoing .open > li');
-    for (let n = 0; n < MAX_OPEN_POLLS && (await cards.count()) < OPEN_CARDS; n += 1) {
-      await page.clock.runFor(OPEN_POLL_MS);
-    }
-    expect(await cards.count()).toBeGreaterThanOrEqual(OPEN_CARDS);
+    await playUntilOpenCount(page, OPEN_CARDS);
     const fit = await page.evaluate(() => {
       const column = document.getElementById('outgoing')?.getBoundingClientRect();
       const boxes = [...document.querySelectorAll('#outgoing .open > li')].map((card) => card.getBoundingClientRect());
