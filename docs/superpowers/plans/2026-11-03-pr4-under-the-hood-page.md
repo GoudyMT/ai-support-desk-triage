@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 6 and 7 (the owner locked the three-column redesign 2026-11-04)
+- Current task: 7 (fix round from the Opus check), then 9
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -9,8 +9,9 @@
   rows, one weight +0.01 DIFFERENT exit 1, pytest 120 passed; Tasks 2-5 merged with lead break checks
   (Execution Notes); Task 6 first build merged UNCHECKED (1733545..a984c9b): lint, typecheck, 948 unit tests,
   build and 42 e2e green on the branch, `sizes` exit 1 on E_NO_LIMIT as designed; the Opus check was stopped
-  when the owner asked for the redesign
-- Next: Tasks 6 and 7 in parallel, then 8, then 9 to the real-data screen for the owner
+  when the owner asked for the redesign; redesign Task 6 - d6c738e, 5de0485; Task 7 - fc8e5da, c5dea90, Opus check
+  FIX (no engine defect, test gaps); Task 8 - f4a856f, lead break check red, 969 unit tests green
+- Next: Task 7 fix round, then 9 to the real-data screen for the owner
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -39,7 +40,7 @@ committed under `web/public/models/` and CI proves each equals its retrain.
   page's own files.
 - Pacing (owner, 2026-11-03 and 2026-11-04): tickets 0-2 show each center stage for about 5 s with full narration;
   every other ticket takes about 1 s in the center. Arrivals follow the schedule in seconds (Act 1 every 4 s; Act 2,
-  100 tickets over 90 s, more mid-morning). The simulated reviewer closes one ticket a second. Pause and an open
+  100 tickets over 90 s, more mid-morning). The simulated reviewer closes one ticket every 1.5 s. Pause and an open
   review form stop the clock.
 - Accessibility: WCAG 2.2 AA contrast; every control a real `<button>`; 44 px targets; visible focus; reduced
   motion = no sliding; a tag is a word plus a color; polite live region during Act 1 only; no sideways scroll at 375 px.
@@ -213,8 +214,7 @@ cut needs one, with no change to scoring.
 
 ### Task 7: The run engine as timed events (Opus checker)
 
-**Files:** Modify `web/src/run/engine.ts`, `engine.test.ts`, `web/src/run/liveNumbers.ts`, `liveNumbers.test.ts`;
-Delete `web/src/page/pacing.ts`, `pacing.test.ts` once their rules live in the engine (keep their values).
+**Files:** Modify `web/src/run/engine.ts`, `engine.test.ts`, `web/src/run/liveNumbers.ts`, `liveNumbers.test.ts`.
 **Interfaces (produces):**
 - `createRun(opts: { seed; model; schedule; wallClock; prescreen: (maskedText: string) => Tag }): Run`
 - `interface Waiting { id: string; maskedText: string; tag?: Tag }`
@@ -228,13 +228,13 @@ Delete `web/src/page/pacing.ts`, `pacing.test.ts` once their rules live in the e
   finishNow()` (fires every event at once, measures with `wallClock`, fills `realSpeed`); `truthOf; onChange`
 - Removed: `Speed`, `setSpeed`, `setTakeOver`, `takeOver`, `waitingForViewer`.
 - Events, in run time ms: `arrive` at `schedule.arrivesAt(i) * 1000`, with ticket 0 at 0; `tag` 400 ms later; center stage
-  steps of 5000 ms for tickets 0-2 and 250 ms for the rest; `close` every 1000 ms while `open` is not empty. Ties break
+  steps of 5000 ms for tickets 0-2 and 250 ms for the rest; `close` every 1500 ms while `open` is not empty. Ties break
   in a fixed order: `close`, `stage`, `tag`, `arrive`.
 - A Critical ticket moves ahead of every waiting ticket that is not Critical and behind earlier Critical ones.
 - `runTicket` runs when a ticket enters the center. The run is complete when every ticket is closed.
 
 - [ ] Tests: same seed gives identical `state()` sequences except `ms`; a critical ticket jumps as above; the center takes
-      a ticket whose tag has not come yet; open order; one close a second, and none while the form is open; Review Focus
+      a ticket whose tag has not come yet; open order; one close every 1.5 s, and none while the form is open; Review Focus
       2, 3 and 5; `finishNow` gives the same trails as a paced run of that seed; a flagged ticket's hidden fields stay hidden
       until it closes; a correct viewer review needs category and priority right, route ignored; `receivedAt` equals the
       schedule's time -> verify: red on an assertion
@@ -258,7 +258,8 @@ what the stage has reached (today they show the result at Intake).
 ### Task 9: The static page (Opus checker)
 
 **Files:** Modify `web/index.html`, `web/src/page/main.ts`, `page.css`, `controls.ts`, `takeOverForm.ts` (rename `reviewForm.ts`);
-Replace `stageRow.ts`, `feed.ts`, `currentTicket.ts`, `numbers.ts` with `stats.ts`, `incoming.ts`, `center.ts`, `outgoing.ts`; Rewrite
+Replace `stageRow.ts`, `feed.ts`, `currentTicket.ts`, `numbers.ts` with `stats.ts`, `incoming.ts`, `center.ts`, `outgoing.ts`;
+Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, and the engine now holds their values); Rewrite
 `web/e2e/page.spec.ts` where behaviour changed, keeping specs whose behaviour survives.
 - [ ] Playwright specs, each in all three engines: keyboard-only from Play through a review to Run complete with `?seed=`
       fixed and the real speed button; with `reducedMotion: 'reduce'` no element has a running transition; at 375 px
@@ -296,7 +297,9 @@ Replace `stageRow.ts`, `feed.ts`, `currentTicket.ts`, `numbers.ts` with `stats.t
 - 2026-11-04 redesign: the owner locked the three-column layout, the small-model pre-screener and one review close a
   second (design section 5). This replaces the first page build's panels and the old Take over and speed switch; the
   old Task 6 and 7 are now Tasks 6-11. Measured: on seeds 1000-1011 the incoming line peaks at 22-28 with 1 s per ticket
-  in the center; the open list peaks at 13-21 with one close a second; fresh seeds 2000-2011 as in design section 5. The
+  in the center; fresh seeds 2000-2011 as in design section 5. CORRECTED the same day: an open-list peak of 13-21 quoted
+  here was for a 0.6 s center, not 1 s. On the real engine, 8 seeds, center / reviewer: 1 s / 1 s gives open peak 1;
+  1 s / 1.5 s gives 17-25 (the owner's pick); 1 s / 2 s gives 32-41; 0.6 s / 1 s gives 13-21. The
   cut's measured form: rank words by `max over classes |coef| * idf`, Urgent class doubled, keep 3,000. Plain-score
   rate: 6-11 microseconds per ticket in Node. A cut under 3,000 words flags far too many tickets (100 words: 44%).
 
@@ -327,5 +330,5 @@ Replace `stageRow.ts`, `feed.ts`, `currentTicket.ts`, `numbers.ts` with `stats.t
   the Review stage says "1 reviewed" while a ticket waits for the viewer (a false count); the builder's
   `npm --prefix web exec -- node <script>` made npm fetch and run a package named `node` (27.0.0-alpha) - never
   use that form (reported to the owner); the Opus check never finished, so nothing in `web/src/page/` beyond
-  spans.ts is checked yet. Keep in the rework: pacing.ts, the Missed pill, the stage gating in view.ts (every
+  spans.ts is checked yet. Keep in the rework: the Missed pill, the stage gating in view.ts (every
   field gated by stage), the focus moves and the e2e specs where the behaviour survives.

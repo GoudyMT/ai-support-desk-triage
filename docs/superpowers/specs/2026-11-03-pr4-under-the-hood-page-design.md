@@ -90,6 +90,9 @@ numbers CI already holds (parent section 6 start point).
   same tickets with no pacing and shows the software's real speed (43-64 ms for 130 tickets on the owner's PC, in Node).
 - 2026-11-04 (owner): real speed and the live test are one thing: a single text call to action. Details and value
   numbers expand from the top stats. The chosen layout is locked.
+- 2026-11-04 (owner): the reviewer's pace changes to one ticket every 1.5 seconds, the center stays at about 1 second
+  per ticket. Measured on the real engine, 8 seeds: at one close a second the open list never holds more than 1 ticket,
+  so the right column has nothing to show; at 1.5 s it peaks at 17-25 and a run takes about 4:15.
 - 2026-11-04 (owner): the pre-screener is a small version of the first-stage model, beside the keyword rules. It is a
   second set of eyes that moves higher-value tickets along at high volume; it need not be perfect, and the main check
   never waits for its label. Measured on fresh seeds 2000-2011 (1,560 tickets, 226 truly urgent; one ticket per second
@@ -105,7 +108,7 @@ the page only decides when to fire the next one. Three things hold tickets: the 
 **pre-screener** tags it, and a Critical tag moves it up the line behind any earlier Critical ticket. When the center
 is free it takes the top of the line. Guardrails sends a flagged ticket to the open list, kept highest priority
 first, then oldest first; an unflagged ticket goes straight to closed. The **simulated reviewer** closes the top open
-ticket once a second. The PR 3 `runTicket` stays unchanged and runs when the ticket enters the center; the engine
+ticket every 1.5 seconds. The PR 3 `runTicket` stays unchanged and runs when the ticket enters the center; the engine
 only decides when each result is shown.
 
 The **pre-screener** reads masked text only. A ticket is Critical when a keyword rule of Urgent priority matches or
@@ -257,7 +260,7 @@ tickets in about 2 minutes".
   an empty or invented one; PR 5 adds it there.
 - **Real speed button:** finishes the rest of the run unpaced, since a card cannot be drawn at about 2,000 tickets a
   second; the busy day stays as the paced Act 2.
-- **Reviewer pace is wall time:** one close a second at both acts; shown on the page as an assumption.
+- **Reviewer pace is wall time:** one close every 1.5 seconds at both acts; shown on the page as an assumption.
 - **"High-risk missed so far"** counts must-review tickets that reached Done unflagged, the same rule as
   `computeMetrics`, so the live count and the report agree.
 - **Live region at learn speed only,** so a screen reader is not flooded on the busy day.
