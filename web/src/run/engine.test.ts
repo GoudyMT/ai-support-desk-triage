@@ -919,6 +919,31 @@ describe('onChange', () => {
     expect(told).toBe(1);
   });
 
+  // The page redraws on a change: Hand back moves a card back into the list.
+  it('tells listeners once when the viewer hands a ticket back, with the ticket already back in the list', () => {
+    const run = runToOpen(6);
+    run.review(idOf(6));
+    const seen: { reviewing: boolean; open: string[] }[] = [];
+    run.onChange(() => seen.push({ reviewing: run.state().reviewing !== undefined, open: ids(run.state().open) }));
+    run.handBack();
+    expect(seen).toEqual([{ reviewing: false, open: [6, 5, 2].map(idOf) }]);
+  });
+
+  // The page's timer stops when the run stops playing; the last Confirm ends the run.
+  it('stops playing when the viewer confirms the last ticket', () => {
+    const run = makeRun();
+    stepUntil(run, (s) => s.done.length === TOTAL - 1);
+    expect(run.state().open).toHaveLength(1);
+    run.play();
+    const id = firstOpen(run).id;
+    run.review(id);
+    expect(run.state().playing).toBe(true);
+    run.confirm(rightPick(run, id));
+    expect(run.state().act).toBe('complete');
+    expect(run.state().playing).toBe(false);
+    expect(run.nextDelayMs()).toBeNull();
+  });
+
   it('tells listeners once when the viewer confirms, with the review already counted', () => {
     const run = makeRun();
     stepUntil(run, (s) => s.open.length > 0);
