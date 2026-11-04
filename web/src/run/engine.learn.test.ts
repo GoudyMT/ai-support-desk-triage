@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEEP_TICKETS, QUICK_STAGE_MS, type Run, type RunState } from './engine';
+import { CLOSE_EVERY_MS, DEEP_TICKETS, QUICK_STAGE_MS, type Run, type RunState } from './engine';
 import {
   MAX_STEPS,
   TOTAL,
   currentOf,
+  eventKind,
+  firstOpen,
   idOf,
   ids,
   makeRun,
@@ -91,6 +93,40 @@ describe('hold on a stage', () => {
     expect(run.nextDelayMs()).toBeNull();
     run.advance();
     expect(currentOf(run).stage).toBe('intake');
+  });
+});
+
+describe('hold on the reviewer', () => {
+  // Learn's step about the person who has the final say: the card that has just joined Going out must stay there
+  // while the words are read, so the simulated reviewer does not close it.
+  it('stops the closes while arrivals, tags and the center carry on', () => {
+    const run = makeRun();
+    stepUntil(run, (s) => s.open.length > 0);
+    const first = firstOpen(run).id;
+    const joined = run.state().simTime;
+    run.hold('reviewer');
+    let before = run.state();
+    for (let n = 0; n < MAX_STEPS && run.state().simTime < joined + 3 * CLOSE_EVERY_MS && run.state().act !== 'complete'; n += 1) {
+      run.step();
+      const after = run.state();
+      expect(eventKind(before, after)).not.toBe('close');
+      before = after;
+    }
+    expect(run.state().simTime).toBeGreaterThanOrEqual(joined + 3 * CLOSE_EVERY_MS);
+    expect(ids(run.state().open)).toContain(first);
+  });
+
+  it('lets the overdue close go at once when released, without turning run time back', () => {
+    const run = makeRun();
+    stepUntil(run, (s) => s.open.length > 0);
+    const joined = run.state().simTime;
+    run.hold('reviewer');
+    stepUntil(run, (s) => s.simTime >= joined + 2 * CLOSE_EVERY_MS);
+    const before = run.state();
+    run.hold(null);
+    run.step();
+    expect(eventKind(before, run.state())).toBe('close');
+    expect(run.state().simTime).toBe(before.simTime);
   });
 });
 
@@ -215,6 +251,13 @@ describe('finishNow with a hold, a slow count and the offer', () => {
       },
     ],
     ['the offer showing', (run: Run) => playUntil(run, (s) => s.offerSpeedUp)],
+    [
+      'a hold on the reviewer',
+      (run: Run) => {
+        run.hold('reviewer');
+        stepUntil(run, (s) => s.open.length > 1);
+      },
+    ],
   ])('gives the paced day\'s trails and the same measured pass with %s', (_name, leave) => {
     const clean = makeRun({ wallClock: tickingClock() });
     clean.finishNow();

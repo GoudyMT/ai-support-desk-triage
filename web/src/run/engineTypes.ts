@@ -15,8 +15,8 @@ export interface Waiting {
 export type CenterStage = 'intake' | 'privacy' | 'classify' | 'guardrails';
 
 // Where the viewer holds the run: no ticket enters the center ('line'), the center ticket does
-// not leave a stage, or nothing is held.
-export type Hold = 'line' | CenterStage | null;
+// not leave a stage, the simulated reviewer closes nothing ('reviewer'), or nothing is held.
+export type Hold = 'line' | 'reviewer' | CenterStage | null;
 
 export interface RunState {
   seed: number;

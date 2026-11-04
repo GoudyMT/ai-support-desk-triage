@@ -205,7 +205,7 @@ export function createRun(opts: RunOptions): Run {
 
   function nextEvent(): Due | undefined {
     const due: Due[] = [];
-    if (closeAt !== null) {
+    if (closeAt !== null && held !== 'reviewer') {
       due.push({ kind: 'close', at: closeAt });
     }
     if (center !== undefined && !(held !== null && CENTER_STAGES[center.stage] === held)) {
