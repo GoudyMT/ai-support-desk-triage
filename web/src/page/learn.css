@@ -36,6 +36,12 @@
     bottom: var(--bar-h);
     left: 0;
     width: auto;
+    /* On a very small screen, or at a large text size, the words are more than fit above the bar. The block takes
+       at most this share of the room above the bar and scrolls inside itself, so it never grows past the top of
+       the screen and the lit part keeps the rest. */
+    max-height: calc((100dvh - var(--bar-h)) * var(--block-share));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: none;
   }

@@ -110,6 +110,7 @@
   --dim-spread: 200vmax;
   --hole-ease: 500ms;
   --block-width: 21rem;
+  --block-share: 0.5;
   --panel-width: 22rem;
   --mark: 1.25rem;
   /* The bar's own height replaces this once the bar is drawn. */
