@@ -32,6 +32,31 @@ const MS_PER_MINUTE = 60_000;
 const REACH_LIMIT = 600;
 const GAP_PX = 16;
 
+// Plays a playing run on, event by event as the page's timer does, until its next event would be past `time`.
+function runUntil(run: Run, time: number): void {
+  for (let n = 0; n < REACH_LIMIT * REACH_LIMIT; n += 1) {
+    const delay = run.nextDelayMs();
+    if (delay === null || run.state().simTime + delay > time) return;
+    run.advance();
+  }
+}
+
+/**
+ * Plays a fresh run through the steps before `upTo` again: each is reached as it was and then left at the run time
+ * (in ms) the walk recorded for it. Reading a step takes seconds of run time, in which the line fills and the
+ * pre-screener tags, so a run taken straight to the earlier step would not have the ticket the viewer saw there.
+ */
+export function replayWalk(run: Run, steps: readonly LearnStep[], leftAt: readonly number[], upTo: number): void {
+  for (let n = 0; n < upTo; n += 1) {
+    const step = steps[n];
+    const left = leftAt[n];
+    if (step === undefined || left === undefined) return;
+    reachStep(run, step);
+    run.play();
+    runUntil(run, left);
+  }
+}
+
 export function seeEntry(state: RunState): 'play' | 'offer' | 'keep' {
   if (state.offerSpeedUp) return 'keep';
   return state.pace === 'fast' && state.act === 1 ? 'offer' : 'play';

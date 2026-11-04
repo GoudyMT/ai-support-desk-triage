@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { open, openLearn, playToFirstOpen, tabTo } from './helpers';
 import { block, count, next } from './learnKit';
 
+// Step 1's words take seven seconds to read; this is a little over.
+const READ_STEP_1_MS = 8_000;
+
 // Long enough for a slow ticket to move from one stage to the next (five seconds), short of the end of step 7.
 const STEP_7_LISTEN_MS = 5_500;
 
@@ -85,6 +88,30 @@ test.describe('what a screen reader is told in Learn', () => {
       await expect(page.locator('#announcer')).toHaveText(`${title}. ${text} ${line}`);
     }
   });
+});
+
+// Back plays the walk again to where each step ended, so the ticket the viewer saw is the one that comes back. A step
+// is read for seconds, in which the line fills and a Critical ticket can be tagged ahead of the first.
+test.describe('going back in Learn', () => {
+  const walkedTicket = (page: Page) => page.locator('#ticket .now-title').getAttribute('data-ticket');
+
+  // Seeds 1017 and 1019 tag their second ticket Critical while step 1 is read, so it, not the first, is walked.
+  for (const seed of [1001, 1017, 1019]) {
+    test(`returns the ticket the walk had at step 3, after reading steps 1 and 2 (seed ${seed})`, async ({ page }) => {
+      await openLearn(page, `?seed=${seed}`);
+      // Read step 1 in full: the timer moves on to step 2 by itself.
+      await page.clock.runFor(READ_STEP_1_MS);
+      await expect(count(page)).toHaveText('Step 2 of 7');
+      await next(page).click();
+      await expect(count(page)).toHaveText('Step 3 of 7');
+      const seen = await walkedTicket(page);
+      await next(page).click();
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(count(page)).toHaveText('Step 3 of 7');
+      expect(await walkedTicket(page)).toBe(seen);
+      await expect(page.locator('#ticket .now-stage')).toHaveText('Now: Privacy');
+    });
+  }
 });
 
 test.describe('keyboard focus in Learn', () => {

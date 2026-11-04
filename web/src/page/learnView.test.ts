@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Run } from '../run/engine';
 import { narrate } from '../run/narrate';
 import { STEPS } from './learnSteps';
 import {
@@ -8,6 +9,7 @@ import {
   learnBarView,
   placeBlock,
   reachStep,
+  replayWalk,
   seeEntry,
   stepMs,
   ticketLine,
@@ -64,6 +66,62 @@ describe('what See does with the run it is handed', () => {
     ['a run slowed down on the busy day', { pace: 'slow', act: 2, offerSpeedUp: false }, 'play'],
   ] as const)('%s: %s', (_name, change, expected) => {
     expect(seeEntry({ ...state, ...change })).toBe(expected);
+  });
+});
+
+// Back goes to the earlier step on a fresh run, and a run cannot be undone: the walk is played again to the run time
+// each step ended at, so the live ticket is the one the viewer saw. Reading a step takes seconds of run time, and in
+// them the line fills and the pre-screener tags: a Critical ticket can then be ahead of the first one.
+describe('going back to an earlier step', () => {
+  const READING_MS = 8000;
+
+  // Plays the run on for `ms` the way the page's timer does, event by event, and says where its clock stood.
+  function playFor(run: Run, ms: number): number {
+    run.play();
+    const end = run.state().simTime + ms;
+    for (let n = 0; n < 5000; n += 1) {
+      const delay = run.nextDelayMs();
+      if (delay === null || run.state().simTime + delay > end) break;
+      run.advance();
+    }
+    return run.state().simTime;
+  }
+
+  const seen = (run: Run) => {
+    const s = run.state();
+    return JSON.stringify([s.simTime, s.current?.trail.id, s.current?.stage, s.incoming.map((w) => w.id), s.open.map((t) => t.id), s.done.map((t) => t.id)]);
+  };
+
+  // The walk forward to `upTo`, reading each step for a while, and the clock as each step ended.
+  function walkForward(upTo: number): { run: Run; leftAt: number[] } {
+    const run = makeRun();
+    const leftAt: number[] = [];
+    for (let n = 0; n < upTo; n += 1) {
+      expect(reachStep(run, step(n))).toBe(true);
+      leftAt.push(playFor(run, READING_MS));
+    }
+    expect(reachStep(run, step(upTo))).toBe(true);
+    return { run, leftAt };
+  }
+
+  it.each([2, 3, 4])('puts the run where the walk had it at step %i', (upTo) => {
+    const { run: forward, leftAt } = walkForward(upTo);
+    const back = makeRun();
+    replayWalk(back, STEPS, leftAt, upTo);
+    expect(reachStep(back, step(upTo))).toBe(true);
+    expect(seen(back)).toBe(seen(forward));
+  });
+
+  it('returns the same ticket where a fresh run reached directly would have another', () => {
+    const { run: forward, leftAt } = walkForward(1);
+    const direct = makeRun();
+    reachStep(direct, step(1));
+    // The Critical ticket tagged while step 1 was read is the one the center took, not the first to arrive.
+    expect(forward.state().current?.trail.id).not.toBe(direct.state().current?.trail.id);
+    const back = makeRun();
+    replayWalk(back, STEPS, leftAt, 1);
+    reachStep(back, step(1));
+    expect(back.state().current?.trail.id).toBe(forward.state().current?.trail.id);
   });
 });
 

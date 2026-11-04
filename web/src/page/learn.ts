@@ -2,7 +2,7 @@ import type { Run } from '../run/engine';
 import type { Bar } from './bar';
 import type { Dim } from './dim';
 import { STEPS } from './learnSteps';
-import { announcement, barFills, learnBarView, reachStep, stepMs, ticketLine } from './learnView';
+import { announcement, barFills, learnBarView, reachStep, replayWalk, stepMs, ticketLine } from './learnView';
 
 // How often the loading bar of the current step is redrawn.
 const FILL_MS = 100;
@@ -32,8 +32,8 @@ export interface Learn {
 /**
  * The walk through the seven steps. Each step holds the engine so the live ticket is where the words
  * say, lights its part of the page, and stays for as long as its words take to read. The timer is the
- * page's own; its Pause stops the run as well. Going back restarts the run with the same seed and walks
- * it to the earlier step again, because a run cannot be undone.
+ * page's own; its Pause stops the run as well. Going back restarts the run with the same seed and plays the
+ * walk again, to the run time each step ended at, because a run cannot be undone.
  */
 export function createLearn(host: LearnHost, dim: Dim, bar: Bar): Learn {
   let at = 0;
@@ -44,6 +44,8 @@ export function createLearn(host: LearnHost, dim: Dim, bar: Bar): Learn {
   let total = 1;
   let ends: number | undefined;
   let ticker: number | undefined;
+  // The run's clock (ms) as each step was left going forward.
+  const leftAt: number[] = [];
 
   const elapsed = (): number => spent + (startedAt === null ? 0 : performance.now() - startedAt);
 
@@ -76,11 +78,15 @@ export function createLearn(host: LearnHost, dim: Dim, bar: Bar): Learn {
       host.toSee();
       return;
     }
-    if (to < at) host.restartRun();
+    const back = to < at;
+    // The run's clock as this step is left, for Back to play the walk again to the same moment.
+    if (to > at) leftAt[at] = host.run().state().simTime;
+    if (back) host.restartRun();
     at = to;
     spent = 0;
     host.quietly(() => {
       const run = host.run();
+      if (back) replayWalk(run, STEPS, leftAt, to);
       if (paused) run.pause();
       else run.play();
       reachStep(run, step);
@@ -97,6 +103,7 @@ export function createLearn(host: LearnHost, dim: Dim, bar: Bar): Learn {
     begin() {
       paused = window.matchMedia(REDUCED_MOTION).matches;
       at = 0;
+      leftAt.length = 0;
       go(0);
     },
     end() {
