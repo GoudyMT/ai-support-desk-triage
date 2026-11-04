@@ -113,3 +113,17 @@ test.describe('focus never falls to the body', () => {
     expect((await state(page)).onBody).toBe(true);
   });
 });
+
+test.describe('while a review form is open', () => {
+  test('the other Review buttons are disabled, and come back when it closes', async ({ page }) => {
+    await open(page);
+    await playUntilOpenCount(page, 3);
+    const first = page.locator('#outgoing .open > li').first().getByRole('button');
+    await first.click();
+    const others = page.locator('#outgoing .open').getByRole('button');
+    expect(await others.count()).toBeGreaterThanOrEqual(2);
+    for (const button of await others.all()) await expect(button).toBeDisabled();
+    await page.getByRole('button', { name: 'Hand back to the reviewer' }).click();
+    for (const button of await others.all()) await expect(button).toBeEnabled();
+  });
+});

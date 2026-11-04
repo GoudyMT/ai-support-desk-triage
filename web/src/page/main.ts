@@ -147,7 +147,7 @@ function render(mounted: Mounted): void {
   panels.controls.render(controls);
   panels.tabs.render({ in: `${waiting.length} waiting`, out: `${pending} pending` });
   panels.incoming.render(waiting);
-  panels.outgoing.render(outgoingView(state, run.truthOf), pending);
+  panels.outgoing.render(outgoingView(state, run.truthOf), pending, review !== undefined);
   byId('ticket').hidden = review !== undefined;
   byId('review').hidden = review === undefined;
   panels.form.render(review);

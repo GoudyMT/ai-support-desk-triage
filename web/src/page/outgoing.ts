@@ -24,7 +24,9 @@ function makeOpenCard(actions: OutgoingActions) {
   };
 }
 
-function updateOpenCard(card: HTMLElement, item: Outgoing['open'][number]): void {
+function updateOpenCard(card: HTMLElement, item: Outgoing['open'][number], locked: boolean): void {
+  const review = card.querySelector('button');
+  if (review !== null) review.disabled = locked;
   const title = card.querySelector('.card-title');
   const tag = card.querySelector('.tag');
   const why = card.querySelector('.card-line');
@@ -60,7 +62,7 @@ function sectionHead(text: string): HTMLElement {
 export function mountOutgoing(
   root: HTMLElement,
   actions: OutgoingActions,
-): { render(view: Outgoing, pending: string): void } {
+): { render(view: Outgoing, pending: string, locked: boolean): void } {
   const collapse = el('button', 'btn btn-line btn-small', 'Collapse');
   collapse.type = 'button';
   collapse.setAttribute('aria-expanded', 'true');
@@ -91,12 +93,15 @@ export function mountOutgoing(
   });
 
   return {
-    render(view, pending) {
+    // `locked` while a review form is open: one ticket is reviewed at a time, so the other buttons wait.
+    render(view, pending, locked) {
       setText(openTitle, `Open, needs a person (${view.open.length})`);
       setText(closedTitle, `Closed (${view.closed.length})`);
       setText(railCount, pending);
       rail.setAttribute('aria-label', `Show tickets going out, ${pending} pending human review`);
-      reconcile(openList, view.open, (item) => item.id, makeOpenCard(actions), updateOpenCard);
+      reconcile(openList, view.open, (item) => item.id, makeOpenCard(actions), (card, item) => {
+        updateOpenCard(card, item, locked);
+      });
       reconcile(closedList, view.closed, (item) => item.id, makeClosedLine, () => undefined);
     },
   };
