@@ -2,7 +2,7 @@ import type { Run } from '../run/engine';
 import type { Bar } from './bar';
 import type { Dim } from './dim';
 import { STEPS } from './learnSteps';
-import { barFills, learnBarView, reachStep, stepMs, ticketLine } from './learnView';
+import { announcement, barFills, learnBarView, reachStep, stepMs, ticketLine } from './learnView';
 
 // How often the loading bar of the current step is redrawn.
 const FILL_MS = 100;
@@ -89,7 +89,7 @@ export function createLearn(host: LearnHost, dim: Dim, bar: Bar): Learn {
     const line = step.ticketStage === undefined ? null : ticketLine(host.run().state(), step.ticketStage);
     total = stepMs(step, line);
     dim.show(step, line);
-    host.announce(`${step.title}. ${step.text}`);
+    host.announce(announcement(step, line));
     arm();
   }
 

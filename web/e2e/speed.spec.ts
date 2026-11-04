@@ -103,6 +103,8 @@ test.describe('the end of the slow part', () => {
     await expect(status(page)).toHaveText(SLOW_STATUS);
     await page.clock.runFor(2_000);
     await expect(status(page)).toHaveText(OFFER_STATUS);
+    // A viewer who cannot see the bar is told the run is waiting for them.
+    await expect(page.locator('#announcer')).toHaveText(OFFER_STATUS);
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await expect(speed(page, 'Speed up')).toHaveClass(/btn-solid/);
     // Paused means paused: nothing moves while the offer stands.

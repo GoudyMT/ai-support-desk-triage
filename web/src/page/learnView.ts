@@ -32,6 +32,10 @@ const MS_PER_MINUTE = 60_000;
 const REACH_LIMIT = 600;
 const GAP_PX = 16;
 
+export function announcement(step: Pick<LearnStep, 'title' | 'text'>, line: string | null): string {
+  return `${step.title}. ${step.text}${line === null ? '' : ` This ticket: ${line}`}`;
+}
+
 export function stepMs(step: LearnStep, line: string | null): number {
   const words = [step.title, step.text, line].filter((part) => part !== null).join(' ').split(' ').length;
   return (words / WORDS_PER_MINUTE) * MS_PER_MINUTE;

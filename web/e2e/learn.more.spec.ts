@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openLearn, playToFirstOpen, tabTo } from './helpers';
-import { count, next } from './learnKit';
+import { block, count, next } from './learnKit';
 
 // Longer than the reviewer's 1.5 s to close a card, shorter than the nine seconds step 6's words take.
 const STEP_6_WAIT_MS = 4_000;
@@ -48,6 +48,20 @@ test.describe('the bar on a phone', () => {
       expect(button.small, `${button.name} is 44 px`).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
+test.describe('what a screen reader is told in Learn', () => {
+  test('on steps 3, 4 and 5 is the step and the live ticket sentence together, as the block shows them', async ({ page }) => {
+    await openLearn(page);
+    for (let at = 1; at <= 4; at += 1) {
+      await next(page).click();
+      if (at === 1) continue;
+      const shown = await block(page).locator('h2, p').allInnerTexts();
+      const [title, text, line] = shown;
+      expect(line, `step ${at + 1} shows the ticket's sentence`).toMatch(/^This ticket: ./);
+      await expect(page.locator('#announcer')).toHaveText(`${title}. ${text} ${line}`);
+    }
   });
 });
 

@@ -3,6 +3,7 @@ import { narrate } from '../run/narrate';
 import { STEPS } from './learnSteps';
 import {
   WORDS_PER_MINUTE,
+  announcement,
   barFills,
   learnBarView,
   placeBlock,
@@ -33,6 +34,19 @@ describe('how long a step stays', () => {
   it('adds the words of the live ticket sentence when there is one', () => {
     const sentence = 'The model is fairly sure this is a billing question.';
     expect(stepMs(step(2), sentence)).toBeCloseTo(stepMs(step(2), null) + (10 / 238) * MS_PER_MINUTE, 6);
+  });
+});
+
+// What a screen reader is told when a step comes up: the same words the block shows, the live ticket's sentence
+// included, in one announcement, so a listener hears what a viewer reads.
+describe('what is announced for a step', () => {
+  it('is the title and the text alone on a step with no live ticket sentence', () => {
+    expect(announcement(step(0), null)).toBe(`${step(0).title}. ${step(0).text}`);
+  });
+
+  it('adds the live ticket sentence, as the block labels it, on a step that has one', () => {
+    const sentence = 'The model is fairly sure this is a billing question.';
+    expect(announcement(step(2), sentence)).toBe(`${step(2).title}. ${step(2).text} This ticket: ${sentence}`);
   });
 });
 

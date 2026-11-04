@@ -11,7 +11,7 @@ import { liveNumbers } from '../run/liveNumbers';
 import { NONE_FOUND, narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
 import { HOURLY_PAY_USD, MINUTES_PER_TICKET, dollarsText, minutesText, valueSaved } from '../run/valueSaved';
-import { TIME_SAVED_SOURCE, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINK } from './copy';
+import { OFFER_WORDS, TIME_SAVED_SOURCE, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINK } from './copy';
 import { findSpans } from './spans';
 
 export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'you';
@@ -385,7 +385,7 @@ export function idleText(state: RunState, total: number): string {
 
 export function statusView(state: RunState): string {
   if (state.act === 'complete') return 'Run complete';
-  if (state.offerSpeedUp) return 'That was the slow part. Press Speed up to see a busy day.';
+  if (state.offerSpeedUp) return OFFER_WORDS;
   if (!state.playing) return 'Paused';
   if (state.pace === 'slow') return 'Slowed down so you can follow along.';
   // The busy day is Act 2: before it the pace is quick, but the day is not yet busy.
