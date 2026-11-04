@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, WHY_READY_MS, open, reviewButton, tabTo } from './helpers';
+import { FIRST_OPEN_MS, SLOW_TEST_MS, WHY_READY_MS, open, reviewButton, tabTo } from './helpers';
+
+test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // What the page promises every viewer: visible focus, big targets, speech, tabs by arrow keys,
 // the busy-day line, a dark theme, and its assumptions stated.

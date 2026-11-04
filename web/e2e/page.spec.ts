@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   FIRST_OPEN_MS,
   SEED,
+  SLOW_TEST_MS,
   START,
   WHY_READY_MS,
   moreNumber,
@@ -18,6 +19,8 @@ import {
   stat,
   tabTo,
 } from './helpers';
+
+test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // Ticket T-1001-1 is flagged later with the picks Urgent Complaint, Medium and the Escalations
 // Team, where the simulated reviewer would choose Account Access.

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, open, reviewButton, stat, tabTo } from './helpers';
+import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, open, reviewButton, stat, tabTo } from './helpers';
+
+test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // Small rows, each pinning one thing a viewer sees or does, so a break in any of them goes red.
 const REVIEWER_CLOSE_MS = 1_600;

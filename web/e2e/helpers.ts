@@ -8,6 +8,9 @@ export const FIRST_OPEN_MS = 20_500;
 // T-1001-0 is at Privacy from 5 s, so from then Why this choice has something to show.
 export const WHY_READY_MS = 6_000;
 export const OPEN_POLL_MS = 250;
+// A test that polls the page hundreds of times takes about 15 s alone and over 30 s when three browsers
+// share one machine, so each spec file that has such tests allows this long; a real hang still fails.
+export const SLOW_TEST_MS = 90_000;
 const MAX_OPEN_POLLS = 4000;
 
 // Opens the page with the clock under the test's control: nothing moves until `runFor`. The

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, open, playUntilOpenCount, reviewButton } from './helpers';
+import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, open, playUntilOpenCount, reviewButton } from './helpers';
+
+test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // A card that travels between sections is a ghost in one fixed overlay layer. The real cards never
 // move out of their lists, so these specs watch the layer: a ghost is added, then removed.

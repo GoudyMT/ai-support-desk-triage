@@ -1,5 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, moreNumber, open, playToFirstOpen, reviewButton, runUntilOpen } from './helpers';
+import {
+  FIRST_OPEN_MS,
+  SEED,
+  SLOW_TEST_MS,
+  moreNumber,
+  open,
+  playToFirstOpen,
+  reviewButton,
+  runUntilOpen,
+} from './helpers';
+
+test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // What each list and the center show for a ticket, and what a viewer's review does to them.
 const POLL_MS = 250;

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { SEED, open, playToFirstOpen, reviewButton } from './helpers';
+import { SEED, SLOW_TEST_MS, open, playToFirstOpen, reviewButton } from './helpers';
+
+test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // Words a first-time visitor reads: each row pins one sentence the page must say, so a change to the
 // copy has to be a deliberate one.
