@@ -50,6 +50,8 @@ interface Mounted {
   page: Page;
   panels: Panels;
   learn: Learn;
+  // The viewer's run, paused, while Learn walks a fresh one; See brings it back.
+  stash?: Run;
 }
 
 // Learn lights one part of the page at a time; the board and the numbers behind the dim take no clicks.
@@ -110,12 +112,12 @@ function sync(mounted: Mounted): void {
   if (delay !== null) page.timer = window.setTimeout(() => page.run.advance(), delay);
 }
 
-// A new run with the same seed, drawn at once. Nothing moves in from the old board.
-function replaceRun(mounted: Mounted): void {
-  const { setup, page, panels } = mounted;
+// A run drawn at once, a new one with the same seed unless one is given. Nothing moves in from the old board.
+function replaceRun(mounted: Mounted, run: Run = newRun(mounted.setup)): void {
+  const { page, panels } = mounted;
   page.stopListening();
   window.clearTimeout(page.timer);
-  page.run = newRun(setup);
+  page.run = run;
   page.stopListening = page.run.onChange(() => {
     if (!page.quiet) sync(mounted);
   });
@@ -127,13 +129,17 @@ function replaceRun(mounted: Mounted): void {
 }
 
 function restart(mounted: Mounted): void {
+  // Starting over is the viewer's choice of a new run: no older one is to come back.
+  delete mounted.stash;
   replaceRun(mounted);
   mounted.panels.bar.focusPrimary();
 }
 
-// Learn starts a fresh run and walks it; See keeps the tickets it has and plays them.
+// Learn walks a fresh run, and puts the viewer's away if it came from See; See plays the run it is handed, the
+// viewer's own if one was put away.
 function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): void {
   const { page, panels } = mounted;
+  const from = page.mode;
   page.mode = mode;
   for (const which of ['learn', 'see']) {
     const view = byId(`view-${which}`);
@@ -145,10 +151,18 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
   byId('view-note').hidden = mode !== 'learn';
   panels.bar.show(mode);
   if (mode === 'learn') {
+    if (from === 'see') {
+      page.run.pause();
+      mounted.stash = page.run;
+    }
     replaceRun(mounted);
     mounted.learn.begin();
   } else {
     mounted.learn.end();
+    if (mounted.stash !== undefined) {
+      replaceRun(mounted, mounted.stash);
+      delete mounted.stash;
+    }
     panels.speech.reset();
     page.run.hold(null);
     // See does not ask for the busy day for the viewer: a run at the offer waits there, and one that Learn played on
