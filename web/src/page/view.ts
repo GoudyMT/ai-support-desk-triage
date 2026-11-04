@@ -399,6 +399,21 @@ export function speedView(state: RunState): { label: 'Speed up' | 'Slow down'; s
   };
 }
 
+export type TopLine = 'purpose' | 'slow' | 'busy';
+
+// Which words the line under the title shows. Learn and a run at rest keep the page's purpose; the bar's
+// status already says the same of the pace, so neither notice is announced.
+export function topLineView(view: 'learn' | 'see', state: Pick<RunState, 'playing' | 'pace'>, busyJustStarted: boolean): TopLine {
+  if (view === 'learn') return 'purpose';
+  if (state.pace === 'fast') return busyJustStarted ? 'busy' : 'purpose';
+  return state.playing ? 'slow' : 'purpose';
+}
+
+// Only a change from slow to fast is news: a first drawing, or a run that was already fast, is not.
+export function paceSpeededUp(before: RunState['pace'] | undefined, after: RunState['pace']): boolean {
+  return before === 'slow' && after === 'fast';
+}
+
 export function explainMode(state: RunState): 'offered' | 'off' {
   return state.act === 1 || !state.playing ? 'offered' : 'off';
 }

@@ -14,6 +14,7 @@ import { mountReviewForm } from './reviewForm';
 import { createSentence } from './sentence';
 import { createSpeech } from './speech';
 import { mountStats } from './stats';
+import { mountTopLine } from './topLine';
 
 // What changes while the page runs. `run` is replaced by Restart; the panels read it through here.
 export interface Page {
@@ -85,6 +86,7 @@ export function mountPanels(page: Page, hooks: PanelHooks) {
     speech: createSpeech(byId('announcer')),
     focus: createFocus({ form, center, controls: bar }),
     stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
+    topLine: mountTopLine(byId('purpose'), byId('top-notice')),
     bar,
     dim: createDim(),
     tabs: mountTabs(byId('tabs'), byId('app')),

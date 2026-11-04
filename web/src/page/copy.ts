@@ -4,6 +4,12 @@ import type { PillKind } from './view';
 
 const MS_PER_SECOND = 1000;
 
+// What the line under the title says in See while the pace is the news. At other times it says what the page is.
+export const TOP_LINE_WORDS = {
+  slow: 'Slowed down for the first few tickets so you can follow along.',
+  busy: 'Busy-day speed is back.',
+};
+
 // What the source panel of each saved number says. The figures come from the constants the numbers use,
 // so the words cannot drift from the sums.
 export const TIME_SAVED_SOURCE =
