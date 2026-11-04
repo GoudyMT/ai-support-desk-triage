@@ -26,6 +26,7 @@ import {
   centerView,
   controlsView,
   explainMode,
+  idleText,
   incomingView,
   moreNumbersView,
   outgoingView,
@@ -34,11 +35,6 @@ import {
   statsView,
   statusView,
 } from './view';
-
-const IDLE_TEXT: Record<string, string> = {
-  'Run complete': 'Run complete',
-  Paused: 'Press Play to see the next ticket.',
-};
 
 interface Setup {
   seed: number;
@@ -142,7 +138,7 @@ function render(mounted: Mounted): void {
     ticket: centerView(state),
     explain: explainMode(state),
     explainOpen: page.explain,
-    idle: IDLE_TEXT[statusView(state)] ?? 'Waiting for the next ticket',
+    idle: idleText(state, setup.schedule.total),
     realSpeedLabel: controls.realSpeedLabel,
     result,
   });

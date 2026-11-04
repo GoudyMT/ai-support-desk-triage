@@ -6,6 +6,7 @@ import {
   centerView,
   controlsView,
   explainMode,
+  idleText,
   moreNumbersView,
   realSpeedView,
   statsView,
@@ -388,13 +389,21 @@ describe('controls', () => {
     });
   });
 
-  it('stops them, and hides real speed, once the run is complete', () => {
+  // A viewer who watched the whole day can still see the software's speed: the one button left is the
+  // timing pass alone, until it has been run.
+  it('stops them once the run is complete, and offers only the timing pass', () => {
     expect(controlsView(finishedRun().state(), TOTAL)).toEqual({
       playLabel: 'Play',
       playDisabled: true,
       stepDisabled: true,
-      realSpeedLabel: null,
+      realSpeedLabel: 'See how fast this runs at real speed',
     });
+  });
+
+  it('offers nothing more once the timing pass has been run', () => {
+    const run = finishedRun();
+    run.finishNow();
+    expect(controlsView(run.state(), TOTAL).realSpeedLabel).toBeNull();
   });
 
   it('counts the tickets not yet closed in the real speed label', () => {
@@ -410,6 +419,35 @@ describe('controls', () => {
     const run = makeRun();
     const lastOne = stepUntil(run, (s) => s.done.length === TOTAL - 1);
     expect(controlsView(lastOne, TOTAL).realSpeedLabel).toBe('Run the last ticket at real speed');
+  });
+});
+
+describe('the line shown when no ticket is in the center', () => {
+  const fresh = makeRun().state();
+
+  it('asks for Play when paused, and says it is waiting when playing between tickets', () => {
+    expect(idleText(fresh, TOTAL)).toBe('Press Play to see the next ticket.');
+    expect(idleText({ ...fresh, playing: true }, TOTAL)).toBe('Waiting for the next ticket');
+  });
+
+  it('says no more tickets are coming once every one has arrived and the reviewer has the rest', () => {
+    const run = makeRun();
+    const state = stepUntil(
+      run,
+      (s) => s.current === undefined && s.incoming.length === 0 && s.open.length > 0 && s.done.length + s.open.length === TOTAL,
+    );
+    const text = 'No more tickets coming. The reviewer is finishing the open ones.';
+    expect(idleText({ ...state, playing: true }, TOTAL)).toBe(text);
+    expect(idleText(state, TOTAL)).toBe(text);
+  });
+
+  it('keeps waiting while a ticket is still to arrive, even with an empty line and the reviewer busy', () => {
+    const state = withState({ playing: true, incoming: [], current: undefined, open: [trailOf()], done: [] });
+    expect(idleText(state, TOTAL)).toBe('Waiting for the next ticket');
+  });
+
+  it('says Run complete at the end', () => {
+    expect(idleText(finishedRun().state(), TOTAL)).toBe('Run complete');
   });
 });
 

@@ -55,6 +55,35 @@ test.describe('the key to the closed list', () => {
   });
 });
 
+const DAY_STEP_MS = 5000;
+const DAY_LIMIT = 200;
+
+test.describe('the end of a paced run', () => {
+  test('says no more tickets are coming while the reviewer finishes the open ones, then offers the timing pass alone', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    const idle = page.locator('#ticket .idle');
+    for (let n = 0; n < DAY_LIMIT && !(await idle.innerText()).startsWith('No more tickets'); n += 1) {
+      await page.clock.runFor(DAY_STEP_MS);
+    }
+    await expect(idle).toHaveText('No more tickets coming. The reviewer is finishing the open ones.');
+    await expect(page.locator('#status')).not.toHaveText('Run complete');
+
+    for (let n = 0; n < DAY_LIMIT && (await page.locator('#status').innerText()) !== 'Run complete'; n += 1) {
+      await page.clock.runFor(DAY_STEP_MS);
+    }
+    await expect(page.locator('#status')).toHaveText('Run complete');
+    await expect(idle).toHaveText('Run complete');
+    // Nothing is left to run, so the only button is the one that times the pass.
+    await expect(page.getByRole('button', { name: /^Run the last/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'See how fast this runs at real speed' }).click();
+    await expect(page.getByRole('heading', { name: 'Run complete at real speed' })).toBeFocused();
+    await expect(page.locator('#ticket .result')).toContainText('130 tickets through every stage in');
+    await expect(page.locator('#status')).toHaveText('Run complete');
+    await expect(page.getByRole('button', { name: /real speed$/ })).toHaveCount(0);
+  });
+});
+
 test.describe('what the review form says', () => {
   test('tells the viewer what is scored and what is not', async ({ page }) => {
     await playToFirstOpen(page);

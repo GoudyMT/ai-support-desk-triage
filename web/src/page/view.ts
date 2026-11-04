@@ -319,18 +319,40 @@ export function outgoingView(
   };
 }
 
+// The one button for the real speed pass: it finishes what is left, or, once the run has ended by
+// itself, only times it. Nothing is offered while a review is open or once the pass has been timed.
+function realSpeedLabel(state: RunState, total: number): string | null {
+  if (state.reviewing !== undefined) return null;
+  if (state.act === 'complete') return state.realSpeed === undefined ? 'See how fast this runs at real speed' : null;
+  const left = total - state.done.length;
+  return `Run the last ${left === 1 ? 'ticket' : `${left} tickets`} at real speed`;
+}
+
 export function controlsView(
   state: RunState,
   total: number,
 ): { playLabel: 'Play' | 'Pause'; playDisabled: boolean; stepDisabled: boolean; realSpeedLabel: string | null } {
   const blocked = state.act === 'complete' || state.reviewing !== undefined;
-  const left = total - state.done.length;
   return {
     playLabel: state.playing ? 'Pause' : 'Play',
     playDisabled: blocked,
     stepDisabled: blocked || state.playing,
-    realSpeedLabel: blocked ? null : `Run the last ${left === 1 ? 'ticket' : `${left} tickets`} at real speed`,
+    realSpeedLabel: realSpeedLabel(state, total),
   };
+}
+
+// What the center says when no ticket is in it. Every ticket that has arrived is in the line, the center,
+// the open list, the review form or done, so the count of those says whether another is still to come.
+export function idleText(state: RunState, total: number): string {
+  if (state.act === 'complete') return 'Run complete';
+  const arrived =
+    state.incoming.length +
+    state.open.length +
+    state.done.length +
+    (state.reviewing === undefined ? 0 : 1) +
+    (state.current === undefined ? 0 : 1);
+  if (arrived >= total) return 'No more tickets coming. The reviewer is finishing the open ones.';
+  return state.playing ? 'Waiting for the next ticket' : 'Press Play to see the next ticket.';
 }
 
 export function statusView(state: RunState): string {
