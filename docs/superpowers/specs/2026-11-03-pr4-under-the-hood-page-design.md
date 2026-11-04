@@ -96,6 +96,12 @@ numbers CI already holds (parent section 6 start point).
   1280x800, measured); Why this choice carries a note on the highlighted words: "The highlighted words moved the model
   most. It counts words and does not read meaning, so small words can show up."; All numbers has the same arrow as Why
   this choice; the center takes the room when Going out folds.
+- 2026-11-04 (owner, after the page check): real speed finishes the run, and its number comes from a fresh unpaced pass of
+  all 130 tickets, because a late press timed tickets already run ("24 tickets in 0 ms"). The phone layout applies below
+  1024 px, because at 768 px the center was the narrowest column at 184 px. Narration: every stage for the first three
+  tickets, one sentence per ticket after that, none on the busy day while playing; Pause always shows the current
+  stage's sentence. A caption under Coming in names the tags: "Tags are a quick first guess from a small model." A
+  priority a rule raised is labeled "raised by a rule" in the review form.
 - 2026-11-04 (owner): the reviewer's pace changes to one ticket every 1.5 seconds, the center stays at about 1 second
   per ticket. Measured on the real engine, 8 seeds: at one close a second the open list never holds more than 1 ticket,
   so the right column has nothing to show; at 1.5 s it peaks at 17-25 and a run takes about 4:15.
@@ -127,7 +133,7 @@ reviewer's answer stays hidden, and Confirm runs that ticket again with a review
 so the trail shown is the trail scored (PR 3 section 6 seam). Hand back returns it to the open list.
 
 **Real speed** is one text button, "Run the last N tickets at real speed": the engine finishes the run with no pacing
-and no cards drawn, and the page shows the measured time. The final numbers then stand as Run complete.
+and no cards drawn, then times a fresh unpaced pass of every ticket, and the page shows that measured time. The final numbers then stand as Run complete.
 
 The **page** is plain TypeScript modules, one per panel, that render the engine's state; it holds no pipeline logic.
 It ships static first: cards change column and order with no sliding. Motion comes after the owner has seen the
@@ -159,7 +165,7 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
    on top. Center, the widest: the current ticket, its stage track, its masked text, and a row for each of Privacy, Classify and
    Guardrails, with waiting dots until the stage is reached. Right: Going out, open tickets on top as short cards with the team, the reason and a Review button, highest priority first;
    closed tickets below as one gray line each, newest first. The right column collapses to a rail showing the number
-   pending review. Under 768 px: stats, the current ticket, then Coming in / Going out tabs; the tab shows the pending
+   pending review. Under 1024 px: stats, the current ticket, then Coming in / Going out tabs; the tab shows the pending
    count.
 5. **Live numbers:** on top as in Must 4. All numbers expands: the model's category accuracy so far beside v0's on the
    same tickets (the parent C2 comparison), reviewer overrides as a count, tickets per second (after a real speed run),
@@ -168,7 +174,8 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
 6. **Word chips:** each top term is highlighted where it is written in the masked text, found with the model's
    own tokenizer (a word pair is two adjacent tokens, so "so cannot" spans "so I cannot"); a rule word is found
    the same way (PR 3 Parking Lot); a term with no written span appears only in the technical detail.
-7. **Narration:** one or two plain sentences for the current stage, built from the trail, at learn speed and on Pause.
+7. **Narration:** one or two plain sentences built from the trail: each stage of the first three tickets, one sentence
+   per ticket after that at learn speed, none on the busy day while playing, and the current stage on Pause.
    "Why this choice" expands to list confidence, the floor, each reason that fired, the top words and what was masked;
    it is closed by default, offered at learn speed and on Pause, and replaced on the busy day by a line that says to
    pause. It shows only what the current stage has reached. Rules, the model, the pre-screener and the simulated
@@ -181,7 +188,7 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
    error with a Retry button, and no run starts.
 10. **Accessibility:** keyboard-only from Play to Run complete; reduced motion = no sliding: cards change place at once
     and stages change by color and text only; a tag is a word and a color, never color alone; a polite live region
-    announces each stage at learn speed only (the busy day would flood it); contrast WCAG 2.2 AA; works at 375, 768 and
+    announces each stage at learn speed only (the busy day would flood it); contrast WCAG 2.2 AA; works at 375, 768, 1024 and
     1280 px; a Content-Security-Policy meta tag (`default-src 'self'`, adapter A3).
 11. **Size budgets:** `web/size-budgets.json` with the two A12 budgets; `npm run gate` gains a production
     build and the size check after its tests (today it has no build step); limits set with the owner from the

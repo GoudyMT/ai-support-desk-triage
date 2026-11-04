@@ -12,7 +12,7 @@
   when the owner asked for the redesign; redesign Task 6 - d6c738e, 5de0485; Task 7 - fc8e5da, c5dea90, Opus check
   FIX (no engine defect, test gaps); Task 8 - f4a856f, lead break check red, 969 unit tests green
   Task 7 fix round - 63f25d7..2ac1c36, lead break check red, 977 green; Task 9 - ff616ec and the owner's round
-  a950b44-picks..81e1fa1, 69 e2e green, Opus check ESCALATE (Execution Notes); Task 10 - motion, 99 e2e green
+  through 81e1fa1, 69 e2e green, Opus check ESCALATE (Execution Notes); Task 10 - motion, 99 e2e green
 - Next: the check's fixes and the owner's four calls, then Task 11
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
