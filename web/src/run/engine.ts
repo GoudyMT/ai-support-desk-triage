@@ -118,14 +118,19 @@ function stageMs(index: number): number {
   return index < DEEP_TICKETS ? DEEP_STAGE_MS : QUICK_STAGE_MS;
 }
 
-export function createRun(opts: {
+export interface RunOptions {
   seed: number;
   model: Model;
   schedule: Schedule;
   wallClock: () => number;
   prescreen: (maskedText: string) => Tag;
-}): Run {
-  const { seed, model, schedule, wallClock, prescreen } = opts;
+  // False only for the throwaway run that times a pass: it times nothing itself, which is
+  // what stops a timing run from starting a timing run of its own.
+  timed?: boolean;
+}
+
+export function createRun(opts: RunOptions): Run {
+  const { seed, model, schedule, wallClock, prescreen, timed = true } = opts;
   const fold = foldOf(seed);
   const truths = new Map<string, TicketLabel>();
   const truthOf = (id: string): TicketLabel => {
@@ -353,16 +358,26 @@ export function createRun(opts: {
     notify();
   }
 
+  // The time of one unpaced pass over every ticket, on a fresh run with the same seed, model,
+  // schedule and pre-screener. It has its own simulated reviewer and shares no state with this
+  // run, so it measures the same work whenever the button is pressed.
+  function timeFullPass(): number {
+    const started = wallClock();
+    createRun({ ...opts, timed: false }).finishNow();
+    return wallClock() - started;
+  }
+
+  // Finishes the live run with no pacing and no timing, then reports the measured pass.
   function finishNow(): void {
     if (reviewing !== undefined || isComplete()) {
       return;
     }
-    const tickets = schedule.total - done.length;
-    const started = wallClock();
     for (let event = nextEvent(); event !== undefined; event = nextEvent()) {
       fire(event);
     }
-    realSpeed = { tickets, ms: wallClock() - started };
+    if (timed) {
+      realSpeed = { tickets: schedule.total, ms: timeFullPass() };
+    }
     notify();
   }
 

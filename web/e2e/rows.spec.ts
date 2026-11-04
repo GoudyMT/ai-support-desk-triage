@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, open, reviewButton, stat, tabTo } from './helpers';
+import { FIRST_OPEN_MS, SEED, open, reviewButton, stat, tabTo } from './helpers';
 
 // Small rows, each pinning one thing a viewer sees or does, so a break in any of them goes red.
 const REVIEWER_CLOSE_MS = 1_600;
 const STEP_LIMIT = 40;
+const LATE_PRESSES = 5000;
 
 async function playTo(page: Page, ms: number): Promise<void> {
   await open(page);
@@ -32,6 +33,23 @@ test.describe('by keyboard alone', () => {
     await expect(page.locator('#ticket .why-list')).toBeVisible();
     await page.keyboard.press('Space');
     await expect(page.locator('#ticket .why-list')).toBeHidden();
+  });
+});
+
+test.describe('the measured real speed result', () => {
+  test('pressed late on the real clock, it still times a pass over all 130 tickets', async ({ page }) => {
+    await page.goto(`/?seed=${SEED}`);
+    const real = page.getByRole('button', { name: /at real speed$/ });
+    await expect(real).toBeVisible();
+    // Step is event by event and needs no time, so the run is taken nearly to its end in one go.
+    await page.evaluate((limit) => {
+      const step = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Step');
+      const left = () => /last (\d+) tickets?/.exec(document.querySelector('.cta')?.textContent ?? '')?.[1] ?? '0';
+      for (let n = 0; n < limit && Number(left()) > 3 && !step?.disabled; n += 1) step?.click();
+    }, LATE_PRESSES);
+    await expect(real).toHaveText(/last [1-3] tickets? at real speed/);
+    await real.click();
+    await expect(page.locator('#ticket')).toContainText(/130 tickets through every stage in [1-9]\d* ms, about [\d,]+ tickets a second\./);
   });
 });
 

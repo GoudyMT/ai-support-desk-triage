@@ -43,13 +43,14 @@ test.describe('the run, by keyboard alone', () => {
     await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
     await expect(page.locator('#outgoing .closed li', { hasText: 'T-1001-0' })).toContainText('You');
 
-    // One ticket is closed (by the viewer), so 129 are left; the frozen test clock measures 0 ms and gives no rate.
+    // One ticket is closed (by the viewer), so 129 are left to finish, but the measured pass is all 130;
+    // the frozen test clock measures 0 ms and gives no rate.
     await tabTo(page, /^Run the last 129 tickets at real speed$/);
     await page.keyboard.press('Enter');
     await expect(page.locator('#status')).toHaveText('Run complete');
     await expect(stat(page, 'Tickets done')).toHaveText(String(TOTAL_TICKETS));
     await expect(page.getByRole('heading', { name: 'Run complete at real speed' })).toBeFocused();
-    await expect(page.locator('#ticket')).toContainText('129 tickets through every stage in 0 ms.');
+    await expect(page.locator('#ticket')).toContainText('130 tickets through every stage in 0 ms.');
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
   });
 });

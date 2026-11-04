@@ -16,26 +16,55 @@ import {
   withoutMsTrail,
 } from './engineTestKit';
 
+// A wall clock that moves on by one at every read, so any pass that reads it takes time.
+function tickingClock(): () => number {
+  let now = 0;
+  return () => {
+    now += 1;
+    return now;
+  };
+}
+
 describe('finishNow', () => {
-  it('closes every ticket at once and reports the measured time from the wall clock read before and after', () => {
-    const reads: number[] = [];
-    const run = makeRun({
-      wallClock: () => {
-        const reading = (reads.length + 1) * 7;
-        reads.push(reading);
-        return reading;
-      },
-    });
-    const readsBefore = reads.length;
+  it('closes every ticket at once with the same trails as a paced day, and times a pass on the wall clock', () => {
+    const run = makeRun({ wallClock: tickingClock() });
     run.finishNow();
     const state = run.state();
     expect(state.act).toBe('complete');
     expect(state.playing).toBe(false);
     expect(state.done.map(withoutMsTrail)).toEqual(pacedDay().end.done.map(withoutMsTrail));
-    const first = reads[readsBefore] ?? 0;
-    const last = reads.at(-1) ?? 0;
-    expect(state.realSpeed).toEqual({ tickets: TOTAL, ms: last - first });
-    expect(last - first).toBeGreaterThan(0);
+    expect(state.realSpeed?.tickets).toBe(TOTAL);
+    expect(state.realSpeed?.ms).toBeGreaterThan(0);
+  });
+
+  // The number comes from a fresh pass of every ticket, so it does not depend on how far the live run got.
+  it('measures all the tickets whenever it is pressed, and the same pass early or late', () => {
+    const early = makeRun({ wallClock: tickingClock() });
+    early.finishNow();
+    const late = makeRun({ wallClock: tickingClock() });
+    stepUntil(late, (s) => s.done.length >= TOTAL - 3);
+    expect(TOTAL - late.state().done.length).toBeLessThanOrEqual(3);
+    late.finishNow();
+    expect(early.state().realSpeed?.tickets).toBe(TOTAL);
+    expect(late.state().realSpeed?.tickets).toBe(TOTAL);
+    expect(late.state().realSpeed?.ms).toBeGreaterThan(0);
+    expect(late.state().realSpeed?.ms).toBe(early.state().realSpeed?.ms);
+  });
+
+  it('shares nothing with the timing pass: the live run ends with each ticket once and its own reviewer', () => {
+    const run = makeRun({ wallClock: tickingClock() });
+    run.finishNow();
+    const state = run.state();
+    expect(new Set(ids(state.done)).size).toBe(TOTAL);
+    expect(state.done).toHaveLength(TOTAL);
+    expect(state.viewerReviews).toEqual([]);
+    expect(run.truthOf(idOf(0))).toBeDefined();
+  });
+
+  it('gives a zero reading when the clock does not move', () => {
+    const run = makeRun();
+    run.finishNow();
+    expect(run.state().realSpeed).toEqual({ tickets: TOTAL, ms: 0 });
   });
 
   // The real speed button with a ticket open and the form closed, and again on the last ticket.
@@ -55,7 +84,7 @@ describe('finishNow', () => {
     expect(state.done.map(withoutMsTrail).sort()).toEqual(end.done.map(withoutMsTrail).sort());
     expect(state.open).toEqual([]);
     expect(state.incoming).toEqual([]);
-    expect(state.realSpeed?.tickets).toBe(remaining);
+    expect(state.realSpeed?.tickets).toBe(TOTAL);
   });
 
   // The page's own schedule: 30 tickets in Act 1 and the 100-ticket busy day.
