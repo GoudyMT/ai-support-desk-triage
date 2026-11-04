@@ -47,6 +47,8 @@
   --pill-missed-text: #991b1b;
   --pill-you-bg: #dbeafe;
   --pill-you-text: #1e3a8a;
+  --pill-wrong-bg: #fef9c3;
+  --pill-wrong-text: #713f12;
   --flash-time-bg: #d4d4d8;
   --flash-time-text: #18181b;
   --flash-value-bg: #86efac;
@@ -166,6 +168,8 @@
     --pill-missed-text: #fecaca;
     --pill-you-bg: #1e3a8a;
     --pill-you-text: #dbeafe;
+    --pill-wrong-bg: #422006;
+    --pill-wrong-text: #fef08a;
     --flash-time-bg: #ffffff;
     --flash-time-text: #18181b;
     --flash-value-bg: #166534;

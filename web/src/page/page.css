@@ -222,6 +222,13 @@ h1 {
   color: var(--pill-missed-text);
 }
 
+/* Like Missed, it carries a border, so it stands out from the plain marks by shape as well as color. */
+.pill-wrong {
+  border-color: var(--pill-wrong-text);
+  background: var(--pill-wrong-bg);
+  color: var(--pill-wrong-text);
+}
+
 .pill-you {
   background: var(--pill-you-bg);
   color: var(--pill-you-text);

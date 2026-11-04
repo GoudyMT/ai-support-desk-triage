@@ -14,7 +14,7 @@ import { HOURLY_PAY_USD, MINUTES_PER_TICKET, dollarsText, minutesText, valueSave
 import { OFFER_WORDS, TIME_SAVED_SOURCE, TIME_SOURCE_LINKS, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINKS } from './copy';
 import { findSpans } from './spans';
 
-export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'you';
+export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'wrong' | 'you';
 
 export type SegmentKind = 'plain' | 'chip' | 'rule' | 'mask';
 
@@ -127,6 +127,10 @@ function pillFor(state: RunState, trail: TicketTrail, truth: TicketLabel): { kin
   }
   if (!trail.guard.flagged && truth.mustReview) {
     return { kind: 'missed', word: 'Missed' };
+  }
+  // Nobody looked at it and the model's team is not the true one: it closed as if all was well.
+  if (trail.review === undefined && trail.final.route !== ROUTES[truth.category]) {
+    return { kind: 'wrong', word: 'Wrong team' };
   }
   if (trail.final.by === 'reviewer') {
     return trail.final.category === trail.category.label

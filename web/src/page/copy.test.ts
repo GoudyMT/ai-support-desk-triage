@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ROUTES } from '../domain/labels';
 import { PILL_KEY, reviewerNote } from './copy';
 import { outgoingView } from './view';
-import { finishedRun, makeRun, missedTruth, must, noTruth, stepUntil } from './viewTestKit';
+import { agreeingTruth, finishedRun, makeRun, missedTruth, must, stepUntil, wrongTeamTruth } from './viewTestKit';
 
 describe('the note under Going out', () => {
   it('says the reviewer is simulated and how often it closes a ticket, from the engine constant', () => {
@@ -18,10 +18,11 @@ describe('the note under Going out', () => {
 describe('the key to the marks on a closed line', () => {
   it('lists each mark in turn with the meaning the code gives it', () => {
     expect(PILL_KEY.map((row) => `${row.word}: ${row.meaning}`)).toEqual([
-      'Auto: no person needed.',
-      "Flagged: a person checked it and kept the model's category.",
+      'Auto: no review.',
+      "Flagged: the reviewer checked it and kept the model's category.",
       "Overridden: the reviewer changed the model's category.",
       'Missed: it needed a person and did not get one.',
+      'Wrong team: it went to the wrong team and nobody checked it.',
       'You: your own review.',
     ]);
   });
@@ -30,8 +31,9 @@ describe('the key to the marks on a closed line', () => {
   it('starts every mark the closed list can show, and no other', () => {
     const run = finishedRun();
     const state = run.state();
-    const words = new Set(outgoingView(state, noTruth).closed.map((row) => row.pill.word));
+    const words = new Set(outgoingView(state, agreeingTruth(state)).closed.map((row) => row.pill.word));
     for (const row of outgoingView(state, missedTruth(run).truthOf).closed) words.add(row.pill.word);
+    for (const row of outgoingView(state, wrongTeamTruth(state).truthOf).closed) words.add(row.pill.word);
     const viewed = makeRun();
     const id = must(stepUntil(viewed, (s) => s.open.length > 0).open[0]).id;
     viewed.review(id);

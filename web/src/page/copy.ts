@@ -43,10 +43,11 @@ export const VALUE_SOURCE_LINKS = [
 
 // What each mark on a closed line means, in the order they are listed. `word` is how the mark starts.
 export const PILL_KEY: { kind: PillKind; word: string; meaning: string }[] = [
-  { kind: 'auto', word: 'Auto', meaning: 'no person needed.' },
-  { kind: 'flagged', word: 'Flagged', meaning: "a person checked it and kept the model's category." },
+  { kind: 'auto', word: 'Auto', meaning: 'no review.' },
+  { kind: 'flagged', word: 'Flagged', meaning: "the reviewer checked it and kept the model's category." },
   { kind: 'overridden', word: 'Overridden', meaning: "the reviewer changed the model's category." },
   { kind: 'missed', word: 'Missed', meaning: 'it needed a person and did not get one.' },
+  { kind: 'wrong', word: 'Wrong team', meaning: 'it went to the wrong team and nobody checked it.' },
   { kind: 'you', word: 'You', meaning: 'your own review.' },
 ];
 

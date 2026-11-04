@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
+import { CATEGORIES, PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import { loadModel } from '../model/scorer';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
 import { createRun, type CenterStage, type Run, type RunState } from '../run/engine';
@@ -76,6 +76,22 @@ export const noTruth = (): TicketLabel => ({ category: 'Billing', priority: 'Med
 export function missedTruth(run: Run): { id: string; truthOf: (id: string) => TicketLabel } {
   const id = must(run.state().done.find((trail) => !trail.guard.flagged)).id;
   return { id, truthOf: (other) => (other === id ? { ...noTruth(), mustReview: true } : noTruth()) };
+}
+
+// A truth that agrees with where each closed ticket went: no ticket needed a person and none went to the wrong team.
+export function agreeingTruth(state: RunState): (id: string) => TicketLabel {
+  return (id) => {
+    const trail = must(state.done.find((t) => t.id === id));
+    return { category: trail.final.category, priority: trail.final.priority, mustReview: false };
+  };
+}
+
+// The same, except that a ticket the system sent on unflagged really belonged to another team.
+export function wrongTeamTruth(state: RunState): { id: string; truthOf: (id: string) => TicketLabel } {
+  const sent = must(state.done.find((trail) => !trail.guard.flagged));
+  const other = must(CATEGORIES.find((category) => ROUTES[category] !== sent.final.route));
+  const agree = agreeingTruth(state);
+  return { id: sent.id, truthOf: (id) => (id === sent.id ? { ...agree(id), category: other } : agree(id)) };
 }
 
 export const RULE_CAPTIONS: FlagReason = { kind: 'rule', reason: 'accessibility issue', words: ['captions'] };

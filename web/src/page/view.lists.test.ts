@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PRIORITIES, ROUTES, type Category, type TicketLabel } from '../domain/labels';
+import { CATEGORIES, PRIORITIES, ROUTES, type Category, type TicketLabel } from '../domain/labels';
 import type { TicketTrail } from '../pipeline/types';
 import { incomingView, moreNumbersView, outgoingView, reviewView } from './view';
 import {
   PREVIEW_CHARS,
   RULE_CAPTIONS,
+  agreeingTruth,
   finishedRun,
   makeRun,
   missedTruth,
@@ -13,6 +14,7 @@ import {
   stepUntil,
   trailOf,
   withState,
+  wrongTeamTruth,
 } from './viewTestKit';
 
 describe('coming in', () => {
@@ -101,7 +103,7 @@ describe('going out', () => {
     expect(ids).toEqual(state.done.map((trail) => trail.id).reverse());
   });
 
-  it('gives Flagged, Overridden, Auto and Missed their own pill', () => {
+  it('gives Flagged, Overridden, Auto, Wrong team and Missed their own pill', () => {
     const run = finishedRun();
     const state = run.state();
     const pillOf = (id: string, truthOf: (id: string) => TicketLabel) =>
@@ -109,10 +111,33 @@ describe('going out', () => {
     const kept = must(state.done.find((t) => t.final.by === 'reviewer' && t.final.category === t.category.label));
     const changed = must(state.done.find((t) => t.final.by === 'reviewer' && t.final.category !== t.category.label));
     const passed = must(state.done.find((t) => !t.guard.flagged));
-    expect(pillOf(kept.id, noTruth)).toEqual({ kind: 'flagged', word: 'Flagged' });
-    expect(pillOf(changed.id, noTruth)).toEqual({ kind: 'overridden', word: 'Overridden' });
-    expect(pillOf(passed.id, noTruth)).toEqual({ kind: 'auto', word: 'Auto' });
+    const agree = agreeingTruth(state);
+    expect(pillOf(kept.id, agree)).toEqual({ kind: 'flagged', word: 'Flagged' });
+    expect(pillOf(changed.id, agree)).toEqual({ kind: 'overridden', word: 'Overridden' });
+    expect(pillOf(passed.id, agree)).toEqual({ kind: 'auto', word: 'Auto' });
+    // A ticket nobody checked that went to the wrong team says so; one that needed a person is Missed first.
+    const wrong = wrongTeamTruth(state);
+    expect(pillOf(wrong.id, wrong.truthOf)).toEqual({ kind: 'wrong', word: 'Wrong team' });
+    const both = (id: string): TicketLabel => ({ ...wrong.truthOf(id), mustReview: id === wrong.id });
+    expect(pillOf(wrong.id, both)).toEqual({ kind: 'missed', word: 'Missed' });
     expect(pillOf(passed.id, missedTruth(run).truthOf)).toEqual({ kind: 'missed', word: 'Missed' });
+  });
+
+  // A reviewed ticket was checked by a person, so a wrong team is not "nobody checked it".
+  it('does not call a reviewed ticket Wrong team', () => {
+    const run = finishedRun();
+    const state = run.state();
+    const wrongEverywhere = (id: string): TicketLabel => {
+      const trail = must(state.done.find((t) => t.id === id));
+      const other = must(CATEGORIES.find((category) => ROUTES[category] !== trail.final.route));
+      return { category: other, priority: trail.final.priority, mustReview: false };
+    };
+    const kinds = new Set(outgoingView(state, wrongEverywhere).closed.map((row) => row.pill.kind));
+    expect(kinds.has('wrong')).toBe(true);
+    for (const row of outgoingView(state, wrongEverywhere).closed) {
+      const trail = must(state.done.find((t) => t.id === row.id));
+      if (trail.review !== undefined) expect(row.pill.kind).not.toBe('wrong');
+    }
   });
 
   // Once the ticket is closed the truth is no secret, so the line says whether the viewer was right.

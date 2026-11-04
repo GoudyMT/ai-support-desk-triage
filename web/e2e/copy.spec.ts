@@ -54,10 +54,11 @@ test.describe('the key to the closed list', () => {
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(list.locator('li')).toHaveText([
-      'Auto: no person needed.',
-      "Flagged: a person checked it and kept the model's category.",
+      'Auto: no review.',
+      "Flagged: the reviewer checked it and kept the model's category.",
       "Overridden: the reviewer changed the model's category.",
       'Missed: it needed a person and did not get one.',
+      'Wrong team: it went to the wrong team and nobody checked it.',
       'You: your own review.',
     ]);
     await expect.poll(turn).not.toBe(closed);

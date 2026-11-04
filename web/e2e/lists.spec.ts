@@ -193,6 +193,22 @@ test.describe('the center', () => {
     );
   });
 
+  // Seed 1003 closes a whole day with no review on 15 tickets: one needed a person (Missed) and two went to the
+  // wrong team, counted by hand from the closed trails. Both are marked by a word and a border, not a color alone.
+  test('marks a ticket nobody checked that went to the wrong team, and keeps Missed for the one that needed a person', async ({ page }) => {
+    await open(page, '?seed=1003');
+    await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
+    const wrong = page.locator('#outgoing .closed .pill-wrong');
+    await expect(wrong).toHaveText(['Wrong team', 'Wrong team']);
+    await expect(page.locator('#outgoing .closed .pill-missed')).toHaveText(['Missed']);
+    const look = await wrong.first().evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { border: style.borderTopColor, background: style.backgroundColor };
+    });
+    expect(look.border).not.toBe('rgba(0, 0, 0, 0)');
+    expect(look.background).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
   test('the loading line goes away once the model is in', async ({ page }) => {
     await open(page, `?seed=${SEED}`);
     await expect(page.locator('#loading')).toBeHidden();
