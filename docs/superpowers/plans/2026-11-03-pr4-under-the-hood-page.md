@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 9 and 10 fix round from the Opus check, then 11
+- Current task: 12 (Learn The Process and See The Process), then the re-sweep in 11
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -13,12 +13,15 @@
   FIX (no engine defect, test gaps); Task 8 - f4a856f, lead break check red, 969 unit tests green
   Task 7 fix round - 63f25d7..2ac1c36, lead break check red, 977 green; Task 9 - ff616ec and the owner's round
   through 81e1fa1, 69 e2e green, Opus check ESCALATE (Execution Notes); Task 10 - motion, 99 e2e green
-- Next: the check's fixes and the owner's four calls, then Task 11
+  the check's fixes, size limits and the first sweep's fix round - through 44a56b3, lead break check red, gate exit 0
+  with 1029 unit tests, page 40,565 of 43,000 bytes, 282 e2e green in three browsers
+- Next: Task 12, then the sweep outcome and re-sweep, PR body, the owner's go
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
-**Goal:** a visitor presses Play and watches live tickets move through the six stages, with plain narration,
-word chips, Take over and live numbers, all scored by a model that never saw the tickets' templates.
+**Goal:** a visitor is walked through the process on the live board, then watches live tickets move through the six
+stages, with plain narration, word chips, Review and live numbers, all scored by a model that never saw the tickets'
+templates.
 **Design:** `docs/superpowers/specs/2026-11-03-pr4-under-the-hood-page-design.md` (approved 2026-11-03); parent
 `docs/superpowers/specs/2026-10-29-v1-triage-demo-design.md` sections 5.4, 5.5, 6, 10.3 and C1-C3; the locked
 wireframe https://claude.ai/artifact/LC8C8ggtnybnGDzrCe1QKY, page "Chosen layout". Builders read the PR 4 design
@@ -280,6 +283,26 @@ Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, an
       but the waiting dots (owner, 2026-11-04: too much motion is hard to follow); nothing moves under reduced motion ->
       verify: e2e reduced-motion spec green; the owner's look on the running page
 - [x] Commit `feat: animate the cards`
+
+### Task 12 (builder, Opus checker, then the owner's look): Learn The Process and See The Process
+
+Design section 5, entry "the page is built so the least technical person can follow it"; wireframe
+https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; the two views differ only in who drives.
+
+- [ ] Engine: a hold (`'line'`, a center stage, or none) that stops the center ticket moving on while arrivals, tags and
+      closes carry on; a slow count (3 at the start; Speed up sets 0, Slow down sets 3) that replaces the fixed first
+      three tickets; the run pauses by itself when the last slow ticket leaves the center unless the viewer sped up ->
+      verify: engine rows red first, including `finishNow` and the timing pass ignoring both
+- [ ] One bottom bar, fixed to the screen's bottom edge, holds every control and the plain status; the switch has its
+      own top space, never dimmed, never over the stats; icons carry a word -> verify: e2e at 1280x800, 768 and 375 px,
+      six of thirteen open cards still in view at 1280x800, no sideways scroll, 44 px targets
+- [ ] Learn The Process opens first: dim layer with one lit area measured from the real element, a context block beside
+      it holding the step's text and the live ticket's own sentence, a loading bar per step on the bar's top edge, each
+      step timed at 238 words a minute, Back / Pause / Next, ends into See -> verify: e2e rows for each step's lit area,
+      timing, Back, Pause, the end, phones, keyboard and reduced motion (starts paused)
+- [ ] See The Process plays at once, slow first, Speed up / Slow down in the bar, offers the busy day at the end of the
+      slow part -> verify: e2e rows; page within the 43,000 byte limit or a measured shortfall reported
+- [ ] Opus check; a real screen and clip to the owner; a walk with zero-technical eyes -> verify: the owner's look
 
 ### Task 11 (lead, then the owner): close out
 
