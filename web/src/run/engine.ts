@@ -80,8 +80,10 @@ export function createRun(opts: RunOptions): Run {
     }
   }
 
-  // runTicket stamps receivedAt and ms from one clock; the engine keeps the measured ms
-  // and takes receivedAt from the schedule, so replays agree on everything but ms.
+  // runTicket stamps receivedAt and ms from one clock; the engine keeps the measured ms and takes receivedAt
+  // from the schedule. A seed gives the same tickets and each ticket's own trail (all but ms), so the same numbers;
+  // the order tickets reach the center in can shift with the viewer's timing, because a Critical tag may land
+  // before or after a ticket enters.
   function runWith(held: { index: number; text: string }, id: string, reviewer: Reviewer): TicketTrail {
     const trail = runTicket(held.text, id, {
       model,
