@@ -47,40 +47,10 @@
   gap: var(--space-2);
 }
 
+/* A tab is a button (.btn); the one in use wears the solid look (.btn-solid), set with aria-selected. */
 .tab {
-  display: inline-flex;
   flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--target);
   padding: 0 var(--space-2);
-  border: var(--border) solid var(--control-line);
-  border-radius: var(--radius);
-  background: var(--raised);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: var(--w-medium);
-  cursor: pointer;
-}
-
-.tab[aria-selected='true'] {
-  border-color: var(--solid-bg);
-  background: var(--solid-bg);
-  color: var(--solid-text);
-}
-
-.tab[aria-selected='false']:hover {
-  background: var(--hover-bg);
-}
-
-.tab[aria-selected='false']:active {
-  background: var(--active-bg);
-}
-
-.tab[aria-selected='true']:hover {
-  background: var(--solid-hover-bg);
 }
 
 .tab-count {

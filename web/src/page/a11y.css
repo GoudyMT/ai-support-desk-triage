@@ -2,7 +2,6 @@
    is loaded last so that its rules win over the panels' where they overlap. */
 @media (prefers-reduced-motion: no-preference) {
   .btn,
-  .tab,
   .step-bar {
     transition:
       background-color var(--motion),

@@ -22,12 +22,13 @@ export function mountTabs(
     board.classList.toggle('show-out', name === 'out');
     for (const [key, { tab }] of nodes) {
       tab.setAttribute('aria-selected', String(key === name));
+      tab.classList.toggle('btn-solid', key === name);
       tab.tabIndex = key === name ? 0 : -1;
       if (focus && key === name) tab.focus();
     }
   };
   for (const { name, label, listId } of TABS) {
-    const tab = button('tab', '', () => {
+    const tab = button('btn tab', '', () => {
       select(name, false);
     });
     tab.setAttribute('role', 'tab');
