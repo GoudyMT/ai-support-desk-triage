@@ -12,6 +12,23 @@ async function playTo(page: Page, ms: number): Promise<void> {
   await page.clock.runFor(ms);
 }
 
+test.describe('forced colors', () => {
+  test.use({ forcedColors: 'active' });
+
+  // WebKit does not emulate forced colors, so there this only checks the dots keep a color of their own.
+  test('the waiting dots still show against the page', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Step' }).click();
+    const dot = page.locator('#ticket .dot').first();
+    await expect(dot).toBeVisible();
+    const [dotColor, pageColor] = await Promise.all([
+      dot.evaluate((node) => getComputedStyle(node).backgroundColor),
+      page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+    ]);
+    expect(dotColor).not.toBe(pageColor);
+  });
+});
+
 test.describe('Restart and Replay', () => {
   test('Restart starts a new run from the beginning with focus on Play', async ({ page }) => {
     await playTo(page, FIRST_OPEN_MS + REVIEWER_CLOSE_MS);
