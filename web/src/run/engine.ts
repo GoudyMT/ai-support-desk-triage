@@ -55,8 +55,8 @@ export const DEEP_STAGE_MS = 5000;
 export const QUICK_STAGE_MS = 250;
 // The pre-screener answers a little after the ticket arrives; nothing waits for it.
 export const TAG_DELAY_MS = 400;
-// The simulated reviewer closes one open ticket per second of run time.
-export const CLOSE_EVERY_MS = 1000;
+// The simulated reviewer closes one open ticket every 1.5 seconds of run time.
+export const CLOSE_EVERY_MS = 1500;
 const MS_PER_SECOND = 1000;
 
 const CENTER_STAGES: readonly CenterStage[] = ['intake', 'privacy', 'classify', 'guardrails'];

@@ -9,7 +9,7 @@ import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
 import { createSchedule, type Schedule } from './clock';
-import { createRun, type Run, type RunState } from './engine';
+import { CLOSE_EVERY_MS, QUICK_STAGE_MS, createRun, type Run, type RunState } from './engine';
 import type { Tag } from './prescreen';
 import { foldOf } from './seed';
 
@@ -134,17 +134,29 @@ function lastDone(run: Run): TicketTrail {
   return last;
 }
 
-// Ticket `a` has just opened and ticket a+1 sits in the center. One center event later `a`
-// is reviewed and handed back, which restarts the reviewer's second, so a+1 reaches the
-// open list before the reviewer closes anything: two open tickets.
-function openPairRun(a: number): Run {
+// What one event did, read from the state before and after it: a close takes a ticket off
+// the open list into done; a leave sends the center's ticket on.
+function eventKind(before: RunState, after: RunState): 'close' | 'leave' | 'other' {
+  if (after.done.length > before.done.length && after.open.length < before.open.length) return 'close';
+  if (before.current !== undefined && after.current?.trail.id !== before.current.trail.id) return 'leave';
+  return 'other';
+}
+
+// A run stopped the moment ticket `index` joins the open list. The reviewer closes slower
+// than the center sends tickets on, so older tickets are still open beside it.
+function runToOpen(index: number): Run {
   const run = makeRun();
-  stepUntil(run, (s) => s.open.some((t) => t.id === idOf(a)));
-  run.step();
-  run.review(idOf(a));
-  run.handBack();
-  stepUntil(run, (s) => s.open.length === 2);
+  stepUntil(run, (s) => s.open.some((t) => t.id === idOf(index)));
   return run;
+}
+
+// The run time at which the reviewer closes the top open ticket, read from a copy of the
+// run stopped when ticket `index` joined the list, with nobody reviewing.
+function nextCloseTime(index: number): number {
+  const run = runToOpen(index);
+  const top = firstOpen(run).id;
+  stepUntil(run, (s) => s.done.some((t) => t.id === top));
+  return run.state().simTime;
 }
 
 // The finished run with nobody reviewing, stepped event by event: the answer every other
@@ -267,13 +279,13 @@ describe('events in run time', () => {
     }
   });
 
-  it('closes the top open ticket 1000 ms after it opened', () => {
+  it('closes the top open ticket CLOSE_EVERY_MS after it opened', () => {
     const run = makeRun();
     stepUntil(run, (s) => s.open.length === 1);
     const opened = run.state().simTime;
     const id = firstOpen(run).id;
     stepUntil(run, (s) => s.done.some((t) => t.id === id));
-    expect(run.state().simTime).toBe(opened + 1000);
+    expect(run.state().simTime).toBe(opened + CLOSE_EVERY_MS);
     expect(lastDone(run).id).toBe(id);
   });
 
@@ -281,18 +293,21 @@ describe('events in run time', () => {
     [
       'a close before a stage',
       () => {
-        const run = makeRun();
-        // Tickets 5 and 6 are consecutive and both flagged: 5 opens as 6 starts its last
-        // center event, which falls exactly when the reviewer closes 5.
-        stepUntil(run, (s) => s.open.some((t) => t.id === idOf(5)));
-        const opened = run.state().simTime;
-        stepUntil(run, (s) => s.simTime === opened + 1000);
-        const tied = run.state();
-        expect(ids(tied.done).includes(idOf(5))).toBe(true);
-        expect(tied.open).toEqual([]);
-        expect(tied.current?.trail.id).toBe(idOf(6));
-        run.step();
-        expect(ids(run.state().open)).toEqual([idOf(6)]);
+        // A ticket leaves the center every 4 x QUICK_STAGE_MS and the reviewer closes every
+        // CLOSE_EVERY_MS, so the two fall on the same moment when the last center event of a
+        // ticket is due as a close is: the close must come first.
+        let tied = 0;
+        pacedStates.forEach((state, n) => {
+          const before = pacedStates[n - 1];
+          const first = pacedStates[n - 2];
+          if (before === undefined || first === undefined || before.simTime !== state.simTime) return;
+          const kinds = [eventKind(first, before), eventKind(before, state)];
+          if (kinds.includes('close') && kinds.includes('leave')) {
+            tied += 1;
+            expect(kinds).toEqual(['close', 'leave']);
+          }
+        });
+        expect(tied).toBeGreaterThan(0);
       },
     ],
     [
@@ -524,24 +539,24 @@ describe('what stays hidden until a ticket is done', () => {
 });
 
 describe('the open list', () => {
-  // The open list is kept highest priority first, then oldest first. Tickets 3 and 4 are both
-  // Urgent, 4 is Urgent and 5 High, 5 is High and 6 Urgent.
+  // The open list is kept highest priority first, then oldest first. Ticket 2 is Medium and the
+  // oldest, 5 is High, 6 is Urgent, 7 is Medium: the reviewer closes slower than tickets open,
+  // so they pile up.
   it.each([
-    ['equal priority: the older first', 3, [3, 4]],
-    ['a younger ticket of higher priority first', 5, [6, 5]],
-    ['an older ticket of higher priority first', 4, [4, 5]],
-  ])('puts %s', (_name, a, expected) => {
-    const priorities = (i: number): Priority | undefined => fullTrails.get(idOf(i))?.guard.priority;
-    expect([priorities(3), priorities(4), priorities(5), priorities(6)]).toEqual(['Urgent', 'Urgent', 'High', 'Urgent']);
-    expect(ids(openPairRun(a).state().open)).toEqual(expected.map(idOf));
+    ['a younger ticket of higher priority above an older one, and the oldest of the lowest last', 6, [6, 5, 2]],
+    ['equal priority with the older first', 7, [5, 2, 7]],
+  ])('puts %s', (_name, joining, expected) => {
+    const priorities = [2, 5, 6, 7].map((i) => fullTrails.get(idOf(i))?.guard.priority);
+    expect(priorities).toEqual(['Medium', 'High', 'Urgent', 'Medium']);
+    expect(ids(runToOpen(joining).state().open)).toEqual(expected.map(idOf));
   });
 
   it('puts a handed-back ticket back in its place, by priority and then age', () => {
-    const run = openPairRun(3);
-    run.review(idOf(3));
-    expect(ids(run.state().open)).toEqual([idOf(4)]);
+    const run = runToOpen(7);
+    run.review(idOf(2));
+    expect(ids(run.state().open)).toEqual([5, 7].map(idOf));
     run.handBack();
-    expect(ids(run.state().open)).toEqual([3, 4].map(idOf));
+    expect(ids(run.state().open)).toEqual([5, 2, 7].map(idOf));
   });
 });
 
@@ -549,14 +564,16 @@ describe('Review', () => {
   // Review pressed on the ticket the simulated reviewer closes next: the form holds it and the
   // clock stops; Confirm closes it with the viewer's pick and the reviewer takes the next one.
   it('holds the ticket the reviewer would close next, stops the clock, and lets the reviewer take the next one after Confirm', () => {
-    const run = openPairRun(4);
+    // Ticket 6 has just joined [5, 2] and tops the list, so it is the next the reviewer closes.
+    const closesAt = nextCloseTime(6);
+    const run = runToOpen(6);
     run.play();
     const due = run.nextDelayMs();
     const before = run.state();
-    expect(due).toBe(250);
-    run.review(idOf(4));
-    expect(run.state().reviewing?.id).toBe(idOf(4));
-    expect(ids(run.state().open)).toEqual([idOf(5)]);
+    expect(due).toBe(QUICK_STAGE_MS);
+    run.review(idOf(6));
+    expect(run.state().reviewing?.id).toBe(idOf(6));
+    expect(ids(run.state().open)).toEqual([5, 2].map(idOf));
     expect(run.nextDelayMs()).toBeNull();
     const held = withoutMs(run.state());
     for (let n = 0; n < 5; n += 1) run.advance();
@@ -567,27 +584,30 @@ describe('Review', () => {
     expect(withoutMs(run.state())).toBe(held);
     expect(run.state().simTime).toBe(before.simTime);
 
-    run.confirm(rightPick(run, idOf(4)));
+    run.confirm(rightPick(run, idOf(6)));
     expect(run.state().reviewing).toBeUndefined();
-    expect(run.state().viewerReviews).toEqual([{ id: idOf(4), correct: true }]);
-    expect(lastDone(run).id).toBe(idOf(4));
+    expect(run.state().viewerReviews).toEqual([{ id: idOf(6), correct: true }]);
+    expect(lastDone(run).id).toBe(idOf(6));
     expect(lastDone(run).final.by).toBe('reviewer');
     expect(run.nextDelayMs()).toBe(due);
-    run.advance();
-    expect(lastDone(run).id).toBe(idOf(5));
-    expect(run.state().simTime).toBe(before.simTime + 250);
+    // The reviewer's schedule did not move while the form was open: it takes the next open
+    // ticket when it would have closed this one.
+    run.pause();
+    stepUntil(run, (s) => s.done.some((t) => t.id === idOf(5)));
+    expect(run.state().simTime).toBe(closesAt);
   });
 
   it('gives the ticket back to the simulated reviewer on Hand back, without counting a review', () => {
-    const run = openPairRun(5);
-    expect(ids(run.state().open)).toEqual([6, 5].map(idOf));
+    const run = runToOpen(6);
+    expect(ids(run.state().open)).toEqual([6, 5, 2].map(idOf));
     run.review(idOf(6));
     run.handBack();
     expect(run.state().reviewing).toBeUndefined();
-    expect(ids(run.state().open)).toEqual([6, 5].map(idOf));
+    expect(ids(run.state().open)).toEqual([6, 5, 2].map(idOf));
     expect(run.state().viewerReviews).toEqual([]);
-    run.step();
+    stepUntil(run, (s) => s.done.some((t) => t.id === idOf(6)));
     expect(lastDone(run)).toEqual(fullTrails.get(idOf(6)));
+    expect(run.state().simTime).toBe(nextCloseTime(6));
   });
 
   it('runs the ticket again with the viewer\'s pick, so the trail shown is the trail scored', () => {
@@ -647,7 +667,7 @@ describe('Review', () => {
     run.handBack();
     run.review(idOf(0));
     expect(changes).toEqual([]);
-    const pair = openPairRun(4);
+    const pair = runToOpen(6);
     pair.onChange(() => changes.push(1));
     const atPair = withoutMs(pair.state());
     pair.review('T-nope');
@@ -655,7 +675,7 @@ describe('Review', () => {
     pair.confirm(pick);
     pair.handBack();
     expect(withoutMs(pair.state())).toBe(atPair);
-    pair.review(idOf(4));
+    pair.review(idOf(6));
     const holding = withoutMs(pair.state());
     pair.review(idOf(5));
     expect(withoutMs(pair.state())).toBe(holding);
