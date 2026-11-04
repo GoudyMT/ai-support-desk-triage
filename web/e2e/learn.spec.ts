@@ -115,13 +115,15 @@ test.describe('Learn The Process, first on every load', () => {
     await expect(block(page).locator('h2')).toHaveText('Messages come in');
     await expect(count(page)).toHaveText('Step 1 of 7');
     await holeCovers(page, '#incoming');
-    const clear = await page.evaluate(() => {
-      const box = document.getElementById('views')?.getBoundingClientRect();
-      if (box === undefined) return false;
-      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-      return top?.closest('#views') != null;
+    // The dim layer takes no pointer, so what is under a point says nothing about it: the switch is above the dim
+    // layer when it stacks higher in the same (root) stacking context, which an unset z-index (NaN) is not.
+    const stacking = await page.evaluate(() => {
+      const z = (selector: string): number => Number.parseInt(getComputedStyle(document.querySelector(selector) as Element).zIndex, 10);
+      return { views: z('#views'), note: z('#view-note'), dim: z('.dim') };
     });
-    expect(clear).toBe(true);
+    expect(stacking.dim).toBeGreaterThan(0);
+    expect(stacking.views).toBeGreaterThan(stacking.dim);
+    expect(stacking.note).toBeGreaterThan(stacking.dim);
     // The switch has its own place: it never sits over the stats.
     const [views, stats] = await Promise.all([page.locator('#views').boundingBox(), page.locator('#stats').boundingBox()]);
     const apart = (views?.x ?? 0) + (views?.width ?? 0) <= (stats?.x ?? 0) || (stats?.x ?? 0) + (stats?.width ?? 0) <= (views?.x ?? 0);
