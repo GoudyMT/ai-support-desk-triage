@@ -42,7 +42,8 @@ numbers CI already holds (parent section 6 start point).
 
 - **Non-goals:** the landing page, Try it yourself, the end report and the value assumptions panel (PR 5);
   the deploy (PR 6); retraining or tuning any model (the pre-screener is cut from a fold model, not trained); the
-  manual-versus-assisted queue view, the capacity test and the value saved number (PR 5, section 12).
+  manual-versus-assisted queue view and the capacity test (PR 5, section 12). The value saved number is in this PR
+  (section 5, 2026-11-04).
 - **Anti-goals:** a number from a model that saw the ticket's templates; narration that calls a rule or the
   simulated reviewer "AI" (parent anti-goal); motion that ignores reduced motion; any network request other
   than the page's own files; a hidden miss (every miss shows in the closed list and the count).
@@ -54,9 +55,10 @@ numbers CI already holds (parent section 6 start point).
 - Stack (adapter A6): TypeScript and Vite as pinned; no new runtime dependency (section 12).
 - Size budgets start here (adapter A12): the built page's code and styles gzipped, and the model file. Limits
   are set from the first real build's measurement with the owner and live in `web/size-budgets.json`, checked
-  in the full gate.
+  in the full gate. The page limit is 47,500 bytes (section 5, 2026-11-04).
 - Accessibility and devices: parent section 3 and section 6; check set adapter A21 (375 / 768 / 1280, light and
-  dark, forced colors); owner device test on the Samsung S26 (adapter A20).
+  dark, forced colors). An emulated phone ran (plan Execution Notes, 2026-11-04 device test); the owner's device
+  test on the Samsung S26 (adapter A20) moves to PR 6.
 
 ## 5. What the owner decided
 
@@ -117,6 +119,33 @@ numbers CI already holds (parent section 6 start point).
   per ticket no person touched (low end of vendor figures; no independent study found) x $21.53 an hour (BLS median,
   May 2025, no benefits). Measured over 8 seeds: 8.5% to 14.6% of tickets go untouched, 22 to 38 minutes, $7.89 to
   $13.64 a run. They rise with a light flash and show their source on hover, focus or tap.
+- 2026-11-04 (owner, on the second sweep; fix everything found): The page limit is 47,500 bytes (it was 45,000). Time
+  saved and Value saved count a ticket only when no person touched it and the system got it right: not Missed, and sent
+  to the true team (this replaces "no person touched"); the source reads "Each ticket the system sorted correctly with
+  no review counts as 2 minutes saved. Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant
+  Rocketship) and we found no independent study, so we use less than their lowest figure", with both names linked, and
+  the assumption line "each ticket sorted correctly with no review saves 2 minutes". On the same seeds 1000, 1001 and
+  1003 the count falls from 18, 11 and 15 to 15, 11 and 12. The closed list gains a "Wrong team" mark for a ticket
+  nobody checked that went to the wrong team ("it went to the wrong team and nobody checked it"); Auto reads "no
+  review" and Flagged "the reviewer checked it and kept the model's category". Words: steps 2 to 7 name the steps and
+  say the model's team is sometimes wrong; the classify sentence opens "After the privacy step, the model picks ..."
+  and never speaks a mask label as a word the model leaned on; the purpose line says "a simulated reviewer checks the
+  doubtful ones. The model was trained on different messages"; All numbers reads "Older simple keyword method, same
+  tickets", "Times the simulated reviewer changed the model's category", "Tickets per second at real speed", and the
+  seed line "Seed N sets which tickets this run uses - replay this run with the same seed". Speed: only the viewer's
+  Speed up or Play in See jumps to the busy day (this replaces Must 2's quick Act 1 stretch of one sentence per
+  ticket); Learn's own play at an offer, and See after a walk that reached one, do not, and See then shows the offer.
+  Slow down cancels a jump held under the review form. Slowed down on the busy day, the next three tickets get their
+  sentences and Why this choice like the first three, the top notice reads "Slowed down so you can follow along." and
+  the offer "That was the slow part. Press Speed up to go back to full speed." Back plays the walk again to the run
+  time each step ended at, so the same ticket returns. Pressing Learn in See keeps the viewer's run (paused) while a
+  fresh run is walked; See brings it back and plays it, with their reviews and numbers; Restart clears it. A seed
+  gives the same tickets and the same numbers; the order tickets reach the center in can shift with timing, because a
+  Critical tag can land before or after a ticket enters. Small screens: the docked block has a height limit and
+  scrolls inside itself, so its words stay reachable at 320 x 256 and at 200% text; on a wide screen the lit part is
+  scrolled into view above the bar (All numbers is not drawn in Learn, where it would take its room); resizing or
+  turning the screen lays the walk out again; the last step's button fits on a phone without growing the bar; the
+  loading bars and the view in use stay visible in forced colors.
 - 2026-11-04 (owner): the page is built so the least technical person can follow it. Two views on the same board, named by
   what they do, never by skill: Learn The Process and See The Process. Wireframe:
   https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Learn The Process opens first: everything dims except the area being
@@ -124,11 +153,16 @@ numbers CI already holds (parent section 6 start point).
   words at 238 words a minute (average adult silent reading, Brysbaert 2019), with Pause, Back and Next. A live ticket
   walks each step on the real engine while the rest keeps moving behind the dim layer. See The Process is the live
   board, slowed first; speeding up is the viewer's choice through a Speed up button, and if nobody presses it the run
-  waits at the end of the slow part and offers the busy day. All controls live in one bottom bar like a video player;
-  the two-way switch has its own space at the top, never dimmed and never over the stats.
+  waits at the end of the slow part and offers the busy day. All run controls live in one bottom bar like a video
+  player (Play or Pause, Step, Restart, Speed up or Slow down); the real speed button, Why this choice, Review and
+  Collapse stay where they are in the board. The two-way switch has its own space at the top, never dimmed and never
+  over the stats.
 - 2026-11-04 (owner): the reviewer's pace changes to one ticket every 1.5 seconds, the center stays at about 1 second
   per ticket. Measured on the real engine, 8 seeds: at one close a second the open list never holds more than 1 ticket,
-  so the right column has nothing to show; at 1.5 s it peaks at 17-25 and a run takes about 4:15.
+  so the right column has nothing to show; at 1.5 s it peaks at 17-25 and a run takes about 4:15. After a Speed up
+  jump (2026-11-04) the reviewer does not work through the skipped stretch: the open list peaks at 25-33 and the run
+  takes 3:44 to 3:55 of wall time when Speed up is pressed at the offer, and peaks at 26-34 in 2:49 to 3:00 when it
+  is pressed at once (8 seeds, 1000-1007).
 - 2026-11-04 (owner): the pre-screener is a small version of the first-stage model, beside the keyword rules. It is a
   second set of eyes that moves higher-value tickets along at high volume; it need not be perfect, and the main check
   never waits for its label. Measured on fresh seeds 2000-2011 (1,560 tickets, 226 truly urgent; one ticket per second
@@ -170,7 +204,8 @@ run needs.
 Rejected, one line each: the shipped model (its live numbers are memory, section 1); a UI framework (no view
 here needs one, and it costs a dependency and bytes against a budget set this PR); a web worker (the pipeline
 takes at most 27 ms per ticket on the owner's PC, PR 3 Execution Notes; revisit for the capacity test); a separate
-trained pre-screener file (a cut of the loaded model caught 80% with no download, section 5).
+trained pre-screener file (a cut of the loaded model caught 80% of urgent tickets on the seeds that chose it, and 72.3%
+on the test seeds, with no download, section 5).
 
 ## 7. Requirements
 
@@ -181,7 +216,8 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
    address replays that run; the fold is the seed mod 4 (section 5); Act 1 at learn speed, about 30 tickets in about 2
    minutes, then Act 2, the busy day: one simulated business day with about 1 second per ticket in the center and more
    arrivals mid-morning (parent 10.3); the run ends with a "Run complete" state that keeps the final numbers once every
-   ticket is closed.
+   ticket is closed. The viewer's Speed up (or Play in See at the end of the slow part) jumps from Act 1 to the busy
+   day; the quick stretch of Act 1 with one sentence per ticket is replaced by that jump (section 5, 2026-11-04).
 3. **Controls:** Play / Pause, Step (one event at a time, paused), Restart, the real speed text button, All numbers,
    Why this choice, Review, Collapse; each a real button with a visible focus ring and a 44 px target.
 4. **Layout as locked:** top: live stats (tickets done, flagged for a person, pending review, high-risk missed) and
@@ -193,13 +229,15 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
    count.
 5. **Live numbers:** on top as in Must 4. All numbers expands: the model's category accuracy so far beside v0's on the
    same tickets (the parent C2 comparison), reviewer overrides as a count, tickets per second (after a real speed run),
-   and your reviews correct. All from `computeMetrics` over the tickets closed so far; pending review is the open
-   list's length; high-risk missed counts must-review tickets that closed without review.
+   and your reviews correct, with time saved and value saved first (section 5, 2026-11-04). All from `computeMetrics`
+   over the tickets closed so far; pending review is the open list's length plus a ticket under review (section 5,
+   sweep entry); high-risk missed counts must-review tickets that closed without review.
 6. **Word chips:** each top term is highlighted where it is written in the masked text, found with the model's
    own tokenizer (a word pair is two adjacent tokens, so "so cannot" spans "so I cannot"); a rule word is found
    the same way (PR 3 Parking Lot); a term with no written span appears only in the technical detail.
-7. **Narration:** one or two plain sentences built from the trail: each stage of the first three tickets, one sentence
-   per ticket after that at learn speed, none on the busy day while playing, and the current stage on Pause.
+7. **Narration:** one or two plain sentences built from the trail: each stage of the first three tickets (and of the
+   three after a Slow down on the busy day), none on the busy day at full speed while playing, and the current stage
+   on Pause. The one sentence per ticket after the first three is replaced by the busy-day jump (section 5).
    "Why this choice" expands to list confidence, the floor, each reason that fired, the top words and what was masked;
    it is closed by default, offered at learn speed and on Pause, and replaced on the busy day by a line that says to
    pause. It shows only what the current stage has reached. Rules, the model, the pre-screener and the simulated
@@ -230,7 +268,7 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
   its own area on the board, so its cards move the same way.
 
 **Later (seams only)**
-- The end report and its link from "Run complete", the assumptions panel and the time-saved number, the
+- The end report and its link from "Run complete", the assumptions panel (its presets), the
   manual-versus-assisted queues and the capacity test (PR 5); Try it yourself on the shipped model (PR 5). The
   engine exposes the arrivals and per-ticket times so PR 5 adds the queues without changing it.
 
@@ -248,7 +286,7 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
 - Given two open tickets, the higher priority is on top; at equal priority, the older.
 - Given the real speed button with N tickets left, the run reaches Run complete with the same trails a paced run of
   that seed gives, and the page shows the measured time.
-- Given the right column collapsed, the rail shows the open list's length and every ticket keeps moving.
+- Given the right column collapsed, the rail shows the pending count and every ticket keeps moving.
 - Given a must-review ticket that reaches Done unflagged, "High-risk tickets missed so far" goes up by one and
   its closed line shows Missed; a flagged ticket still open does not count.
 - Given each live number, it equals a hand count on a fixed small fixture run.
@@ -262,8 +300,9 @@ trained pre-screener file (a cut of the loaded model caught 80% with no download
 ## 9. Success criteria
 
 Parent section 6, unchanged. PR 4 owns: the keyboard-only run and reduced motion; "the demo completes on a
-mid-range phone at learn speed without dropped frames being noticeable" (owner device test); and "every number
-on screen traces to a measurement" for the numbers it shows.
+mid-range phone at learn speed without dropped frames being noticeable" (an emulated phone ran and found no console
+error, no sideways scroll and no target under 44 px; the owner's test on a real device moves to PR 6); and "every
+number on screen traces to a measurement" for the numbers it shows.
 
 ## 10. Risks and open questions
 
@@ -294,9 +333,9 @@ tickets in about 2 minutes".
 - **Viewer review scoring:** correct = category and priority both right; team not scored (parent C3).
 - **Arrival volume:** Act 2 uses a fixed default of 100 tickets per business day (500 a week, read from the
   course's "hundreds of tickets a week"), shown on screen as an assumption; its presets come with the
-  PR 5 assumptions panel, as do the value saved number, the manual queue and the capacity test, because each
-  needs an assumption with a cited source that PR 5 adds. Until then All numbers has no value saved row rather than
-  an empty or invented one; PR 5 adds it there.
+  PR 5 assumptions panel, as do the manual queue and the capacity test, because each needs an assumption with a cited
+  source that PR 5 adds. The value saved number moved into this PR (section 5, 2026-11-04) with its two assumptions
+  and their sources on the page.
 - **Real speed button:** finishes the rest of the run unpaced, since a card cannot be drawn at about 2,000 tickets a
   second; the busy day stays as the paced Act 2.
 - **Reviewer pace is wall time:** one close every 1.5 seconds at both acts; shown on the page as an assumption.

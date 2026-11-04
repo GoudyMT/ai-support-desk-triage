@@ -313,7 +313,7 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
 
 ### Task 13 (builder): the value numbers, the pace notice and the switch note
 
-Design section 5, first 2026-11-04 entry.
+Design section 5, the 2026-11-04 entries on the clip and the Opus check and on the second sweep.
 
 - [x] Time saved and Value saved in All numbers, source on hover, focus and tap, light flash on a rise -> verify:
       `valueSaved` rows through the real engine; `value.spec.ts`
@@ -327,10 +327,31 @@ Design section 5, first 2026-11-04 entry.
 - [x] Focus after Back on step 1, focus under the bar, the live line and the offer for a screen reader, four rows that
       could not fail -> verify: break checks; one fix check; the visitor walk
 
+### Task 15 (builder, fix round of the second sweep): everything the sweep found
+
+Design section 5, the 2026-11-04 entry on the second sweep.
+
+- [x] Saved numbers count a ticket sorted correctly with no review (not Missed, true team); the source copy with both
+      vendors linked; a "Wrong team" mark and two reworded key lines -> verify: real-engine rows by hand count (seeds 1000,
+      1001, 1003: 15, 11, 12), each rule broken once and red
+- [x] Words: steps 2 to 7, the classify sentence without mask labels, the purpose line, three All numbers labels and the
+      seed line -> verify: rows red first, the mask rule broken once and red
+- [x] Only the viewer's Speed up or Play in See jumps to the busy day; Slow down cancels a jump under the review form; a
+      slowed-down busy day is narrated, explained and worded like the first three; Back replays the walk; Learn keeps the
+      viewer's run -> verify: engine, view and e2e rows red first (Back red on seeds 1017 and 1019, the stash red before
+      the code)
+- [x] Small screens and zoom: the docked block's height limit and scroll (320 x 256, 375 at 200%), the lit part on a
+      wide screen (1024 x 600, 1280 at 150%, All numbers open), a new layout on resize and rotation, the last step on a
+      phone, forced colors -> verify: e2e rows red first
+- [x] Comments for the replay and the narration tier; this docs commit
+- [x] Full gate in the worktree: lint, typecheck, 1,150 unit tests, build pass; e2e 629 passed and 1 skipped (forced
+      colors in WebKit, which does not emulate them); the size step fails on the page budget only (Execution Notes)
+
 ### Task 11 (lead, then the owner): close out
 
-- [ ] HARD STOP: the owner sets the two budget limits from the measured build (adapter A12) -> verify:
-      `npm --prefix web run gate` exit 0 with the limits in `size-budgets.json`
+- [x] HARD STOP: the owner sets the two budget limits from the measured build (adapter A12): 47,500 and 3,600,000, set
+      by the owner on 2026-11-04 -> verify: `npm --prefix web run gate` exit 0 with the limits in `size-budgets.json`.
+      NOT MET after Task 15: the page is 48,083 bytes gzipped, 583 over; no trim pass has been run
 - [ ] Owner review on the built page: narration wording (parent 8) and the device test on the Samsung S26 at
       learn speed (parent 6) -> verify: the owner's answers in Execution Notes
 - [ ] ui-review; full gate (both CI jobs' commands); parking-lot triage; sweep at the tier above; PR body;
@@ -338,7 +359,24 @@ Design section 5, first 2026-11-04 entry.
 
 ## Parking Lot
 
+| Item | Why parked | Where it goes |
+|---|---|---|
+| A test on a real phone (the Samsung S26, learn speed, adapter A20) | The owner chose an emulator for this PR (Execution Notes, 2026-11-04 device test); a real device stays unproven | PR 6 |
+| A floor for the test count | The gate passes if a test file is deleted; nothing fails when the count falls | A gate check, PR 6 or later |
+
 ## Execution Notes & Deviations
+
+- 2026-11-04 Task 15 (second sweep, fix round): the page is 48,083 bytes gzipped (JS 43.16 kB, CSS 4.93 kB, HTML 1.17
+  kB), 583 over the 47,500 limit; the gate's size step is the only step that fails. No trim pass has been run; the
+  limit was not touched. Learn's own play at an offer, and See after a walk that reached one, never jump: a walk
+  cannot in practice reach an offer in seven steps (the third slow ticket needs about 100 s of run time), so that path
+  is kept by the engine rows and the unit rows, not by an e2e row. In Learn, All numbers is not drawn (it keeps its
+  state for See): on a screen one page tall it took the room the lit part needs. Pressing Restart clears a stash that
+  cannot exist in See, so that row passes by construction; the clearing is kept because the owner asked for it. Real
+  engine, 8 seeds (1000-1007): after a Speed up jump the open list peaks at 25-33 (design section 5) and the wall time
+  of a run is 3:44 to 3:55; pressed at once, 26-34 and 2:49 to 3:00. A ticket's closed line now says Wrong team where the
+  truth says its team was another. From the Task 14 round, not noted then: the focus fallback that keeps a control
+  above the bar scrolled the whole page for focus on the body; it now ignores an element that does not fit above the bar.
 
 - 2026-11-04 Task 9 Opus check: ESCALATE on four calls (real speed as a fresh pass, phone layout below 1024 px, narration,
   caption wording); the owner took every recommendation. Narration wording answered the same way; 2026-11-04 the owner
