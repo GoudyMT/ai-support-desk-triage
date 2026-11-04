@@ -1,4 +1,4 @@
 {
-  "pageGzipBytes": { "limit": null },
-  "modelBytes": { "limit": null }
+  "pageGzipBytes": { "limit": 43000 },
+  "modelBytes": { "limit": 3600000 }
 }
