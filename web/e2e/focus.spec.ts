@@ -114,6 +114,33 @@ test.describe('focus never falls to the body', () => {
   });
 });
 
+test.describe('a focus ring is drawn whole', () => {
+  // The column scrolls, so it clips whatever is drawn past its edge: a ring outside the rail, which
+  // fills the column's width, would lose its sides.
+  test('the rail of the folded Going out column is not clipped by its column', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Collapse' }).focus();
+    await page.keyboard.press('Enter');
+    const rail = page.locator('#outgoing .rail');
+    await expect(rail).toBeFocused();
+    const room = await page.evaluate(() => {
+      const node = document.querySelector('#outgoing .rail');
+      const column = document.getElementById('outgoing')?.getBoundingClientRect();
+      if (node === null || column === undefined) return Number.NaN;
+      const box = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      const reach = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
+      return Math.min(
+        box.left - reach - column.left,
+        column.right - (box.right + reach),
+        box.top - reach - column.top,
+        column.bottom - (box.bottom + reach),
+      );
+    });
+    expect(room).toBeGreaterThanOrEqual(0);
+  });
+});
+
 test.describe('while a review form is open', () => {
   test('the other Review buttons are disabled, and come back when it closes', async ({ page }) => {
     await open(page);

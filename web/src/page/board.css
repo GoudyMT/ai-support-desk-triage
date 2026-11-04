@@ -176,6 +176,12 @@
     cursor: pointer;
   }
 
+  /* The rail fills the width of a column that scrolls, and the column clips what is drawn past its
+     edge, so the ring is drawn inside the rail. */
+  .rail:focus-visible {
+    outline-offset: calc(-1 * var(--focus-width));
+  }
+
   .rail-count {
     min-width: var(--target);
     padding: 0 var(--space-2);
