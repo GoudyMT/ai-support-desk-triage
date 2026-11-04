@@ -102,6 +102,15 @@ numbers CI already holds (parent section 6 start point).
   tickets, one sentence per ticket after that, none on the busy day while playing; Pause always shows the current
   stage's sentence. A caption under Coming in names the tags: "Tags are a quick first guess from a small model." A
   priority a rule raised is labeled "raised by a rule" in the review form.
+- 2026-11-04 (owner, on the clip and the Opus check): Speed up jumps to the busy day, so waiting tickets land in the line
+  at once; "Busy day" shows only when it is true. Step 6 reads "In See The Process, you can press Review to take its
+  place", and the simulated reviewer holds during that step. Step 2 reads "This is what the customer wrote, with any
+  private details already covered"; the page shows masked text only. Every bar icon keeps its word on phones. The seed
+  line lives in All numbers. The page limit is 45,000 bytes. In See, the line under the title shows the pace notice, and
+  a note under the switch invites the viewer on. Time saved and Value saved move up from PR 5, into All numbers: 2 minutes
+  per ticket no person touched (low end of vendor figures; no independent study found) x $21.53 an hour (BLS median,
+  May 2025, no benefits). Measured over 8 seeds: 8.5% to 14.6% of tickets go untouched, 22 to 38 minutes, $7.89 to
+  $13.64 a run. They rise with a light flash and show their source on hover, focus or tap.
 - 2026-11-04 (owner): the page is built so the least technical person can follow it. Two views on the same board, named by
   what they do, never by skill: Learn The Process and See The Process. Wireframe:
   https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Learn The Process opens first: everything dims except the area being

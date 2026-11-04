@@ -301,13 +301,29 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
       step timed at 238 words a minute, Back / Pause / Next, ends into See -> verify: e2e rows for each step's lit area,
       timing, Back, Pause, the end, phones, keyboard and reduced motion (starts paused)
 - [ ] See The Process plays at once, slow first, Speed up / Slow down in the bar, offers the busy day at the end of the
-      slow part -> verify: e2e rows; page within the 43,000 byte limit or a measured shortfall reported
+      slow part -> verify: e2e rows; page within the 45,000 byte limit or a measured shortfall reported
 - [ ] Opus check; a real screen and clip to the owner; a walk with zero-technical eyes -> verify: the owner's look
 - [ ] Check on the way out (owner, 2026-11-04): a small-model agent with no project context walks the built page's
       screens and words as a non-technical first-time visitor, says back the process in its own words and lists what it
       did not understand -> verify: its report, each question fixed or answered with the owner
 - [ ] After the clip and that walk, the owner decides whether small eye-drawing cues are needed; none are built before
       that -> verify: the owner's answer
+
+### Task 13 (builder): the value numbers, the pace notice and the switch note
+
+Design section 5, first 2026-11-04 entry.
+
+- [ ] Time saved and Value saved in All numbers, source on hover, focus and tap, light flash on a rise -> verify:
+      `valueSaved` rows through the real engine; `value.spec.ts`
+- [ ] Pace notice on the line under the title, wider switch, note under the switch in Learn -> verify: e2e rows; six of
+      thirteen open cards at 1280x800
+
+### Task 14 (builder, fix round of the Opus check): the owner's four calls and its fixes
+
+- [ ] Speed up jumps to the busy day; "Busy day" only when true; steps 2 and 6 copy; the reviewer holds on step 6; every
+      bar word on phones -> verify: rows red first
+- [ ] Focus after Back on step 1, focus under the bar, the live line and the offer for a screen reader, four rows that
+      could not fail -> verify: break checks; one fix check; the visitor walk
 
 ### Task 11 (lead, then the owner): close out
 
