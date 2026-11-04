@@ -8,6 +8,7 @@ import {
   learnBarView,
   placeBlock,
   reachStep,
+  seeEntry,
   stepMs,
   ticketLine,
   unionBox,
@@ -47,6 +48,22 @@ describe('what is announced for a step', () => {
   it('adds the live ticket sentence, as the block labels it, on a step that has one', () => {
     const sentence = 'The model is fairly sure this is a billing question.';
     expect(announcement(step(2), sentence)).toBe(`${step(2).title}. ${step(2).text} This ticket: ${sentence}`);
+  });
+});
+
+// What See does with the run it is handed. It never asks for the busy day on the viewer's behalf: a run that is
+// already waiting at the offer stays there, and one Learn played on at the quick pace on Act 1 is offered it again.
+describe('what See does with the run it is handed', () => {
+  const state = makeRun().state();
+
+  it.each([
+    ['a run at the slow pace', { pace: 'slow', act: 1, offerSpeedUp: false }, 'play'],
+    ['a run waiting at the offer', { pace: 'slow', act: 1, offerSpeedUp: true }, 'keep'],
+    ['a run at the quick pace on Act 1', { pace: 'fast', act: 1, offerSpeedUp: false }, 'offer'],
+    ['a run on the busy day', { pace: 'fast', act: 2, offerSpeedUp: false }, 'play'],
+    ['a run slowed down on the busy day', { pace: 'slow', act: 2, offerSpeedUp: false }, 'play'],
+  ] as const)('%s: %s', (_name, change, expected) => {
+    expect(seeEntry({ ...state, ...change })).toBe(expected);
   });
 });
 

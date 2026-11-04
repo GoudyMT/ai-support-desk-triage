@@ -44,11 +44,22 @@ function changePace(run: Run): void {
   if (offerSpeedUp) run.play();
 }
 
+// Play in See. At the end of the slow part it is the viewer's choice to go on, which is Speed up: a quick pace on
+// Act 1's arrivals would look broken. The run's own Play does not ask for the busy day (Learn plays on with it).
+function playOrPause(run: Run): void {
+  if (run.state().playing) {
+    run.pause();
+    return;
+  }
+  if (run.state().offerSpeedUp) run.speedUp();
+  run.play();
+}
+
 export function mountPanels(page: Page, hooks: PanelHooks) {
   const bar = mountBar(
     byId('bar'),
     {
-      playPause: () => (page.run.state().playing ? page.run.pause() : page.run.play()),
+      playPause: () => playOrPause(page.run),
       step: () => page.run.step(),
       restart: hooks.restart,
       speed: () => changePace(page.run),

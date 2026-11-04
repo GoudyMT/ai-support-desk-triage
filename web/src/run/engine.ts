@@ -396,11 +396,8 @@ export function createRun(opts: RunOptions): Run {
     },
     play() {
       if (!playing && !isComplete()) {
-        // Play at the end of the slow part is Speed up: a quick pace on Act 1's arrivals would look broken.
-        busyDayDue = busyDayDue || offerSpeedUp;
         playing = true;
         offerSpeedUp = false;
-        settleBusyDay();
         notify();
       }
     },
@@ -435,7 +432,17 @@ export function createRun(opts: RunOptions): Run {
     slowDown() {
       slowLeft = DEEP_TICKETS;
       offerSpeedUp = false;
+      // A busy day asked for under the review form is no longer wanted.
+      busyDayDue = false;
       notify();
+    },
+    // A run left at the quick pace on Act 1's arrivals (Learn played on at the offer) is paused and offered the busy day.
+    offerBusyDay() {
+      if (!isComplete() && !busyDay && slowLeft === 0 && !offerSpeedUp) {
+        offerSpeedUp = true;
+        playing = false;
+        notify();
+      }
     },
     truthOf,
     onChange(fn) {

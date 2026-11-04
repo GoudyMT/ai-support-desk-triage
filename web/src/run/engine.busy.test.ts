@@ -91,16 +91,48 @@ describe('Speed up on Act 1', () => {
     }
   });
 
-  it('is what Play does at the end of the slow part', () => {
+  // The viewer's choice at the end of the slow part is the page's to make (Speed up, or Play in See, which asks
+  // for it); Learn's own Play, which keeps the walk going, is not the viewer asking for the busy day.
+  it('is not what the engine does on its own Play at the end of the slow part: that carries on at the quick pace', () => {
     const play = makeRealRun();
     playUntil(play, (s) => s.offerSpeedUp);
     play.play();
+    expect(arrived(play.state())).toBeLessThan(ACT1);
+    expect(play.state()).toMatchObject({ act: 1, pace: 'fast', playing: true, offerSpeedUp: false });
     const press = makeRealRun();
     playUntil(press, (s) => s.offerSpeedUp);
     press.speedUp();
     press.play();
-    expect(arrived(play.state())).toBe(ACT1);
-    expect(outline(play.state())).toBe(outline(press.state()));
+    expect(arrived(press.state())).toBe(ACT1);
+    expect(press.state().act).toBe(2);
+  });
+
+  // A run left at the quick pace on Act 1's arrivals (Learn played on at the offer) can be offered the busy day again.
+  it('offers the busy day again to a run at the quick pace on Act 1, and only to one', () => {
+    const run = makeRealRun();
+    playUntil(run, (s) => s.offerSpeedUp);
+    run.play();
+    run.offerBusyDay();
+    expect(run.state()).toMatchObject({ offerSpeedUp: true, playing: false, pace: 'slow', act: 1 });
+    run.speedUp();
+    run.play();
+    run.offerBusyDay();
+    expect(run.state()).toMatchObject({ offerSpeedUp: false, act: 2 });
+    const fresh = makeRealRun();
+    fresh.offerBusyDay();
+    expect(fresh.state().offerSpeedUp).toBe(false);
+  });
+
+  it('forgets a busy day asked for under the review form when the viewer slows down', () => {
+    const run = makeRealRun();
+    stepUntil(run, (s) => s.open.length > 0);
+    run.review(firstOpen(run).id);
+    const during = arrived(run.state());
+    run.speedUp();
+    run.slowDown();
+    run.handBack();
+    expect(arrived(run.state())).toBe(during);
+    expect(run.state().act).toBe(1);
   });
 
   it('does not move the clock again once the busy day is on, and Slow down still works there', () => {

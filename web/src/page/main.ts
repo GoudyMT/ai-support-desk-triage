@@ -18,6 +18,7 @@ import type { Bar } from './bar';
 import { keepFocusClearOfBar } from './clearOfBar';
 import { byId, el, setText } from './dom';
 import { fetchModel } from './fetchModel';
+import { seeEntry } from './learnView';
 import { createLearn, type Learn } from './learn';
 import { mountPanels, type Page } from './panels';
 import {
@@ -150,7 +151,11 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
     mounted.learn.end();
     panels.speech.reset();
     page.run.hold(null);
-    page.run.play();
+    // See does not ask for the busy day for the viewer: a run at the offer waits there, and one that Learn played on
+    // at the quick pace on Act 1 is offered the busy day again.
+    const entry = seeEntry(page.run.state());
+    if (entry === 'play') page.run.play();
+    else if (entry === 'offer') page.run.offerBusyDay();
   }
   if (moveFocus) panels.bar.focusPrimary();
 }

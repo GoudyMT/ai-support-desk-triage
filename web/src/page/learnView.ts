@@ -32,6 +32,11 @@ const MS_PER_MINUTE = 60_000;
 const REACH_LIMIT = 600;
 const GAP_PX = 16;
 
+export function seeEntry(state: RunState): 'play' | 'offer' | 'keep' {
+  if (state.offerSpeedUp) return 'keep';
+  return state.pace === 'fast' && state.act === 1 ? 'offer' : 'play';
+}
+
 export function announcement(step: Pick<LearnStep, 'title' | 'text'>, line: string | null): string {
   return `${step.title}. ${step.text}${line === null ? '' : ` This ticket: ${line}`}`;
 }

@@ -52,6 +52,7 @@ export interface Run {
   hold(where: Hold): void;
   speedUp(): void;
   slowDown(): void;
+  offerBusyDay(): void;
   truthOf(id: string): TicketLabel;
   onChange(fn: () => void): () => void;
 }
