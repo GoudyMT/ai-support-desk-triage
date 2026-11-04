@@ -283,10 +283,13 @@ describe('the ticket being worked', () => {
       ]);
     });
 
-    it('is absent on the busy day while playing, for any ticket and stage', () => {
-      for (const deep of [true, false]) {
-        for (const stage of STAGES) expect(sentence({ playing: true, act: 2, deep, stage })).toBeNull();
-      }
+    it('is absent on the busy day while playing, for a quick ticket at any stage', () => {
+      for (const stage of STAGES) expect(sentence({ playing: true, act: 2, deep: false, stage })).toBeNull();
+    });
+
+    // Slowed down on the busy day, the next three tickets get what the first three got.
+    it('is on every stage of a deep ticket on the busy day too', () => {
+      for (const stage of STAGES) expect(sentence({ playing: true, act: 2, deep: true, stage })).not.toBeNull();
     });
 
     it('is always there on Pause, for the stage the ticket is at', () => {
@@ -468,6 +471,10 @@ describe('status and the explanation', () => {
     expect(statusView({ ...base, pace: 'slow', playing: false, offerSpeedUp: true })).toBe(
       'That was the slow part. Press Speed up to see a busy day.',
     );
+    // At the end of the slow part of a slowed-down busy day, Speed up goes back to full speed, not to a busy day.
+    expect(statusView({ ...base, act: 2, pace: 'slow', playing: false, offerSpeedUp: true })).toBe(
+      'That was the slow part. Press Speed up to go back to full speed.',
+    );
     expect(statusView({ ...base, act: 'complete', playing: false })).toBe('Run complete');
   });
 
@@ -480,7 +487,9 @@ describe('status and the explanation', () => {
 
   it('offers the explanation in Act 1 and when paused, and turns it off on the busy day while playing', () => {
     expect(explainMode({ ...base, act: 1, playing: true })).toBe('offered');
-    expect(explainMode({ ...base, act: 2, playing: true })).toBe('off');
+    expect(explainMode({ ...base, act: 2, playing: true, pace: 'fast' })).toBe('off');
     expect(explainMode({ ...base, act: 2, playing: false })).toBe('offered');
+    // Slowed down on the busy day, the next three tickets are explained like the first three.
+    expect(explainMode({ ...base, act: 2, playing: true, pace: 'slow' })).toBe('offered');
   });
 });

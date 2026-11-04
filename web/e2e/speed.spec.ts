@@ -84,6 +84,29 @@ test.describe('Speed up goes to the busy day', () => {
     await expect(status(page)).toHaveText(FAST_STATUS);
   });
 
+  // The three tickets after a Slow down on the busy day get what the first three got: a sentence for each stage and
+  // Why this choice, a top notice that says so, and at their end an offer to go back to full speed.
+  test('slowed down on the busy day, narrates the next three tickets and offers full speed at their end', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await speed(page, 'Speed up').click();
+    await page.clock.runFor(QUICK_TICKET_MS);
+    await speed(page, 'Slow down').click();
+    await expect(page.locator('#top-notice')).toBeVisible();
+    await expect(page.locator('#top-notice')).toHaveText('Slowed down so you can follow along.');
+    // Long enough for the slow ticket to reach its second stage (five seconds each), where there is a result to explain.
+    await page.clock.runFor(QUICK_TICKET_MS * 7);
+    // A slow ticket is in the center: its sentence shows while the run plays, and so does Why this choice.
+    await expect(page.locator('#ticket .say')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Why this choice' })).toBeVisible();
+    await expect(page.locator('#announcer')).not.toHaveText('The busy day has started.');
+    await page.clock.runFor(SLOW_PART_MS + 5_000);
+    await expect(status(page)).toHaveText('That was the slow part. Press Speed up to go back to full speed.');
+    await expect(page.locator('#announcer')).toHaveText('That was the slow part. Press Speed up to go back to full speed.');
+    await speed(page, 'Speed up').click();
+    await expect(status(page)).toHaveText(FAST_STATUS);
+  });
+
   test('keeps Slow down working on the busy day', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Play', exact: true }).click();

@@ -17,13 +17,16 @@ function fakeRegion(): { region: HTMLElement; spoken: string[]; now: () => strin
   return { region, spoken, now: () => text };
 }
 
-const LEARNING = { act: 1, playing: true, offerSpeedUp: false } as const;
-const BUSY = { act: 2, playing: true, offerSpeedUp: false } as const;
-const PAUSED_BUSY = { act: 2, playing: false, offerSpeedUp: false } as const;
-const COMPLETE = { act: 'complete', playing: false, offerSpeedUp: false } as const;
+const LEARNING = { act: 1, playing: true, offerSpeedUp: false, pace: 'slow' } as const;
+const BUSY = { act: 2, playing: true, offerSpeedUp: false, pace: 'fast' } as const;
+// Slowed down on the busy day: the next three tickets are narrated like the first three.
+const SLOWED_BUSY = { act: 2, playing: true, offerSpeedUp: false, pace: 'slow' } as const;
+const PAUSED_BUSY = { act: 2, playing: false, offerSpeedUp: false, pace: 'fast' } as const;
+const COMPLETE = { act: 'complete', playing: false, offerSpeedUp: false, pace: 'fast' } as const;
 // The run paused itself at the end of the slow part, with the viewer's choice to make.
-const OFFER = { act: 1, playing: false, offerSpeedUp: true } as const;
+const OFFER = { act: 1, playing: false, offerSpeedUp: true, pace: 'slow' } as const;
 const OFFER_WORDS = 'That was the slow part. Press Speed up to see a busy day.';
+const OFFER_BACK_WORDS = 'That was the slow part. Press Speed up to go back to full speed.';
 
 describe('the live region', () => {
   it('says each sentence once, and again only when the sentence changes', () => {
@@ -76,6 +79,22 @@ describe('the live region', () => {
     speech.say('Three.', LEARNING);
     speech.say('Three.', OFFER);
     expect(spoken).toEqual([OFFER_WORDS, 'Two.', 'Three.', OFFER_WORDS]);
+  });
+
+  it('speaks the stage sentences of a slowed-down busy day, and the busy day notice only at full speed', () => {
+    const { region, spoken } = fakeRegion();
+    const speech = createSpeech(region);
+    speech.say(null, BUSY);
+    speech.say('Slow ticket, intake.', SLOWED_BUSY);
+    speech.say('Slow ticket, privacy.', SLOWED_BUSY);
+    expect(spoken).toEqual(['The busy day has started.', 'Slow ticket, intake.', 'Slow ticket, privacy.']);
+  });
+
+  it('says what Speed up does at the offer of a slowed-down busy day', () => {
+    const { region, spoken } = fakeRegion();
+    const speech = createSpeech(region);
+    speech.say('Last.', { ...OFFER, act: 2 });
+    expect(spoken).toEqual([OFFER_BACK_WORDS]);
   });
 
   it('says Run complete once, and keeps it while nothing else is said', () => {

@@ -11,7 +11,7 @@ import { liveNumbers } from '../run/liveNumbers';
 import { NONE_FOUND, narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
 import { HOURLY_PAY_USD, MINUTES_PER_TICKET, dollarsText, minutesText, valueSaved } from '../run/valueSaved';
-import { OFFER_WORDS, TIME_SAVED_SOURCE, TIME_SOURCE_LINKS, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINKS } from './copy';
+import { TIME_SAVED_SOURCE, TIME_SOURCE_LINKS, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINKS, offerWords } from './copy';
 import { findSpans } from './spans';
 
 export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'wrong' | 'you';
@@ -295,12 +295,13 @@ export function incomingView(state: RunState): { id: string; preview: string; ta
   }));
 }
 
-// A paused run always says what the current stage did. While playing, learn pace narrates every
-// stage of the first tickets and only the last stage (Guardrails) of the others, and the busy day
-// says nothing: it moves too fast to read, and would flood a screen reader.
+// A paused run always says what the current stage did. While playing, a slowed-down ticket (one of the first, or of
+// the three after a Slow down on the busy day) is narrated at every stage; a quick ticket of Act 1 only at its last
+// stage (Guardrails); and the busy day at full speed says nothing: it moves too fast to read, and would flood a
+// screen reader.
 function sentenceShown(state: RunState, deep: boolean, stage: Stage): boolean {
   if (!state.playing) return true;
-  return state.act === 1 && (deep || stage === 'guardrails');
+  return deep || (state.act === 1 && stage === 'guardrails');
 }
 
 function stepsOf(trail: TicketTrail, at: number): CenterView['steps'] {
@@ -395,7 +396,7 @@ export function idleText(state: RunState, total: number): string {
 
 export function statusView(state: RunState): string {
   if (state.act === 'complete') return 'Run complete';
-  if (state.offerSpeedUp) return OFFER_WORDS;
+  if (state.offerSpeedUp) return offerWords(state.act);
   if (!state.playing) return 'Paused';
   if (state.pace === 'slow') return 'Slowed down so you can follow along.';
   // The busy day is Act 2: before it the pace is quick, but the day is not yet busy.
@@ -411,14 +412,15 @@ export function speedView(state: RunState): { label: 'Speed up' | 'Slow down'; s
   };
 }
 
-export type TopLine = 'purpose' | 'slow' | 'busy';
+export type TopLine = 'purpose' | 'slow' | 'slowedAgain' | 'busy';
 
 // Which words the line under the title shows. Learn and a run at rest keep the page's purpose; the bar's
 // status already says the same of the pace, so neither notice is announced.
 export function topLineView(view: 'learn' | 'see', state: Pick<RunState, 'act' | 'playing' | 'pace'>, busyJustStarted: boolean): TopLine {
   if (view === 'learn') return 'purpose';
   if (state.pace === 'fast') return busyJustStarted && state.act === 2 ? 'busy' : 'purpose';
-  return state.playing ? 'slow' : 'purpose';
+  if (!state.playing) return 'purpose';
+  return state.act === 2 ? 'slowedAgain' : 'slow';
 }
 
 // Only a change from slow to fast is news: a first drawing, or a run that was already fast, is not.
@@ -427,7 +429,7 @@ export function paceSpeededUp(before: RunState['pace'] | undefined, after: RunSt
 }
 
 export function explainMode(state: RunState): 'offered' | 'off' {
-  return state.act === 1 || !state.playing ? 'offered' : 'off';
+  return state.act === 1 || !state.playing || state.pace === 'slow' ? 'offered' : 'off';
 }
 
 // A zero reading (a coarse browser timer) gives no rate rather than Infinity.

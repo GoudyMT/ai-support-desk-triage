@@ -1,5 +1,5 @@
 import type { RunState } from '../run/engine';
-import { OFFER_WORDS } from './copy';
+import { offerWords } from './copy';
 import { setText } from './dom';
 
 const BUSY_STARTED = 'The busy day has started.';
@@ -13,7 +13,7 @@ const RUN_COMPLETE = 'Run complete.';
  * slow part it says what the viewer is asked to do, and gives the sentence back if a Step changes it.
  */
 export function createSpeech(region: HTMLElement): {
-  say(sentence: string | null, moment: Pick<RunState, 'act' | 'playing' | 'offerSpeedUp'>): void;
+  say(sentence: string | null, moment: Pick<RunState, 'act' | 'playing' | 'offerSpeedUp' | 'pace'>): void;
   reset(): void;
 } {
   let said = '';
@@ -28,18 +28,18 @@ export function createSpeech(region: HTMLElement): {
   }
 
   return {
-    say(sentence, { act, playing, offerSpeedUp }) {
+    say(sentence, { act, playing, offerSpeedUp, pace }) {
       let text = sentence ?? '';
       if (offerSpeedUp) {
         offeredOver ??= text;
-        text = text === offeredOver ? OFFER_WORDS : text;
+        text = text === offeredOver ? offerWords(act) : text;
       } else {
         offeredOver = null;
       }
       if (act === 'complete') {
         text = notice(RUN_COMPLETE, completeTold);
         completeTold = true;
-      } else if (act === 2 && playing) {
+      } else if (act === 2 && playing && pace === 'fast') {
         text = notice(BUSY_STARTED, busyTold);
         busyTold = true;
       }

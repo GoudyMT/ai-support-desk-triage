@@ -90,7 +90,8 @@ test.describe('the line under the title', () => {
     await expect(purpose(page)).toBeVisible();
     await page.getByRole('button', { name: 'Slow down', exact: true }).click();
     await expect(notice(page)).toBeVisible();
-    await expect(notice(page)).toHaveText(SLOW_NOTICE);
+    // On the busy day it is no longer "the first few tickets".
+    await expect(notice(page)).toHaveText('Slowed down so you can follow along.');
   });
 
   test('does not start a busy-day notice when a restart goes back to the slow pace', async ({ page }) => {

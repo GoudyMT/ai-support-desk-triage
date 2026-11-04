@@ -11,8 +11,6 @@ describe('the line under the title', () => {
     ['learn', true, 'slow', false, 'purpose'],
     ['learn', true, 'fast', true, 'purpose'],
     ['see', false, 'slow', false, 'purpose'],
-    ['see', true, 'slow', false, 'slow'],
-    ['see', true, 'slow', true, 'slow'],
     ['see', true, 'fast', true, 'busy'],
     ['see', false, 'fast', true, 'busy'],
     ['see', true, 'fast', false, 'purpose'],
@@ -21,9 +19,22 @@ describe('the line under the title', () => {
     expect(topLineView(view, { ...makeRun().state(), act: 2, playing, pace }, busy)).toBe(shows);
   });
 
+  it.each([
+    [true, 'slow'],
+    [false, 'purpose'],
+  ] as const)('in Act 1, playing %s at the slow pace: %s', (playing, shows) => {
+    expect(topLineView('see', { ...makeRun().state(), act: 1, playing, pace: 'slow' }, true)).toBe(shows);
+  });
+
   // "Busy-day speed" is only true once the run is on the busy day, which is Act 2.
   it('does not say busy-day speed is back while the run is still in Act 1', () => {
     expect(topLineView('see', { ...makeRun().state(), act: 1, playing: true, pace: 'fast' }, true)).toBe('purpose');
+  });
+
+  // The first few tickets are only the first few in Act 1: slowed down on the busy day it just says so.
+  it('says a run slowed down on the busy day is slowed down, without "the first few tickets"', () => {
+    expect(topLineView('see', { ...makeRun().state(), act: 2, playing: true, pace: 'slow' }, false)).toBe('slowedAgain');
+    expect(TOP_LINE_WORDS.slowedAgain).toBe('Slowed down so you can follow along.');
   });
 
   it('says the first few tickets are slowed down, and that busy-day speed is back', () => {
