@@ -1,6 +1,6 @@
 import { loadModel, type Model } from '../model/scorer';
 import { createSchedule, type Schedule } from '../run/clock';
-import { createRun, type Run, type RunState } from '../run/engine';
+import { createRun, type Run } from '../run/engine';
 import { createPrescreener, type Tag } from '../run/prescreen';
 import { foldOf, parseSeed } from '../run/seed';
 import './tokens.css';
@@ -19,6 +19,7 @@ import { mountIncoming } from './incoming';
 import { createMotion } from './motion';
 import { mountOutgoing } from './outgoing';
 import { mountReviewForm } from './reviewForm';
+import { createSpeech } from './speech';
 import { mountStats } from './stats';
 import {
   centerView,
@@ -51,7 +52,6 @@ interface Page {
   stopListening(): void;
   timer: number | undefined;
   explain: boolean;
-  announced: string;
 }
 
 type Panels = ReturnType<typeof mountPanels>;
@@ -113,6 +113,7 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
   });
   return {
     motion: createMotion(),
+    speech: createSpeech(byId('announcer')),
     focus: createFocus({ form, center, controls }),
     stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
     controls,
@@ -122,23 +123,6 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
     center,
     form,
   };
-}
-
-// The live region says exactly what the center shows: its sentence, once per stage. With no
-// sentence shown (later tickets between stages, the busy day) it is emptied and stays quiet.
-function announce({ page }: Mounted, state: RunState): void {
-  const view = centerView(state);
-  const text = view?.plain ?? null;
-  if (view === undefined || text === null) {
-    setText(byId('announcer'), '');
-    page.announced = '';
-    return;
-  }
-  const key = `${view.id}|${view.stageName}`;
-  if (key !== page.announced) {
-    setText(byId('announcer'), text);
-    page.announced = key;
-  }
 }
 
 function render(mounted: Mounted): void {
@@ -170,7 +154,7 @@ function render(mounted: Mounted): void {
     realSpeedLabel: controls.realSpeedLabel,
     result,
   });
-  announce(mounted, state);
+  panels.speech.say(centerView(state));
   panels.focus.after(review !== undefined, result !== undefined);
   // Real speed shows the finished run in one render, so no card travels.
   panels.motion.play(result === undefined);
@@ -193,9 +177,8 @@ function restart(mounted: Mounted): void {
   page.run = newRun(setup);
   page.stopListening = page.run.onChange(() => sync(mounted));
   page.explain = false;
-  page.announced = '';
   panels.motion.skipNext();
-  setText(byId('announcer'), '');
+  panels.speech.reset();
   sync(mounted);
   panels.controls.focusPrimary();
 }
@@ -206,7 +189,6 @@ function mountRun(setup: Setup): void {
     stopListening: () => undefined,
     timer: undefined,
     explain: false,
-    announced: '',
   };
   const mounted: Mounted = {
     setup,
