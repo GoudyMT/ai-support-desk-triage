@@ -39,7 +39,7 @@ test.describe('the run, by keyboard alone', () => {
     await expect(page.locator('#status')).toHaveText(SLOW_STATUS);
     await page.clock.runFor(FIRST_OPEN_MS);
 
-    await tabTo(page, 'Review');
+    await tabTo(page, 'Review', true);
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name: 'You are reviewing T-1001-0' })).toBeFocused();
     await page.keyboard.press('Tab');
@@ -53,7 +53,7 @@ test.describe('the run, by keyboard alone', () => {
 
     // One ticket is closed (by the viewer), so 129 are left to finish, but the measured pass is all 130;
     // the frozen test clock measures 0 ms and gives no rate.
-    await tabTo(page, /^Run the last 129 tickets at real speed$/);
+    await tabTo(page, /^Run the last 129 tickets at real speed$/, true);
     await page.keyboard.press('Enter');
     await expect(page.locator('#status')).toHaveText('Run complete');
     await expect(stat(page, 'Tickets done')).toHaveText(String(TOTAL_TICKETS));
@@ -317,6 +317,9 @@ test.describe('reduced motion', () => {
       });
     const animated = () =>
       page.evaluate(() => [...document.querySelectorAll('*')].filter((node) => getComputedStyle(node).animationName !== 'none').length);
+    // Reduced motion is set before the page loads, so the Learn row shown at load never holds a fade that
+    // WebKit would keep on a hidden button; the control below still switches it on and off mid-run.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await open(page);
     // One Step puts a ticket in the center with its three stage rows still waiting (the twinkling dots).
     await page.getByRole('button', { name: 'Step' }).click();

@@ -45,7 +45,7 @@ test.describe('by keyboard alone', () => {
       await page.keyboard.press('Enter');
     }
     await expect(stage).toHaveText('Now: Privacy');
-    await tabTo(page, 'Why this choice');
+    await tabTo(page, 'Why this choice', true);
     await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Why this choice' })).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#ticket .why-list')).toBeVisible();

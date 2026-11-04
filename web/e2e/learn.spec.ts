@@ -380,13 +380,17 @@ test.describe('on a phone', () => {
   test('leaves the end of the page clear of the bar', async ({ page }) => {
     await openLearn(page);
     await page.getByRole('button', { name: 'See The Process' }).click();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const clear = await page.evaluate(() => {
-      const bar = document.getElementById('bar')?.getBoundingClientRect();
-      const board = document.getElementById('app')?.getBoundingClientRect();
-      return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0);
-    });
-    expect(clear).toBe(true);
+    // The room kept under the page follows the bar's height a moment after it changes, so scroll and look again.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          window.scrollTo(0, document.documentElement.scrollHeight);
+          const bar = document.getElementById('bar')?.getBoundingClientRect();
+          const board = document.getElementById('app')?.getBoundingClientRect();
+          return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0);
+        }),
+      )
+      .toBe(true);
   });
 });
 

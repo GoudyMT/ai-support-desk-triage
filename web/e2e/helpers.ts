@@ -32,6 +32,13 @@ export async function seeAndPause(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'See The Process' }).click();
   await page.getByRole('button', { name: 'Pause' }).click();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+  // The clicks left focus on the bar, which is the end of the page. The rows that use the keyboard start
+  // from the top of the page, as a visitor arriving does, so focus goes back to the start.
+  await page.evaluate(() => {
+    document.body.tabIndex = -1;
+    document.body.focus();
+    document.body.removeAttribute('tabindex');
+  });
 }
 
 // The page in See The Process, paused: the state the rows of the live board start from.
@@ -41,10 +48,11 @@ export async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
 }
 
 // The run pauses itself at the end of the slow part and waits for Play or Speed up. A test that just lets
-// time pass presses Play, as a viewer who wants the run to go on would.
+// time pass presses Play, as a viewer who wants the run to go on would. The press is dispatched, not
+// clicked: a real click would move focus (or, in Safari, drop it), and tests of focus are watching it.
 export async function playOnIfOffered(page: Page): Promise<void> {
   const play = page.getByRole('button', { name: 'Play', exact: true });
-  if (await play.isVisible()) await play.click();
+  if (await play.isVisible()) await play.dispatchEvent('click');
 }
 
 // Lets `ms` of the page's clock pass, going on past the offer.
@@ -95,13 +103,15 @@ export function moreNumber(page: Page, label: string) {
 const MAX_TABS = 30;
 
 // Presses Tab until the focused control's text matches; keyboard only, so no pointer and no focus().
-export async function tabTo(page: Page, name: string | RegExp): Promise<void> {
+// `back` goes the other way, with Shift+Tab: the bar is the last stop in the page, so a control in the
+// board is behind it, and Firefox does not wrap from the end of the page to its start.
+export async function tabTo(page: Page, name: string | RegExp, back = false): Promise<void> {
   for (let n = 0; n < MAX_TABS; n += 1) {
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(back ? 'Shift+Tab' : 'Tab');
     const label = await page.evaluate(() => document.activeElement?.textContent?.trim() ?? '');
     if (typeof name === 'string' ? label === name : name.test(label)) return;
   }
-  throw new Error(`test: Tab never reached ${String(name)}`);
+  throw new Error(`test: ${back ? 'Shift+Tab' : 'Tab'} never reached ${String(name)}`);
 }
 
 // Plays the run until the open list holds at least `count` tickets.
