@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ROUTES, type TicketLabel } from '../domain/labels';
 import type { TicketTrail } from '../pipeline/types';
 import { CLOSE_EVERY_MS, type CenterStage, type RunState } from '../run/engine';
+import { minutesText } from '../run/valueSaved';
 import {
   centerView,
   controlsView,
@@ -73,9 +74,11 @@ describe('more numbers', () => {
   const value = (state: RunState, label: string, truthOf: (id: string) => TicketLabel = noTruth) =>
     moreNumbersView(state, truthOf).rows.find((row) => row.label === label)?.value;
 
-  it('shows a dash for every number that has no value yet, and states both assumptions', () => {
+  it('shows a dash for every number that has no value yet, and states every assumption', () => {
     const view = moreNumbersView(makeRun().state(), noTruth);
     expect(view.rows.map((row) => [row.label, row.value])).toEqual([
+      ['Time saved', '0 min'],
+      ['Value saved', '$0.00'],
       ["Model's category right so far (closed tickets)", '-'],
       ['Old keyword rules (v0), same tickets', '-'],
       ['Simulated reviewer overrides', '0'],
@@ -86,7 +89,35 @@ describe('more numbers', () => {
       'Assumed arrivals: 100 tickets in a business day shown as 90 seconds',
       `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / 1000} seconds`,
       'Assumed: the simulated reviewer is wrong 5% of the time',
+      'Assumed: each ticket no person touched saves 2 minutes',
+      "Assumed: a person's time is worth $21.53 an hour",
     ]);
+  });
+
+  // The visitor reads these two as estimates, so each carries its source in the owner's words, and the
+  // link sits inside the words it names, so the panel reads the same with or without the link.
+  it('puts time saved and value saved first, each with its source', () => {
+    const [time, value] = moreNumbersView(makeRun().state(), noTruth).rows;
+    expect(time?.source).toEqual({
+      text: 'Estimate, not a measurement. Each ticket no person touched counts as 2 minutes saved. Tool vendors publish 2 to 12 minutes for sorting one ticket and we found no independent study, so we use the low end.',
+    });
+    expect(value?.source).toEqual({
+      text: 'Estimate, not a measurement. Time saved x $21.53 an hour, the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). Benefits are not added, which keeps it low.',
+      link: {
+        phrase: 'Bureau of Labor Statistics, May 2025',
+        href: 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm',
+      },
+    });
+    expect(value?.source?.text).toContain(value?.source?.link?.phrase ?? 'no link');
+  });
+
+  it('reads the saved numbers from the tickets no person touched, as time and as dollars', () => {
+    const state = finishedRun().state();
+    const untouched = state.done.filter((trail) => !trail.guard.flagged).length;
+    expect(untouched).toBeGreaterThan(0);
+    const rows = moreNumbersView(state, noTruth).rows;
+    expect(rows[0]?.value).toBe(minutesText(untouched * 2));
+    expect(rows[1]?.value).toBe(`$${((untouched * 2 * 21.53) / 60).toFixed(2)}`);
   });
 
   it('shows the figures of the closed tickets once the run has gone on', () => {

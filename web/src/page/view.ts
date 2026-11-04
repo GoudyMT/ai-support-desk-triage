@@ -10,6 +10,8 @@ import { CLOSE_EVERY_MS, type RunState } from '../run/engine';
 import { liveNumbers } from '../run/liveNumbers';
 import { NONE_FOUND, narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
+import { HOURLY_PAY_USD, MINUTES_PER_TICKET, dollarsText, minutesText, valueSaved } from '../run/valueSaved';
+import { TIME_SAVED_SOURCE, VALUE_SAVED_SOURCE, VALUE_SOURCE_LINK } from './copy';
 import { findSpans } from './spans';
 
 export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'you';
@@ -42,6 +44,21 @@ export interface CenterView {
   why: { label: string; value: string }[];
   // A caution about the highlighted words, from Classify on, when the words are first shown.
   whyNote: string | null;
+}
+
+// Where a number comes from: the words of its panel, and the part of them that is a link, if any.
+export interface SourceView {
+  text: string;
+  link?: { phrase: string; href: string };
+}
+
+export interface MoreRow {
+  label: string;
+  value: string;
+  // For a number that grows as the run saves time: it only goes up, and `flash` is the color of its pulse.
+  level?: number;
+  flash?: 'time' | 'value';
+  source?: SourceView;
 }
 
 const PERCENT = 100;
@@ -228,13 +245,22 @@ export function statsView(
 export function moreNumbersView(
   state: RunState,
   truthOf: (id: string) => TicketLabel,
-): { rows: { label: string; value: string }[]; assumptions: string[] } {
+): { rows: MoreRow[]; assumptions: string[] } {
   const live = liveNumbers(state, truthOf);
   const share = (value: number | null): string => (value === null ? NO_VALUE : percent(value));
   const perSecond = realSpeedView(state)?.perSecond ?? null;
   const { correct, total } = live.viewerCorrect;
+  const saved = valueSaved(state);
   return {
     rows: [
+      { label: 'Time saved', value: minutesText(saved.minutes), level: saved.untouched, flash: 'time', source: { text: TIME_SAVED_SOURCE } },
+      {
+        label: 'Value saved',
+        value: dollarsText(saved.dollars),
+        level: saved.untouched,
+        flash: 'value',
+        source: { text: VALUE_SAVED_SOURCE, link: VALUE_SOURCE_LINK },
+      },
       { label: "Model's category right so far (closed tickets)", value: share(live.modelAccuracy) },
       { label: 'Old keyword rules (v0), same tickets', value: share(live.v0Accuracy) },
       { label: 'Simulated reviewer overrides', value: String(live.overrides) },
@@ -245,6 +271,8 @@ export function moreNumbersView(
       `Assumed arrivals: ${ACT2_TICKETS_PER_DAY} tickets in a business day shown as ${ACT2_SECONDS} seconds`,
       `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / MS_PER_SECOND} seconds`,
       `Assumed: the simulated reviewer is wrong ${Math.round(REVIEWER_ERROR_RATE * PERCENT)}% of the time`,
+      `Assumed: each ticket no person touched saves ${MINUTES_PER_TICKET} minutes`,
+      `Assumed: a person's time is worth $${HOURLY_PAY_USD} an hour`,
     ],
   };
 }
