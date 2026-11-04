@@ -618,6 +618,18 @@ describe('Review', () => {
     expect(run.state().simTime).toBe(closesAt);
   });
 
+  // Review works on any open ticket, not only the top one; the others stay where they were.
+  it('holds a ticket from the middle of the open list and puts it back in its place on Hand back', () => {
+    const run = runToOpen(6);
+    expect(ids(run.state().open)).toEqual([6, 5, 2].map(idOf));
+    run.review(idOf(5));
+    expect(run.state().reviewing?.id).toBe(idOf(5));
+    expect(ids(run.state().open)).toEqual([6, 2].map(idOf));
+    run.handBack();
+    expect(run.state().reviewing).toBeUndefined();
+    expect(ids(run.state().open)).toEqual([6, 5, 2].map(idOf));
+  });
+
   it('gives the ticket back to the simulated reviewer on Hand back, without counting a review', () => {
     const run = runToOpen(6);
     expect(ids(run.state().open)).toEqual([6, 5, 2].map(idOf));
