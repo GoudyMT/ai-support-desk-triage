@@ -125,6 +125,8 @@ Other) and four priorities (Low, Medium, High, Urgent).
 
 ### 5.5 The Under the Hood page (layout D)
 
+> SUPERSEDED for the page layout, controls and Take over by `docs/superpowers/specs/2026-11-03-pr4-under-the-hood-page-design.md` section 5.
+
 - **Top:** the six-stage row; the current ticket's stage is lit; each stage shows a small live count.
 - **Below, left:** the ticket feed (latest first), with a pill per outcome (auto, flagged, overridden).
 - **Below, center:** the current ticket, its stage-by-stage trail, the word chips and confidence.
