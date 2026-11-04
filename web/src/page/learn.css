@@ -1,0 +1,42 @@
+/* Learn The Process: one dim layer with a hole over the lit part of the page, and one block of words. */
+.dim {
+  position: fixed;
+  z-index: var(--z-dim);
+  border-radius: var(--radius-lg);
+  outline: var(--stroke) solid var(--accent);
+  box-shadow: 0 0 0 var(--dim-spread) var(--dim);
+  pointer-events: none;
+}
+
+.learn-block {
+  position: fixed;
+  z-index: var(--z-block);
+  display: grid;
+  gap: var(--space-2);
+  width: min(var(--block-width), 46vw);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  box-shadow: var(--lift);
+}
+
+.learn-block p {
+  margin: 0;
+}
+
+.learn-title {
+  font-size: var(--fs-h3);
+}
+
+/* Below 1024 px there is no room beside the hole: the block docks above the bar. */
+@media (max-width: 1023px) {
+  .learn-block {
+    right: 0;
+    bottom: var(--bar-h);
+    left: 0;
+    width: auto;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: none;
+  }
+}

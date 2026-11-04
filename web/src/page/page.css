@@ -62,6 +62,8 @@ p {
   max-width: var(--page-max);
   margin: 0 auto;
   padding: var(--space-4);
+  /* The bar is fixed over the bottom of the screen; its height is kept clear under the content. */
+  padding-bottom: calc(var(--space-4) + var(--bar-h) + var(--block-h));
 }
 
 .top {
@@ -88,12 +90,6 @@ h1 {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-5);
-}
-
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 
 .notice {

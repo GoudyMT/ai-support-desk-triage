@@ -1,13 +1,4 @@
 import { el, setText } from './dom';
-import type { controlsView } from './view';
-
-export interface ControlActions {
-  playPause(): void;
-  step(): void;
-  restart(): void;
-}
-
-type ControlsState = ReturnType<typeof controlsView>;
 
 export type TabName = 'in' | 'out';
 
@@ -16,28 +7,6 @@ function button(label: string, className: string, onClick: () => void): HTMLButt
   node.type = 'button';
   node.addEventListener('click', onClick);
   return node;
-}
-
-/** Play or Pause, Step and Restart. */
-export function mountControls(
-  root: HTMLElement,
-  actions: ControlActions,
-): { render(view: ControlsState): void; focusPrimary(): void } {
-  const play = button('Play', 'btn btn-solid', actions.playPause);
-  const step = button('Step', 'btn btn-line', actions.step);
-  const restart = button('Restart', 'btn btn-line', actions.restart);
-  root.replaceChildren(play, step, restart);
-  return {
-    render(view) {
-      setText(play, view.playLabel);
-      play.disabled = view.playDisabled;
-      step.disabled = view.stepDisabled;
-    },
-    // The first control that can take focus: Play or Pause while the run can go on, Restart after it ends.
-    focusPrimary() {
-      (play.disabled ? restart : play).focus();
-    },
-  };
 }
 
 const TABS: { name: TabName; label: string; listId: string }[] = [
@@ -53,7 +22,7 @@ const TABS: { name: TabName; label: string; listId: string }[] = [
 export function mountTabs(
   root: HTMLElement,
   board: HTMLElement,
-): { render(counts: Record<TabName, string>): void } {
+): { render(counts: Record<TabName, string>): void; select(name: TabName): void } {
   const nodes = new Map<TabName, { tab: HTMLButtonElement; count: HTMLElement }>();
   const select = (name: TabName, focus: boolean): void => {
     board.classList.toggle('show-in', name === 'in');
@@ -86,5 +55,6 @@ export function mountTabs(
     render(counts) {
       for (const [name, { count }] of nodes) setText(count, counts[name]);
     },
+    select: (name) => select(name, false),
   };
 }

@@ -132,7 +132,7 @@
 @media (min-width: 1024px) {
   .page {
     height: 100dvh;
-    padding: var(--space-3) var(--space-4) var(--space-4);
+    padding: var(--space-3) var(--space-4) calc(var(--space-4) + var(--bar-h));
   }
 
   .board {

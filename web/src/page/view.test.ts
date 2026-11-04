@@ -8,8 +8,8 @@ import {
   explainMode,
   idleText,
   moreNumbersView,
-  paceNoteShown,
   realSpeedView,
+  speedView,
   statsView,
   statusView,
 } from './view';
@@ -423,29 +423,6 @@ describe('controls', () => {
   });
 });
 
-describe('the note that the run is slowed down', () => {
-  // Counted by the tickets that have entered the center, whatever their numbers: it goes when the
-  // fourth enters, the first that is not given the slow pace.
-  function stateWhenTicketsHaveEntered(count: number): RunState {
-    const entered = new Set<string>();
-    return stepUntil(makeRun(), (s) => {
-      if (s.current !== undefined) entered.add(s.current.trail.id);
-      return entered.size === count;
-    });
-  }
-
-  it('is there from the start, and while the first three tickets are in the center', () => {
-    expect(paceNoteShown(makeRun().state())).toBe(true);
-    expect(paceNoteShown(stateWhenTicketsHaveEntered(1))).toBe(true);
-    expect(paceNoteShown(stateWhenTicketsHaveEntered(3))).toBe(true);
-  });
-
-  it('is gone as the fourth ticket enters the center, and stays gone', () => {
-    expect(paceNoteShown(stateWhenTicketsHaveEntered(4))).toBe(false);
-    expect(paceNoteShown(finishedRun().state())).toBe(false);
-  });
-});
-
 describe('the line shown when no ticket is in the center', () => {
   const fresh = makeRun().state();
 
@@ -478,11 +455,21 @@ describe('the line shown when no ticket is in the center', () => {
 describe('status and the explanation', () => {
   const base = makeRun().state();
 
-  it('names the pace: learning in Act 1, a busy day in Act 2, then paused or complete', () => {
-    expect(statusView({ ...base, act: 1, playing: true })).toBe('Learning pace');
-    expect(statusView({ ...base, act: 2, playing: true })).toBe('Busy day');
-    expect(statusView({ ...base, act: 2, playing: false })).toBe('Paused');
+  it('names the pace the viewer chose: slowed down or full speed, then paused, the offer or complete', () => {
+    expect(statusView({ ...base, pace: 'slow', playing: true })).toBe('Slowed down so you can follow along.');
+    expect(statusView({ ...base, pace: 'fast', playing: true })).toBe('Busy day: full speed.');
+    expect(statusView({ ...base, pace: 'fast', playing: false })).toBe('Paused');
+    expect(statusView({ ...base, pace: 'slow', playing: false, offerSpeedUp: true })).toBe(
+      'That was the slow part. Press Speed up to see a busy day.',
+    );
     expect(statusView({ ...base, act: 'complete', playing: false })).toBe('Run complete');
+  });
+
+  it('names the speed button for the pace it would change to, and makes it the main one only on the offer', () => {
+    expect(speedView({ ...base, pace: 'slow' })).toEqual({ label: 'Speed up', solid: false, disabled: false });
+    expect(speedView({ ...base, pace: 'slow', offerSpeedUp: true })).toEqual({ label: 'Speed up', solid: true, disabled: false });
+    expect(speedView({ ...base, pace: 'fast' })).toEqual({ label: 'Slow down', solid: false, disabled: false });
+    expect(speedView({ ...base, act: 'complete' }).disabled).toBe(true);
   });
 
   it('offers the explanation in Act 1 and when paused, and turns it off on the busy day while playing', () => {

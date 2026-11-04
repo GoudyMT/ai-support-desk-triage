@@ -15,6 +15,14 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+export function byId(id: string): HTMLElement {
+  const node = document.getElementById(id);
+  if (node === null) {
+    throw new Error('E_PAGE_MARKUP');
+  }
+  return node;
+}
+
 // Writing a value the node already holds still makes the browser re-lay it out, so a render
 // on every event only writes what changed.
 export function setText(node: Node, text: string): void {

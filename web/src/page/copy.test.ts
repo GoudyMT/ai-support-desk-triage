@@ -1,16 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ROUTES } from '../domain/labels';
-import { PILL_KEY, paceNote, reviewerNote } from './copy';
+import { PILL_KEY, reviewerNote } from './copy';
 import { outgoingView } from './view';
 import { finishedRun, makeRun, missedTruth, must, noTruth, stepUntil } from './viewTestKit';
-
-describe('the note above the board', () => {
-  it('says the run is slowed down and when it speeds up, with the number from the engine constant', () => {
-    expect(paceNote()).toBe(
-      'Slowed down so you can read each step. It speeds up after the first 3 tickets.',
-    );
-  });
-});
 
 describe('the note under Going out', () => {
   it('says the reviewer is simulated and how often it closes a ticket, from the engine constant', () => {

@@ -14,7 +14,10 @@
         <div class="top-text">
           <h1>Under the Hood</h1>
           <p class="muted" id="seed-line"></p>
-          <p class="muted" id="status"></p>
+        </div>
+        <div class="views" id="views" role="group" aria-label="Choose a view" hidden>
+          <button class="btn btn-solid view" type="button" id="view-learn" aria-pressed="true">Learn The Process</button>
+          <button class="btn view" type="button" id="view-see" aria-pressed="false">See The Process</button>
         </div>
         <p class="purpose" id="purpose">
           A live demo. Made-up support tickets go through a trained model and safety rules, and a person checks the doubtful ones. The
@@ -23,7 +26,6 @@
         <div class="top-live" id="top-live" hidden>
           <dl class="stats" id="stats"></dl>
           <button class="btn btn-link" type="button" id="more-toggle" aria-expanded="false" aria-controls="numbers">All numbers</button>
-          <div class="controls" id="controls" role="group" aria-label="Run controls"></div>
         </div>
       </header>
       <section class="numbers" id="numbers" aria-label="All numbers" hidden></section>
@@ -35,7 +37,6 @@
       </div>
       <main class="board show-in" id="app" hidden>
         <section class="col col-center" id="center" aria-label="Current ticket">
-          <p class="muted pace" id="pace"></p>
           <div class="stack" id="ticket"></div>
           <form class="stack" id="review" aria-label="Review this ticket" hidden></form>
         </section>
@@ -44,6 +45,13 @@
         <section class="col col-out" id="outgoing" aria-label="Going out"></section>
       </main>
       <div class="sr-only" id="announcer" aria-live="polite"></div>
+    </div>
+    <div class="bar" id="bar" hidden>
+      <div class="bar-progress" id="bars" aria-hidden="true"></div>
+      <div class="bar-row" id="controls" role="group" aria-label="Run controls">
+        <p class="bar-status" id="status"></p>
+      </div>
+      <div class="bar-row" id="learn-controls" role="group" aria-label="Learn controls" hidden></div>
     </div>
     <script type="module" src="/src/page/main.ts"></script>
   </body>

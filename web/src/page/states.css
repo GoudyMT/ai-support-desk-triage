@@ -1,4 +1,4 @@
-/* The states of the controls and the two short notes of the page. This file is loaded straight after
+/* The states of the controls and the short note of the page. This file is loaded straight after
    the page base, so its rules win over the base's where they overlap and the columns' rules win over it. */
 
 /* Under the pointer and pressed: a change of color only. A button that cannot be used does not react. */
@@ -27,15 +27,4 @@
   max-width: var(--measure);
   margin: 0;
   font-size: var(--fs-sm);
-}
-
-/* The slowed-down note at the top of the center, where the ticket it is about is. It is hidden with
-   `visibility`, which keeps its row, so the ticket does not move when the note goes. It is not in the
-   page's own flow: that would cost the three columns a row of their height. */
-.pace {
-  margin: 0 0 var(--space-3);
-}
-
-.pace-off {
-  visibility: hidden;
 }

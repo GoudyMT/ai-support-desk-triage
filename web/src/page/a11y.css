@@ -14,6 +14,15 @@
     transition: transform var(--motion);
   }
 
+  /* The hole eases from one lit part to the next. */
+  .dim {
+    transition:
+      left var(--hole-ease),
+      top var(--hole-ease),
+      width var(--hole-ease),
+      height var(--hole-ease);
+  }
+
   /* The three dots of a waiting stage row light in turn. */
   @keyframes twinkle {
     0%,
@@ -67,6 +76,10 @@
 
   .btn-solid {
     border-color: Highlight;
+  }
+
+  .dim {
+    outline-color: Highlight;
   }
 
   .chip {

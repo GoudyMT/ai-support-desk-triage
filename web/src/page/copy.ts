@@ -1,12 +1,7 @@
-import { CLOSE_EVERY_MS, DEEP_TICKETS } from '../run/engine';
+import { CLOSE_EVERY_MS } from '../run/engine';
 import type { PillKind } from './view';
 
 const MS_PER_SECOND = 1000;
-
-// Above the board while the first tickets go slowly: says why, and when it stops.
-export function paceNote(): string {
-  return `Slowed down so you can read each step. It speeds up after the first ${DEEP_TICKETS} tickets.`;
-}
 
 // What each mark on a closed line means, in the order they are listed. `word` is how the mark starts.
 export const PILL_KEY: { kind: PillKind; word: string; meaning: string }[] = [

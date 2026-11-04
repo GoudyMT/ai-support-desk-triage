@@ -1,0 +1,110 @@
+/* The bar fixed to the bottom of the screen, and the switch between the two views in the header. */
+.bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-bar);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  border-top: var(--border) solid var(--line);
+  background: var(--raised);
+}
+
+/* One segment for each step along the top edge: full when done, empty when to come. */
+.bar-progress {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.bar-progress span {
+  flex: 1;
+  height: var(--progress);
+  overflow: hidden;
+  background: var(--line);
+}
+
+.bar-progress i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+}
+
+.bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-4);
+}
+
+.bar-status {
+  flex: 1 1 12rem;
+  min-width: 0;
+  margin: 0;
+  padding-left: var(--space-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.icon {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Speed up is the way on, so it wears the accent; on the offer it takes the solid look of the main button. */
+.btn-speed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-speed.btn-solid {
+  border-color: var(--solid-bg);
+  color: var(--solid-text);
+}
+
+/* On a phone the row cannot hold every word: Step, Restart and Back keep their name for a screen reader,
+   and the step count goes on a line of its own under the buttons. */
+@media (max-width: 479px) {
+  .bar-count {
+    flex-basis: 100%;
+    order: 1;
+    padding-left: 0;
+  }
+
+  .bar-quiet .bar-word {
+    position: absolute;
+    width: var(--sr-size);
+    height: var(--sr-size);
+    margin: calc(-1 * var(--sr-size));
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The switch has a place of its own in the header, above the dim layer, so it is never dimmed. */
+.views {
+  position: relative;
+  z-index: var(--z-views);
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+
+/* The view in use wears the solid look of the main button (the .btn-solid class); the other has no box. */
+.view:not(.btn-solid) {
+  border-color: transparent;
+  background: none;
+}

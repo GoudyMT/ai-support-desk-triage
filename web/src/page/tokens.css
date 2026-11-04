@@ -48,6 +48,8 @@
   --pill-missed-text: #991b1b;
   --pill-you-bg: #dbeafe;
   --pill-you-text: #1e3a8a;
+  --dim: rgb(16 16 18 / 0.68);
+  --lift: 0 6px 24px rgb(0 0 0 / 0.3);
 
   --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
@@ -101,6 +103,18 @@
   --dot: 0.375rem;
   --twinkle: 1200ms;
   --twinkle-low: 0.25;
+  --progress: 6px;
+  --dim-spread: 200vmax;
+  --hole-ease: 500ms;
+  --block-width: 21rem;
+  /* The bar's own height replaces this once the bar is drawn. */
+  --bar-h: 4.5rem;
+  /* The height of the docked Learn block on a phone, kept clear under the content as well. */
+  --block-h: 0px;
+  --z-dim: 30;
+  --z-block: 35;
+  --z-bar: 40;
+  --z-views: 45;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -149,5 +163,6 @@
     --pill-missed-text: #fecaca;
     --pill-you-bg: #1e3a8a;
     --pill-you-text: #dbeafe;
+    --dim: rgb(0 0 0 / 0.74);
   }
 }
