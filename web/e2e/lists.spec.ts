@@ -27,6 +27,8 @@ const incomingIds = (page: Page) =>
 const centerId = (page: Page) =>
   page.locator('#ticket .now-title').evaluate((node) => node.getAttribute('data-ticket') ?? '');
 
+const centerTag = (page: Page) => page.locator('#ticket .tag').first().evaluate((node) => node.textContent ?? '');
+
 async function stepTo(page: Page, stage: string): Promise<void> {
   const now = page.locator('#ticket .now-stage');
   for (let n = 0; n < STEP_LIMIT && (await now.innerText().catch(() => '')) !== `Now: ${stage}`; n += 1) {
@@ -58,7 +60,9 @@ test.describe('the lists', () => {
       await runPlaying(page, POLL_MS);
       const now = await centerId(page);
       if (now !== current && current !== '' && top !== '') {
-        expect(now).toBe(top);
+        // The top goes in next. Only a ticket the pre-screener has just tagged Critical goes ahead of it, and on
+        // the busy day the line is long enough for that to happen between two looks.
+        if (now !== top) expect(await centerTag(page), `${now} went in ahead of ${top}`).toContain('Critical');
         checked += 1;
       }
       current = now;

@@ -6,6 +6,7 @@ test.describe.configure({ timeout: SLOW_TEST_MS });
 // What the page promises every viewer: visible focus, big targets, speech, tabs by arrow keys,
 // the busy-day line, a dark theme, and its assumptions stated.
 const TARGET_PX = 44;
+const STEP_LIMIT = 8;
 const LIGHT_PAGE = 'rgb(255, 255, 255)';
 const DARK_PAGE = 'rgb(16, 16, 18)';
 
@@ -119,6 +120,8 @@ test.describe('what the page says and shows', () => {
     await expect(page.getByText('Explanations are off on the busy day. Pause to read one.')).toBeVisible();
     await expect(why).toBeHidden();
     await page.getByRole('button', { name: 'Pause' }).click();
+    // A ticket at Intake has no result to explain yet, so the run is stepped to one.
+    for (let n = 0; n < STEP_LIMIT && !(await why.isVisible()); n += 1) await page.getByRole('button', { name: 'Step' }).click();
     await expect(why).toBeVisible();
     await expect(page.getByText('Explanations are off on the busy day.')).toBeHidden();
   });

@@ -113,8 +113,9 @@ describe('the slow count', () => {
   it('speeds the ticket in the center and every later one up when the viewer asks', () => {
     const run = makeRun();
     stepUntil(run, atStage('intake'));
-    const asked = run.state().simTime;
     run.speedUp();
+    // Asking also moves the run on to the busy day, which sets the clock; the quick stage counts from there.
+    const asked = run.state().simTime;
     expect(run.state().pace).toBe('fast');
     expect(currentOf(run).deep).toBe(false);
     run.step();
@@ -188,8 +189,17 @@ describe('the offer to speed up', () => {
     const run = makeRun();
     run.speedUp();
     run.slowDown();
-    playUntil(run, (s) => s.offerSpeedUp);
-    expect(run.state().current?.trail.id).toBe(idOf(DEEP_TICKETS));
+    // The busy day's line is full, so a ticket tagged Critical may go ahead of the others: which tickets
+    // are the slow ones is not fixed, how many are is.
+    const slow = new Set<string>();
+    run.play();
+    for (let n = 0; !run.state().offerSpeedUp && n < MAX_STEPS; n += 1) {
+      const center = run.state().current;
+      if (center?.deep === true) slow.add(center.trail.id);
+      run.advance();
+    }
+    expect(run.state().offerSpeedUp).toBe(true);
+    expect(slow.size).toBe(DEEP_TICKETS);
   });
 });
 

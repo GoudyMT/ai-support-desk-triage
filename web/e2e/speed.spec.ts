@@ -31,7 +31,9 @@ test.describe('See The Process starts slow', () => {
     await speed(page, 'Speed up').click();
     await expect(status(page)).toHaveText(FAST_STATUS);
     await expect(speed(page, 'Slow down')).toBeVisible();
-    await page.clock.runFor(QUICK_TICKET_MS);
+    // Half a quick ticket: a slow one would still be at Intake for five seconds. A whole quick ticket would be
+    // over, and the next one, from the line the busy day fills at once, would be at Intake again.
+    await page.clock.runFor(QUICK_TICKET_MS / 2);
     await expect(stage(page)).not.toHaveText('Now: Intake');
   });
 
@@ -49,6 +51,47 @@ test.describe('See The Process starts slow', () => {
     for (let n = 0; n < 40 && (await ticket.getAttribute('data-ticket')) === before; n += 1) await page.clock.runFor(250);
     await page.clock.runFor(QUICK_TICKET_MS);
     await expect(stage(page)).toHaveText('Now: Intake');
+  });
+});
+
+// Speed up (and Play at the end of the slow part) goes to the busy day: the tickets still to come in Act 1 are in
+// the line at once and Act 2's arrive, instead of one every four seconds up to the two-minute mark.
+const WAITING_AT_ONCE = 20;
+const waiting = (page: Page) => page.locator('#incoming .cards li').count();
+
+test.describe('Speed up goes to the busy day', () => {
+  test('fills the line within a second, and says Busy day only then', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await page.clock.runFor(10_000);
+    await expect(status(page)).toHaveText(SLOW_STATUS);
+    expect(await waiting(page)).toBeLessThan(WAITING_AT_ONCE);
+    await speed(page, 'Speed up').click();
+    await page.clock.runFor(QUICK_TICKET_MS);
+    expect(await waiting(page)).toBeGreaterThanOrEqual(WAITING_AT_ONCE);
+    await expect(status(page)).toHaveText(FAST_STATUS);
+  });
+
+  test('is what Play does at the end of the slow part', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await page.clock.runFor(SLOW_PART_MS + 1_000);
+    await expect(status(page)).toHaveText(OFFER_STATUS);
+    expect(await waiting(page)).toBeLessThan(WAITING_AT_ONCE);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await page.clock.runFor(QUICK_TICKET_MS);
+    expect(await waiting(page)).toBeGreaterThanOrEqual(WAITING_AT_ONCE);
+    await expect(status(page)).toHaveText(FAST_STATUS);
+  });
+
+  test('keeps Slow down working on the busy day', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await speed(page, 'Speed up').click();
+    await page.clock.runFor(QUICK_TICKET_MS);
+    await speed(page, 'Slow down').click();
+    await expect(status(page)).toHaveText(SLOW_STATUS);
+    await expect(speed(page, 'Speed up')).toBeVisible();
   });
 });
 

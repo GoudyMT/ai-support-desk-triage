@@ -21,6 +21,9 @@ const REVIEWER_CLOSE_MS = 1_600;
 const STEP_LIMIT = 40;
 const LATE_PRESSES = 5000;
 const DEEP_TICKETS_MS = 61_000;
+// The slow part, looked at once a second for 58 s: the offer comes at about 60 s.
+const SLOW_POLLS = 58;
+const SLOW_POLL_MS = 1000;
 const POLL_MS = 250;
 const NARRATION_POLLS = 60;
 
@@ -81,25 +84,18 @@ test.describe('the narration', () => {
       spoken: document.getElementById('announcer')?.textContent ?? '',
     }));
 
-  test('is spoken exactly as shown: one sentence per later ticket held until the next, none on the busy day, always on Pause', async ({ page }) => {
+  test('is spoken exactly as shown at the slow pace, none on the busy day, always on Pause', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Play' }).click();
-    // The first three tickets take 20 s each and are narrated at every stage; after them, one sentence each.
-    await runPlaying(page, DEEP_TICKETS_MS);
-    let held = 0;
-    let own = 0;
-    for (let n = 0; n < NARRATION_POLLS; n += 1) {
-      await runPlaying(page, POLL_MS);
+    // The first three tickets take 20 s each and are narrated at every stage. Play at the end of the slow part
+    // goes straight to the busy day, so there is no quick narrated stretch between the two.
+    for (let n = 0; n < SLOW_POLLS; n += 1) {
+      await page.clock.runFor(SLOW_POLL_MS);
       const now = await said(page);
       expect(now.spoken).toBe(now.shown);
-      // A later ticket's sentence is on screen for a quarter of a second per stage, so it stays up, with
-      // its ticket id in front, until the next ticket's sentence replaces it.
       expect(now.shown).not.toBe('');
-      if (/^T-1001-\d+: /.test(now.shown)) held += 1;
-      else own += 1;
     }
-    expect(held).toBeGreaterThan(3);
-    expect(own).toBeGreaterThanOrEqual(2);
+    await runPlaying(page, DEEP_TICKETS_MS - SLOW_POLLS * SLOW_POLL_MS);
 
     await playToBusyDay(page);
     await expect(page.locator('#status')).toHaveText(FAST_STATUS);

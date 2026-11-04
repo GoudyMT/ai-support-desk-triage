@@ -108,6 +108,10 @@ export function createRun(opts: RunOptions): Run {
   let slowRanOut = false;
   let offerSpeedUp = false;
   let nextArrival = 0;
+  // The viewer asked for the busy day, and the run has not yet moved to it (a review form is open).
+  let busyDayDue = false;
+  // The run has moved on to Act 2's arrivals.
+  let busyDay = false;
   let closeAt: number | null = null;
   let center: Center | undefined;
   let reviewing: Held | undefined;
@@ -288,7 +292,32 @@ export function createRun(opts: RunOptions): Run {
     if (isComplete()) {
       return 'complete';
     }
-    return schedule.act(center?.index ?? Math.max(nextArrival - 1, 0));
+    return busyDay ? 2 : schedule.act(center?.index ?? Math.max(nextArrival - 1, 0));
+  }
+
+  // A viewer who asks for speed wants the busy day, not Act 1's slow arrivals at a quicker pace. What is
+  // still to arrive in Act 1 joins the line now, and the clock goes to the first arrival of Act 2; it never
+  // goes back. A review form holds the run still, so the move waits for it. Once Act 2's arrivals are under
+  // way there is nothing to move.
+  function settleBusyDay(): void {
+    if (!busyDayDue || reviewing !== undefined) {
+      return;
+    }
+    busyDayDue = false;
+    if (nextArrival > 0 && schedule.act(nextArrival - 1) === 2) {
+      return;
+    }
+    let firstAct2 = nextArrival;
+    while (firstAct2 < schedule.total && schedule.act(firstAct2) === 1) {
+      firstAct2 += 1;
+    }
+    if (firstAct2 < schedule.total) {
+      now = Math.max(now, schedule.arrivesAt(firstAct2) * MS_PER_SECOND);
+    }
+    while (nextArrival < firstAct2) {
+      arrive();
+    }
+    busyDay = true;
   }
 
   function confirm(d: { category: Category; priority: Priority; route: string }): void {
@@ -305,6 +334,7 @@ export function createRun(opts: RunOptions): Run {
     if (isComplete()) {
       playing = false;
     }
+    settleBusyDay();
     notify();
   }
 
@@ -327,6 +357,7 @@ export function createRun(opts: RunOptions): Run {
     const held = reviewing;
     reviewing = undefined;
     addOpen(held);
+    settleBusyDay();
     notify();
   }
 
@@ -415,8 +446,11 @@ export function createRun(opts: RunOptions): Run {
     },
     play() {
       if (!playing && !isComplete()) {
+        // Play at the end of the slow part is Speed up: a quick pace on Act 1's arrivals would look broken.
+        busyDayDue = busyDayDue || offerSpeedUp;
         playing = true;
         offerSpeedUp = false;
+        settleBusyDay();
         notify();
       }
     },
@@ -444,6 +478,8 @@ export function createRun(opts: RunOptions): Run {
         center.deep = false;
         center.nextAt = Math.min(center.nextAt, now + QUICK_STAGE_MS);
       }
+      busyDayDue = true;
+      settleBusyDay();
       notify();
     },
     slowDown() {
