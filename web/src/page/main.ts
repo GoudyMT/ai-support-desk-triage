@@ -197,7 +197,7 @@ function start(): void {
   const { seed, ignored } = parseSeed(location.search);
   const replay = el('a', undefined, 'replay this run with the same seed');
   replay.href = `?seed=${seed}`;
-  byId('seed-line').replaceChildren(document.createTextNode(`Seed ${seed} - `), replay);
+  byId('seed-line').replaceChildren(document.createTextNode(`Seed ${seed} sets which tickets this run uses - `), replay);
   if (ignored) {
     const notice = byId('notice');
     notice.textContent = `The seed in the replay link could not be used, so this is a new run with seed ${seed}.`;

@@ -272,9 +272,9 @@ export function moreNumbersView(
         source: { text: VALUE_SAVED_SOURCE, links: VALUE_SOURCE_LINKS },
       },
       { label: "Model's category right so far (closed tickets)", value: share(live.modelAccuracy) },
-      { label: 'Old keyword rules, same tickets', value: share(live.v0Accuracy) },
-      { label: 'Simulated reviewer overrides', value: String(live.overrides) },
-      { label: 'Tickets per second', value: perSecond === null ? NO_VALUE : perSecond.toFixed(1) },
+      { label: 'Older simple keyword method, same tickets', value: share(live.v0Accuracy) },
+      { label: "Times the simulated reviewer changed the model's category", value: String(live.overrides) },
+      { label: 'Tickets per second at real speed', value: perSecond === null ? NO_VALUE : perSecond.toFixed(1) },
       { label: 'Your reviews correct', value: total === 0 ? NO_VALUE : `${correct} of ${total}` },
     ],
     assumptions: [

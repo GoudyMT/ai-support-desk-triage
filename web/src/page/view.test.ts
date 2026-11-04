@@ -79,9 +79,9 @@ describe('more numbers', () => {
       ['Time saved', '0 min'],
       ['Value saved', '$0.00'],
       ["Model's category right so far (closed tickets)", 'none yet'],
-      ['Old keyword rules, same tickets', 'none yet'],
-      ['Simulated reviewer overrides', '0'],
-      ['Tickets per second', 'none yet'],
+      ['Older simple keyword method, same tickets', 'none yet'],
+      ["Times the simulated reviewer changed the model's category", '0'],
+      ['Tickets per second at real speed', 'none yet'],
       ['Your reviews correct', 'none yet'],
     ]);
     expect(view.assumptions).toEqual([
@@ -104,13 +104,13 @@ describe('more numbers', () => {
     expect(value(state, "Model's category right so far (closed tickets)", run.truthOf)).toBe(
       `${Math.round((right / TOTAL) * 100)}%`,
     );
-    expect(value(state, 'Simulated reviewer overrides', run.truthOf)).toBe(String(overrides));
+    expect(value(state, "Times the simulated reviewer changed the model's category", run.truthOf)).toBe(String(overrides));
   });
 
   it('reads the real speed run as tickets per second, and a dash when its time was zero', () => {
     const state = makeRun().state();
-    expect(value({ ...state, realSpeed: { tickets: 12, ms: 6 } }, 'Tickets per second')).toBe('2000.0');
-    expect(value({ ...state, realSpeed: { tickets: 12, ms: 0 } }, 'Tickets per second')).toBe('none yet');
+    expect(value({ ...state, realSpeed: { tickets: 12, ms: 6 } }, 'Tickets per second at real speed')).toBe('2000.0');
+    expect(value({ ...state, realSpeed: { tickets: 12, ms: 0 } }, 'Tickets per second at real speed')).toBe('none yet');
   });
 });
 

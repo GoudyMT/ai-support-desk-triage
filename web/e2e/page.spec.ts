@@ -474,7 +474,7 @@ test.describe('the seed', () => {
     await expect(notice).toBeVisible();
     await expect(notice).toContainText('could not be used');
     await expect(notice).toContainText('new run with seed');
-    await expect(page.locator('#seed-line')).toContainText(/Seed \d{4,10} - /);
+    await expect(page.locator('#seed-line')).toContainText(/Seed \d{4,10} sets which tickets this run uses - /);
   });
 
   test('shows a seed from the address with a link that replays it', async ({ page }) => {
@@ -484,7 +484,7 @@ test.describe('the seed', () => {
     await expect(page.locator('#seed-line')).toBeHidden();
     await page.getByRole('button', { name: 'All numbers' }).click();
     await expect(page.locator('#seed-line')).toBeVisible();
-    await expect(page.locator('#seed-line')).toContainText(`Seed ${SEED}`);
+    await expect(page.locator('#seed-line')).toHaveText(`Seed ${SEED} sets which tickets this run uses - replay this run with the same seed`);
     await expect(page.getByRole('link', { name: 'replay this run with the same seed' })).toHaveAttribute(
       'href',
       `?seed=${SEED}`,
