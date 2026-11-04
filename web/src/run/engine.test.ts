@@ -65,32 +65,49 @@ describe('arrival and tag', () => {
     expect(state.current?.tag).toBeUndefined();
   });
 
-  it('tags a ticket 400 ms after it arrived, from its masked text, even after it left the line', () => {
-    const seen: string[] = [];
-    const run = makeRun({
-      schedule: fakeSchedule(1, 1),
-      prescreen: (text) => {
-        seen.push(text);
-        return STUB_TAG;
-      },
-    });
+  it('tags a ticket 400 ms after it arrived, even after it left the line', () => {
+    const run = makeRun({ schedule: fakeSchedule(1, 1) });
     run.step();
-    expect(seen).toEqual([]);
+    expect(currentOf(run).tag).toBeUndefined();
     run.play();
     expect(run.nextDelayMs()).toBe(400);
     run.advance();
     expect(run.state().simTime).toBe(FIRST_ARRIVAL_S * 1000 + 400);
     expect(currentOf(run).tag).toEqual(STUB_TAG);
-    expect(seen).toEqual([maskText(rawTicket(0).text).text]);
   });
 
-  it('shows a waiting ticket by id, masked text and tag', () => {
-    const run = makeRun({ prescreen: criticalAt([1]) });
-    stepUntil(run, (s) => s.incoming.some((w) => w.tag !== undefined));
-    expect(run.state().incoming[0]).toEqual({
-      id: idOf(1),
-      maskedText: maskText(rawTicket(1).text).text,
-      tag: { priority: 'Urgent', critical: true },
+  // T-1001-2 holds a card number, so its raw text differs from its masked text: a pre-screener that
+  // was handed the raw text would see the number, and this test would notice.
+  describe('a ticket whose text holds a card number (T-1001-2)', () => {
+    const raw = rawTicket(2).text;
+    const masked = maskText(raw).text;
+
+    it('has a raw text that differs from the masked text', () => {
+      expect(masked).not.toBe(raw);
+      expect(masked).toContain('[CARD_NUMBER]');
+    });
+
+    it('is tagged from its masked text, never its raw text', () => {
+      const seen: string[] = [];
+      const run = makeRun({
+        schedule: fakeSchedule(3, 3),
+        prescreen: (text) => {
+          seen.push(text);
+          return STUB_TAG;
+        },
+      });
+      stepUntil(run, () => seen.length === 3);
+      expect(seen[2]).toBe(masked);
+    });
+
+    it('is shown in the line by id, masked text and tag', () => {
+      const run = makeRun({ prescreen: criticalAt([2]) });
+      stepUntil(run, (s) => s.incoming.some((w) => w.tag?.critical === true));
+      expect(run.state().incoming[0]).toEqual({
+        id: idOf(2),
+        maskedText: masked,
+        tag: { priority: 'Urgent', critical: true },
+      });
     });
   });
 
