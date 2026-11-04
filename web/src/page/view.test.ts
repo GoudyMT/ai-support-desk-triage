@@ -1,134 +1,29 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
-import { loadModel } from '../model/scorer';
-import type { FlagReason, TicketTrail } from '../pipeline/types';
-import { CLOSE_EVERY_MS, createRun, type CenterStage, type Run, type RunState } from '../run/engine';
-import type { Tag } from '../run/prescreen';
+import { ROUTES, type TicketLabel } from '../domain/labels';
+import { CLOSE_EVERY_MS, type CenterStage, type RunState } from '../run/engine';
 import {
   centerView,
   controlsView,
   explainMode,
-  incomingView,
   moreNumbersView,
-  outgoingView,
   realSpeedView,
-  reviewView,
   statsView,
   statusView,
 } from './view';
-
-const SEED = 1001;
-const TOTAL = 12;
-const MAX_STEPS = 5000;
-// Tickets arrive a quarter second apart from half a second in, so the line fills while the
-// center is busy; the first six are Act 1.
-const FIRST_ARRIVAL_S = 0.5;
-const ARRIVAL_GAP_S = 0.25;
-const ACT1_TICKETS = 6;
-const PREVIEW_CHARS = 60;
-
-// The fold model seed 1001 runs on: the page loads exactly this file.
-const MODEL = loadModel(
-  JSON.parse(readFileSync(fileURLToPath(new URL('../../public/models/fold_1.json', import.meta.url)), 'utf8')),
-);
-
-// The pre-screener's n-th call is for the n-th ticket to arrive: Low, Medium, High, Urgent, then again.
-function cyclingPrescreen(): (maskedText: string) => Tag {
-  let calls = 0;
-  return () => {
-    const priority = PRIORITIES[calls % PRIORITIES.length] ?? 'Low';
-    calls += 1;
-    return { priority, critical: priority === 'Urgent' };
-  };
-}
-
-function makeRun(): Run {
-  return createRun({
-    seed: SEED,
-    model: MODEL,
-    schedule: {
-      total: TOTAL,
-      act: (i) => (i < ACT1_TICKETS ? 1 : 2),
-      arrivesAt: (i) => FIRST_ARRIVAL_S + i * ARRIVAL_GAP_S,
-    },
-    wallClock: () => 0,
-    prescreen: cyclingPrescreen(),
-  });
-}
-
-function stepUntil(run: Run, reached: (state: RunState) => boolean): RunState {
-  for (let n = 0; !reached(run.state()); n += 1) {
-    if (n > MAX_STEPS) throw new Error('test: the wanted state never came');
-    run.step();
-  }
-  return run.state();
-}
-
-function finishedRun(): Run {
-  const run = makeRun();
-  stepUntil(run, (s) => s.act === 'complete');
-  return run;
-}
-
-function atStage(stage: CenterStage): RunState {
-  return stepUntil(makeRun(), (s) => s.current?.stage === stage);
-}
-
-function must<T>(value: T | undefined): T {
-  if (value === undefined) throw new Error('test: a value that should exist is missing');
-  return value;
-}
-
-const noTruth = (): TicketLabel => ({ category: 'Billing', priority: 'Medium', mustReview: false });
-
-// A finished run's state with the truth saying one closed, unflagged ticket needed a person.
-function missedTruth(run: Run): { id: string; truthOf: (id: string) => TicketLabel } {
-  const id = must(run.state().done.find((trail) => !trail.guard.flagged)).id;
-  return { id, truthOf: (other) => (other === id ? { ...noTruth(), mustReview: true } : noTruth()) };
-}
-
-const RULE_CAPTIONS: FlagReason = { kind: 'rule', reason: 'accessibility issue', words: ['captions'] };
-const CAPTIONS_TEXT = 'The call has no captions so I cannot follow. Ring me on [PHONE_NUMBER] any weekday.';
-
-interface TrailOpts {
-  id?: string;
-  text?: string;
-  found?: TicketTrail['found'];
-  model?: Category;
-  priority?: Priority;
-  terms?: string[];
-  reasons?: FlagReason[];
-  flagged?: boolean;
-}
-
-// A trail written by hand for the cases a real run would not reach on demand.
-function trailOf(o: TrailOpts = {}): TicketTrail {
-  const model = o.model ?? 'Billing';
-  const priority = o.priority ?? 'Medium';
-  return {
-    id: o.id ?? 'T-1001-0',
-    receivedAt: 0,
-    maskedText: o.text ?? 'My invoice is wrong',
-    found: o.found ?? [],
-    category: {
-      label: model,
-      confidence: 0.67,
-      probabilities: {},
-      topTerms: (o.terms ?? []).map((term) => ({ term, weight: 0.4 })),
-    },
-    priority: { label: priority, confidence: 0.85, probabilities: {}, topTerms: [] },
-    guard: { flagged: o.flagged ?? true, reasons: o.reasons ?? [], priority, clearedBySecondCheck: false },
-    final: { category: model, priority, route: ROUTES[model], by: 'model' },
-    v0: { category: model, priority: 'Medium', mustReview: false },
-    ms: 0,
-  };
-}
-
-function withState(patch: Partial<RunState>): RunState {
-  return { ...makeRun().state(), ...patch };
-}
+import {
+  CAPTIONS_TEXT,
+  RULE_CAPTIONS,
+  TOTAL,
+  atStage,
+  finishedRun,
+  makeRun,
+  missedTruth,
+  must,
+  noTruth,
+  stepUntil,
+  trailOf,
+  withState,
+} from './viewTestKit';
 
 describe('top stats', () => {
   it('starts at zero, with a dash where a share needs a ticket', () => {
@@ -218,34 +113,6 @@ describe('real speed result', () => {
       ms: 6,
       perSecond: 2000,
     });
-  });
-});
-
-describe('coming in', () => {
-  it('lists the waiting tickets with their tag word, a Critical one first, an untagged one without', () => {
-    const state = stepUntil(makeRun(), (s) => s.incoming.some((w) => w.tag?.critical === true));
-    const view = incomingView(state);
-    expect(view.map((row) => [row.id.slice(-1), row.tag?.word ?? null])).toEqual([
-      ['3', 'Critical'],
-      ['1', 'Medium'],
-      ['2', 'High'],
-      ['4', null],
-    ]);
-    expect(view[0]?.tag).toEqual({ word: 'Critical', level: 'critical' });
-    expect(view[1]?.tag).toEqual({ word: 'Medium', level: 'medium' });
-  });
-
-  it('shows a one-line preview: whitespace collapsed, cut at 60 characters', () => {
-    const state = withState({
-      incoming: [
-        { id: 'T-1', maskedText: `Hello   there\n\nfriend ${'x'.repeat(80)}` },
-        { id: 'T-2', maskedText: 'Short   one' },
-      ],
-    });
-    const [long, short] = incomingView(state);
-    expect(long?.preview).toBe(`Hello there friend ${'x'.repeat(PREVIEW_CHARS - 'Hello there friend '.length)}`);
-    expect(long?.preview).toHaveLength(PREVIEW_CHARS);
-    expect(short?.preview).toBe('Short one');
   });
 });
 
@@ -431,94 +298,6 @@ describe('the ticket being worked', () => {
   });
 });
 
-describe('going out', () => {
-  it('lists open tickets in the order given, each with its priority tag and why it was flagged', () => {
-    const urgent = trailOf({
-      id: 'T-1001-8',
-      model: 'Accessibility Support',
-      priority: 'Urgent',
-      reasons: [RULE_CAPTIONS, { kind: 'category', category: 'Accessibility Support' }],
-    });
-    const low = trailOf({ id: 'T-1001-9', model: 'Other', priority: 'Low', reasons: [{ kind: 'low confidence', confidence: 0.4 }] });
-    expect(outgoingView(withState({ open: [urgent, low] }), noTruth).open).toEqual([
-      {
-        id: 'T-1001-8',
-        category: 'Accessibility Support',
-        tag: { word: 'Critical', level: 'critical' },
-        team: ROUTES['Accessibility Support'],
-        why: 'a rule caught "captions", and Accessibility Support tickets always go to a person',
-      },
-      {
-        id: 'T-1001-9',
-        category: 'Other',
-        tag: { word: 'Low', level: 'low' },
-        team: ROUTES.Other,
-        why: 'the model is not sure enough',
-      },
-    ]);
-  });
-
-  it('names the team from the model category, never from an answer the trail carries', () => {
-    const answered: TicketTrail = {
-      ...trailOf({ model: 'Other', priority: 'Low', reasons: [{ kind: 'low confidence', confidence: 0.4 }] }),
-      review: { category: 'Billing', priority: 'High', route: ROUTES.Billing },
-      final: { category: 'Billing', priority: 'High', route: ROUTES.Billing, by: 'reviewer' },
-    };
-    expect(must(outgoingView(withState({ open: [answered] }), noTruth).open[0]).team).toBe(ROUTES.Other);
-  });
-
-  it('shows the model team, not the simulated reviewer team, on a ticket the reviewer will override', () => {
-    const reference = finishedRun().state();
-    const overridden = must(
-      reference.done.find(
-        (trail) =>
-          trail.review !== undefined &&
-          trail.review.category !== trail.category.label &&
-          ROUTES[trail.review.category] !== ROUTES[trail.category.label as Category],
-      ),
-    );
-    const open = stepUntil(makeRun(), (s) => s.open.some((trail) => trail.id === overridden.id));
-    const card = must(outgoingView(open, noTruth).open.find((c) => c.id === overridden.id));
-    expect(card.team).toBe(ROUTES[overridden.category.label as Category]);
-    expect(card.team).not.toBe(overridden.review?.route);
-  });
-
-  it('lists closed tickets newest first', () => {
-    const state = finishedRun().state();
-    const ids = outgoingView(state, noTruth).closed.map((row) => row.id);
-    expect(ids).toEqual(state.done.map((trail) => trail.id).reverse());
-  });
-
-  it('gives Flagged, Overridden, Auto and Missed their own pill', () => {
-    const run = finishedRun();
-    const state = run.state();
-    const pillOf = (id: string, truthOf: (id: string) => TicketLabel) =>
-      outgoingView(state, truthOf).closed.find((row) => row.id === id)?.pill;
-    const kept = must(state.done.find((t) => t.final.by === 'reviewer' && t.final.category === t.category.label));
-    const changed = must(state.done.find((t) => t.final.by === 'reviewer' && t.final.category !== t.category.label));
-    const passed = must(state.done.find((t) => !t.guard.flagged));
-    expect(pillOf(kept.id, noTruth)).toEqual({ kind: 'flagged', word: 'Flagged' });
-    expect(pillOf(changed.id, noTruth)).toEqual({ kind: 'overridden', word: 'Overridden' });
-    expect(pillOf(passed.id, noTruth)).toEqual({ kind: 'auto', word: 'Auto' });
-    expect(pillOf(passed.id, missedTruth(run).truthOf)).toEqual({ kind: 'missed', word: 'Missed' });
-  });
-
-  it('reads You on a ticket the viewer reviewed', () => {
-    const run = makeRun();
-    const open = stepUntil(run, (s) => s.open.length > 0);
-    const id = must(open.open[0]).id;
-    run.review(id);
-    const truth = run.truthOf(id);
-    run.confirm({ category: truth.category, priority: truth.priority, route: ROUTES[truth.category] });
-    const state = run.state();
-    const row = outgoingView(state, run.truthOf).closed.find((closed) => closed.id === id);
-    expect(row).toEqual({ id, category: truth.category, pill: { kind: 'you', word: 'You' } });
-    expect(moreNumbersView(state, run.truthOf).rows.find((r) => r.label === 'Your reviews correct')?.value).toBe(
-      '1 of 1',
-    );
-  });
-});
-
 describe('controls', () => {
   it('turns Play into Pause, and allows Step only while paused', () => {
     const paused = makeRun().state();
@@ -581,52 +360,5 @@ describe('status and the explanation', () => {
     expect(explainMode({ ...base, act: 1, playing: true })).toBe('offered');
     expect(explainMode({ ...base, act: 2, playing: true })).toBe('off');
     expect(explainMode({ ...base, act: 2, playing: false })).toBe('offered');
-  });
-});
-
-describe('the review form', () => {
-  it('is absent when no ticket is being reviewed', () => {
-    expect(reviewView(makeRun().state())).toBeUndefined();
-  });
-
-  it('ignores a reviewer answer even if the trail carries one', () => {
-    const answered: TicketTrail = {
-      ...trailOf({ model: 'Other', priority: 'Low', reasons: [{ kind: 'low confidence', confidence: 0.4 }] }),
-      review: { category: 'Billing', priority: 'High', route: ROUTES.Billing },
-    };
-    expect(reviewView(withState({ reviewing: answered }))).toMatchObject({
-      category: 'Other',
-      priority: 'Low',
-      route: ROUTES.Other,
-      why: 'the model is not sure enough.',
-    });
-  });
-
-  it('says when a rule raised the priority above the model pick, and not otherwise', () => {
-    const raised: TicketTrail = trailOf({ priority: 'Low', reasons: [RULE_CAPTIONS] });
-    raised.guard = { ...raised.guard, priority: 'Urgent' };
-    expect(reviewView(withState({ reviewing: raised }))).toMatchObject({ priority: 'Urgent', priorityRaised: true });
-    const plain = trailOf({ priority: 'Medium', reasons: [{ kind: 'low confidence', confidence: 0.4 }] });
-    expect(reviewView(withState({ reviewing: plain }))).toMatchObject({ priority: 'Medium', priorityRaised: false });
-  });
-
-  it('starts from the model picks and shows nothing of the simulated reviewer answer', () => {
-    const reference = finishedRun().state();
-    const overridden = must(
-      reference.done.find((trail) => trail.review !== undefined && trail.review.category !== trail.category.label),
-    );
-    const run = makeRun();
-    const open = stepUntil(run, (s) => s.open.some((trail) => trail.id === overridden.id));
-    const flagged = must(open.open.find((trail) => trail.id === overridden.id));
-    run.review(overridden.id);
-    const view = must(reviewView(run.state()));
-    const modelPick = flagged.category.label as Category;
-    expect(view.id).toBe(overridden.id);
-    expect(view.category).toBe(modelPick);
-    expect(view.category).not.toBe(overridden.review?.category);
-    expect(view.priority).toBe(flagged.guard.priority);
-    expect(view.route).toBe(ROUTES[modelPick]);
-    expect(view.why).toBe(`${outgoingView(open, noTruth).open.find((card) => card.id === overridden.id)?.why}.`);
-    expect(view.segments.map((segment) => segment.text).join('')).toBe(flagged.maskedText);
   });
 });
