@@ -169,7 +169,8 @@ h1 {
   transform: rotate(var(--turn-closed));
 }
 
-.open > .chevron {
+.open > .chevron,
+[aria-expanded='true'] > .chevron {
   transform: rotate(var(--turn-open));
 }
 

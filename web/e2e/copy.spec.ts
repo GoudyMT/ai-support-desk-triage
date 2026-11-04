@@ -21,6 +21,40 @@ test.describe('Going out', () => {
   });
 });
 
+test.describe('the key to the closed list', () => {
+  test('is closed until asked for, then names each mark, with the arrow every other opener has', async ({ page }) => {
+    await open(page);
+    const toggle = page.getByRole('button', { name: 'What these mean' });
+    const list = page.locator('#closed-key');
+    const turn = () => toggle.locator('.chevron').evaluate((node) => getComputedStyle(node).transform);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(list).toBeHidden();
+    const closed = await turn();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(list.locator('li')).toHaveText([
+      'Auto: no person needed.',
+      "Flagged: a person checked it and kept the model's category.",
+      "Overridden: the reviewer changed the model's category.",
+      'Missed: it needed a person and did not get one.',
+      'You: your own review.',
+    ]);
+    await expect.poll(turn).not.toBe(closed);
+    await toggle.click();
+    await expect(list).toBeHidden();
+    await expect.poll(turn).toBe(closed);
+  });
+
+  test('opens and closes from the keyboard', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'What these mean' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#closed-key')).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(page.locator('#closed-key')).toBeHidden();
+  });
+});
+
 test.describe('what the review form says', () => {
   test('tells the viewer what is scored and what is not', async ({ page }) => {
     await playToFirstOpen(page);

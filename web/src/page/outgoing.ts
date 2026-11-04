@@ -1,4 +1,4 @@
-import { reviewerNote } from './copy';
+import { PILL_KEY, reviewerNote } from './copy';
 import { el, reconcile, setClass, setText } from './dom';
 import type { outgoingView } from './view';
 
@@ -55,6 +55,29 @@ function sectionHead(text: string): HTMLElement {
   return el('h3', 'sub-title', text);
 }
 
+// A small control, closed until asked for, that decodes the marks on the closed lines. It has the
+// same arrow as "Why this choice" and "All numbers", so all three read as something that opens.
+function buildKey(): { toggle: HTMLButtonElement; list: HTMLElement } {
+  const list = el('ul', 'key');
+  list.id = 'closed-key';
+  list.hidden = true;
+  for (const row of PILL_KEY) {
+    const item = el('li', 'key-row');
+    item.append(el('span', `pill pill-${row.kind}`, row.word), el('span', 'sr-only', ': '), el('span', undefined, row.meaning));
+    list.append(item);
+  }
+  const toggle = el('button', 'btn btn-link btn-small');
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', list.id);
+  toggle.append(el('span', 'chevron'), document.createTextNode('What these mean'));
+  toggle.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    toggle.setAttribute('aria-expanded', String(!list.hidden));
+  });
+  return { toggle, list };
+}
+
 /**
  * Going out: open tickets as large cards with a Review button on top, closed ones as one gray
  * line each below, newest first. The column folds to a rail with the pending count. Cards are
@@ -81,8 +104,9 @@ export function mountOutgoing(
   const openList = el('ul', 'cards open');
   const closedTitle = sectionHead('');
   const closedList = el('ul', 'lines closed');
+  const key = buildKey();
   const body = el('div', 'col-body');
-  body.append(openTitle, openList, closedTitle, closedList);
+  body.append(openTitle, openList, closedTitle, key.toggle, key.list, closedList);
   root.replaceChildren(head, rail, body);
 
   const fold = (folded: boolean): void => {

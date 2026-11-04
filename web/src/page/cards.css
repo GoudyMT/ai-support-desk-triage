@@ -116,6 +116,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The key to the marks on the closed lines: one mark and its meaning on each row. */
+.key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+
+.key-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
 .line {
   display: flex;
   align-items: center;
