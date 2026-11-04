@@ -1,5 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, WHY_READY_MS, open, playUntilOpenCount, reviewButton } from './helpers';
+import {
+  FAST_STATUS,
+  FIRST_OPEN_MS,
+  SEED,
+  SLOW_TEST_MS,
+  WHY_READY_MS,
+  open,
+  playToBusyDay,
+  playUntilOpenCount,
+  reviewButton,
+  runPlaying,
+} from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -24,7 +35,7 @@ const state = (page: Page) =>
 async function playToTheEnd(page: Page): Promise<void> {
   const real = page.getByRole('button', { name: /at real speed$/ });
   for (let n = 0; n < WALK_LIMIT && !/last [1-2] tickets?/.test(await real.innerText()); n += 1) {
-    await page.clock.runFor(1000);
+    await runPlaying(page, 1000);
   }
   await expect(real).toHaveText(/last [1-2] tickets? at real speed/);
 }
@@ -61,10 +72,8 @@ test.describe('focus never falls to the body', () => {
     await page.clock.runFor(WHY_READY_MS);
     const why = page.getByRole('button', { name: 'Why this choice' });
     await why.focus();
-    for (let n = 0; n < WALK_LIMIT && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
-      await page.clock.runFor(500);
-    }
-    await expect(page.locator('#status')).toHaveText('Busy day');
+    await playToBusyDay(page, 500);
+    await expect(page.locator('#status')).toHaveText(FAST_STATUS);
     await expect(why).toBeHidden();
     const now = await state(page);
     expect(now.onBody).toBe(false);
@@ -78,7 +87,7 @@ test.describe('focus never falls to the body', () => {
     // Safari does not focus a button on a click, so focus is put on Pause the way a keyboard would.
     await page.getByRole('button', { name: 'Pause' }).focus();
     for (let n = 0; n < WALK_LIMIT && (await page.locator('#status').innerText()) !== 'Run complete'; n += 1) {
-      await page.clock.runFor(1000);
+      await runPlaying(page, 1000);
     }
     await expect(page.locator('#status')).toHaveText('Run complete');
     await expect(page.getByRole('button', { name: 'Restart' })).toBeFocused();
@@ -97,13 +106,14 @@ test.describe('focus never falls to the body', () => {
     await expect(page.getByRole('button', { name: 'Restart' })).toBeFocused();
   });
 
-  test('when Retry succeeds, focus goes to Play', async ({ page }) => {
+  // Learn The Process opens first, so the main button of the bar is the Learn pause.
+  test('when Retry succeeds, focus goes to the main button of the bar', async ({ page }) => {
     await page.route('**/models/*', (route) => route.fulfill({ status: 404, body: 'not found' }));
     await page.goto(`/?seed=${SEED}`);
     await expect(page.getByRole('button', { name: 'Retry' })).toBeFocused();
     await page.unroute('**/models/*');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: 'Play' })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
   });
 
   test('but not when nothing had focus: the body stays the body', async ({ page }) => {

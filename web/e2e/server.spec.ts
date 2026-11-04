@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, START } from './helpers';
+import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, START, seeAndPause } from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -53,7 +53,7 @@ test.describe('what the server is asked for', () => {
       await page.clock.install({ time: START });
       await page.clock.pauseAt(new Date(START.getTime() + 1000));
       await page.goto(`${build.origin}/?seed=${SEED}`);
-      await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+      await seeAndPause(page);
       await page.getByRole('button', { name: 'Play' }).click();
       await page.clock.runFor(FIRST_OPEN_MS);
       // Let the browser's own requests (the icon comes after the page has loaded) reach the server.

@@ -17,6 +17,7 @@ test.describe('a model that never arrives', () => {
     await expect(page.locator('#loading')).toBeHidden();
     await page.unroute('**/models/*');
     await page.getByRole('button', { name: 'Retry' }).click();
-    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+    // Learn The Process opens first, so the bar shows its row.
+    await expect(page.locator('#learn-controls')).toBeVisible();
   });
 });

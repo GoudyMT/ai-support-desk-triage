@@ -7,6 +7,7 @@ import {
   open,
   playToFirstOpen,
   reviewButton,
+  runPlaying,
   runUntilOpen,
 } from './helpers';
 
@@ -40,7 +41,7 @@ test.describe('the lists', () => {
     await page.getByRole('button', { name: 'Play' }).click();
     const closedOrder: string[] = [];
     for (let n = 0; n < POLLS; n += 1) {
-      await page.clock.runFor(POLL_MS);
+      await runPlaying(page, POLL_MS);
       for (const id of (await closedIds(page)).reverse()) if (!closedOrder.includes(id)) closedOrder.push(id);
     }
     expect(closedOrder.length).toBeGreaterThan(5);
@@ -54,7 +55,7 @@ test.describe('the lists', () => {
     let current = '';
     let checked = 0;
     for (let n = 0; n < POLLS; n += 1) {
-      await page.clock.runFor(POLL_MS);
+      await runPlaying(page, POLL_MS);
       const now = await centerId(page);
       if (now !== current && current !== '' && top !== '') {
         expect(now).toBe(top);

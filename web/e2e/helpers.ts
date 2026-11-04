@@ -8,6 +8,9 @@ export const FIRST_OPEN_MS = 20_500;
 // T-1001-0 is at Privacy from 5 s, so from then Why this choice has something to show.
 export const WHY_READY_MS = 6_000;
 export const OPEN_POLL_MS = 250;
+// What the bar says in See The Process for each pace.
+export const SLOW_STATUS = 'Slowed down so you can follow along.';
+export const FAST_STATUS = 'Busy day: full speed.';
 // A test that polls the page hundreds of times takes about 15 s alone and over 30 s when three browsers
 // share one machine, so each spec file that has such tests allows this long; a real hang still fails.
 export const SLOW_TEST_MS = 90_000;
@@ -16,11 +19,47 @@ const MAX_OPEN_POLLS = 4000;
 // Opens the page with the clock under the test's control: nothing moves until `runFor`. The
 // clock is stopped before the page loads: an installed clock ticks in real time, so pausing it
 // after a slow load (the model is 3 MB) could land in the past and fail.
-export async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
+// Learn The Process opens first, with its clock stopped too.
+export async function openLearn(page: Page, query = `?seed=${SEED}`): Promise<void> {
   await page.clock.install({ time: START });
   await page.clock.pauseAt(new Date(START.getTime() + 1000));
   await page.goto(`/${query}`);
+  await expect(page.locator('#learn-controls')).toBeVisible();
+}
+
+// From Learn to See The Process, then Pause: for a page the test loaded itself.
+export async function seeAndPause(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'See The Process' }).click();
+  await page.getByRole('button', { name: 'Pause' }).click();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+}
+
+// The page in See The Process, paused: the state the rows of the live board start from.
+export async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
+  await openLearn(page, query);
+  await seeAndPause(page);
+}
+
+// The run pauses itself at the end of the slow part and waits for Play or Speed up. A test that just lets
+// time pass presses Play, as a viewer who wants the run to go on would.
+export async function playOnIfOffered(page: Page): Promise<void> {
+  const play = page.getByRole('button', { name: 'Play', exact: true });
+  if (await play.isVisible()) await play.click();
+}
+
+// Lets `ms` of the page's clock pass, going on past the offer.
+export async function runPlaying(page: Page, ms: number): Promise<void> {
+  await playOnIfOffered(page);
+  await page.clock.runFor(ms);
+}
+
+const BUSY_DAY_LIMIT = 600;
+
+// Plays on until the busy day (the second act) is under way: the center says its explanations are off.
+export async function playToBusyDay(page: Page, stepMs = 1000): Promise<void> {
+  const off = page.getByText('Explanations are off on the busy day.');
+  for (let n = 0; n < BUSY_DAY_LIMIT && !(await off.isVisible()); n += 1) await runPlaying(page, stepMs);
+  await expect(off).toBeVisible();
 }
 
 export function reviewButton(page: Page, id: string) {
@@ -33,7 +72,7 @@ export function reviewButton(page: Page, id: string) {
 // tags set, so a later ticket's turn is found by looking, not by a fixed time.
 export async function runUntilOpen(page: Page, id: string): Promise<void> {
   for (let n = 0; n < MAX_OPEN_POLLS && (await reviewButton(page, id).count()) === 0; n += 1) {
-    await page.clock.runFor(OPEN_POLL_MS);
+    await runPlaying(page, OPEN_POLL_MS);
   }
   await expect(reviewButton(page, id)).toBeVisible();
 }
@@ -70,7 +109,7 @@ export async function playUntilOpenCount(page: Page, count: number): Promise<voi
   await page.getByRole('button', { name: 'Play' }).click();
   const cards = page.locator('#outgoing .open > li');
   for (let n = 0; n < MAX_OPEN_POLLS && (await cards.count()) < count; n += 1) {
-    await page.clock.runFor(OPEN_POLL_MS);
+    await runPlaying(page, OPEN_POLL_MS);
   }
   expect(await cards.count()).toBeGreaterThanOrEqual(count);
 }

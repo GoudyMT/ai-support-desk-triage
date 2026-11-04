@@ -1,14 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  FAST_STATUS,
   FIRST_OPEN_MS,
   SEED,
+  SLOW_STATUS,
   SLOW_TEST_MS,
   WHY_READY_MS,
   moreNumber,
   open,
+  playToBusyDay,
   playToFirstOpen,
   playUntilOpenCount,
   reviewButton,
+  runPlaying,
   runUntilOpen,
   stat,
   tabTo,
@@ -32,7 +36,7 @@ test.describe('the run, by keyboard alone', () => {
     await open(page);
     await tabTo(page, 'Play');
     await page.keyboard.press('Enter');
-    await expect(page.locator('#status')).toHaveText('Learning pace');
+    await expect(page.locator('#status')).toHaveText(SLOW_STATUS);
     await page.clock.runFor(FIRST_OPEN_MS);
 
     await tabTo(page, 'Review');
@@ -62,7 +66,8 @@ test.describe('the run, by keyboard alone', () => {
 test.describe('the measured real speed result', () => {
   test('shows how long the whole run took and the rate, on the real clock', async ({ page }) => {
     await page.goto(`/?seed=${SEED}`);
-    await page.getByRole('button', { name: 'Play' }).click();
+    // Learn opens first and keeps the board behind it; See The Process plays at once.
+    await page.getByRole('button', { name: 'See The Process' }).click();
     await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
     await expect(page.locator('#status')).toHaveText('Run complete');
     await expect(page.getByRole('heading', { name: 'Run complete at real speed' })).toBeVisible();
@@ -122,7 +127,7 @@ test.describe('reviewing a ticket', () => {
     await page.getByRole('button', { name: 'Play' }).click();
     const buttons = page.locator('#outgoing .open').getByRole('button');
     for (let n = 0; n < MAX_STEPS && (await buttons.count()) < 3; n += 1) {
-      await page.clock.runFor(1000);
+      await runPlaying(page, 1000);
     }
     expect(await buttons.count()).toBeGreaterThanOrEqual(3);
     const last = buttons.last();
@@ -214,10 +219,8 @@ test.describe('what the viewer hears', () => {
     await expect(page.locator('#announcer')).toHaveText(spoken);
 
     await page.getByRole('button', { name: 'Play' }).click();
-    for (let n = 0; n < MAX_STEPS && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
-      await page.clock.runFor(5000);
-    }
-    await expect(page.locator('#status')).toHaveText('Busy day');
+    await playToBusyDay(page, 5000);
+    await expect(page.locator('#status')).toHaveText(FAST_STATUS);
     const ticket = await page.locator('#ticket .now .ticket-title').innerText();
     const quiet = await page.locator('#announcer').innerText();
     await page.clock.runFor(10_000);
@@ -448,7 +451,7 @@ test.describe('a model that does not load', () => {
     expect(await page.locator('body').innerText()).not.toContain('T-1001-');
     await page.unroute('**/models/*');
     await page.getByRole('button', { name: 'Retry' }).click();
-    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+    await expect(page.locator('#learn-controls')).toBeVisible();
     await expect(page.getByText('The model could not be loaded.')).toBeHidden();
   });
 

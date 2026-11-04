@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SEED, SLOW_TEST_MS, open, playToFirstOpen, reviewButton } from './helpers';
+import { SEED, SLOW_STATUS, SLOW_TEST_MS, open, playToFirstOpen, reviewButton, runPlaying, seeAndPause } from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -15,22 +15,20 @@ test.describe('the title block', () => {
 });
 
 test.describe('the note that the run is slowed down', () => {
-  test('shows from the start, goes when the fourth ticket enters the center, and moves nothing', async ({ page }) => {
+  // The note moved from above the ticket to the bar's status line, where the other words about the pace are.
+  test('is the bar status, and gives way to the offer when the fourth ticket is due in the center', async ({ page }) => {
     await open(page);
-    const note = page.locator('#pace');
-    const ticketTop = async () => (await page.locator('#ticket').boundingBox())?.y ?? Number.NaN;
-    await expect(note).toBeVisible();
-    await expect(note).toHaveText('Slowed down so you can read each step. It speeds up after the first 3 tickets.');
-    const before = await ticketTop();
+    await expect(page.locator('#pace')).toHaveCount(0);
     await page.getByRole('button', { name: 'Play' }).click();
-    // Three tickets take 20 s each; the fourth enters the center at 60 s.
+    const status = page.locator('#status');
+    await expect(status).toHaveText(SLOW_STATUS);
+    // Three tickets take 20 s each; the run waits for the viewer as the third leaves, at 60 s.
     await page.clock.runFor(SLOW_TICKETS_MS - 1000);
-    await expect(note).toBeVisible();
+    await expect(status).toHaveText(SLOW_STATUS);
     await page.clock.runFor(2000);
-    await expect(note).toBeHidden();
-    expect(await ticketTop()).toBe(before);
+    await expect(status).toHaveText('That was the slow part. Press Speed up to see a busy day.');
     // Polite, not a live region: it is a plain line that nothing announces.
-    await expect(note).not.toHaveAttribute('aria-live', /.+/);
+    await expect(status).not.toHaveAttribute('aria-live', /.+/);
     await expect(page.locator('#announcer')).not.toContainText('Slowed down');
   });
 });
@@ -88,13 +86,13 @@ test.describe('the end of a paced run', () => {
     await page.getByRole('button', { name: 'Play' }).click();
     const idle = page.locator('#ticket .idle');
     for (let n = 0; n < DAY_LIMIT && !(await idle.innerText()).startsWith('No more tickets'); n += 1) {
-      await page.clock.runFor(DAY_STEP_MS);
+      await runPlaying(page, DAY_STEP_MS);
     }
     await expect(idle).toHaveText('No more tickets coming. The reviewer is finishing the open ones.');
     await expect(page.locator('#status')).not.toHaveText('Run complete');
 
     for (let n = 0; n < DAY_LIMIT && (await page.locator('#status').innerText()) !== 'Run complete'; n += 1) {
-      await page.clock.runFor(DAY_STEP_MS);
+      await runPlaying(page, DAY_STEP_MS);
     }
     await expect(page.locator('#status')).toHaveText('Run complete');
     await expect(idle).toHaveText('Run complete');
@@ -122,6 +120,7 @@ test.describe('what the review form says', () => {
 test.describe('what the real speed result says', () => {
   test('explains the second pass in plain words and keeps the simulated reviews line', async ({ page }) => {
     await page.goto(`/?seed=${SEED}`);
+    await seeAndPause(page);
     await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
     const result = page.locator('#ticket .result');
     await expect(result).toContainText(

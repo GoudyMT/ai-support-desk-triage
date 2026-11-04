@@ -1,5 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, open, reviewButton, stat, tabTo } from './helpers';
+import {
+  FAST_STATUS,
+  FIRST_OPEN_MS,
+  SEED,
+  SLOW_STATUS,
+  SLOW_TEST_MS,
+  open,
+  playToBusyDay,
+  reviewButton,
+  runPlaying,
+  seeAndPause,
+  stat,
+  tabTo,
+} from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -10,7 +23,6 @@ const LATE_PRESSES = 5000;
 const DEEP_TICKETS_MS = 61_000;
 const POLL_MS = 250;
 const NARRATION_POLLS = 60;
-const BUSY_LIMIT = 600;
 
 async function playTo(page: Page, ms: number): Promise<void> {
   await open(page);
@@ -23,7 +35,7 @@ test.describe('by keyboard alone', () => {
     await open(page);
     await tabTo(page, 'Play');
     await page.keyboard.press('Enter');
-    await expect(page.locator('#status')).toHaveText('Learning pace');
+    await expect(page.locator('#status')).toHaveText(SLOW_STATUS);
     await page.keyboard.press('Enter');
     await expect(page.locator('#status')).toHaveText('Paused');
     await page.keyboard.press('Tab');
@@ -47,6 +59,8 @@ test.describe('the measured real speed result', () => {
     await page.goto(`/?seed=${SEED}`);
     const real = page.getByRole('button', { name: /at real speed$/ });
     await expect(real).toBeVisible();
+    // Step needs a paused run, so the page is taken from Learn to See and paused first.
+    await seeAndPause(page);
     // Step is event by event and needs no time, so the run is taken nearly to its end in one go.
     await page.evaluate((limit) => {
       const step = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Step');
@@ -71,11 +85,11 @@ test.describe('the narration', () => {
     await open(page);
     await page.getByRole('button', { name: 'Play' }).click();
     // The first three tickets take 20 s each and are narrated at every stage; after them, one sentence each.
-    await page.clock.runFor(DEEP_TICKETS_MS);
+    await runPlaying(page, DEEP_TICKETS_MS);
     let held = 0;
     let own = 0;
     for (let n = 0; n < NARRATION_POLLS; n += 1) {
-      await page.clock.runFor(POLL_MS);
+      await runPlaying(page, POLL_MS);
       const now = await said(page);
       expect(now.spoken).toBe(now.shown);
       // A later ticket's sentence is on screen for a quarter of a second per stage, so it stays up, with
@@ -87,10 +101,8 @@ test.describe('the narration', () => {
     expect(held).toBeGreaterThan(3);
     expect(own).toBeGreaterThanOrEqual(2);
 
-    for (let n = 0; n < BUSY_LIMIT && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
-      await page.clock.runFor(1000);
-    }
-    await expect(page.locator('#status')).toHaveText('Busy day');
+    await playToBusyDay(page);
+    await expect(page.locator('#status')).toHaveText(FAST_STATUS);
     // No stage sentence on the busy day: the region says once that it has started, and nothing else.
     for (let n = 0; n < NARRATION_POLLS; n += 1) {
       await page.clock.runFor(POLL_MS);
@@ -140,7 +152,7 @@ test.describe('Restart and Replay', () => {
     await page.getByRole('button', { name: /at real speed$/ }).click();
     await expect(page.locator('#status')).toHaveText('Run complete');
     await page.getByRole('button', { name: 'Replay at learn speed' }).click();
-    await expect(page.locator('#status')).toHaveText('Learning pace');
+    await expect(page.locator('#status')).toHaveText(SLOW_STATUS);
     await expect(page.getByRole('heading', { name: 'Run complete at real speed' })).toBeHidden();
     await expect(stat(page, 'Tickets done')).toHaveText('0');
     await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();

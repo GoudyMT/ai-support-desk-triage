@@ -1,12 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SLOW_TEST_MS, WHY_READY_MS, open, reviewButton, tabTo } from './helpers';
+import { FAST_STATUS, FIRST_OPEN_MS, SLOW_TEST_MS, WHY_READY_MS, open, playToBusyDay, reviewButton, tabTo } from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
 // What the page promises every viewer: visible focus, big targets, speech, tabs by arrow keys,
 // the busy-day line, a dark theme, and its assumptions stated.
 const TARGET_PX = 44;
-const WALK_LIMIT = 600;
 const LIGHT_PAGE = 'rgb(255, 255, 255)';
 const DARK_PAGE = 'rgb(16, 16, 18)';
 
@@ -115,10 +114,8 @@ test.describe('what the page says and shows', () => {
     await open(page);
     await page.getByRole('button', { name: 'Play' }).click();
     const why = page.getByRole('button', { name: 'Why this choice' });
-    for (let n = 0; n < WALK_LIMIT && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
-      await page.clock.runFor(1000);
-    }
-    await expect(page.locator('#status')).toHaveText('Busy day');
+    await playToBusyDay(page);
+    await expect(page.locator('#status')).toHaveText(FAST_STATUS);
     await expect(page.getByText('Explanations are off on the busy day. Pause to read one.')).toBeVisible();
     await expect(why).toBeHidden();
     await page.getByRole('button', { name: 'Pause' }).click();

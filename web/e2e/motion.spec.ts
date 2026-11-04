@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, open, playUntilOpenCount, reviewButton } from './helpers';
+import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, open, playUntilOpenCount, reviewButton, runPlaying } from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -126,7 +126,7 @@ test.describe('the cases with no motion or no harm', () => {
     // list: with an earlier start their landing places would be off screen and nothing could be seen to move.
     const real = page.getByRole('button', { name: /at real speed$/ });
     for (let n = 0; n < WALK_LIMIT && !/last [1-3] tickets?/.test(await real.innerText()); n += 1) {
-      await page.clock.runFor(1000);
+      await runPlaying(page, 1000);
     }
     await expect(real).toHaveText(/last [1-3] tickets? at real speed/);
     await expect.poll(async () => (await ghosts(page)).every((ghost) => ghost.gone), { timeout: GHOST_GONE_MS }).toBe(true);
@@ -162,7 +162,7 @@ test.describe('the cases with no motion or no harm', () => {
       await open(page, `?seed=${SEED}`);
       await page.getByRole('button', { name: 'Play' }).click();
       for (let n = 0; n < WALK_STEPS; n += 1) {
-        await page.clock.runFor(1000);
+        await runPlaying(page, 1000);
         const fits = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
         expect(fits).toBe(true);
       }
