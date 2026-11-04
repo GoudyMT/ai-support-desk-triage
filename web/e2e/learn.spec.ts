@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SEED, openLearn, seeAndPause, stat, tabTo } from './helpers';
+import { SEED, ghosts, openLearn, seeAndPause, stat, tabTo, watchGhosts } from './helpers';
 
 // Learn The Process: the walk that opens first, step by step, on the live board.
 const WORDS_PER_MINUTE = 238;
 const MS_PER_MINUTE = 60_000;
 const EDGE_MS = 40;
 const HOLE_TOLERANCE_PX = 2;
+const BREATHING_PX = 4;
 // Longer than the 0.5 s the hole takes to ease to the next lit part.
 const EASE_WAIT_MS = 6_000;
 const EASE_SETTLE_MS = 700;
@@ -85,7 +86,14 @@ async function holeOffBy(page: Page, selector: string): Promise<number> {
   const hole = await page.locator('.dim').boundingBox();
   if (hole === null) return Number.POSITIVE_INFINITY;
   const lit = await union(page, selector);
-  return Math.max(Math.abs(hole.x - lit.x), Math.abs(hole.y - lit.y), Math.abs(hole.width - lit.width), Math.abs(hole.height - lit.height));
+  // The hole has a little room all round the lit part.
+  const want = {
+    x: lit.x - BREATHING_PX,
+    y: lit.y - BREATHING_PX,
+    width: lit.width + 2 * BREATHING_PX,
+    height: lit.height + 2 * BREATHING_PX,
+  };
+  return Math.max(Math.abs(hole.x - want.x), Math.abs(hole.y - want.y), Math.abs(hole.width - want.width), Math.abs(hole.height - want.height));
 }
 
 async function holeCovers(page: Page, selector: string): Promise<void> {
@@ -391,6 +399,52 @@ test.describe('on a phone', () => {
         }),
       )
       .toBe(true);
+  });
+});
+
+// The walked ticket is seen travelling, not jumping: from the line to the center as step 2 starts, and from the
+// center to Going out as step 6 starts, whether the step ends by its timer or by Next.
+test.describe('cards travel in Learn too', () => {
+  const FIRST = `T-${SEED}-0`;
+  const CROSSING = [
+    { name: 'the line to the center on step 2', steps: 0, from: 'incoming', to: 'center' },
+    { name: 'the center to Going out on step 6', steps: 4, from: 'center', to: 'open' },
+  ];
+
+  for (const { name, steps, from, to } of CROSSING) {
+    test(`a ghost carries the ticket from ${name}, by Next`, async ({ page }) => {
+      await watchGhosts(page);
+      await openLearn(page);
+      for (let n = 0; n < steps; n += 1) await next(page).click();
+      const before = (await ghosts(page)).length;
+      await next(page).click();
+      expect((await ghosts(page)).slice(before)).toContainEqual(expect.objectContaining({ id: FIRST, from, to }));
+    });
+
+    test(`a ghost carries the ticket from ${name}, when the step's time ends`, async ({ page }) => {
+      await watchGhosts(page);
+      await openLearn(page);
+      for (let n = 0; n < steps; n += 1) await next(page).click();
+      const stay = msFor(await wordsShown(page));
+      const before = (await ghosts(page)).length;
+      await page.clock.runFor(stay + EDGE_MS);
+      expect((await ghosts(page)).slice(before)).toContainEqual(expect.objectContaining({ id: FIRST, from, to }));
+    });
+  }
+
+  test.describe('with reduced motion', () => {
+    test.use({ reducedMotion: 'reduce' });
+
+    test('no ghost appears on the same moves', async ({ page }) => {
+      await watchGhosts(page);
+      await openLearn(page);
+      await page.getByRole('button', { name: 'Resume' }).click();
+      for (let n = 0; n < 5; n += 1) await next(page).click();
+      await expect(count(page)).toHaveText('Step 6 of 7');
+      await expect(page.locator('#outgoing .open > li').first()).toBeVisible();
+      expect(await ghosts(page)).toEqual([]);
+      expect(await page.locator('.ghost-layer').evaluate((layer) => layer.childElementCount)).toBe(0);
+    });
   });
 });
 

@@ -164,7 +164,7 @@ function mountRun(setup: Setup): Bar {
         } finally {
           page.quiet = false;
         }
-        panels.motion.skipNext();
+        // One redraw for the whole walk: the cards that changed section in it each travel once.
         sync(mounted);
       },
       selectTab: (tab) => panels.tabs.select(tab),
