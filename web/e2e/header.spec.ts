@@ -13,9 +13,27 @@ const play = (page: Page) => page.getByRole('button', { name: 'Play', exact: tru
 // The line under the title: what the page is, or in See what the pace is doing. One line of the header, so
 // the words change and the height does not.
 test.describe('the line under the title', () => {
-  test('keeps the purpose in Learn', async ({ page }) => {
+  // On a wide screen the note under the switch hangs over this row, so in Learn the row shows the note alone: the
+  // purpose keeps its place (the row keeps its height) and is not drawn, rather than being cut in half by the note.
+  test('is left to the note in Learn on a wide screen, and shows the purpose again in See', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openLearn(page);
+    await expect(purpose(page)).toBeHidden();
+    await expect(note(page)).toBeVisible();
+    await expect(notice(page)).toBeHidden();
+    const rowHeight = () => page.locator('.purpose').evaluate((node) => node.getBoundingClientRect().height);
+    const inLearn = await rowHeight();
+    await page.getByRole('button', { name: 'See The Process' }).click();
+    await page.getByRole('button', { name: 'Pause' }).click();
+    await expect(purpose(page)).toBeVisible();
+    expect(await rowHeight()).toBe(inLearn);
+  });
+
+  test('keeps the purpose in Learn below 1024 px, where the note sits in the flow', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
     await openLearn(page);
     await expect(purpose(page)).toBeVisible();
+    await expect(note(page)).toBeVisible();
     await expect(notice(page)).toBeHidden();
   });
 
