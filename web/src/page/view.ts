@@ -27,7 +27,8 @@ export interface TagView {
 
 export interface CenterView {
   id: string;
-  tag: TagView | null;
+  // The pre-screener's guess, worded as one so it is not mistaken for the model's final answer.
+  tag: (TagView & { text: string }) | null;
   stageName: string;
   steps: { name: string; status: 'done' | 'now' | 'pending' }[];
   segments: Segment[];
@@ -82,6 +83,10 @@ const stageIndex = (stage: Stage): number => STAGES.indexOf(stage);
 const percent = (share: number): string => `${Math.round(share * PERCENT)}%`;
 const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 const tagView = (priority: Priority): TagView => ({ ...TAG_VIEWS[priority] });
+const centerTag = (priority: Priority): NonNullable<CenterView['tag']> => {
+  const tag = tagView(priority);
+  return { ...tag, text: `First guess: ${tag.word}` };
+};
 
 // The team the model's category sends the ticket to. It reads the category only: the trail's
 // final answer or review may hold the simulated reviewer's, which must not show while a ticket is open.
@@ -180,7 +185,7 @@ function lineText(trail: TicketTrail, stage: LineStage): string {
     case 'classify':
       return (
         `${trail.category.label}, ${percent(trail.category.confidence)} sure. ` +
-        `Priority ${trail.priority.label}, ${percent(trail.priority.confidence)} sure. ` +
+        `Priority ${TAG_VIEWS[trail.priority.label as Priority].word}, ${percent(trail.priority.confidence)} sure. ` +
         `Goes to ${teamOf(trail)}.`
       );
     case 'guardrails': {
@@ -262,7 +267,7 @@ export function centerView(state: RunState): CenterView | undefined {
   const at = stageIndex(stage);
   return {
     id: trail.id,
-    tag: current.tag === undefined ? null : tagView(current.tag.priority),
+    tag: current.tag === undefined ? null : centerTag(current.tag.priority),
     stageName: STAGE_NAMES[stage],
     steps: STAGES.map((name, i) => ({
       name: STAGE_NAMES[name],

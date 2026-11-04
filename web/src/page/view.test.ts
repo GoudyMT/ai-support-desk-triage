@@ -255,7 +255,21 @@ describe('the ticket being worked', () => {
     run.step();
     expect(must(centerView(run.state())).tag).toBeNull();
     const tagged = stepUntil(run, (s) => s.current?.tag !== undefined);
-    expect(must(centerView(tagged)).tag).toEqual({ word: 'Low', level: 'low' });
+    expect(must(centerView(tagged)).tag).toEqual({ word: 'Low', level: 'low', text: 'First guess: Low' });
+  });
+
+  it('calls the pre-screener tag a first guess, in the same priority words as every other tag', () => {
+    const tagged = withState({
+      current: { trail: trailOf(), stage: 'intake', tag: { priority: 'Urgent', critical: true }, deep: true },
+    });
+    expect(must(centerView(tagged)).tag).toEqual({ word: 'Critical', level: 'critical', text: 'First guess: Critical' });
+  });
+
+  it('says Critical, not Urgent, for the model priority in the Classify row', () => {
+    const trail = trailOf({ priority: 'Urgent' });
+    const view = must(centerView(withState({ current: { trail, stage: 'classify', deep: true } })));
+    expect(view.lines[1]?.text).toContain('Priority Critical, 85% sure.');
+    expect(view.lines[1]?.text).not.toContain('Urgent');
   });
 
   it('has no ticket once the run is complete', () => {

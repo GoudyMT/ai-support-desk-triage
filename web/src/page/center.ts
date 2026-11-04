@@ -138,7 +138,7 @@ function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView
   setText(panel.title, `Ticket ${ticket.id}`);
   panel.titleBox.dataset.ticket = ticket.id;
   panel.tag.hidden = ticket.tag === null;
-  setText(panel.tag, ticket.tag?.word ?? '');
+  setText(panel.tag, ticket.tag?.text ?? '');
   setClass(panel.tag, `tag tag-${ticket.tag?.level ?? 'low'}`);
   setText(panel.stage, `Now: ${ticket.stageName}`);
   reconcile(panel.track, ticket.steps, (s) => s.name, makeStep, updateStep);

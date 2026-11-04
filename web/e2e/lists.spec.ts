@@ -5,6 +5,7 @@ import { FIRST_OPEN_MS, SEED, moreNumber, open, playToFirstOpen, reviewButton, r
 const POLL_MS = 250;
 const POLLS = 400;
 const STEP_LIMIT = 40;
+const FIRST_TAG_MS = 5000;
 const TAG_WORDS = ['Critical', 'High', 'Medium', 'Low'];
 
 const closedIds = (page: Page) =>
@@ -138,6 +139,17 @@ test.describe('the center', () => {
     await expect(page.locator('#ticket .step-done')).toHaveCount(2);
     await expect(page.locator('#ticket .step-now .step-name')).toHaveText('Classify');
     await expect(page.locator('#ticket .step-now')).toHaveAttribute('aria-current', 'step');
+  });
+
+  test('words the center tag as a first guess, and the Classify row uses the same priority words', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    await page.clock.runFor(FIRST_TAG_MS);
+    await page.getByRole('button', { name: 'Pause' }).click();
+    await expect(page.locator('#ticket .now .tag')).toHaveText(/^First guess: (Critical|High|Medium|Low)$/);
+    await stepTo(page, 'Classify');
+    await expect(page.locator('#ticket .line-detail').nth(1)).not.toContainText('Urgent');
+    await expect(page.locator('#ticket .line-detail').nth(1)).toContainText(/Priority (Critical|High|Medium|Low),/);
   });
 
   test('the review form shows the ticket text, the masked part and the reason', async ({ page }) => {
