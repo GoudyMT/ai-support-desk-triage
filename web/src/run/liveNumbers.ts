@@ -52,11 +52,13 @@ export function liveNumbers(state: RunState, truthOf: (id: string) => TicketLabe
     };
   }
   const metrics = computeMetrics(state.done, truthOf);
-  // The count behind computeMetrics' overrideRate (reviewed tickets whose category the reviewer
-  // changed), mirrored here because the metrics expose only the rate; priority-only changes are
-  // left out so the live number agrees with the end report.
+  // Tickets whose category the simulated reviewer changed. A ticket the viewer reviewed is left out
+  // (their pick is recorded as a reviewer decision, but it is not the simulated reviewer's), and so
+  // are priority-only changes.
+  const viewerIds = new Set(state.viewerReviews.map((review) => review.id));
   const overrides = state.done.filter(
-    (trail) => trail.final.by === 'reviewer' && trail.final.category !== trail.category.label,
+    (trail) =>
+      trail.final.by === 'reviewer' && trail.final.category !== trail.category.label && !viewerIds.has(trail.id),
   ).length;
   return {
     done: state.done.length,

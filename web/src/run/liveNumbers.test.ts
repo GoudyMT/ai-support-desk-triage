@@ -140,10 +140,10 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
     expect(numbers.flaggedShare).toBeCloseTo(6 / 12, 10);
     // Must-review truth left unflagged: T08 and T10.
     expect(numbers.highRiskMissed).toBe(2);
-    // Reviewed: T05 T06 T07 T09 T11 T12; the reviewer changed the model's category on T06 T09 T11 T12
-    // = 4. T07's priority-only change is not counted: the live number must equal the count behind the
-    // end report's override rate (4 of 6 reviewed), or the panel and the report disagree.
-    expect(numbers.overrides).toBe(4);
+    // Reviewed: T05 T06 T07 T09 T11 T12; the reviewer changed the model's category on T06 T09 T11 T12.
+    // The viewer reviewed T05 T06 T09, so those picks are not the simulated reviewer's overrides:
+    // that leaves T11 and T12 = 2. T07's priority-only change is not counted either.
+    expect(numbers.overrides).toBe(2);
     expect(numbers.viewerCorrect).toEqual({ correct: 2, total: 3 });
     // The real speed run measured 12 tickets in 780 ms.
     expect(numbers.perSecond).toBeCloseTo(12 / 0.78, 10);
