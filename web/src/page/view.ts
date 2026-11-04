@@ -6,7 +6,7 @@ import type { FlagReason, TicketTrail } from '../pipeline/types';
 import { MASK_TOKENS } from '../privacy/mask';
 import { REVIEWER_ERROR_RATE } from '../pipeline/reviewer';
 import { ACT2_SECONDS, ACT2_TICKETS_PER_DAY } from '../run/clock';
-import { CLOSE_EVERY_MS, type RunState } from '../run/engine';
+import { CLOSE_EVERY_MS, DEEP_TICKETS, type RunState } from '../run/engine';
 import { liveNumbers } from '../run/liveNumbers';
 import { NONE_FOUND, narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
@@ -339,6 +339,14 @@ export function controlsView(
     stepDisabled: blocked || state.playing,
     realSpeedLabel: realSpeedLabel(state, total),
   };
+}
+
+// The note that the run is slowed down shows until the fourth ticket enters the center. A ticket has
+// entered the center once it is in it, in the open list, in the review form or done.
+export function paceNoteShown(state: RunState): boolean {
+  const entered =
+    state.done.length + state.open.length + (state.reviewing === undefined ? 0 : 1) + (state.current === undefined ? 0 : 1);
+  return entered <= DEEP_TICKETS;
 }
 
 // What the center says when no ticket is in it. Every ticket that has arrived is in the line, the center,

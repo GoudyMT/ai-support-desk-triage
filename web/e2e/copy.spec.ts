@@ -12,6 +12,27 @@ test.describe('the title block', () => {
   });
 });
 
+test.describe('the note that the run is slowed down', () => {
+  test('shows from the start, goes when the fourth ticket enters the center, and moves nothing', async ({ page }) => {
+    await open(page);
+    const note = page.locator('#pace');
+    const ticketTop = async () => (await page.locator('#ticket').boundingBox())?.y ?? Number.NaN;
+    await expect(note).toBeVisible();
+    await expect(note).toHaveText('Slowed down so you can read each step. It speeds up after the first 3 tickets.');
+    const before = await ticketTop();
+    await page.getByRole('button', { name: 'Play' }).click();
+    // Three tickets take 20 s each; the fourth enters the center at 60 s.
+    await page.clock.runFor(SLOW_TICKETS_MS - 1000);
+    await expect(note).toBeVisible();
+    await page.clock.runFor(2000);
+    await expect(note).toBeHidden();
+    expect(await ticketTop()).toBe(before);
+    // Polite, not a live region: it is a plain line that nothing announces.
+    await expect(note).not.toHaveAttribute('aria-live', /.+/);
+    await expect(page.locator('#announcer')).not.toContainText('Slowed down');
+  });
+});
+
 test.describe('Going out', () => {
   test('says that a simulated reviewer closes the tickets, and how often', async ({ page }) => {
     await open(page);
@@ -55,6 +76,7 @@ test.describe('the key to the closed list', () => {
   });
 });
 
+const SLOW_TICKETS_MS = 60_000;
 const DAY_STEP_MS = 5000;
 const DAY_LIMIT = 200;
 

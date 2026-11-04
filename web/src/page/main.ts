@@ -13,6 +13,7 @@ import './review.css';
 import './a11y.css';
 import { mountCenter } from './center';
 import { mountControls, mountTabs } from './controls';
+import { paceNote } from './copy';
 import { el, setText } from './dom';
 import { fetchModel } from './fetchModel';
 import { createFocus } from './focus';
@@ -31,6 +32,7 @@ import {
   incomingView,
   moreNumbersView,
   outgoingView,
+  paceNoteShown,
   realSpeedView,
   reviewView,
   statsView,
@@ -128,6 +130,8 @@ function render(mounted: Mounted): void {
   const result = realSpeedView(state);
   const controls = controlsView(state, setup.schedule.total);
   setText(byId('status'), statusView(state));
+  // Hidden with `visibility`, not `hidden`: the line keeps its room, so the board does not jump when it goes.
+  byId('pace').classList.toggle('pace-off', !paceNoteShown(state));
   panels.stats.render(numbers, moreNumbersView(state, run.truthOf));
   panels.controls.render(controls);
   panels.tabs.render({ in: `${waiting.length} waiting`, out: `${pending} pending` });
@@ -192,6 +196,7 @@ function mountRun(setup: Setup): void {
   page.stopListening = page.run.onChange(() => sync(mounted));
   byId('top-live').hidden = false;
   byId('app').hidden = false;
+  setText(byId('pace'), paceNote());
   sync(mounted);
 }
 

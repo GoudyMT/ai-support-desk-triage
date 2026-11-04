@@ -8,6 +8,7 @@ import {
   explainMode,
   idleText,
   moreNumbersView,
+  paceNoteShown,
   realSpeedView,
   statsView,
   statusView,
@@ -419,6 +420,29 @@ describe('controls', () => {
     const run = makeRun();
     const lastOne = stepUntil(run, (s) => s.done.length === TOTAL - 1);
     expect(controlsView(lastOne, TOTAL).realSpeedLabel).toBe('Run the last ticket at real speed');
+  });
+});
+
+describe('the note that the run is slowed down', () => {
+  // Counted by the tickets that have entered the center, whatever their numbers: it goes when the
+  // fourth enters, the first that is not given the slow pace.
+  function stateWhenTicketsHaveEntered(count: number): RunState {
+    const entered = new Set<string>();
+    return stepUntil(makeRun(), (s) => {
+      if (s.current !== undefined) entered.add(s.current.trail.id);
+      return entered.size === count;
+    });
+  }
+
+  it('is there from the start, and while the first three tickets are in the center', () => {
+    expect(paceNoteShown(makeRun().state())).toBe(true);
+    expect(paceNoteShown(stateWhenTicketsHaveEntered(1))).toBe(true);
+    expect(paceNoteShown(stateWhenTicketsHaveEntered(3))).toBe(true);
+  });
+
+  it('is gone as the fourth ticket enters the center, and stays gone', () => {
+    expect(paceNoteShown(stateWhenTicketsHaveEntered(4))).toBe(false);
+    expect(paceNoteShown(finishedRun().state())).toBe(false);
   });
 });
 
