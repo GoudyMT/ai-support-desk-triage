@@ -77,6 +77,21 @@
     border-color: Highlight;
   }
 
+  /* The loading bar of each step is an edge with a fill inside it, and the view in use wears a ring: a color on a
+     color is gone in forced colors, an edge and a ring are not. */
+  .bar-progress span {
+    border: var(--border) solid CanvasText;
+  }
+
+  .bar-progress i {
+    background: Highlight;
+  }
+
+  .view[aria-pressed='true'] {
+    outline: var(--stroke) solid Highlight;
+    outline-offset: calc(-1 * var(--stroke));
+  }
+
   .dim {
     outline-color: Highlight;
   }
