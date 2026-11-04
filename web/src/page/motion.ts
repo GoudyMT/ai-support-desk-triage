@@ -54,7 +54,7 @@ function badgeOf(node: HTMLElement): HTMLElement | undefined {
  * the real card is already in place. Both kinds of move use transform only, through the Web
  * Animations API. Call `snapshot` just before the panels render and `play` just after.
  */
-export function createMotion(): { snapshot(): void; play(animate: boolean): void; skipNext(): void } {
+export function createMotion(): { snapshot(): void; play(animate: boolean): void; skipNext(): void; cancel(): void } {
   const layer = el('div', 'ghost-layer');
   layer.setAttribute('aria-hidden', 'true');
   document.body.append(layer);
@@ -123,6 +123,11 @@ export function createMotion(): { snapshot(): void; play(animate: boolean): void
     // The next render shows a different run (a restart), so nothing moves between the two.
     skipNext() {
       skip = true;
+    },
+    // The page moved under the cards (a panel opened and pushed the board down), so each flight is heading for a
+    // place that is no longer there. The real cards are already where they belong: the ghosts just stop.
+    cancel() {
+      clear();
     },
     // The media query is read on every render, so a change in the middle of a run takes effect.
     play(animate) {

@@ -52,6 +52,8 @@ export function mountStats(
   strip: HTMLElement,
   toggle: HTMLElement,
   panel: HTMLElement,
+  // Opening or closing the panel moves everything below it.
+  onToggle: () => void,
 ): { render(stats: Stats, more: More, pulsing: boolean): void } {
   const rows = el('dl', 'more');
   const notes = el('ul', 'assumptions');
@@ -66,6 +68,7 @@ export function mountStats(
     toggle.setAttribute('aria-expanded', String(open));
     toggle.classList.toggle('open', open);
     setText(label, open ? 'Fewer numbers' : 'All numbers');
+    onToggle();
   });
   return {
     // `pulsing` is false when the drawing is not one a viewer watches move (the real speed finish).

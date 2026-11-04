@@ -80,12 +80,13 @@ export function mountPanels(page: Page, hooks: PanelHooks) {
       bar.focusPrimary();
     },
   });
+  const motion = createMotion();
   return {
-    motion: createMotion(),
+    motion,
     sentence: createSentence(),
     speech: createSpeech(byId('announcer')),
     focus: createFocus({ form, center, controls: bar }),
-    stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
+    stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers'), () => motion.cancel()),
     topLine: mountTopLine(byId('purpose'), byId('top-notice')),
     bar,
     dim: createDim(),
