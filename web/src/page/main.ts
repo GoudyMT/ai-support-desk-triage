@@ -14,6 +14,7 @@ import './a11y.css';
 import { mountCenter } from './center';
 import { mountControls, mountTabs } from './controls';
 import { el, setText } from './dom';
+import { createFocus } from './focus';
 import { mountIncoming } from './incoming';
 import { createMotion } from './motion';
 import { mountOutgoing } from './outgoing';
@@ -51,8 +52,6 @@ interface Page {
   timer: number | undefined;
   explain: boolean;
   announced: string;
-  reviewing: boolean;
-  finished: boolean;
 }
 
 type Panels = ReturnType<typeof mountPanels>;
@@ -90,31 +89,34 @@ function mountPanels(page: Page, restart: () => void, render: () => void) {
     step: () => page.run.step(),
     restart,
   });
+  const center = mountCenter(byId('ticket'), {
+    toggleExplain: () => {
+      page.explain = !page.explain;
+      render();
+    },
+    finishNow: () => page.run.finishNow(),
+    restart,
+  });
+  const form = mountReviewForm(byId('review'), {
+    confirm: (decision) => {
+      page.run.confirm(decision);
+      controls.focusPrimary();
+    },
+    handBack: () => {
+      page.run.handBack();
+      controls.focusPrimary();
+    },
+  });
   return {
     motion: createMotion(),
+    focus: createFocus({ form, center, controls }),
     stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
     controls,
     tabs: mountTabs(byId('tabs'), byId('app')),
     incoming: mountIncoming(byId('incoming')),
     outgoing: mountOutgoing(byId('outgoing'), { review: (id) => page.run.review(id) }),
-    center: mountCenter(byId('ticket'), {
-      toggleExplain: () => {
-        page.explain = !page.explain;
-        render();
-      },
-      finishNow: () => page.run.finishNow(),
-      restart,
-    }),
-    form: mountReviewForm(byId('review'), {
-      confirm: (decision) => {
-        page.run.confirm(decision);
-        controls.focusPrimary();
-      },
-      handBack: () => {
-        page.run.handBack();
-        controls.focusPrimary();
-      },
-    }),
+    center,
+    form,
   };
 }
 
@@ -128,20 +130,13 @@ function announce({ page }: Mounted, state: RunState): void {
   }
 }
 
-// A control the viewer was on may have just been replaced by the form or the result.
-function moveFocus({ page, panels }: Mounted, reviewing: boolean, finished: boolean): void {
-  if (reviewing && !page.reviewing) panels.form.focus();
-  if (finished && !page.finished) panels.center.focusResult();
-  page.reviewing = reviewing;
-  page.finished = finished;
-}
-
 function render(mounted: Mounted): void {
   const { setup, page, panels } = mounted;
   const { run } = page;
   const state = run.state();
   const numbers = statsView(state, run.truthOf);
   const pending = numbers.find((stat) => stat.label === 'Pending review')?.value ?? '0';
+  panels.focus.before();
   panels.motion.snapshot();
   const waiting = incomingView(state);
   const review = reviewView(state);
@@ -165,7 +160,7 @@ function render(mounted: Mounted): void {
     result,
   });
   announce(mounted, state);
-  moveFocus(mounted, review !== undefined, result !== undefined);
+  panels.focus.after(review !== undefined, result !== undefined);
   // Real speed shows the finished run in one render, so no card travels.
   panels.motion.play(result === undefined);
 }
@@ -201,8 +196,6 @@ function mountRun(setup: Setup): void {
     timer: undefined,
     explain: false,
     announced: '',
-    reviewing: false,
-    finished: false,
   };
   const mounted: Mounted = {
     setup,
@@ -229,12 +222,15 @@ function start(): void {
   const failure = byId('load-error');
 
   function load(): void {
+    // Retry is hidden below, so a viewer who pressed it needs focus handed on once the run is there.
+    const retried = document.activeElement === byId('retry');
     failure.hidden = true;
     loading.hidden = false;
     fetchModel(foldOf(seed)).then(
       (model) => {
         loading.hidden = true;
         mountRun({ seed, model, schedule: createSchedule(seed), prescreen: createPrescreener(model) });
+        if (retried) document.querySelector<HTMLElement>('#controls button')?.focus();
       },
       () => {
         loading.hidden = true;
