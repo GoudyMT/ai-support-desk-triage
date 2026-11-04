@@ -47,6 +47,11 @@ function resultLine(result: NonNullable<CenterInput['result']>): string {
   return result.perSecond === null ? `${base}.` : `${base}, about ${rate(result.perSecond)} tickets a second.`;
 }
 
+// The number comes from a second pass over every ticket, so it says what that pass was.
+function howLine(result: NonNullable<CenterInput['result']>): string {
+  return `We ran all ${result.tickets} tickets again with no pacing and no cards drawn, so you see how fast the software really is. The page measures it in your browser.`;
+}
+
 function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
   const node = el('button', className, label);
   node.type = 'button';
@@ -97,19 +102,20 @@ function whyNodes(rows: CenterView['why']): HTMLElement[] {
   return rows.flatMap((row) => [el('dt', undefined, row.label), el('dd', undefined, row.value)]);
 }
 
-function buildResult(actions: CenterActions): { box: HTMLElement; title: HTMLElement; line: HTMLElement } {
+function buildResult(actions: CenterActions): {
+  box: HTMLElement;
+  title: HTMLElement;
+  line: HTMLElement;
+  how: HTMLElement;
+} {
   const box = el('div', 'result');
   const title = el('h2', 'ticket-title', 'Run complete at real speed');
   title.tabIndex = -1;
   const line = el('p', 'result-line');
-  const how = el(
-    'p',
-    undefined,
-    'Until now the run was slowed down so a person can follow it. This is the same run with no pacing and no cards drawn. The page measures it in your browser.',
-  );
+  const how = el('p');
   const note = el('p', 'muted', "Reviews are simulated, so this is the software's speed, not a person's.");
   box.append(title, line, how, note, button('btn btn-line', 'Replay at learn speed', actions.restart));
-  return { box, title, line };
+  return { box, title, line, how };
 }
 
 function buildTicket(actions: CenterActions): TicketPanel {
@@ -182,7 +188,10 @@ export function mountCenter(
       panel.box.hidden = finished || ticket === undefined;
       idle.hidden = finished || ticket !== undefined;
       cta.hidden = finished || input.realSpeedLabel === null;
-      if (input.result !== undefined) setText(result.line, resultLine(input.result));
+      if (input.result !== undefined) {
+        setText(result.line, resultLine(input.result));
+        setText(result.how, howLine(input.result));
+      }
       if (ticket !== undefined) renderTicket(panel, input, ticket);
       setText(idle, input.idle);
       setText(real, input.realSpeedLabel ?? '');

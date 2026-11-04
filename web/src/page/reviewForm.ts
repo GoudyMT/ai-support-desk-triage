@@ -62,7 +62,7 @@ function buildForm(root: HTMLElement) {
   handBack.type = 'button';
   const buttons = el('div', 'actions');
   buttons.append(confirm, handBack);
-  const note = el('p', 'muted', "Your choices are scored against the true answer, like the simulated reviewer's.");
+  const note = el('p', 'muted', 'Your category and priority are scored against the true answer. The team is not scored.');
   root.replaceChildren(title, why, text, fields, buttons, note);
   return { title, why, text, category, priority, team, handBack };
 }
