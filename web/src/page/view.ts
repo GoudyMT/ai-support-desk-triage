@@ -1,77 +1,49 @@
 // Everything the page's panels show, worked out from the run's state. Pure: no DOM, so a
-// test reads it directly. The engine hides the simulated reviewer's answer while the viewer
-// reviews, and nothing here puts it back.
+// test reads it directly. The engine hides the simulated reviewer's answer while a ticket is
+// open or under review, and nothing here puts it back.
 import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
 import { MASK_TOKENS } from '../privacy/mask';
 import { ACT2_TICKETS_PER_DAY } from '../run/clock';
-import type { RunState } from '../run/engine';
+import { CLOSE_EVERY_MS, type RunState } from '../run/engine';
 import { liveNumbers } from '../run/liveNumbers';
 import { narrate } from '../run/narrate';
 import { STAGES, type Stage } from '../run/stage';
 import { findSpans } from './spans';
 
-export interface StageCell {
-  stage: Stage;
-  title: string;
-  caption: string;
-  lit: boolean;
-}
-
-export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'working';
-
-export interface FeedRow {
-  id: string;
-  text: string;
-  pill: { kind: PillKind; word: string };
-  current: boolean;
-}
+export type PillKind = 'auto' | 'flagged' | 'overridden' | 'missed' | 'you';
 
 export type SegmentKind = 'plain' | 'chip' | 'rule' | 'mask';
 
-export interface TrailLine {
-  stage: Stage;
-  label: string;
-  // Null for a stage the ticket has not reached: nothing of its result is shown early.
-  text: string | null;
-  status: 'done' | 'now' | 'pending';
+export interface Segment {
+  kind: SegmentKind;
+  text: string;
 }
 
-export interface CurrentTicketView {
+export interface TagView {
+  word: 'Critical' | 'High' | 'Medium' | 'Low';
+  level: 'critical' | 'high' | 'medium' | 'low';
+}
+
+export interface CenterView {
   id: string;
-  segments: { kind: SegmentKind; text: string }[];
-  lines: TrailLine[];
-}
-
-export interface NarrationView {
-  heading: string;
+  tag: TagView | null;
+  stageName: string;
+  steps: { name: string; status: 'done' | 'now' | 'pending' }[];
+  segments: Segment[];
+  // Only the stages reached, from Privacy on: nothing of a later result is shown early.
+  lines: { label: string; text: string }[];
   plain: string;
-  detail: { label: string; value: string }[];
-}
-
-export interface NumbersView {
-  rows: { label: string; value: string }[];
-  assumption: { text: string; shown: boolean };
-}
-
-export interface ControlsView {
-  playLabel: string;
-  playDisabled: boolean;
-  stepDisabled: boolean;
-  takeOverLabel: string;
-  takeOverOn: boolean;
-  speed: RunState['speed'];
-}
-
-export interface TakeOverDefaults {
-  category: Category;
-  priority: Priority;
-  route: string;
-  why: string;
+  why: { label: string; value: string }[];
 }
 
 const PERCENT = 100;
+const MS_PER_SECOND = 1000;
 const NO_VALUE = '-';
+const PREVIEW_CHARS = 60;
+const WHITESPACE = /\s+/g;
+const MAX_REASONS_SHOWN = 2;
+
 const STAGE_NAMES: Record<Stage, string> = {
   intake: 'Intake',
   privacy: 'Privacy',
@@ -80,60 +52,31 @@ const STAGE_NAMES: Record<Stage, string> = {
   review: 'Review',
   done: 'Done',
 };
-// What each stage's count counts, as the locked wireframe words it.
-const STAGE_COUNT_WORDS: Record<Stage, string> = {
-  intake: 'received',
-  privacy: 'masked',
-  classify: 'scored',
-  guardrails: 'flagged',
-  review: 'reviewed',
-  done: 'done',
+
+const TAG_VIEWS: Record<Priority, TagView> = {
+  Urgent: { word: 'Critical', level: 'critical' },
+  High: { word: 'High', level: 'high' },
+  Medium: { word: 'Medium', level: 'medium' },
+  Low: { word: 'Low', level: 'low' },
 };
-const VIEWER_WAITING = 'This ticket is waiting for you. Choose a category, priority and team, then confirm.';
+
+// The stages that write a line in the center; Intake only shows the ticket arriving.
+const LINE_STAGES = ['privacy', 'classify', 'guardrails'] as const;
+type LineStage = (typeof LINE_STAGES)[number];
 
 const stageIndex = (stage: Stage): number => STAGES.indexOf(stage);
 const percent = (share: number): string => `${Math.round(share * PERCENT)}%`;
 const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-
-// Every ticket that has entered the run and the stage it is at. A ticket at Done is also the
-// last of `done`, so only a ticket still moving is added.
-function entries(state: RunState): { trail: TicketTrail; at: number }[] {
-  const doneAt = stageIndex('done');
-  const all = state.done.map((trail) => ({ trail, at: doneAt }));
-  if (state.current !== undefined && state.current.stage !== 'done') {
-    all.push({ trail: state.current.trail, at: stageIndex(state.current.stage) });
-  }
-  return all;
-}
+const tagView = (priority: Priority): TagView => ({ ...TAG_VIEWS[priority] });
 
 function viewerReviewed(state: RunState, trail: TicketTrail): boolean {
   return state.viewerReviews.some((review) => review.id === trail.id);
 }
 
-export function stageRowView(state: RunState): StageCell[] {
-  const all = entries(state);
-  const waiting = state.current?.waitingForViewer === true;
-  return STAGES.map((stage, i) => {
-    const reached = all.filter((entry) => entry.at >= i);
-    // Guardrails reads "flagged" in the wireframe, so its count is the tickets it flagged; only
-    // a flagged ticket goes on to review, so a ticket that skipped it is not counted as reviewed.
-    const flaggedOnly = stage === 'guardrails' || stage === 'review';
-    const count = flaggedOnly ? reached.filter((entry) => entry.trail.guard.flagged).length : reached.length;
-    const lit = state.current?.stage === stage;
-    let note = '';
-    if (lit) {
-      note = waiting && stage === 'review' ? ' - waiting for you' : state.playing ? ' - now' : ' - paused here';
-    }
-    return {
-      stage,
-      title: `${i + 1} ${STAGE_NAMES[stage]}${lit && waiting && stage === 'review' ? ' - you' : ''}`,
-      caption: `${count} ${STAGE_COUNT_WORDS[stage]}${note}`,
-      lit,
-    };
-  });
-}
-
-function pillFor(trail: TicketTrail, truth: TicketLabel): FeedRow['pill'] {
+function pillFor(state: RunState, trail: TicketTrail, truth: TicketLabel): { kind: PillKind; word: string } {
+  if (viewerReviewed(state, trail)) {
+    return { kind: 'you', word: 'You' };
+  }
   if (!trail.guard.flagged && truth.mustReview) {
     return { kind: 'missed', word: 'Missed' };
   }
@@ -143,34 +86,6 @@ function pillFor(trail: TicketTrail, truth: TicketLabel): FeedRow['pill'] {
       : { kind: 'overridden', word: 'Overridden' };
   }
   return { kind: 'auto', word: 'Auto' };
-}
-
-export function feedView(state: RunState, truthOf: (id: string) => TicketLabel): FeedRow[] {
-  const current = state.current;
-  const rows: FeedRow[] = [...state.done].reverse().map((trail) => ({
-    id: trail.id,
-    text: `${trail.id} ${trail.final.category}`,
-    pill: pillFor(trail, truthOf(trail.id)),
-    current: trail.id === current?.trail.id,
-  }));
-  if (current !== undefined && current.stage !== 'done') {
-    const at = stageIndex(current.stage);
-    const { trail } = current;
-    let text = trail.id;
-    if (current.waitingForViewer) {
-      text = `${trail.id} waiting for you`;
-    } else if (at >= stageIndex('classify')) {
-      text = `${trail.id} ${trail.category.label}`;
-    }
-    const flagged = at >= stageIndex('guardrails') && trail.guard.flagged;
-    rows.unshift({
-      id: trail.id,
-      text,
-      pill: flagged ? { kind: 'flagged', word: 'Flagged' } : { kind: 'working', word: 'In progress' },
-      current: true,
-    });
-  }
-  return rows;
 }
 
 function ruleWords(trail: TicketTrail): string[] {
@@ -204,9 +119,9 @@ function markText(trail: TicketTrail, at: number): SegmentKind[] {
   return kinds;
 }
 
-function segmentsOf(trail: TicketTrail, at: number): CurrentTicketView['segments'] {
+function segmentsOf(trail: TicketTrail, at: number): Segment[] {
   const kinds = markText(trail, at);
-  const segments: CurrentTicketView['segments'] = [];
+  const segments: Segment[] = [];
   // The marks are offsets into the text's UTF-16 units, so the text is read the same way.
   for (let i = 0; i < trail.maskedText.length; i += 1) {
     const char = trail.maskedText.charAt(i);
@@ -232,16 +147,12 @@ function reasonPhrase(reason: FlagReason): string {
   }
 }
 
-const MAX_REASONS_SHOWN = 2;
-
 function whyFlagged(trail: TicketTrail): string {
   return trail.guard.reasons.slice(0, MAX_REASONS_SHOWN).map(reasonPhrase).join(', and ');
 }
 
-function lineText(state: RunState, trail: TicketTrail, stage: Stage, waiting: boolean): string {
+function lineText(trail: TicketTrail, stage: LineStage): string {
   switch (stage) {
-    case 'intake':
-      return 'received.';
     case 'privacy': {
       const masked = narrate(trail, 'privacy').detail.find((row) => row.label === 'Masked')?.value ?? 'nothing';
       return masked === 'nothing' ? 'nothing personal found.' : `masked ${masked}.`;
@@ -258,39 +169,10 @@ function lineText(state: RunState, trail: TicketTrail, stage: Stage, waiting: bo
       const why = whyFlagged(trail);
       return why === '' ? 'flagged.' : `flagged. ${capitalised(why)}.`;
     }
-    case 'review': {
-      if (waiting) return 'waiting for you.';
-      if (trail.review === undefined) return 'not needed.';
-      const who = viewerReviewed(state, trail) ? 'you' : 'the simulated reviewer';
-      return `${who} chose ${trail.review.category}, priority ${trail.review.priority}.`;
-    }
-    case 'done':
-      return `sent to ${trail.final.route} as ${trail.final.category}, priority ${trail.final.priority}.`;
   }
 }
 
-export function currentTicketView(state: RunState): CurrentTicketView | undefined {
-  const { current } = state;
-  if (current === undefined) {
-    return undefined;
-  }
-  const at = stageIndex(current.stage);
-  return {
-    id: current.trail.id,
-    segments: segmentsOf(current.trail, at),
-    lines: STAGES.map((stage, i) => ({
-      stage,
-      label: STAGE_NAMES[stage],
-      text: i <= at ? lineText(state, current.trail, stage, current.waitingForViewer) : null,
-      status: i < at ? 'done' : i === at ? 'now' : 'pending',
-    })),
-  };
-}
-
-function plainSentence(state: RunState, trail: TicketTrail, stage: Stage, waiting: boolean): string {
-  if (stage === 'review' && waiting) {
-    return VIEWER_WAITING;
-  }
+function plainSentence(state: RunState, trail: TicketTrail, stage: Stage): string {
   if (viewerReviewed(state, trail) && stage === 'review' && trail.review !== undefined) {
     return `You read the ticket and chose ${trail.review.category} with ${trail.review.priority} priority.`;
   }
@@ -301,70 +183,154 @@ function plainSentence(state: RunState, trail: TicketTrail, stage: Stage, waitin
   return narrate(trail, stage).plain;
 }
 
-export function narrationView(state: RunState): NarrationView | undefined {
+// The first stage whose result a "Why this choice" row tells.
+function revealedAt(label: string): Stage {
+  if (label === 'Masked') return 'privacy';
+  if (label.startsWith('Flag')) return 'guardrails';
+  return 'classify';
+}
+
+export function statsView(
+  state: RunState,
+  truthOf: (id: string) => TicketLabel,
+): { label: string; value: string; alert: boolean }[] {
+  const live = liveNumbers(state, truthOf);
+  const pending = state.open.length + (state.reviewing === undefined ? 0 : 1);
+  return [
+    { label: 'Tickets done', value: String(live.done), alert: false },
+    { label: 'Flagged for a person', value: live.flaggedShare === null ? NO_VALUE : percent(live.flaggedShare), alert: false },
+    { label: 'Pending review', value: String(pending), alert: false },
+    { label: 'High-risk missed', value: String(live.highRiskMissed), alert: live.highRiskMissed > 0 },
+  ];
+}
+
+export function moreNumbersView(
+  state: RunState,
+  truthOf: (id: string) => TicketLabel,
+): { rows: { label: string; value: string }[]; assumptions: string[] } {
+  const live = liveNumbers(state, truthOf);
+  const share = (value: number | null): string => (value === null ? NO_VALUE : percent(value));
+  const perSecond = realSpeedView(state)?.perSecond ?? null;
+  const { correct, total } = live.viewerCorrect;
+  return {
+    rows: [
+      { label: 'Accuracy so far', value: share(live.modelAccuracy) },
+      { label: 'v0 on the same tickets', value: share(live.v0Accuracy) },
+      { label: 'Reviewer overrides', value: String(live.overrides) },
+      { label: 'Tickets per second', value: perSecond === null ? NO_VALUE : perSecond.toFixed(1) },
+      { label: 'Your reviews correct', value: total === 0 ? NO_VALUE : `${correct} of ${total}` },
+    ],
+    assumptions: [
+      `Assumed arrivals: ${ACT2_TICKETS_PER_DAY} tickets per business day`,
+      `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / MS_PER_SECOND} seconds`,
+    ],
+  };
+}
+
+export function incomingView(state: RunState): { id: string; preview: string; tag: TagView | null }[] {
+  return state.incoming.map((waiting) => ({
+    id: waiting.id,
+    preview: waiting.maskedText.replace(WHITESPACE, ' ').slice(0, PREVIEW_CHARS),
+    tag: waiting.tag === undefined ? null : tagView(waiting.tag.priority),
+  }));
+}
+
+export function centerView(state: RunState): CenterView | undefined {
   const { current } = state;
   if (current === undefined) {
     return undefined;
   }
+  const { trail, stage } = current;
+  const at = stageIndex(stage);
   return {
-    heading: `What is happening - step ${stageIndex(current.stage) + 1} of ${STAGES.length}, ${STAGE_NAMES[current.stage]}`,
-    plain: plainSentence(state, current.trail, current.stage, current.waitingForViewer),
-    detail: narrate(current.trail, current.stage).detail,
+    id: trail.id,
+    tag: current.tag === undefined ? null : tagView(current.tag.priority),
+    stageName: STAGE_NAMES[stage],
+    steps: STAGES.map((name, i) => ({
+      name: STAGE_NAMES[name],
+      status: i < at ? 'done' : i === at ? 'now' : 'pending',
+    })),
+    segments: segmentsOf(trail, at),
+    lines: LINE_STAGES.filter((line) => stageIndex(line) <= at).map((line) => ({
+      label: STAGE_NAMES[line],
+      text: lineText(trail, line),
+    })),
+    plain: plainSentence(state, trail, stage),
+    why: narrate(trail, stage).detail.filter((row) => stageIndex(revealedAt(row.label)) <= at),
   };
 }
 
-export function numbersView(state: RunState, truthOf: (id: string) => TicketLabel): NumbersView {
-  const live = liveNumbers(state, truthOf);
-  const share = (value: number | null): string => (value === null ? NO_VALUE : percent(value));
-  const { correct, total } = live.viewerCorrect;
+export function outgoingView(
+  state: RunState,
+  truthOf: (id: string) => TicketLabel,
+): {
+  open: { id: string; category: string; tag: TagView; why: string }[];
+  closed: { id: string; category: string; pill: { kind: PillKind; word: string } }[];
+} {
   return {
-    rows: [
-      { label: 'Tickets done', value: String(live.done) },
-      { label: 'Tickets per second', value: live.perSecond === null ? NO_VALUE : live.perSecond.toFixed(1) },
-      { label: 'Accuracy so far', value: share(live.modelAccuracy) },
-      { label: 'v0 on the same tickets', value: share(live.v0Accuracy) },
-      { label: 'Flagged for a person', value: share(live.flaggedShare) },
-      { label: 'Reviewer overrides', value: String(live.overrides) },
-      { label: 'High-risk tickets missed so far', value: String(live.highRiskMissed) },
-      { label: 'Your reviews correct', value: total === 0 ? NO_VALUE : `${correct} of ${total}` },
-    ],
-    assumption: {
-      text: `Assumed arrivals: ${ACT2_TICKETS_PER_DAY} tickets per business day`,
-      shown: state.act !== 1,
-    },
+    open: state.open.map((trail) => ({
+      id: trail.id,
+      category: trail.category.label,
+      tag: tagView(trail.guard.priority),
+      why: whyFlagged(trail),
+    })),
+    closed: [...state.done].reverse().map((trail) => ({
+      id: trail.id,
+      category: trail.final.category,
+      pill: pillFor(state, trail, truthOf(trail.id)),
+    })),
+  };
+}
+
+export function controlsView(
+  state: RunState,
+  total: number,
+): { playLabel: 'Play' | 'Pause'; playDisabled: boolean; stepDisabled: boolean; realSpeedLabel: string | null } {
+  const blocked = state.act === 'complete' || state.reviewing !== undefined;
+  return {
+    playLabel: state.playing ? 'Pause' : 'Play',
+    playDisabled: blocked,
+    stepDisabled: blocked || state.playing,
+    realSpeedLabel: blocked ? null : `Run the last ${total - state.done.length} tickets at real speed`,
   };
 }
 
 export function statusView(state: RunState): string {
   if (state.act === 'complete') return 'Run complete';
   if (!state.playing) return 'Paused';
-  if (state.takeOver) return 'You are the reviewer - the run waits on each flagged ticket';
-  return `Act ${state.act} of 2 - ${state.speed} speed`;
+  return state.act === 1 ? 'Learning pace' : 'Busy day';
 }
 
-export function controlsView(state: RunState): ControlsView {
-  const over = state.act === 'complete';
-  const blocked = over || state.current?.waitingForViewer === true;
+export function explainMode(state: RunState): 'offered' | 'off' {
+  return state.act === 1 || !state.playing ? 'offered' : 'off';
+}
+
+// A zero reading (a coarse browser timer) gives no rate rather than Infinity.
+export function realSpeedView(state: RunState): { tickets: number; ms: number; perSecond: number | null } | undefined {
+  const { realSpeed } = state;
+  if (realSpeed === undefined) {
+    return undefined;
+  }
   return {
-    playLabel: state.playing ? 'Pause' : 'Play',
-    playDisabled: blocked,
-    stepDisabled: blocked || state.playing,
-    takeOverLabel: state.takeOver ? 'Hand back to the reviewer' : 'Take over',
-    takeOverOn: state.takeOver,
-    speed: state.speed,
+    ...realSpeed,
+    perSecond: realSpeed.ms > 0 ? (realSpeed.tickets / realSpeed.ms) * MS_PER_SECOND : null,
   };
 }
 
-export function takeOverDefaults(state: RunState): TakeOverDefaults | undefined {
-  const { current } = state;
-  if (current?.waitingForViewer !== true) {
+export function reviewView(state: RunState):
+  | { id: string; segments: Segment[]; why: string; category: Category; priority: Priority; route: string }
+  | undefined {
+  const { reviewing } = state;
+  if (reviewing === undefined) {
     return undefined;
   }
-  const category = current.trail.category.label as Category;
+  const category = reviewing.category.label as Category;
   return {
+    id: reviewing.id,
+    segments: segmentsOf(reviewing, stageIndex('guardrails')),
+    why: `${whyFlagged(reviewing)}.`,
     category,
-    priority: current.trail.guard.priority,
+    priority: reviewing.guard.priority,
     route: ROUTES[category],
-    why: `${whyFlagged(current.trail)}.`,
   };
 }

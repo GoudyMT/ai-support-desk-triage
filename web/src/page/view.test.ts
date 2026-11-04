@@ -1,40 +1,113 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
+import { PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
+import { loadModel } from '../model/scorer';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
-import type { RunState } from '../run/engine';
-import type { Stage } from '../run/stage';
+import { CLOSE_EVERY_MS, createRun, type CenterStage, type Run, type RunState } from '../run/engine';
+import type { Tag } from '../run/prescreen';
 import {
+  centerView,
   controlsView,
-  currentTicketView,
-  feedView,
-  narrationView,
-  numbersView,
-  stageRowView,
+  explainMode,
+  incomingView,
+  moreNumbersView,
+  outgoingView,
+  realSpeedView,
+  reviewView,
+  statsView,
   statusView,
-  takeOverDefaults,
 } from './view';
 
 const SEED = 1001;
+const TOTAL = 12;
+const MAX_STEPS = 5000;
+// Tickets arrive a quarter second apart from half a second in, so the line fills while the
+// center is busy; the first six are Act 1.
+const FIRST_ARRIVAL_S = 0.5;
+const ARRIVAL_GAP_S = 0.25;
+const ACT1_TICKETS = 6;
+const PREVIEW_CHARS = 60;
+
+// The fold model seed 1001 runs on: the page loads exactly this file.
+const MODEL = loadModel(
+  JSON.parse(readFileSync(fileURLToPath(new URL('../../public/models/fold_1.json', import.meta.url)), 'utf8')),
+);
+
+// The pre-screener's n-th call is for the n-th ticket to arrive: Low, Medium, High, Urgent, then again.
+function cyclingPrescreen(): (maskedText: string) => Tag {
+  let calls = 0;
+  return () => {
+    const priority = PRIORITIES[calls % PRIORITIES.length] ?? 'Low';
+    calls += 1;
+    return { priority, critical: priority === 'Urgent' };
+  };
+}
+
+function makeRun(): Run {
+  return createRun({
+    seed: SEED,
+    model: MODEL,
+    schedule: {
+      total: TOTAL,
+      act: (i) => (i < ACT1_TICKETS ? 1 : 2),
+      arrivesAt: (i) => FIRST_ARRIVAL_S + i * ARRIVAL_GAP_S,
+    },
+    wallClock: () => 0,
+    prescreen: cyclingPrescreen(),
+  });
+}
+
+function stepUntil(run: Run, reached: (state: RunState) => boolean): RunState {
+  for (let n = 0; !reached(run.state()); n += 1) {
+    if (n > MAX_STEPS) throw new Error('test: the wanted state never came');
+    run.step();
+  }
+  return run.state();
+}
+
+function finishedRun(): Run {
+  const run = makeRun();
+  stepUntil(run, (s) => s.act === 'complete');
+  return run;
+}
+
+function atStage(stage: CenterStage): RunState {
+  return stepUntil(makeRun(), (s) => s.current?.stage === stage);
+}
+
+function must<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('test: a value that should exist is missing');
+  return value;
+}
+
+const noTruth = (): TicketLabel => ({ category: 'Billing', priority: 'Medium', mustReview: false });
+
+// A finished run's state with the truth saying one closed, unflagged ticket needed a person.
+function missedTruth(run: Run): { id: string; truthOf: (id: string) => TicketLabel } {
+  const id = must(run.state().done.find((trail) => !trail.guard.flagged)).id;
+  return { id, truthOf: (other) => (other === id ? { ...noTruth(), mustReview: true } : noTruth()) };
+}
+
+const RULE_CAPTIONS: FlagReason = { kind: 'rule', reason: 'accessibility issue', words: ['captions'] };
+const CAPTIONS_TEXT = 'The call has no captions so I cannot follow. Ring me on [PHONE_NUMBER] any weekday.';
 
 interface TrailOpts {
   id?: string;
   text?: string;
   found?: TicketTrail['found'];
   model?: Category;
-  modelPriority?: Priority;
+  priority?: Priority;
   terms?: string[];
   reasons?: FlagReason[];
   flagged?: boolean;
-  // The reviewer's category when the ticket was flagged and reviewed.
-  reviewed?: Category;
-  reviewedPriority?: Priority;
-  ms?: number;
 }
 
+// A trail written by hand for the cases a real run would not reach on demand.
 function trailOf(o: TrailOpts = {}): TicketTrail {
   const model = o.model ?? 'Billing';
-  const flagged = o.flagged ?? o.reviewed !== undefined;
-  const base: TicketTrail = {
+  const priority = o.priority ?? 'Medium';
+  return {
     id: o.id ?? 'T-1001-0',
     receivedAt: 0,
     maskedText: o.text ?? 'My invoice is wrong',
@@ -45,363 +118,389 @@ function trailOf(o: TrailOpts = {}): TicketTrail {
       probabilities: {},
       topTerms: (o.terms ?? []).map((term) => ({ term, weight: 0.4 })),
     },
-    priority: { label: o.modelPriority ?? 'Medium', confidence: 0.85, probabilities: {}, topTerms: [] },
-    guard: { flagged, reasons: o.reasons ?? [], priority: o.modelPriority ?? 'Medium', clearedBySecondCheck: false },
-    final: { category: model, priority: o.modelPriority ?? 'Medium', route: ROUTES[model], by: 'model' },
+    priority: { label: priority, confidence: 0.85, probabilities: {}, topTerms: [] },
+    guard: { flagged: o.flagged ?? true, reasons: o.reasons ?? [], priority, clearedBySecondCheck: false },
+    final: { category: model, priority, route: ROUTES[model], by: 'model' },
     v0: { category: model, priority: 'Medium', mustReview: false },
-    ms: o.ms ?? 0,
+    ms: 0,
   };
-  if (o.reviewed === undefined) {
-    return base;
-  }
-  const decision = { category: o.reviewed, priority: o.reviewedPriority ?? base.guard.priority, route: ROUTES[o.reviewed] };
-  return { ...base, review: decision, final: { ...decision, by: 'reviewer' } };
 }
 
-function stateOf(o: {
-  done?: TicketTrail[];
-  current?: { trail: TicketTrail; stage: Stage; waiting?: boolean };
-  playing?: boolean;
-  speed?: RunState['speed'];
-  takeOver?: boolean;
-  act?: RunState['act'];
-  viewerReviews?: RunState['viewerReviews'];
-}): RunState {
-  const state: RunState = {
-    seed: SEED,
-    fold: 1,
-    act: o.act ?? 1,
-    speed: o.speed ?? 'learn',
-    playing: o.playing ?? true,
-    takeOver: o.takeOver ?? false,
-    done: o.done ?? [],
-    viewerReviews: o.viewerReviews ?? [],
-    simTime: 0,
-  };
-  if (o.current !== undefined) {
-    state.current = { trail: o.current.trail, stage: o.current.stage, waitingForViewer: o.current.waiting ?? false };
-  }
-  return state;
+function withState(patch: Partial<RunState>): RunState {
+  return { ...makeRun().state(), ...patch };
 }
 
-const NO_TRUTH = (): TicketLabel => ({ category: 'Billing', priority: 'Medium', mustReview: false });
+describe('top stats', () => {
+  it('starts at zero, with a dash where a share needs a ticket', () => {
+    expect(statsView(makeRun().state(), noTruth)).toEqual([
+      { label: 'Tickets done', value: '0', alert: false },
+      { label: 'Flagged for a person', value: '-', alert: false },
+      { label: 'Pending review', value: '0', alert: false },
+      { label: 'High-risk missed', value: '0', alert: false },
+    ]);
+  });
 
-const RULE_CAPTIONS: FlagReason = { kind: 'rule', reason: 'accessibility issue', words: ['captions'] };
-const CAPTIONS_TEXT = 'The call has no captions so I cannot follow. Ring me on [PHONE_NUMBER] any weekday.';
-
-describe('stage row', () => {
-  const flagged = trailOf({ id: 'T-1001-1', model: 'Accessibility Support', reasons: [RULE_CAPTIONS], reviewed: 'Accessibility Support' });
-  const plain = (n: number) => trailOf({ id: `T-1001-${n}` });
-
-  it('counts the tickets that reached each stage and lights only the current one', () => {
-    const state = stateOf({
-      done: [plain(0), flagged, plain(2)],
-      current: { trail: trailOf({ id: 'T-1001-3' }), stage: 'classify' },
+  it('raises the alert only when a high-risk ticket was missed', () => {
+    const run = finishedRun();
+    const state = run.state();
+    const clean = statsView(state, noTruth);
+    expect(clean.map((row) => row.alert)).toEqual([false, false, false, false]);
+    const missed = statsView(state, missedTruth(run).truthOf);
+    expect(missed.find((row) => row.label === 'High-risk missed')).toEqual({
+      label: 'High-risk missed',
+      value: '1',
+      alert: true,
     });
-    const cells = stageRowView(state);
-    expect(cells.map((cell) => [cell.title, cell.caption])).toEqual([
-      ['1 Intake', '4 received'],
-      ['2 Privacy', '4 masked'],
-      ['3 Classify', '4 scored - now'],
-      ['4 Guardrails', '1 flagged'],
-      ['5 Review', '1 reviewed'],
-      ['6 Done', '3 done'],
-    ]);
-    expect(cells.map((cell) => cell.lit)).toEqual([false, false, true, false, false, false]);
-  });
-
-  it('counts a ticket at Done once, because it is also the last entry of done', () => {
-    const last = plain(2);
-    const cells = stageRowView(stateOf({ done: [plain(0), last], current: { trail: last, stage: 'done' } }));
-    expect(cells.map((cell) => cell.caption)).toEqual([
-      '2 received',
-      '2 masked',
-      '2 scored',
-      '0 flagged',
-      '0 reviewed',
-      '2 done - now',
+    const flagged = state.done.filter((trail) => trail.guard.flagged).length;
+    expect(missed.map((row) => row.value).slice(0, 3)).toEqual([
+      String(TOTAL),
+      `${Math.round((flagged / TOTAL) * 100)}%`,
+      '0',
     ]);
   });
 
-  it('says paused here, in words, when the run is paused', () => {
-    const cells = stageRowView(stateOf({ playing: false, current: { trail: plain(0), stage: 'privacy' } }));
-    expect(cells[1]?.caption).toBe('1 masked - paused here');
-  });
-
-  it('names the viewer on the Review stage while the run waits for them', () => {
-    const cells = stageRowView(
-      stateOf({ takeOver: true, current: { trail: flagged, stage: 'review', waiting: true } }),
-    );
-    expect(cells[4]).toMatchObject({ title: '5 Review - you', caption: '1 reviewed - waiting for you', lit: true });
-  });
-
-  it('lights nothing once the run is complete', () => {
-    const cells = stageRowView(stateOf({ act: 'complete', done: [plain(0)] }));
-    expect(cells.some((cell) => cell.lit)).toBe(false);
+  it('keeps counting a ticket as pending while the viewer has its form open', () => {
+    const run = makeRun();
+    const open = stepUntil(run, (s) => s.open.length > 0);
+    const pendingBefore = statsView(open, noTruth)[2]?.value;
+    run.review(must(open.open[0]).id);
+    const reviewing = run.state();
+    expect(reviewing.open).toHaveLength(open.open.length - 1);
+    expect(pendingBefore).toBe(String(open.open.length));
+    expect(statsView(reviewing, noTruth)[2]?.value).toBe(pendingBefore);
   });
 });
 
-describe('ticket feed', () => {
-  const MUST_REVIEW = (): TicketLabel => ({ category: 'Billing', priority: 'Medium', mustReview: true });
+describe('more numbers', () => {
+  const value = (state: RunState, label: string, truthOf: (id: string) => TicketLabel = noTruth) =>
+    moreNumbersView(state, truthOf).rows.find((row) => row.label === label)?.value;
 
-  it('shows the latest ticket first, with the one now in progress on top', () => {
-    const rows = feedView(
-      stateOf({
-        done: [trailOf({ id: 'T-1001-0' }), trailOf({ id: 'T-1001-1' })],
-        current: { trail: trailOf({ id: 'T-1001-2' }), stage: 'intake' },
-      }),
-      NO_TRUTH,
-    );
-    expect(rows.map((row) => row.id)).toEqual(['T-1001-2', 'T-1001-1', 'T-1001-0']);
-    expect(rows[0]).toMatchObject({ text: 'T-1001-2', current: true, pill: { kind: 'working', word: 'In progress' } });
-  });
-
-  it('gives Auto, Flagged, Overridden and Missed their own pill words', () => {
-    const auto = trailOf({ id: 'T-1001-0' });
-    const kept = trailOf({ id: 'T-1001-1', model: 'Security Concern', reviewed: 'Security Concern', reviewedPriority: 'Urgent' });
-    const changed = trailOf({ id: 'T-1001-2', model: 'Other', reviewed: 'Billing' });
-    const missed = trailOf({ id: 'T-1001-3', model: 'Other' });
-    const truth = (id: string): TicketLabel => (id === 'T-1001-3' ? MUST_REVIEW() : NO_TRUTH());
-    const words = feedView(stateOf({ done: [auto, kept, changed, missed] }), truth).map((row) => [row.id, row.pill]);
-    expect(words).toEqual([
-      ['T-1001-3', { kind: 'missed', word: 'Missed' }],
-      ['T-1001-2', { kind: 'overridden', word: 'Overridden' }],
-      ['T-1001-1', { kind: 'flagged', word: 'Flagged' }],
-      ['T-1001-0', { kind: 'auto', word: 'Auto' }],
+  it('shows a dash for every number that has no value yet, and states both assumptions', () => {
+    const view = moreNumbersView(makeRun().state(), noTruth);
+    expect(view.rows.map((row) => [row.label, row.value])).toEqual([
+      ['Accuracy so far', '-'],
+      ['v0 on the same tickets', '-'],
+      ['Reviewer overrides', '0'],
+      ['Tickets per second', '-'],
+      ['Your reviews correct', '-'],
+    ]);
+    expect(view.assumptions).toEqual([
+      'Assumed arrivals: 100 tickets per business day',
+      `Assumed: the simulated reviewer closes one ticket every ${CLOSE_EVERY_MS / 1000} seconds`,
     ]);
   });
 
-  it('keeps every miss in the feed, however long the run has gone on', () => {
-    const trails = Array.from({ length: 129 }, (_, i) => trailOf({ id: `T-1001-${i}` }));
-    const truth = (id: string): TicketLabel => (id === 'T-1001-0' ? MUST_REVIEW() : NO_TRUTH());
-    const rows = feedView(stateOf({ done: trails }), truth);
-    expect(rows).toHaveLength(129);
-    expect(rows.at(-1)?.pill.word).toBe('Missed');
+  it('shows the figures of the closed tickets once the run has gone on', () => {
+    const run = finishedRun();
+    const state = run.state();
+    const right = state.done.filter((trail) => trail.category.label === run.truthOf(trail.id).category).length;
+    const overrides = state.done.filter(
+      (trail) => trail.final.by === 'reviewer' && trail.final.category !== trail.category.label,
+    ).length;
+    expect(overrides).toBeGreaterThan(0);
+    expect(value(state, 'Accuracy so far', run.truthOf)).toBe(`${Math.round((right / TOTAL) * 100)}%`);
+    expect(value(state, 'Reviewer overrides', run.truthOf)).toBe(String(overrides));
   });
 
-  it('flags the current ticket from the Guardrails stage on, and shows its category once classified', () => {
-    const trail = trailOf({ id: 'T-1001-4', model: 'Accessibility Support', reasons: [RULE_CAPTIONS], flagged: true });
-    const at = (stage: Stage) => feedView(stateOf({ current: { trail, stage } }), NO_TRUTH)[0];
-    expect(at('classify')).toMatchObject({ text: 'T-1001-4 Accessibility Support', pill: { word: 'In progress' } });
-    expect(at('guardrails')).toMatchObject({ pill: { kind: 'flagged', word: 'Flagged' } });
-  });
-
-  it('says a ticket waits for you, without a category, while the viewer reviews it', () => {
-    const trail = trailOf({ id: 'T-1001-4', model: 'Accessibility Support', reasons: [RULE_CAPTIONS], flagged: true });
-    const row = feedView(stateOf({ takeOver: true, current: { trail, stage: 'review', waiting: true } }), NO_TRUTH)[0];
-    expect(row?.text).toBe('T-1001-4 waiting for you');
+  it('reads the real speed run as tickets per second, and a dash when its time was zero', () => {
+    const state = makeRun().state();
+    expect(value({ ...state, realSpeed: { tickets: 12, ms: 6 } }, 'Tickets per second')).toBe('2000.0');
+    expect(value({ ...state, realSpeed: { tickets: 12, ms: 0 } }, 'Tickets per second')).toBe('-');
   });
 });
 
-describe('current ticket', () => {
-  const trail = trailOf({
-    text: CAPTIONS_TEXT,
-    found: ['phone'],
-    model: 'Accessibility Support',
-    terms: ['so cannot', 'follow'],
-    reasons: [RULE_CAPTIONS, { kind: 'category', category: 'Accessibility Support' }],
-    flagged: true,
+describe('real speed result', () => {
+  it('is absent until a real speed run was measured, then gives tickets, time and rate', () => {
+    const state = makeRun().state();
+    expect(realSpeedView(state)).toBeUndefined();
+    expect(realSpeedView({ ...state, realSpeed: { tickets: 12, ms: 6 } })).toEqual({
+      tickets: 12,
+      ms: 6,
+      perSecond: 2000,
+    });
   });
-  const at = (stage: Stage) => currentTicketView(stateOf({ current: { trail, stage } }));
-  const kindsOf = (stage: Stage) =>
-    at(stage)
-      ?.segments.filter((segment) => segment.kind !== 'plain')
-      .map((segment) => [segment.kind, segment.text]);
+});
 
-  it('marks word chips, the rule word and the mask token, and keeps the text whole', () => {
-    expect(kindsOf('guardrails')).toEqual([
-      ['rule', 'captions'],
-      ['chip', 'so I cannot'],
-      ['chip', 'follow'],
-      ['mask', '[PHONE_NUMBER]'],
+describe('coming in', () => {
+  it('lists the waiting tickets with their tag word, a Critical one first, an untagged one without', () => {
+    const state = stepUntil(makeRun(), (s) => s.incoming.some((w) => w.tag?.critical === true));
+    const view = incomingView(state);
+    expect(view.map((row) => [row.id.slice(-1), row.tag?.word ?? null])).toEqual([
+      ['3', 'Critical'],
+      ['1', 'Medium'],
+      ['2', 'High'],
+      ['4', null],
     ]);
-    expect(at('guardrails')?.segments.map((segment) => segment.text).join('')).toBe(CAPTIONS_TEXT);
-  });
-
-  it('shows no word chips before Classify, no rule word before Guardrails', () => {
-    expect(kindsOf('intake')).toEqual([]);
-    expect(kindsOf('privacy')).toEqual([['mask', '[PHONE_NUMBER]']]);
-    expect(kindsOf('classify')).toEqual([
-      ['chip', 'so I cannot'],
-      ['chip', 'follow'],
-      ['mask', '[PHONE_NUMBER]'],
-    ]);
+    expect(view[0]?.tag).toEqual({ word: 'Critical', level: 'critical' });
+    expect(view[1]?.tag).toEqual({ word: 'Medium', level: 'medium' });
   });
 
-  it('keeps a mask token whole when a word pair runs into it', () => {
-    const run = trailOf({ text: 'Ring me on [PHONE_NUMBER] now', found: ['phone'], terms: ['me on'] });
-    const segments = currentTicketView(stateOf({ current: { trail: run, stage: 'classify' } }))?.segments;
-    expect(segments?.filter((segment) => segment.kind !== 'plain')).toEqual([
-      { kind: 'chip', text: 'me on' },
-      { kind: 'mask', text: '[PHONE_NUMBER]' },
-    ]);
+  it('shows a one-line preview: whitespace collapsed, cut at 60 characters', () => {
+    const state = withState({
+      incoming: [
+        { id: 'T-1', maskedText: `Hello   there\n\nfriend ${'x'.repeat(80)}` },
+        { id: 'T-2', maskedText: 'Short   one' },
+      ],
+    });
+    const [long, short] = incomingView(state);
+    expect(long?.preview).toBe(`Hello there friend ${'x'.repeat(PREVIEW_CHARS - 'Hello there friend '.length)}`);
+    expect(long?.preview).toHaveLength(PREVIEW_CHARS);
+    expect(short?.preview).toBe('Short one');
+  });
+});
+
+describe('the ticket being worked', () => {
+  it('shows nothing of the result at Intake, and adds each row as its stage is reached', () => {
+    const labels = (stage: CenterStage) => centerView(atStage(stage))?.why.map((row) => row.label) ?? [];
+    expect(labels('intake')).toEqual([]);
+    expect(labels('privacy')).toEqual(['Masked']);
+    const classify = labels('classify');
+    expect(classify).toEqual(expect.arrayContaining(['Confidence', 'Confidence floor', 'Masked']));
+    expect(classify.some((label) => label.startsWith('Flag'))).toBe(false);
+    expect(labels('guardrails').some((label) => label.startsWith('Flag'))).toBe(true);
   });
 
-  it('gives a trail line to every stage but only fills in the stages reached', () => {
-    const lines = at('classify')?.lines ?? [];
-    expect(lines.map((line) => [line.label, line.status])).toEqual([
-      ['Intake', 'done'],
-      ['Privacy', 'done'],
-      ['Classify', 'now'],
-      ['Guardrails', 'pending'],
-      ['Review', 'pending'],
-      ['Done', 'pending'],
+  it('lights the six steps up to the current stage and fills in only the lines reached', () => {
+    const view = must(centerView(atStage('classify')));
+    expect(view.stageName).toBe('Classify');
+    expect(view.steps).toEqual([
+      { name: 'Intake', status: 'done' },
+      { name: 'Privacy', status: 'done' },
+      { name: 'Classify', status: 'now' },
+      { name: 'Guardrails', status: 'pending' },
+      { name: 'Review', status: 'pending' },
+      { name: 'Done', status: 'pending' },
     ]);
-    expect(lines.slice(0, 3).map((line) => line.text)).toEqual([
-      'received.',
-      'masked 1 phone number.',
-      'Accessibility Support, 67% sure. Priority Medium, 85% sure.',
+    expect(view.lines.map((line) => line.label)).toEqual(['Privacy', 'Classify']);
+    expect(must(centerView(atStage('intake'))).lines).toEqual([]);
+    expect(must(centerView(atStage('guardrails'))).lines.map((line) => line.label)).toEqual([
+      'Privacy',
+      'Classify',
+      'Guardrails',
     ]);
-    expect(lines.slice(3).map((line) => line.text)).toEqual([null, null, null]);
   });
 
   it('explains the flag in the Guardrails line', () => {
-    expect(at('guardrails')?.lines[3]?.text).toBe(
+    const trail = trailOf({
+      model: 'Accessibility Support',
+      reasons: [RULE_CAPTIONS, { kind: 'category', category: 'Accessibility Support' }],
+    });
+    const view = must(centerView(withState({ current: { trail, stage: 'guardrails' } })));
+    expect(view.lines.at(-1)?.text).toBe(
       'flagged. A rule caught "captions", and Accessibility Support tickets always go to a person.',
     );
   });
 
-  it('says who reviewed the ticket, and says you when the viewer did', () => {
-    const reviewed = trailOf({ id: 'T-1001-6', model: 'Other', reviewed: 'Billing', reviewedPriority: 'High', flagged: true });
-    const line = (viewerReviews: RunState['viewerReviews']) =>
-      currentTicketView(stateOf({ viewerReviews, current: { trail: reviewed, stage: 'review' } }))?.lines[4]?.text;
-    expect(line([])).toBe('the simulated reviewer chose Billing, priority High.');
-    expect(line([{ id: 'T-1001-6', correct: true }])).toBe('you chose Billing, priority High.');
+  it('speaks for the stage it is at, in plain words', () => {
+    expect(must(centerView(atStage('intake'))).plain).toContain('The ticket arrived');
+    expect(must(centerView(atStage('classify'))).plain).toContain('The model reads the masked text');
   });
 
-  it('says the review was not needed for a ticket that went straight to Done', () => {
-    const view = currentTicketView(stateOf({ done: [trailOf()], current: { trail: trailOf(), stage: 'done' } }));
-    expect(view?.lines[4]?.text).toBe('not needed.');
-    expect(view?.lines[5]?.text).toBe('sent to Billing Team as Billing, priority Medium.');
+  it('carries the tag once the pre-screener has answered, and none before', () => {
+    const run = makeRun();
+    run.step();
+    expect(must(centerView(run.state())).tag).toBeNull();
+    const tagged = stepUntil(run, (s) => s.current?.tag !== undefined);
+    expect(must(centerView(tagged)).tag).toEqual({ word: 'Low', level: 'low' });
   });
 
-  it('has no current ticket once the run is complete', () => {
-    expect(currentTicketView(stateOf({ act: 'complete' }))).toBeUndefined();
+  it('has no ticket once the run is complete', () => {
+    expect(centerView(finishedRun().state())).toBeUndefined();
+  });
+
+  describe('the text marks', () => {
+    const trail = trailOf({
+      text: CAPTIONS_TEXT,
+      found: ['phone'],
+      model: 'Accessibility Support',
+      terms: ['so cannot', 'follow'],
+      reasons: [RULE_CAPTIONS],
+    });
+    const at = (stage: CenterStage, shown = trail) => must(centerView(withState({ current: { trail: shown, stage } })));
+    const marked = (stage: CenterStage) =>
+      at(stage)
+        .segments.filter((segment) => segment.kind !== 'plain')
+        .map((segment) => [segment.kind, segment.text]);
+
+    it('marks word chips, the rule word and the mask token, and keeps the text whole', () => {
+      expect(marked('guardrails')).toEqual([
+        ['rule', 'captions'],
+        ['chip', 'so I cannot'],
+        ['chip', 'follow'],
+        ['mask', '[PHONE_NUMBER]'],
+      ]);
+      expect(at('guardrails').segments.map((segment) => segment.text).join('')).toBe(CAPTIONS_TEXT);
+    });
+
+    it('shows no word chips before Classify, no rule word before Guardrails', () => {
+      expect(marked('intake')).toEqual([]);
+      expect(marked('privacy')).toEqual([['mask', '[PHONE_NUMBER]']]);
+      expect(marked('classify')).toEqual([
+        ['chip', 'so I cannot'],
+        ['chip', 'follow'],
+        ['mask', '[PHONE_NUMBER]'],
+      ]);
+    });
+
+    it('keeps a mask token whole when a word pair runs into it', () => {
+      const run = trailOf({ text: 'Ring me on [PHONE_NUMBER] now', found: ['phone'], terms: ['me on'] });
+      expect(at('classify', run).segments.filter((segment) => segment.kind !== 'plain')).toEqual([
+        { kind: 'chip', text: 'me on' },
+        { kind: 'mask', text: '[PHONE_NUMBER]' },
+      ]);
+    });
   });
 });
 
-describe('narration', () => {
-  const flaggedTrail = trailOf({ id: 'T-1001-6', model: 'Other', reviewed: 'Billing', flagged: true });
-
-  it('speaks for the current stage with the technical detail behind it', () => {
-    const view = narrationView(stateOf({ current: { trail: trailOf(), stage: 'classify' } }));
-    expect(view?.heading).toBe('What is happening - step 3 of 6, Classify');
-    expect(view?.plain).toContain('The model reads the masked text');
-    expect(view?.detail.map((row) => row.label)).toContain('Confidence floor');
-  });
-
-  it('names the viewer, not the simulated reviewer, at the review stage of a ticket they reviewed', () => {
-    const view = narrationView(
-      stateOf({ viewerReviews: [{ id: 'T-1001-6', correct: true }], current: { trail: flaggedTrail, stage: 'review' } }),
-    );
-    expect(view?.plain).toBe('You read the ticket and chose Billing with Medium priority.');
-    const done = narrationView(
-      stateOf({ viewerReviews: [{ id: 'T-1001-6', correct: true }], current: { trail: flaggedTrail, stage: 'done' } }),
-    );
-    expect(done?.plain).toBe('The ticket goes to Billing Team as Billing, priority Medium, decided by you.');
-  });
-
-  it('keeps naming the simulated reviewer when the viewer did not review the ticket', () => {
-    const view = narrationView(stateOf({ current: { trail: flaggedTrail, stage: 'review' } }));
-    expect(view?.plain).toContain('simulated reviewer');
-  });
-
-  it('tells the viewer the ticket waits for them instead of claiming no review was needed', () => {
-    const waiting = { ...trailOf({ model: 'Other', flagged: true }) };
-    const view = narrationView(stateOf({ takeOver: true, current: { trail: waiting, stage: 'review', waiting: true } }));
-    expect(view?.plain).toBe('This ticket is waiting for you. Choose a category, priority and team, then confirm.');
-  });
-});
-
-describe('live numbers', () => {
-  const right = trailOf({ id: 'T-1001-0', ms: 500 });
-  const wrong = { ...trailOf({ id: 'T-1001-1', model: 'Other', ms: 500 }), v0: { category: 'Other' as Category, priority: 'Medium' as Priority, mustReview: false } };
-  const truth = (id: string): TicketLabel =>
-    id === 'T-1001-1' ? { category: 'Billing', priority: 'Medium', mustReview: true } : NO_TRUTH();
-  const value = (label: string, state: RunState) =>
-    numbersView(state, truth).rows.find((row) => row.label === label)?.value;
-
-  it('shows a dash for every number that has no value yet', () => {
-    const view = numbersView(stateOf({}), truth);
-    expect(view.rows.map((row) => [row.label, row.value])).toEqual([
-      ['Tickets done', '0'],
-      ['Tickets per second', '-'],
-      ['Accuracy so far', '-'],
-      ['v0 on the same tickets', '-'],
-      ['Flagged for a person', '-'],
-      ['Reviewer overrides', '0'],
-      ['High-risk tickets missed so far', '0'],
-      ['Your reviews correct', '-'],
+describe('going out', () => {
+  it('lists open tickets in the order given, each with its priority tag and why it was flagged', () => {
+    const urgent = trailOf({
+      id: 'T-1001-8',
+      model: 'Accessibility Support',
+      priority: 'Urgent',
+      reasons: [RULE_CAPTIONS, { kind: 'category', category: 'Accessibility Support' }],
+    });
+    const low = trailOf({ id: 'T-1001-9', model: 'Other', priority: 'Low', reasons: [{ kind: 'low confidence', confidence: 0.4 }] });
+    expect(outgoingView(withState({ open: [urgent, low] }), noTruth).open).toEqual([
+      {
+        id: 'T-1001-8',
+        category: 'Accessibility Support',
+        tag: { word: 'Critical', level: 'critical' },
+        why: 'a rule caught "captions", and Accessibility Support tickets always go to a person',
+      },
+      { id: 'T-1001-9', category: 'Other', tag: { word: 'Low', level: 'low' }, why: 'the model is not sure enough' },
     ]);
   });
 
-  it('shows the figures of the tickets done, a missed high-risk ticket among them', () => {
-    const state = stateOf({ done: [right, wrong], speed: 'real' });
-    expect(value('Tickets done', state)).toBe('2');
-    expect(value('Tickets per second', state)).toBe('2.0');
-    expect(value('Accuracy so far', state)).toBe('50%');
-    expect(value('v0 on the same tickets', state)).toBe('50%');
-    expect(value('Flagged for a person', state)).toBe('0%');
-    expect(value('High-risk tickets missed so far', state)).toBe('1');
+  it('lists closed tickets newest first', () => {
+    const state = finishedRun().state();
+    const ids = outgoingView(state, noTruth).closed.map((row) => row.id);
+    expect(ids).toEqual(state.done.map((trail) => trail.id).reverse());
   });
 
-  it('shows how many of the viewer reviews were right', () => {
-    const state = stateOf({ done: [right], viewerReviews: [{ id: 'a', correct: true }, { id: 'b', correct: false }] });
-    expect(value('Your reviews correct', state)).toBe('1 of 2');
+  it('gives Flagged, Overridden, Auto and Missed their own pill', () => {
+    const run = finishedRun();
+    const state = run.state();
+    const pillOf = (id: string, truthOf: (id: string) => TicketLabel) =>
+      outgoingView(state, truthOf).closed.find((row) => row.id === id)?.pill;
+    const kept = must(state.done.find((t) => t.final.by === 'reviewer' && t.final.category === t.category.label));
+    const changed = must(state.done.find((t) => t.final.by === 'reviewer' && t.final.category !== t.category.label));
+    const passed = must(state.done.find((t) => !t.guard.flagged));
+    expect(pillOf(kept.id, noTruth)).toEqual({ kind: 'flagged', word: 'Flagged' });
+    expect(pillOf(changed.id, noTruth)).toEqual({ kind: 'overridden', word: 'Overridden' });
+    expect(pillOf(passed.id, noTruth)).toEqual({ kind: 'auto', word: 'Auto' });
+    expect(pillOf(passed.id, missedTruth(run).truthOf)).toEqual({ kind: 'missed', word: 'Missed' });
   });
 
-  it('shows the arrival assumption from Act 2 on, and not during Act 1', () => {
-    expect(numbersView(stateOf({ act: 1 }), truth).assumption.shown).toBe(false);
-    const act2 = numbersView(stateOf({ act: 2 }), truth).assumption;
-    expect(act2).toEqual({ text: 'Assumed arrivals: 100 tickets per business day', shown: true });
-    expect(numbersView(stateOf({ act: 'complete' }), truth).assumption.shown).toBe(true);
-  });
-});
-
-describe('status line and controls', () => {
-  const current = { trail: trailOf(), stage: 'intake' as Stage };
-
-  it('says what the run is doing in words', () => {
-    expect(statusView(stateOf({ current }))).toBe('Act 1 of 2 - learn speed');
-    expect(statusView(stateOf({ current, speed: 'real', act: 2 }))).toBe('Act 2 of 2 - real speed');
-    expect(statusView(stateOf({ current, playing: false }))).toBe('Paused');
-    expect(statusView(stateOf({ current, takeOver: true }))).toBe(
-      'You are the reviewer - the run waits on each flagged ticket',
+  it('reads You on a ticket the viewer reviewed', () => {
+    const run = makeRun();
+    const open = stepUntil(run, (s) => s.open.length > 0);
+    const id = must(open.open[0]).id;
+    run.review(id);
+    const truth = run.truthOf(id);
+    run.confirm({ category: truth.category, priority: truth.priority, route: ROUTES[truth.category] });
+    const state = run.state();
+    const row = outgoingView(state, run.truthOf).closed.find((closed) => closed.id === id);
+    expect(row).toEqual({ id, category: truth.category, pill: { kind: 'you', word: 'You' } });
+    expect(moreNumbersView(state, run.truthOf).rows.find((r) => r.label === 'Your reviews correct')?.value).toBe(
+      '1 of 1',
     );
-    expect(statusView(stateOf({ act: 'complete', playing: false }))).toBe('Run complete');
-  });
-
-  it('turns Play into Pause, and stops Play and Step while the viewer must answer or the run is over', () => {
-    expect(controlsView(stateOf({ current, playing: false }))).toMatchObject({ playLabel: 'Play', playDisabled: false, stepDisabled: false });
-    expect(controlsView(stateOf({ current }))).toMatchObject({ playLabel: 'Pause', playDisabled: false, stepDisabled: true });
-    const waiting = stateOf({ takeOver: true, current: { ...current, stage: 'review', waiting: true } });
-    expect(controlsView(waiting)).toMatchObject({ playDisabled: true, stepDisabled: true, takeOverLabel: 'Hand back to the reviewer', takeOverOn: true });
-    expect(controlsView(stateOf({ act: 'complete', playing: false }))).toMatchObject({ playDisabled: true, stepDisabled: true, takeOverLabel: 'Take over' });
   });
 });
 
-describe('take over form defaults', () => {
-  it('start from the model picks, with the team that follows the category and the reason for the flag', () => {
-    const trail = trailOf({ model: 'Accessibility Support', modelPriority: 'High', reasons: [RULE_CAPTIONS], flagged: true });
-    const defaults = takeOverDefaults(stateOf({ takeOver: true, current: { trail, stage: 'review', waiting: true } }));
-    expect(defaults).toEqual({
-      category: 'Accessibility Support',
-      priority: 'High',
-      route: 'Accessibility Team',
-      why: 'a rule caught "captions".',
+describe('controls', () => {
+  it('turns Play into Pause, and allows Step only while paused', () => {
+    const paused = makeRun().state();
+    expect(controlsView(paused, TOTAL)).toMatchObject({ playLabel: 'Play', playDisabled: false, stepDisabled: false });
+    expect(controlsView({ ...paused, playing: true }, TOTAL)).toMatchObject({
+      playLabel: 'Pause',
+      playDisabled: false,
+      stepDisabled: true,
     });
   });
 
-  it('are absent when no ticket waits for the viewer', () => {
-    expect(takeOverDefaults(stateOf({ current: { trail: trailOf(), stage: 'review' } }))).toBeUndefined();
+  it('stops Play and Step and hides real speed while the review form is open', () => {
+    const run = makeRun();
+    const open = stepUntil(run, (s) => s.open.length > 0);
+    run.review(must(open.open[0]).id);
+    expect(controlsView(run.state(), TOTAL)).toEqual({
+      playLabel: 'Play',
+      playDisabled: true,
+      stepDisabled: true,
+      realSpeedLabel: null,
+    });
+  });
+
+  it('stops them, and hides real speed, once the run is complete', () => {
+    expect(controlsView(finishedRun().state(), TOTAL)).toEqual({
+      playLabel: 'Play',
+      playDisabled: true,
+      stepDisabled: true,
+      realSpeedLabel: null,
+    });
+  });
+
+  it('counts the tickets not yet closed in the real speed label', () => {
+    const run = makeRun();
+    const fresh = run.state();
+    expect(controlsView(fresh, TOTAL).realSpeedLabel).toBe(`Run the last ${TOTAL} tickets at real speed`);
+    const some = stepUntil(run, (s) => s.done.length === 3);
+    expect(controlsView(some, TOTAL).realSpeedLabel).toBe(`Run the last ${TOTAL - 3} tickets at real speed`);
   });
 });
 
-describe('a ticket waiting for the viewer', () => {
-  // The engine gives a waiting ticket no review; the Review line must say so in words, not "not needed".
-  it('says Review is waiting for you, not that no review was needed', () => {
-    const trail = trailOf({ model: 'Other', flagged: true });
-    const view = currentTicketView(stateOf({ takeOver: true, current: { trail, stage: 'review', waiting: true } }));
-    expect(view?.lines[4]).toMatchObject({ status: 'now', text: 'waiting for you.' });
+describe('status and the explanation', () => {
+  const base = makeRun().state();
+
+  it('names the pace: learning in Act 1, a busy day in Act 2, then paused or complete', () => {
+    expect(statusView({ ...base, act: 1, playing: true })).toBe('Learning pace');
+    expect(statusView({ ...base, act: 2, playing: true })).toBe('Busy day');
+    expect(statusView({ ...base, act: 2, playing: false })).toBe('Paused');
+    expect(statusView({ ...base, act: 'complete', playing: false })).toBe('Run complete');
+  });
+
+  it('offers the explanation in Act 1 and when paused, and turns it off on the busy day while playing', () => {
+    expect(explainMode({ ...base, act: 1, playing: true })).toBe('offered');
+    expect(explainMode({ ...base, act: 2, playing: true })).toBe('off');
+    expect(explainMode({ ...base, act: 2, playing: false })).toBe('offered');
+  });
+});
+
+describe('the review form', () => {
+  it('is absent when no ticket is being reviewed', () => {
+    expect(reviewView(makeRun().state())).toBeUndefined();
+  });
+
+  it('ignores a reviewer answer even if the trail carries one', () => {
+    const answered: TicketTrail = {
+      ...trailOf({ model: 'Other', priority: 'Low', reasons: [{ kind: 'low confidence', confidence: 0.4 }] }),
+      review: { category: 'Billing', priority: 'High', route: ROUTES.Billing },
+    };
+    expect(reviewView(withState({ reviewing: answered }))).toMatchObject({
+      category: 'Other',
+      priority: 'Low',
+      route: ROUTES.Other,
+      why: 'the model is not sure enough.',
+    });
+  });
+
+  it('starts from the model picks and shows nothing of the simulated reviewer answer', () => {
+    const reference = finishedRun().state();
+    const overridden = must(
+      reference.done.find((trail) => trail.review !== undefined && trail.review.category !== trail.category.label),
+    );
+    const run = makeRun();
+    const open = stepUntil(run, (s) => s.open.some((trail) => trail.id === overridden.id));
+    const flagged = must(open.open.find((trail) => trail.id === overridden.id));
+    run.review(overridden.id);
+    const view = must(reviewView(run.state()));
+    const modelPick = flagged.category.label as Category;
+    expect(view.id).toBe(overridden.id);
+    expect(view.category).toBe(modelPick);
+    expect(view.category).not.toBe(overridden.review?.category);
+    expect(view.priority).toBe(flagged.guard.priority);
+    expect(view.route).toBe(ROUTES[modelPick]);
+    expect(view.why).toBe(`${outgoingView(open, noTruth).open.find((card) => card.id === overridden.id)?.why}.`);
+    expect(view.segments.map((segment) => segment.text).join('')).toBe(flagged.maskedText);
   });
 });
