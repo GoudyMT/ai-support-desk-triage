@@ -66,10 +66,28 @@ function updateStep(step: HTMLElement, item: CenterView['steps'][number]): void 
   }
 }
 
-function lineNode(line: { label: string; text: string }): HTMLElement {
+type Line = CenterView['lines'][number];
+
+// A row is built once and kept, so the dots of a row still waiting keep their rhythm
+// instead of starting over on every render.
+function makeLine(line: Line): HTMLElement {
   const row = el('p', 'line-detail');
-  row.append(el('strong', undefined, `${line.label}: `), document.createTextNode(line.text));
+  const dots = el('span', 'dots');
+  dots.setAttribute('aria-hidden', 'true');
+  dots.append(el('span', 'dot'), el('span', 'dot'), el('span', 'dot'));
+  row.append(el('strong', undefined, `${line.label}: `), el('span', 'line-text'), dots, el('span', 'sr-only', 'Waiting'));
   return row;
+}
+
+function updateLine(row: HTMLElement, line: Line): void {
+  const text = row.querySelector<HTMLElement>('.line-text');
+  const dots = row.querySelector<HTMLElement>('.dots');
+  const waiting = row.querySelector<HTMLElement>('.sr-only');
+  if (text === null || dots === null || waiting === null) return;
+  text.hidden = line.text === null;
+  dots.hidden = line.text !== null;
+  waiting.hidden = line.text !== null;
+  setText(text, line.text ?? '');
 }
 
 function whyNodes(rows: CenterView['why']): HTMLElement[] {
@@ -120,7 +138,7 @@ function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView
   setText(panel.stage, `Now: ${ticket.stageName}`);
   reconcile(panel.track, ticket.steps, (s) => s.name, makeStep, updateStep);
   panel.text.replaceChildren(...segmentNodes(ticket.segments));
-  panel.lines.replaceChildren(...ticket.lines.map(lineNode));
+  reconcile(panel.lines, ticket.lines, (line) => line.label, makeLine, updateLine);
   setText(panel.say, ticket.plain);
   const offered = input.explain === 'offered';
   const open = offered && input.explainOpen;

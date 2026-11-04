@@ -31,8 +31,9 @@ export interface CenterView {
   stageName: string;
   steps: { name: string; status: 'done' | 'now' | 'pending' }[];
   segments: Segment[];
-  // Only the stages reached, from Privacy on: nothing of a later result is shown early.
-  lines: { label: string; text: string }[];
+  // One row per stage from Privacy on, so the center never changes height as stages are reached.
+  // A row whose stage is not reached has `text: null`: nothing of a later result is shown early.
+  lines: { label: string; text: string | null }[];
   plain: string;
   why: { label: string; value: string }[];
 }
@@ -240,9 +241,9 @@ export function centerView(state: RunState): CenterView | undefined {
       status: i < at ? 'done' : i === at ? 'now' : 'pending',
     })),
     segments: segmentsOf(trail, at),
-    lines: LINE_STAGES.filter((line) => stageIndex(line) <= at).map((line) => ({
+    lines: LINE_STAGES.map((line) => ({
       label: STAGE_NAMES[line],
-      text: lineText(trail, line),
+      text: stageIndex(line) <= at ? lineText(trail, line) : null,
     })),
     plain: narrate(trail, stage).plain,
     why: narrate(trail, stage).detail.filter((row) => stageIndex(revealedAt(row.label)) <= at),

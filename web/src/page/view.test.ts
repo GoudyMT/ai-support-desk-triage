@@ -250,6 +250,8 @@ describe('coming in', () => {
 });
 
 describe('the ticket being worked', () => {
+  const reached = (view: NonNullable<ReturnType<typeof centerView>>) => view.lines.map((line) => line.text !== null);
+
   it('shows nothing of the result at Intake, and adds each row as its stage is reached', () => {
     const labels = (stage: CenterStage) => centerView(atStage(stage))?.why.map((row) => row.label) ?? [];
     expect(labels('intake')).toEqual([]);
@@ -271,13 +273,27 @@ describe('the ticket being worked', () => {
       { name: 'Review', status: 'pending' },
       { name: 'Done', status: 'pending' },
     ]);
-    expect(view.lines.map((line) => line.label)).toEqual(['Privacy', 'Classify']);
-    expect(must(centerView(atStage('intake'))).lines).toEqual([]);
-    expect(must(centerView(atStage('guardrails'))).lines.map((line) => line.label)).toEqual([
-      'Privacy',
-      'Classify',
-      'Guardrails',
+    expect(view.lines.map((line) => line.label)).toEqual(['Privacy', 'Classify', 'Guardrails']);
+    expect(reached(view)).toEqual([true, true, false]);
+    expect(reached(must(centerView(atStage('intake'))))).toEqual([false, false, false]);
+    expect(reached(must(centerView(atStage('privacy'))))).toEqual([true, false, false]);
+    expect(reached(must(centerView(atStage('guardrails'))))).toEqual([true, true, true]);
+  });
+
+  it('holds no text from the trail in a row whose stage has not been reached', () => {
+    const view = must(centerView(atStage('intake')));
+    expect(view.lines).toEqual([
+      { label: 'Privacy', text: null },
+      { label: 'Classify', text: null },
+      { label: 'Guardrails', text: null },
     ]);
+    // Nothing of the later results is anywhere in the rows, whatever the field is called.
+    const trail = must(atStage('intake').current).trail;
+    const rows = JSON.stringify(centerView(atStage('intake'))?.lines);
+    expect(rows).not.toContain(trail.category.label);
+    expect(rows).not.toContain('flagged');
+    const guardrails = must(centerView(atStage('classify'))).lines[2];
+    expect(guardrails).toEqual({ label: 'Guardrails', text: null });
   });
 
   it('explains the flag in the Guardrails line', () => {

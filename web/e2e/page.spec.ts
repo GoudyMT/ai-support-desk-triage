@@ -211,22 +211,53 @@ test.describe('what the viewer hears', () => {
   });
 });
 
+test.describe('the stage rows in the center', () => {
+  test('are all there from Intake, waiting with no text, and fill in as each stage is reached', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Step' }).click();
+    const rows = page.locator('#ticket .line-detail');
+    await expect(rows).toHaveCount(3);
+    await expect(page.locator('#ticket .now-stage')).toHaveText('Now: Intake');
+    for (const row of await rows.all()) {
+      await expect(row.locator('.dots')).toBeVisible();
+      await expect(row.locator('.line-text')).toBeHidden();
+      await expect(row).toContainText('Waiting');
+    }
+    for (let n = 0; n < MAX_STEPS && (await page.locator('#ticket .now-stage').innerText()) !== 'Now: Privacy'; n += 1) {
+      await page.getByRole('button', { name: 'Step' }).click();
+    }
+    await expect(rows.nth(0).locator('.line-text')).toBeVisible();
+    await expect(rows.nth(0).locator('.sr-only')).toBeHidden();
+    await expect(rows.nth(0).locator('.dots')).toBeHidden();
+    await expect(rows.nth(1).locator('.line-text')).toBeHidden();
+    await expect(rows.nth(1)).toContainText('Waiting');
+    await expect(rows.nth(2)).toContainText('Waiting');
+  });
+});
+
 test.describe('reduced motion', () => {
-  test('declares no transition on any element and runs none', async ({ page }) => {
+  test('declares no transition or animation on any element and runs none', async ({ page }) => {
     const longest = () =>
       page.evaluate(() => {
         const seconds = (value: string) => Math.max(...value.split(',').map((part) => parseFloat(part)));
         return Math.max(...[...document.querySelectorAll('*')].map((node) => seconds(getComputedStyle(node).transitionDuration)));
       });
+    const animated = () =>
+      page.evaluate(() => [...document.querySelectorAll('*')].filter((node) => getComputedStyle(node).animationName !== 'none').length);
     await open(page);
-    // Control: with motion allowed the buttons do fade, so the check below can tell the difference.
+    // One Step puts a ticket in the center with its three stage rows still waiting (the twinkling dots).
+    await page.getByRole('button', { name: 'Step' }).click();
+    await expect(page.locator('#ticket .dots').first()).toBeVisible();
+    // Control: with motion allowed the buttons fade and the dots twinkle, so the checks below can tell the difference.
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     expect(await longest()).toBeGreaterThan(0);
+    expect(await animated()).toBeGreaterThan(0);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.getByRole('button', { name: 'Play' }).click();
     for (let n = 0; n < 6; n += 1) {
       await page.clock.runFor(4000);
       expect(await longest()).toBe(0);
+      expect(await animated()).toBe(0);
       expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
     }
   });
