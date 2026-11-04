@@ -18,7 +18,7 @@ function makeOpenCard(actions: OutgoingActions) {
     review.addEventListener('click', () => {
       actions.review(item.id);
     });
-    card.append(head, el('p', 'card-line', ''), review);
+    card.append(head, el('p', 'card-team', ''), el('p', 'card-line', ''), review);
     return card;
   };
 }
@@ -27,6 +27,8 @@ function updateOpenCard(card: HTMLElement, item: Outgoing['open'][number]): void
   const title = card.querySelector('.card-title');
   const tag = card.querySelector('.tag');
   const why = card.querySelector('.card-line');
+  const team = card.querySelector('.card-team');
+  if (team !== null) setText(team, item.team);
   if (title !== null) setText(title, `${item.id} ${item.category}`);
   if (tag !== null) {
     setText(tag, item.tag.word);

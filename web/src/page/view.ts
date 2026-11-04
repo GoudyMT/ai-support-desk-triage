@@ -77,6 +77,12 @@ const percent = (share: number): string => `${Math.round(share * PERCENT)}%`;
 const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 const tagView = (priority: Priority): TagView => ({ ...TAG_VIEWS[priority] });
 
+// The team the model's category sends the ticket to. It reads the category only: the trail's
+// final answer or review may hold the simulated reviewer's, which must not show while a ticket is open.
+function teamOf(trail: TicketTrail): string {
+  return ROUTES[trail.category.label as Category];
+}
+
 function viewerReviewed(state: RunState, trail: TicketTrail): boolean {
   return state.viewerReviews.some((review) => review.id === trail.id);
 }
@@ -168,7 +174,8 @@ function lineText(trail: TicketTrail, stage: LineStage): string {
     case 'classify':
       return (
         `${trail.category.label}, ${percent(trail.category.confidence)} sure. ` +
-        `Priority ${trail.priority.label}, ${percent(trail.priority.confidence)} sure.`
+        `Priority ${trail.priority.label}, ${percent(trail.priority.confidence)} sure. ` +
+        `Goes to ${teamOf(trail)}.`
       );
     case 'guardrails': {
       if (!trail.guard.flagged) {
@@ -261,7 +268,7 @@ export function outgoingView(
   state: RunState,
   truthOf: (id: string) => TicketLabel,
 ): {
-  open: { id: string; category: string; tag: TagView; why: string }[];
+  open: { id: string; category: string; tag: TagView; team: string; why: string }[];
   closed: { id: string; category: string; pill: { kind: PillKind; word: string } }[];
 } {
   return {
@@ -269,6 +276,7 @@ export function outgoingView(
       id: trail.id,
       category: trail.category.label,
       tag: tagView(trail.guard.priority),
+      team: teamOf(trail),
       why: whyFlagged(trail),
     })),
     closed: [...state.done].reverse().map((trail) => ({

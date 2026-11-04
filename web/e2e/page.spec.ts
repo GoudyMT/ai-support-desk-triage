@@ -117,6 +117,8 @@ test.describe('the measured real speed result', () => {
 test.describe('reviewing a ticket', () => {
   test('starts from the model picks, keeps the team with the category, and shows no reviewer answer', async ({ page }) => {
     await playToFirstOpen(page);
+    // The open card already names the team the model's category sends the ticket to.
+    await expect(page.locator('#outgoing .open li', { hasText: 'T-1001-0' })).toContainText('Billing Team');
     await reviewButton(page, 'T-1001-0').click();
     const category = page.getByLabel('Category');
     const priority = page.getByLabel('Priority');

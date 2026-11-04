@@ -536,7 +536,8 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.card-line {
+.card-line,
+.card-team {
   margin: var(--space-1) 0 0;
   color: var(--muted);
 }

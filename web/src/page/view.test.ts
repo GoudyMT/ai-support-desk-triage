@@ -301,6 +301,13 @@ describe('the ticket being worked', () => {
     expect(guardrails).toEqual({ label: 'Guardrails (rules)', text: null });
   });
 
+  it('ends the Classify line with the team the model category sends the ticket to', () => {
+    const trail = trailOf({ model: 'Accessibility Support' });
+    const view = must(centerView(withState({ current: { trail, stage: 'classify' } })));
+    expect(view.lines[1]?.text).toMatch(/Priority Medium, 85% sure\. Goes to Accessibility Team\.$/);
+    expect(ROUTES['Accessibility Support']).toBe('Accessibility Team');
+  });
+
   it('explains the flag in the Guardrails line', () => {
     const trail = trailOf({
       model: 'Accessibility Support',
@@ -387,10 +394,42 @@ describe('going out', () => {
         id: 'T-1001-8',
         category: 'Accessibility Support',
         tag: { word: 'Critical', level: 'critical' },
+        team: ROUTES['Accessibility Support'],
         why: 'a rule caught "captions", and Accessibility Support tickets always go to a person',
       },
-      { id: 'T-1001-9', category: 'Other', tag: { word: 'Low', level: 'low' }, why: 'the model is not sure enough' },
+      {
+        id: 'T-1001-9',
+        category: 'Other',
+        tag: { word: 'Low', level: 'low' },
+        team: ROUTES.Other,
+        why: 'the model is not sure enough',
+      },
     ]);
+  });
+
+  it('names the team from the model category, never from an answer the trail carries', () => {
+    const answered: TicketTrail = {
+      ...trailOf({ model: 'Other', priority: 'Low', reasons: [{ kind: 'low confidence', confidence: 0.4 }] }),
+      review: { category: 'Billing', priority: 'High', route: ROUTES.Billing },
+      final: { category: 'Billing', priority: 'High', route: ROUTES.Billing, by: 'reviewer' },
+    };
+    expect(must(outgoingView(withState({ open: [answered] }), noTruth).open[0]).team).toBe(ROUTES.Other);
+  });
+
+  it('shows the model team, not the simulated reviewer team, on a ticket the reviewer will override', () => {
+    const reference = finishedRun().state();
+    const overridden = must(
+      reference.done.find(
+        (trail) =>
+          trail.review !== undefined &&
+          trail.review.category !== trail.category.label &&
+          ROUTES[trail.review.category] !== ROUTES[trail.category.label as Category],
+      ),
+    );
+    const open = stepUntil(makeRun(), (s) => s.open.some((trail) => trail.id === overridden.id));
+    const card = must(outgoingView(open, noTruth).open.find((c) => c.id === overridden.id));
+    expect(card.team).toBe(ROUTES[overridden.category.label as Category]);
+    expect(card.team).not.toBe(overridden.review?.route);
   });
 
   it('lists closed tickets newest first', () => {
