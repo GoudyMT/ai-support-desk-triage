@@ -452,11 +452,15 @@ test.describe('on a wide screen', () => {
   test('the bar never covers the last row of a list', async ({ page }) => {
     await openLearn(page);
     await page.getByRole('button', { name: 'See The Process' }).click();
-    const clear = await page.evaluate(() => {
-      const bar = document.getElementById('bar')?.getBoundingClientRect();
-      const board = document.getElementById('app')?.getBoundingClientRect();
-      return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0);
-    });
-    expect(clear).toBe(true);
+    // The room kept under the page follows the bar's height a moment after the bar changes.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const bar = document.getElementById('bar')?.getBoundingClientRect();
+          const board = document.getElementById('app')?.getBoundingClientRect();
+          return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0);
+        }),
+      )
+      .toBe(true);
   });
 });
