@@ -101,11 +101,11 @@ test.describe('the lists', () => {
 test.describe('a review the viewer confirms', () => {
   // The true answer for T-1001-0 is Billing and Medium, and the model's own picks are the same.
   const cases = [
-    { name: 'the model picks', category: 'Billing', priority: 'Medium', correct: '1 of 1' },
-    { name: 'a wrong category', category: 'Account Access', priority: 'Medium', correct: '0 of 1' },
-    { name: 'a wrong priority', category: 'Billing', priority: 'High', correct: '0 of 1' },
+    { name: 'the model picks', category: 'Billing', priority: 'Medium', correct: '1 of 1', pill: 'You: right' },
+    { name: 'a wrong category', category: 'Account Access', priority: 'Medium', correct: '0 of 1', pill: 'You: wrong' },
+    { name: 'a wrong priority', category: 'Billing', priority: 'High', correct: '0 of 1', pill: 'You: wrong' },
   ];
-  for (const { name, category, priority, correct } of cases) {
+  for (const { name, category, priority, correct, pill } of cases) {
     test(`with ${name}: the closed line shows the choice and the score follows`, async ({ page }) => {
       await playToFirstOpen(page);
       await reviewButton(page, 'T-1001-0').click();
@@ -114,7 +114,7 @@ test.describe('a review the viewer confirms', () => {
       await page.getByRole('button', { name: 'Confirm' }).click();
       const line = page.locator('#outgoing .closed li', { hasText: 'T-1001-0' });
       await expect(line.locator('.line-title')).toHaveText(`T-1001-0 ${category}`);
-      await expect(line.locator('.pill')).toHaveText('You');
+      await expect(line.locator('.pill')).toHaveText(pill);
       await page.getByRole('button', { name: 'All numbers' }).click();
       await expect(moreNumber(page, 'Your reviews correct')).toHaveText(correct);
     });

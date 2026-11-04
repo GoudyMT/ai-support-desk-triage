@@ -102,13 +102,10 @@ function teamOf(trail: TicketTrail): string {
   return ROUTES[trail.category.label as Category];
 }
 
-function viewerReviewed(state: RunState, trail: TicketTrail): boolean {
-  return state.viewerReviews.some((review) => review.id === trail.id);
-}
-
 function pillFor(state: RunState, trail: TicketTrail, truth: TicketLabel): { kind: PillKind; word: string } {
-  if (viewerReviewed(state, trail)) {
-    return { kind: 'you', word: 'You' };
+  const yours = state.viewerReviews.find((review) => review.id === trail.id);
+  if (yours !== undefined) {
+    return { kind: 'you', word: yours.correct ? 'You: right' : 'You: wrong' };
   }
   if (!trail.guard.flagged && truth.mustReview) {
     return { kind: 'missed', word: 'Missed' };

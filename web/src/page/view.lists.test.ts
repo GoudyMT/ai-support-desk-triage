@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ROUTES, type Category, type TicketLabel } from '../domain/labels';
+import { PRIORITIES, ROUTES, type Category, type TicketLabel } from '../domain/labels';
 import type { TicketTrail } from '../pipeline/types';
 import { incomingView, moreNumbersView, outgoingView, reviewView } from './view';
 import {
@@ -115,7 +115,8 @@ describe('going out', () => {
     expect(pillOf(passed.id, missedTruth(run).truthOf)).toEqual({ kind: 'missed', word: 'Missed' });
   });
 
-  it('reads You on a ticket the viewer reviewed', () => {
+  // Once the ticket is closed the truth is no secret, so the line says whether the viewer was right.
+  it('reads You: right on a ticket the viewer reviewed and got right', () => {
     const run = makeRun();
     const open = stepUntil(run, (s) => s.open.length > 0);
     const id = must(open.open[0]).id;
@@ -124,10 +125,22 @@ describe('going out', () => {
     run.confirm({ category: truth.category, priority: truth.priority, route: ROUTES[truth.category] });
     const state = run.state();
     const row = outgoingView(state, run.truthOf).closed.find((closed) => closed.id === id);
-    expect(row).toEqual({ id, category: truth.category, pill: { kind: 'you', word: 'You' } });
+    expect(row).toEqual({ id, category: truth.category, pill: { kind: 'you', word: 'You: right' } });
     expect(moreNumbersView(state, run.truthOf).rows.find((r) => r.label === 'Your reviews correct')?.value).toBe(
       '1 of 1',
     );
+  });
+
+  it('reads You: wrong when the viewer picked the wrong priority', () => {
+    const run = makeRun();
+    const open = stepUntil(run, (s) => s.open.length > 0);
+    const id = must(open.open[0]).id;
+    run.review(id);
+    const truth = run.truthOf(id);
+    const wrong = must(PRIORITIES.find((priority) => priority !== truth.priority));
+    run.confirm({ category: truth.category, priority: wrong, route: ROUTES[truth.category] });
+    const row = outgoingView(run.state(), run.truthOf).closed.find((closed) => closed.id === id);
+    expect(row?.pill).toEqual({ kind: 'you', word: 'You: wrong' });
   });
 });
 
