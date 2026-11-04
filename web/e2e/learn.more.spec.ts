@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openLearn, playToFirstOpen, tabTo } from './helpers';
+import { open, openLearn, playToFirstOpen, tabTo } from './helpers';
 import { block, count, next } from './learnKit';
 
 // Long enough for a slow ticket to move from one stage to the next (five seconds), short of the end of step 7.
@@ -115,6 +115,16 @@ test.describe('keyboard focus in Learn', () => {
 const MAX_TABS = 45;
 // The stops above the bar before Tab reaches it: the numbers' buttons, the link, the center's button and the lists.
 const MIN_STOPS = 5;
+
+test.describe('focus that is not on a control', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  // Focus on the page itself (or on a list taller than the screen) is nothing to scroll to: the page stays at its top.
+  test('leaves the page at the top when focus goes to the body', async ({ page }) => {
+    await open(page);
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(0);
+  });
+});
 
 for (const viewport of [
   { width: 375, height: 812 },
