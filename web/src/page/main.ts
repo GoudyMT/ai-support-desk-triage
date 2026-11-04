@@ -151,7 +151,7 @@ function render(mounted: Mounted): void {
     realSpeedLabel: controls.realSpeedLabel,
     result,
   });
-  panels.speech.say(sentence);
+  panels.speech.say(sentence, state);
   panels.focus.after(review !== undefined, result !== undefined);
   // Real speed shows the finished run in one render, so no card travels.
   panels.motion.play(result === undefined);

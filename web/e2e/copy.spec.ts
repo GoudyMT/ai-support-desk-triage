@@ -96,6 +96,7 @@ test.describe('the end of a paced run', () => {
     }
     await expect(page.locator('#status')).toHaveText('Run complete');
     await expect(idle).toHaveText('Run complete');
+    await expect(page.locator('#announcer')).toHaveText('Run complete.');
     // Nothing is left to run, so the only button is the one that times the pass.
     await expect(page.getByRole('button', { name: /^Run the last/ })).toHaveCount(0);
     await page.getByRole('button', { name: 'See how fast this runs at real speed' }).click();

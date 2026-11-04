@@ -89,9 +89,10 @@ test.describe('the narration', () => {
       await page.clock.runFor(1000);
     }
     await expect(page.locator('#status')).toHaveText('Busy day');
+    // No stage sentence on the busy day: the region says once that it has started, and nothing else.
     for (let n = 0; n < NARRATION_POLLS; n += 1) {
       await page.clock.runFor(POLL_MS);
-      expect(await said(page)).toEqual({ shown: '', spoken: '' });
+      expect(await said(page)).toEqual({ shown: '', spoken: 'The busy day has started.' });
     }
 
     await page.getByRole('button', { name: 'Pause' }).click();
