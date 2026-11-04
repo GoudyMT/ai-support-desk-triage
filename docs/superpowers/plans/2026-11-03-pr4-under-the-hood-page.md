@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 12 (Learn The Process and See The Process), then the re-sweep in 11
+- Current task: 11, the re-sweep
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -15,7 +15,9 @@
   through 81e1fa1, 69 e2e green, Opus check ESCALATE (Execution Notes); Task 10 - motion, 99 e2e green
   the check's fixes, size limits and the first sweep's fix round - through 44a56b3, lead break check red, gate exit 0
   with 1029 unit tests, page 40,565 of 43,000 bytes, 282 e2e green in three browsers
-- Next: Task 12, then the sweep outcome and re-sweep, PR body, the owner's go
+  Tasks 12, 13 and 14 - through 1aaca15 with the word fixes a960d62: 570 e2e green in three browsers, 1128 unit tests,
+  page 47,070 of 47,500 bytes (the owner's yes), Opus check ESCALATE settled by the owner, visitor walk done
+- Next: re-sweep, PR body, the owner's go; a real device stays unproven and carries to PR 6
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -289,21 +291,21 @@ Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, an
 Design section 5, entry "the page is built so the least technical person can follow it"; wireframe
 https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; the two views differ only in who drives.
 
-- [ ] Engine: a hold (`'line'`, a center stage, or none) that stops the center ticket moving on while arrivals, tags and
+- [x] Engine: a hold (`'line'`, a center stage, or none) that stops the center ticket moving on while arrivals, tags and
       closes carry on; a slow count (3 at the start; Speed up sets 0, Slow down sets 3) that replaces the fixed first
       three tickets; the run pauses by itself when the last slow ticket leaves the center unless the viewer sped up ->
       verify: engine rows red first, including `finishNow` and the timing pass ignoring both
-- [ ] One bottom bar, fixed to the screen's bottom edge, holds every control and the plain status; the switch has its
+- [x] One bottom bar, fixed to the screen's bottom edge, holds every control and the plain status; the switch has its
       own top space, never dimmed, never over the stats; icons carry a word -> verify: e2e at 1280x800, 768 and 375 px,
       six of thirteen open cards still in view at 1280x800, no sideways scroll, 44 px targets
-- [ ] Learn The Process opens first: dim layer with one lit area measured from the real element, a context block beside
+- [x] Learn The Process opens first: dim layer with one lit area measured from the real element, a context block beside
       it holding the step's text and the live ticket's own sentence, a loading bar per step on the bar's top edge, each
       step timed at 238 words a minute, Back / Pause / Next, ends into See -> verify: e2e rows for each step's lit area,
       timing, Back, Pause, the end, phones, keyboard and reduced motion (starts paused)
-- [ ] See The Process plays at once, slow first, Speed up / Slow down in the bar, offers the busy day at the end of the
+- [x] See The Process plays at once, slow first, Speed up / Slow down in the bar, offers the busy day at the end of the
       slow part -> verify: e2e rows; page within the 45,000 byte limit or a measured shortfall reported
-- [ ] Opus check; a real screen and clip to the owner; a walk with zero-technical eyes -> verify: the owner's look
-- [ ] Check on the way out (owner, 2026-11-04): a small-model agent with no project context walks the built page's
+- [x] Opus check; a real screen and clip to the owner; a walk with zero-technical eyes -> verify: the owner's look
+- [x] Check on the way out (owner, 2026-11-04): a small-model agent with no project context walks the built page's
       screens and words as a non-technical first-time visitor, says back the process in its own words and lists what it
       did not understand -> verify: its report, each question fixed or answered with the owner
 - [ ] After the clip and that walk, the owner decides whether small eye-drawing cues are needed; none are built before
@@ -313,16 +315,16 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
 
 Design section 5, first 2026-11-04 entry.
 
-- [ ] Time saved and Value saved in All numbers, source on hover, focus and tap, light flash on a rise -> verify:
+- [x] Time saved and Value saved in All numbers, source on hover, focus and tap, light flash on a rise -> verify:
       `valueSaved` rows through the real engine; `value.spec.ts`
-- [ ] Pace notice on the line under the title, wider switch, note under the switch in Learn -> verify: e2e rows; six of
+- [x] Pace notice on the line under the title, wider switch, note under the switch in Learn -> verify: e2e rows; six of
       thirteen open cards at 1280x800
 
 ### Task 14 (builder, fix round of the Opus check): the owner's four calls and its fixes
 
-- [ ] Speed up jumps to the busy day; "Busy day" only when true; steps 2 and 6 copy; the reviewer holds on step 6; every
+- [x] Speed up jumps to the busy day; "Busy day" only when true; steps 2 and 6 copy; the reviewer holds on step 6; every
       bar word on phones -> verify: rows red first
-- [ ] Focus after Back on step 1, focus under the bar, the live line and the offer for a screen reader, four rows that
+- [x] Focus after Back on step 1, focus under the bar, the live line and the offer for a screen reader, four rows that
       could not fail -> verify: break checks; one fix check; the visitor walk
 
 ### Task 11 (lead, then the owner): close out
@@ -337,6 +339,13 @@ Design section 5, first 2026-11-04 entry.
 ## Parking Lot
 
 ## Execution Notes & Deviations
+
+- 2026-11-04 Task 9 Opus check: ESCALATE on four calls (real speed as a fresh pass, phone layout below 1024 px, narration,
+  caption wording); the owner took every recommendation. Narration wording answered the same way; 2026-11-04 the owner
+  also took the plainer words after the visitor walk. Real device: emulator only, carried to PR 6.
+- 2026-11-04 Task 14: Speed up skips run time, so the simulated reviewer does not work through the skipped stretch and the
+  open list can run longer than a paced day would. Opening All numbers mid-flight cancels the ghosts (real bug, all three
+  browsers). A word the guard test forbids stayed out: the second check sentence reads "guess was weak", not "only N% sure".
 
 - 2026-11-04 device test: the owner chose an emulator over the S26. Emulated phone (384 x 832, touch, Android user agent,
   4x CPU slowdown): 0 console errors, no sideways scroll, no tap target under 44 px, tabs, review form, All numbers and

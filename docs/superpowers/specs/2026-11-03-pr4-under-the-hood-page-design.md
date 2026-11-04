@@ -102,6 +102,12 @@ numbers CI already holds (parent section 6 start point).
   tickets, one sentence per ticket after that, none on the busy day while playing; Pause always shows the current
   stage's sentence. A caption under Coming in names the tags: "Tags are a quick first guess from a small model." A
   priority a rule raised is labeled "raised by a rule" in the review form.
+- 2026-11-04 (sweep): the pre-screener's 80% comes from the seeds that chose the cut. On the test seeds it is 141 of 195,
+  72.3%; fold 2 there is 22 of 45, 48.9%; fold 0 over 40 fresh seeds is 109 of 163, 66.9%. Pending review counts the open
+  list plus a ticket under review, so while the form is open it reads one more than the Open heading.
+- 2026-11-04 (owner, on the first-time visitor walk): step 6 ends "The demo stops once the ticket reaches its team. The
+  team writes the reply."; a number with no value yet reads "none yet"; the running sentences say hid, hidden, sure and
+  line, not masked, confidence and floor; Why this choice keeps the exact terms.
 - 2026-11-04 (owner, on the clip and the Opus check): Speed up jumps to the busy day, so waiting tickets land in the line
   at once; "Busy day" shows only when it is true. Step 6 reads "In See The Process, you can press Review to take its
   place", and the simulated reviewer holds during that step. Step 2 reads "This is what the customer wrote, with any
