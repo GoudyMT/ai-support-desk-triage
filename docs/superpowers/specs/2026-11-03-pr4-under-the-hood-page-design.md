@@ -102,6 +102,15 @@ numbers CI already holds (parent section 6 start point).
   tickets, one sentence per ticket after that, none on the busy day while playing; Pause always shows the current
   stage's sentence. A caption under Coming in names the tags: "Tags are a quick first guess from a small model." A
   priority a rule raised is labeled "raised by a rule" in the review form.
+- 2026-11-04 (owner): the page is built so the least technical person can follow it. Two views on the same board, named by
+  what they do, never by skill: Learn The Process and See The Process. Wireframe:
+  https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Learn The Process opens first: everything dims except the area being
+  explained, a context block sits beside it, a loading bar per step shows progress, and each step moves on after its own
+  words at 238 words a minute (average adult silent reading, Brysbaert 2019), with Pause, Back and Next. A live ticket
+  walks each step on the real engine while the rest keeps moving behind the dim layer. See The Process is the live
+  board, slowed first; speeding up is the viewer's choice through a Speed up button, and if nobody presses it the run
+  waits at the end of the slow part and offers the busy day. All controls live in one bottom bar like a video player;
+  the two-way switch has its own space at the top, never dimmed and never over the stats.
 - 2026-11-04 (owner): the reviewer's pace changes to one ticket every 1.5 seconds, the center stays at about 1 second
   per ticket. Measured on the real engine, 8 seeds: at one close a second the open list never holds more than 1 ticket,
   so the right column has nothing to show; at 1.5 s it peaks at 17-25 and a run takes about 4:15.
