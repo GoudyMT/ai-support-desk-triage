@@ -1,5 +1,5 @@
 import { PILL_KEY, reviewerNote } from './copy';
-import { el, reconcile, setClass, setText } from './dom';
+import { button, el, reconcile, setClass, setText } from './dom';
 import type { outgoingView } from './view';
 
 type Outgoing = ReturnType<typeof outgoingView>;
@@ -14,12 +14,10 @@ function makeOpenCard(actions: OutgoingActions) {
     card.dataset.ticket = item.id;
     const head = el('div', 'card-head');
     head.append(el('span', 'card-title', ''), el('span', 'tag', ''));
-    const review = el('button', 'btn btn-line', 'Review');
-    review.type = 'button';
-    review.setAttribute('aria-label', `Review ${item.id}`);
-    review.addEventListener('click', () => {
+    const review = button('btn btn-line', 'Review', () => {
       actions.review(item.id);
     });
+    review.setAttribute('aria-label', `Review ${item.id}`);
     card.append(head, el('p', 'card-team', ''), el('p', 'card-line', ''), review);
     return card;
   };
@@ -66,15 +64,13 @@ function buildKey(): { toggle: HTMLButtonElement; list: HTMLElement } {
     item.append(el('span', `pill pill-${row.kind}`, row.word), el('span', 'sr-only', ': '), el('span', undefined, row.meaning));
     list.append(item);
   }
-  const toggle = el('button', 'btn btn-link btn-small');
-  toggle.type = 'button';
-  toggle.setAttribute('aria-expanded', 'false');
-  toggle.setAttribute('aria-controls', list.id);
-  toggle.append(el('span', 'chevron'), document.createTextNode('What these mean'));
-  toggle.addEventListener('click', () => {
+  const toggle = button('btn btn-link btn-small', undefined, () => {
     list.hidden = !list.hidden;
     toggle.setAttribute('aria-expanded', String(!list.hidden));
   });
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', list.id);
+  toggle.append(el('span', 'chevron'), document.createTextNode('What these mean'));
   return { toggle, list };
 }
 
@@ -87,16 +83,14 @@ export function mountOutgoing(
   root: HTMLElement,
   actions: OutgoingActions,
 ): { render(view: Outgoing, pending: string, locked: boolean): void } {
-  const collapse = el('button', 'btn btn-line btn-small', 'Collapse');
-  collapse.type = 'button';
+  const collapse = button('btn btn-line btn-small', 'Collapse');
   collapse.setAttribute('aria-expanded', 'true');
   const head = el('div', 'col-head');
   const note = el('p', 'muted col-head-note', reviewerNote());
   const heading = el('div', 'col-head-text');
   heading.append(el('h2', 'col-title', 'Going out'), note);
   head.append(heading, collapse);
-  const rail = el('button', 'rail');
-  rail.type = 'button';
+  const rail = button('rail');
   rail.setAttribute('aria-expanded', 'false');
   const railCount = el('span', 'rail-count', '0');
   rail.append(railCount, el('span', 'rail-word', 'pending'));

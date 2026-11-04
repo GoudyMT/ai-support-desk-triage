@@ -15,6 +15,14 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+// A button that never submits a form; the click handler is optional for a button that wires its own.
+export function button(className: string, label?: string, onClick?: () => void): HTMLButtonElement {
+  const node = el('button', className, label);
+  node.type = 'button';
+  if (onClick !== undefined) node.addEventListener('click', onClick);
+  return node;
+}
+
 export function byId(id: string): HTMLElement {
   const node = document.getElementById(id);
   if (node === null) {

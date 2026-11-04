@@ -1,5 +1,5 @@
 import { CATEGORIES, PRIORITIES, ROUTES, type Category, type Priority } from '../domain/labels';
-import { el, segmentNodes } from './dom';
+import { button, el, segmentNodes } from './dom';
 import type { reviewView } from './view';
 
 export interface Decision {
@@ -58,8 +58,7 @@ function buildForm(root: HTMLElement) {
   fields.append(category.box, priority.box, team.box);
   const confirm = el('button', 'btn btn-solid', 'Confirm');
   confirm.type = 'submit';
-  const handBack = el('button', 'btn btn-line', 'Hand back to the reviewer');
-  handBack.type = 'button';
+  const handBack = button('btn btn-line', 'Hand back to the reviewer');
   const buttons = el('div', 'actions');
   buttons.append(confirm, handBack);
   const note = el('p', 'muted', 'Your category and priority are scored against the true answer. The team is not scored.');

@@ -1,4 +1,4 @@
-import { el, reconcile, segmentNodes, setClass, setText } from './dom';
+import { button, el, reconcile, segmentNodes, setClass, setText } from './dom';
 import type { CenterView, realSpeedView } from './view';
 
 export interface CenterInput {
@@ -52,13 +52,6 @@ function resultLine(result: NonNullable<CenterInput['result']>): string {
 // The number comes from a second pass over every ticket, so it says what that pass was.
 function howLine(result: NonNullable<CenterInput['result']>): string {
   return `We ran all ${result.tickets} tickets again with no pacing and no cards drawn, so you see how fast the software really is. The page measures it in your browser.`;
-}
-
-function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
 }
 
 function makeStep(item: { name: string }): HTMLElement {

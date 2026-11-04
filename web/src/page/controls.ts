@@ -1,13 +1,6 @@
-import { el, setText } from './dom';
+import { button, el, setText } from './dom';
 
 export type TabName = 'in' | 'out';
-
-function button(label: string, className: string, onClick: () => void): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
 
 const TABS: { name: TabName; label: string; listId: string }[] = [
   { name: 'in', label: 'Coming in', listId: 'incoming' },
@@ -34,7 +27,7 @@ export function mountTabs(
     }
   };
   for (const { name, label, listId } of TABS) {
-    const tab = button('', 'tab', () => {
+    const tab = button('tab', '', () => {
       select(name, false);
     });
     tab.setAttribute('role', 'tab');

@@ -1,4 +1,4 @@
-import { byId, el, setText } from './dom';
+import { button, byId, el, setText } from './dom';
 import type { barFills as barFillsFn, learnBarView } from './learnView';
 import type { controlsView, speedView } from './view';
 
@@ -39,22 +39,11 @@ function icon(name: IconName): SVGElement {
   return svg;
 }
 
-function button(className: string, onClick: () => void): HTMLButtonElement {
-  const node = el('button', `btn ${className}`);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
-
 // The icon always sits beside its word. Rebuilt only when the face changes, so a focused button stays put.
 function face(node: HTMLButtonElement, name: IconName, label: string): void {
   if (node.dataset.face === `${name} ${label}`) return;
   node.dataset.face = `${name} ${label}`;
   node.replaceChildren(icon(name), el('span', 'bar-word', label));
-}
-
-function setSolid(node: HTMLElement, solid: boolean): void {
-  node.classList.toggle('btn-solid', solid);
 }
 
 type SeeView = {
@@ -81,15 +70,16 @@ export function mountBar(root: HTMLElement, actions: BarActions, steps: number):
   const seeRow = byId('controls');
   const learnRow = byId('learn-controls');
   const progress = byId('bars');
-  const play = button('btn-solid', actions.playPause);
-  const step = button('bar-quiet', actions.step);
-  const restart = button('bar-quiet', actions.restart);
-  const speed = button('btn-speed', actions.speed);
+  const status = byId('status');
+  const play = button('btn btn-solid', '', actions.playPause);
+  const step = button('btn bar-quiet', '', actions.step);
+  const restart = button('btn bar-quiet', '', actions.restart);
+  const speed = button('btn btn-speed', '', actions.speed);
   seeRow.prepend(play, step, restart);
   seeRow.append(speed);
-  const back = button('bar-quiet', actions.back);
-  const main = button('btn-solid', actions.learnPause);
-  const next = button('', actions.next);
+  const back = button('btn bar-quiet', '', actions.back);
+  const main = button('btn btn-solid', '', actions.learnPause);
+  const next = button('btn', '', actions.next);
   const count = el('p', 'bar-status bar-count');
   learnRow.append(back, main, next, count);
   face(step, 'step', 'Step');
@@ -119,8 +109,8 @@ export function mountBar(root: HTMLElement, actions: BarActions, steps: number):
       step.disabled = view.controls.stepDisabled;
       face(speed, view.speed.label === 'Speed up' ? 'faster' : 'slower', view.speed.label);
       speed.disabled = view.speed.disabled;
-      setSolid(speed, view.speed.solid);
-      setText(byId('status'), view.status);
+      speed.classList.toggle('btn-solid', view.speed.solid);
+      setText(status, view.status);
     },
     renderLearn(view: ReturnType<typeof learnBarView>) {
       back.disabled = view.backDisabled;
