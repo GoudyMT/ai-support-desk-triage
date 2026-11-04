@@ -1,13 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Seed 1001 runs on fold 1. Its first ticket (T-1001-0) is flagged and the model's picks
-// for it are Billing and Medium; the second (T-1001-1) is flagged with the model's picks
-// Urgent Complaint and Medium, where the simulated reviewer would choose Account Access.
+// Seed 1001 runs on fold 1. At learn pace its first ticket (T-1001-0) leaves the center for the
+// open list 20 s into the run; the model's picks for it are Billing, Medium and the Billing Team.
+// Ticket T-1001-1 is flagged later with the picks Urgent Complaint, Medium and the Escalations
+// Team, where the simulated reviewer would choose Account Access.
 const SEED = 1001;
 const START = new Date('2026-01-01T09:00:00');
-const COMPLETE_RUN_MS = 300_000;
-const STEPS_TO_FIRST_REVIEW = 4;
-const MAX_TABS = 25;
+const FIRST_OPEN_MS = 20_500;
+const OPEN_POLL_MS = 250;
+const PROBE_SETTLE_MS = 300;
+const REVIEWER_CLOSE_MS = 1_600;
+const MAX_TABS = 30;
+const MAX_STEPS = 120;
+const TOTAL_TICKETS = 130;
 
 // Opens the page with the clock under the test's control: nothing moves until `runFor`.
 async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
@@ -17,121 +22,256 @@ async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
   await page.clock.pauseAt(new Date(START.getTime() + 1000));
 }
 
+async function playToFirstOpen(page: Page): Promise<void> {
+  await open(page);
+  await page.getByRole('button', { name: 'Play' }).click();
+  await page.clock.runFor(FIRST_OPEN_MS);
+  await expect(reviewButton(page, 'T-1001-0')).toHaveCount(1);
+}
+
+// Runs the clock in small steps until the ticket is in the open list, before the simulated
+// reviewer has had time to close it. Tickets reach the center in the order the pre-screener's
+// tags set, so a later ticket's turn is found by looking, not by a fixed time.
+async function runUntilOpen(page: Page, id: string): Promise<void> {
+  for (let n = 0; n < MAX_STEPS * 4 && (await reviewButton(page, id).count()) === 0; n += 1) {
+    await page.clock.runFor(OPEN_POLL_MS);
+  }
+  await expect(reviewButton(page, id)).toBeVisible();
+}
+
+function reviewButton(page: Page, id: string) {
+  // By label, not by role: on a phone the list is display:none until its tab is chosen.
+  return page.locator(`#outgoing button[aria-label="Review ${id}"]`);
+}
+
+function stat(page: Page, label: string) {
+  return page.locator('#stats > div', { hasText: label }).locator('dd');
+}
+
+function moreNumber(page: Page, label: string) {
+  return page.locator('#numbers > dl > div', { hasText: label }).locator('dd');
+}
+
 async function activeLabel(page: Page): Promise<string> {
   return page.evaluate(() => document.activeElement?.textContent?.trim() ?? '');
 }
 
-// Presses Tab until the named control has focus; keyboard only, so no pointer and no focus().
-async function tabTo(page: Page, name: string): Promise<void> {
+// Presses Tab until the focused control's text matches; keyboard only, so no pointer and no focus().
+async function tabTo(page: Page, name: string | RegExp): Promise<void> {
   for (let n = 0; n < MAX_TABS; n += 1) {
     await page.keyboard.press('Tab');
-    if ((await activeLabel(page)) === name) return;
+    const label = await activeLabel(page);
+    if (typeof name === 'string' ? label === name : name.test(label)) return;
   }
-  throw new Error(`test: Tab never reached ${name}`);
-}
-
-function numberOf(page: Page, label: string) {
-  return page.locator('#numbers .row', { hasText: label }).locator('.num');
+  throw new Error(`test: Tab never reached ${String(name)}`);
 }
 
 test.describe('the run, by keyboard alone', () => {
-  test('goes from Play to Run complete at real speed', async ({ page }) => {
+  test('goes from Play through a review to Run complete at real speed', async ({ page }) => {
     await open(page);
     await tabTo(page, 'Play');
     await page.keyboard.press('Enter');
-    await expect(page.locator('#status')).toHaveText('Act 1 of 2 - learn speed');
-    // Step is disabled while playing, so the next Tab stop is Learn speed, then Real speed.
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Space');
-    await expect(page.getByRole('button', { name: 'Real speed' })).toHaveAttribute('aria-pressed', 'true');
-    await page.clock.runFor(COMPLETE_RUN_MS);
-    await expect(page.locator('#status')).toHaveText('Run complete');
-    await expect(numberOf(page, 'Tickets done')).toHaveText('130');
-    await expect(page.getByRole('button', { name: 'Play' })).toBeDisabled();
-  });
+    await expect(page.locator('#status')).toHaveText('Learning pace');
+    await page.clock.runFor(FIRST_OPEN_MS);
 
-  test('pauses, steps, explains, takes over and confirms', async ({ page }) => {
-    await open(page);
-    await tabTo(page, 'Play');
+    await tabTo(page, 'Review');
     await page.keyboard.press('Enter');
-    await page.keyboard.press('Enter');
-    await expect(page.locator('#status')).toHaveText('Paused');
-    await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: 'Step' })).toBeFocused();
-    await page.keyboard.press('Enter');
-    await expect(page.locator('.stage-lit .stage-name')).toHaveText('2 Privacy');
-    await tabTo(page, 'Explain');
-    await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: 'Explain' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('#current summary')).toBeVisible();
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: 'Hand back to the reviewer' })).toBeVisible();
-    // Back from Take over to Step (past Explain, Real speed and Learn speed), then step on
-    // until the first flagged ticket waits for the viewer.
-    for (let n = 0; n < 4; n += 1) await page.keyboard.press('Shift+Tab');
-    await expect(page.getByRole('button', { name: 'Step' })).toBeFocused();
-    for (let n = 0; n < STEPS_TO_FIRST_REVIEW - 1; n += 1) await page.keyboard.press('Enter');
-    await expect(page.locator('#take-over')).toBeFocused();
+    await expect(page.getByRole('heading', { name: 'You are reviewing T-1001-0' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByLabel('Category')).toBeFocused();
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: 'Confirm and continue' })).toBeFocused();
+    await tabTo(page, 'Confirm');
     await page.keyboard.press('Enter');
-    await expect(page.locator('#take-over')).toBeHidden();
-    // Focus returns to the first control, which says Play because this run was paused.
-    await expect(page.getByRole('button', { name: 'Play' })).toBeFocused();
-    await expect(numberOf(page, 'Your reviews correct')).toHaveText(/^\d of 1$/);
+    await expect(page.locator('#review')).toBeHidden();
+    // Focus lands on a control that still exists: the first one, which says Pause while the run plays.
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
+    await expect(page.locator('#outgoing .closed li', { hasText: 'T-1001-0' })).toContainText('You');
+
+    // One ticket is closed (by the viewer), so 129 are left; the frozen test clock measures 0 ms and gives no rate.
+    await tabTo(page, /^Run the last 129 tickets at real speed$/);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#status')).toHaveText('Run complete');
+    await expect(stat(page, 'Tickets done')).toHaveText(String(TOTAL_TICKETS));
+    await expect(page.getByRole('heading', { name: 'Run complete at real speed' })).toBeFocused();
+    await expect(page.locator('#ticket')).toContainText('129 tickets through every stage in 0 ms.');
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
+  });
+});
+
+test.describe('the measured real speed result', () => {
+  test('shows how long the whole run took and the rate, on the real clock', async ({ page }) => {
+    await page.goto(`/?seed=${SEED}`);
+    await page.getByRole('button', { name: 'Play' }).click();
+    await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
+    await expect(page.locator('#status')).toHaveText('Run complete');
+    await expect(page.getByRole('heading', { name: 'Run complete at real speed' })).toBeVisible();
+    await expect(page.locator('#ticket')).toContainText(
+      /130 tickets through every stage in \d+ ms, about [\d,]+ tickets a second\./,
+    );
+    await expect(page.locator('#ticket')).toContainText('Reviews are simulated');
+    await page.getByRole('button', { name: 'All numbers' }).click();
+    await expect(moreNumber(page, 'Tickets per second')).toHaveText(/^[\d.]+$/);
+  });
+});
+
+test.describe('reviewing a ticket', () => {
+  test('starts from the model picks, keeps the team with the category, and shows no reviewer answer', async ({ page }) => {
+    await playToFirstOpen(page);
+    await reviewButton(page, 'T-1001-0').click();
+    const category = page.getByLabel('Category');
+    const priority = page.getByLabel('Priority');
+    const team = page.getByLabel('Team');
+    await expect(category).toHaveValue('Billing');
+    await expect(priority).toHaveValue('Medium');
+    await expect(team).toHaveValue('Billing Team');
+    // The team follows the category until the viewer picks a team.
+    await category.selectOption('Account Access');
+    await expect(team).toHaveValue('Account Support');
+    await team.selectOption('General Support');
+    await category.selectOption('Security Concern');
+    await expect(team).toHaveValue('General Support');
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.getByRole('button', { name: 'All numbers' }).click();
+    await expect(moreNumber(page, 'Your reviews correct')).toHaveText(/^\d of 1$/);
+
+    await runUntilOpen(page, 'T-1001-1');
+    await reviewButton(page, 'T-1001-1').click();
+    await expect(page.locator('#review h2')).toHaveText('You are reviewing T-1001-1');
+    await expect(category).toHaveValue('Urgent Complaint');
+    await expect(priority).toHaveValue('Medium');
+    await expect(team).toHaveValue('Escalations Team');
+    for (const area of ['#review h2', '#review .why', '#review .ticket-text']) {
+      expect(await page.locator(area).innerText()).not.toContain('Account Access');
+    }
+  });
+
+  test('hands the ticket back to the open list and returns focus to a control that exists', async ({ page }) => {
+    await playToFirstOpen(page);
+    await reviewButton(page, 'T-1001-0').click();
+    await page.getByRole('button', { name: 'Hand back to the reviewer' }).click();
+    await expect(page.locator('#review')).toBeHidden();
+    await expect(reviewButton(page, 'T-1001-0')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
+  });
+
+  test('keeps focus on a Review button while the lists change under it', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    const buttons = page.locator('#outgoing .open').getByRole('button');
+    for (let n = 0; n < MAX_STEPS && (await buttons.count()) < 3; n += 1) {
+      await page.clock.runFor(1000);
+    }
+    expect(await buttons.count()).toBeGreaterThanOrEqual(3);
+    const last = buttons.last();
+    const name = await last.getAttribute('aria-label');
+    await last.focus();
+    // The simulated reviewer closes the top card and new tickets arrive meanwhile.
+    await page.clock.runFor(REVIEWER_CLOSE_MS);
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toBe(name);
+  });
+});
+
+test.describe('the right column', () => {
+  test('collapses to a rail with the pending count while every ticket keeps moving', async ({ page }) => {
+    await playToFirstOpen(page);
+    await page.getByRole('button', { name: 'Collapse' }).click();
+    const rail = page.getByRole('button', { name: 'Show tickets going out, 1 pending human review' });
+    await expect(rail).toBeFocused();
+    await expect(rail.locator('.rail-count')).toHaveText('1');
+    await expect(reviewButton(page, 'T-1001-0')).toBeHidden();
+    await expect(stat(page, 'Tickets done')).toHaveText('0');
+    await page.clock.runFor(REVIEWER_CLOSE_MS);
+    await expect(stat(page, 'Tickets done')).toHaveText('1');
+    const emptyRail = page.getByRole('button', { name: 'Show tickets going out, 0 pending human review' });
+    await expect(emptyRail.locator('.rail-count')).toHaveText('0');
+    await emptyRail.click();
+    await expect(page.getByRole('button', { name: 'Collapse' })).toBeFocused();
+    await expect(page.locator('#outgoing .closed li', { hasText: 'T-1001-0' })).toBeVisible();
+  });
+});
+
+test.describe('what the viewer hears', () => {
+  test('speaks each stage at learn pace and stays quiet on the busy day', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Step' }).click();
+    await page.getByRole('button', { name: 'Step' }).click();
+    const spoken = await page.locator('#ticket .say').innerText();
+    expect(spoken).not.toBe('');
+    await expect(page.locator('#announcer')).toHaveText(spoken);
+
+    await page.getByRole('button', { name: 'Play' }).click();
+    for (let n = 0; n < MAX_STEPS && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {
+      await page.clock.runFor(5000);
+    }
+    await expect(page.locator('#status')).toHaveText('Busy day');
+    const ticket = await page.locator('#ticket .now .ticket-title').innerText();
+    const quiet = await page.locator('#announcer').innerText();
+    await page.clock.runFor(10_000);
+    expect(await page.locator('#ticket .now .ticket-title').innerText()).not.toBe(ticket);
+    await expect(page.locator('#announcer')).toHaveText(quiet);
   });
 });
 
 test.describe('reduced motion', () => {
-  test.use({ reducedMotion: 'reduce' });
-
-  test('moves no element while stages change', async ({ page }) => {
+  test('declares no transition on any element and runs none', async ({ page }) => {
+    const longest = () =>
+      page.evaluate(() => {
+        const seconds = (value: string) => Math.max(...value.split(',').map((part) => parseFloat(part)));
+        return Math.max(...[...document.querySelectorAll('*')].map((node) => seconds(getComputedStyle(node).transitionDuration)));
+      });
     await open(page);
+    // Control: with motion allowed the buttons do fade, so the check below can tell the difference.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    expect(await longest()).toBeGreaterThan(0);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.getByRole('button', { name: 'Play' }).click();
-    const boxes = () =>
-      page.evaluate(() =>
-        [...document.querySelectorAll('.stage, .stage-name, .stage-count, .panel, .btn, h1, #stages')].map((node, i) => {
-          const box = node.getBoundingClientRect();
-          return `${i}|${box.x}|${box.y}${node.classList.contains('stage') ? `|${box.width}|${box.height}` : ''}`;
-        }),
-      );
-    const before = await boxes();
-    const captions = new Set<string>();
-    for (let n = 0; n < 12; n += 1) {
+    for (let n = 0; n < 6; n += 1) {
       await page.clock.runFor(4000);
-      captions.add(await page.locator('#stages').innerText());
-      expect(await boxes()).toEqual(before);
+      expect(await longest()).toBe(0);
+      expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
     }
-    // The stages did change while nothing moved.
-    expect(captions.size).toBeGreaterThan(3);
   });
 });
 
 test.describe('a phone-width screen', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test('never scrolls sideways', async ({ page }) => {
-    const fits = () =>
-      page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+  const fits = (page: Page) =>
+    page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+
+  test('never scrolls sideways, in any panel', async ({ page }) => {
     await open(page);
-    expect(await fits()).toBe(true);
+    expect(await fits(page)).toBe(true);
     await page.getByRole('button', { name: 'Play' }).click();
-    await page.clock.runFor(30_000);
-    expect(await fits()).toBe(true);
-    await page.getByRole('button', { name: 'Explain' }).click();
-    await expect(page.locator('#current summary')).toBeVisible();
-    expect(await fits()).toBe(true);
-    await page.getByRole('button', { name: 'Take over' }).click();
-    while (await page.locator('#take-over').isHidden()) {
-      await page.getByRole('button', { name: 'Step' }).click();
-    }
-    expect(await fits()).toBe(true);
+    await page.clock.runFor(FIRST_OPEN_MS);
+    expect(await fits(page)).toBe(true);
+    await page.getByRole('button', { name: 'All numbers' }).click();
+    await page.getByRole('button', { name: 'Why this choice' }).click();
+    expect(await fits(page)).toBe(true);
+    await page.getByRole('tab', { name: /Going out/ }).click();
+    await reviewButton(page, 'T-1001-0').click();
+    await expect(page.locator('#review')).toBeVisible();
+    expect(await fits(page)).toBe(true);
+  });
+
+  test('puts the current ticket above two tabs that swap the lists and show the pending count', async ({ page }) => {
+    await playToFirstOpen(page);
+    const coming = page.getByRole('tab', { name: /Coming in/ });
+    const going = page.getByRole('tab', { name: /Going out/ });
+    await expect(going).toContainText('1 pending');
+    await expect(coming).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#incoming')).toBeVisible();
+    await expect(page.locator('#outgoing')).toBeHidden();
+    const ticketBox = await page.locator('#center').boundingBox();
+    const tabsBox = await coming.boundingBox();
+    expect(ticketBox?.y ?? Infinity).toBeLessThan(tabsBox?.y ?? 0);
+
+    await going.click();
+    await expect(going).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#outgoing')).toBeVisible();
+    await expect(page.locator('#incoming')).toBeHidden();
+    await expect(reviewButton(page, 'T-1001-0')).toBeVisible();
+    await coming.click();
+    await expect(page.locator('#incoming')).toBeVisible();
   });
 });
 
@@ -147,6 +287,53 @@ test.describe('what the page fetches', () => {
       expect(requests.filter((url) => !url.startsWith(`${baseURL}/`))).toEqual([]);
     });
   }
+});
+
+test.describe('the content security policy', () => {
+  test('is in the page, and nothing the page does breaks it', async ({ page }) => {
+    const violations: string[] = [];
+    await page.addInitScript(() => {
+      const seen: string[] = [];
+      Object.assign(window, { seen });
+      document.addEventListener('securitypolicyviolation', (event) => seen.push(event.violatedDirective));
+    });
+    const read = () => page.evaluate(() => (window as unknown as { seen: string[] }).seen);
+    page.on('console', (message) => {
+      if (/content security policy|refused to/i.test(message.text())) violations.push(message.text());
+    });
+    await open(page);
+    expect(await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')).toBe("default-src 'self'");
+    // Control: an inline style, which the policy refuses, is seen by the listener.
+    await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.id = 'csp-probe';
+      probe.setAttribute('style', 'color: red');
+      document.body.append(probe);
+    });
+    // The event is queued (WebKit sends it three times, a moment apart), so it is waited for
+    // and let settle before the list is cleared.
+    await expect.poll(async () => (await read()).length).toBeGreaterThan(0);
+    await page.waitForTimeout(PROBE_SETTLE_MS);
+    await page.evaluate(() => {
+      document.getElementById('csp-probe')?.remove();
+      (window as unknown as { seen: string[] }).seen.length = 0;
+    });
+    violations.length = 0;
+
+    await page.getByRole('button', { name: 'Play' }).click();
+    await page.clock.runFor(FIRST_OPEN_MS);
+    await page.getByRole('button', { name: 'All numbers' }).click();
+    await page.getByRole('button', { name: 'Why this choice' }).click();
+    await page.getByRole('button', { name: 'Collapse' }).click();
+    await page.getByRole('button', { name: /^Show tickets going out/ }).click();
+    await reviewButton(page, 'T-1001-0').click();
+    await page.getByRole('button', { name: 'Hand back to the reviewer' }).click();
+    await page.clock.runFor(60_000);
+    await page.getByRole('button', { name: /at real speed$/ }).click();
+    await expect(page.locator('#status')).toHaveText('Run complete');
+    expect(await read()).toEqual([]);
+    expect(violations).toEqual([]);
+  });
 });
 
 test.describe('a model that does not load', () => {
@@ -172,53 +359,6 @@ test.describe('a model that does not load', () => {
   });
 });
 
-test.describe('Take over', () => {
-  test('starts from the model picks, keeps the team with the category, and shows no reviewer answer', async ({ page }) => {
-    await open(page);
-    await page.getByRole('button', { name: 'Take over' }).click();
-    for (let n = 0; n < STEPS_TO_FIRST_REVIEW; n += 1) await page.getByRole('button', { name: 'Step' }).click();
-    const category = page.getByLabel('Category');
-    const priority = page.getByLabel('Priority');
-    const team = page.getByLabel('Send to');
-    await expect(page.locator('#take-over')).toBeVisible();
-    await expect(category).toHaveValue('Billing');
-    await expect(priority).toHaveValue('Medium');
-    await expect(team).toHaveValue('Billing Team');
-    // The team follows the category until the viewer picks a team.
-    await category.selectOption('Account Access');
-    await expect(team).toHaveValue('Account Support');
-    await team.selectOption('General Support');
-    await category.selectOption('Security Concern');
-    await expect(team).toHaveValue('General Support');
-    await page.getByRole('button', { name: 'Confirm and continue' }).click();
-    await expect(numberOf(page, 'Your reviews correct')).toHaveText(/^\d of 1$/);
-
-    // The second flagged ticket: the simulated reviewer would pick Account Access, the model says Urgent Complaint.
-    while (await page.locator('#take-over').isHidden()) {
-      await page.getByRole('button', { name: 'Step' }).click();
-    }
-    await expect(page.locator('#take-over h2')).toHaveText('Review T-1001-1');
-    await expect(category).toHaveValue('Urgent Complaint');
-    await expect(priority).toHaveValue('Medium');
-    await expect(team).toHaveValue('Escalations Team');
-    await expect(page.locator('#feed .row-current')).toHaveText(/T-1001-1 waiting for you/);
-    for (const area of ['#stages', '#feed', '#announcer', '#take-over .why', '#take-over h2', '#take-over .ticket-text']) {
-      expect(await page.locator(area).innerText()).not.toContain('Account Access');
-    }
-  });
-
-  test('hands the ticket back to the simulated reviewer', async ({ page }) => {
-    await open(page);
-    await page.getByRole('button', { name: 'Take over' }).click();
-    for (let n = 0; n < STEPS_TO_FIRST_REVIEW; n += 1) await page.getByRole('button', { name: 'Step' }).click();
-    await expect(page.locator('#take-over')).toBeVisible();
-    await page.getByRole('button', { name: 'Hand back to the reviewer' }).click();
-    await expect(page.locator('#take-over')).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Take over' })).toBeVisible();
-    await expect(page.locator('#current li', { hasText: 'Review:' })).toContainText('the simulated reviewer chose');
-  });
-});
-
 test.describe('the seed', () => {
   test('says a seed that cannot be used was not used, and still runs', async ({ page }) => {
     await open(page, '?seed=abc');
@@ -241,6 +381,7 @@ test.describe('the seed', () => {
 
   test('names the tickets after the seed', async ({ page }) => {
     await open(page);
-    await expect(page.locator('#current h2')).toHaveText(`Current ticket T-${SEED}-0`);
+    await page.getByRole('button', { name: 'Step' }).click();
+    await expect(page.locator('#ticket .now .ticket-title')).toHaveText(`Ticket T-${SEED}-0`);
   });
 });

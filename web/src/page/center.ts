@@ -1,0 +1,169 @@
+import { el, reconcile, segmentNodes, setClass, setText } from './dom';
+import type { CenterView, realSpeedView } from './view';
+
+export interface CenterInput {
+  ticket: CenterView | undefined;
+  explain: 'offered' | 'off';
+  explainOpen: boolean;
+  // What to say when no ticket is in the center.
+  idle: string;
+  realSpeedLabel: string | null;
+  result: ReturnType<typeof realSpeedView>;
+}
+
+export interface CenterActions {
+  toggleExplain(): void;
+  finishNow(): void;
+  restart(): void;
+}
+
+interface TicketPanel {
+  box: HTMLElement;
+  title: HTMLElement;
+  tag: HTMLElement;
+  stage: HTMLElement;
+  track: HTMLElement;
+  text: HTMLElement;
+  lines: HTMLElement;
+  say: HTMLElement;
+  toggle: HTMLButtonElement;
+  why: HTMLElement;
+  off: HTMLElement;
+}
+
+const PER_SECOND_ROUND = 100;
+const ROUND_ABOVE = 1000;
+
+function rate(perSecond: number): string {
+  const rounded = perSecond >= ROUND_ABOVE ? Math.round(perSecond / PER_SECOND_ROUND) * PER_SECOND_ROUND : Math.round(perSecond);
+  return rounded.toLocaleString('en-US');
+}
+
+function resultLine(result: NonNullable<CenterInput['result']>): string {
+  const base = `${result.tickets} tickets through every stage in ${Math.round(result.ms)} ms`;
+  return result.perSecond === null ? `${base}.` : `${base}, about ${rate(result.perSecond)} tickets a second.`;
+}
+
+function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
+  const node = el('button', className, label);
+  node.type = 'button';
+  node.addEventListener('click', onClick);
+  return node;
+}
+
+function makeStep(item: { name: string }): HTMLElement {
+  const step = el('li', 'step');
+  step.append(el('span', 'step-bar'), el('span', 'step-name', item.name));
+  return step;
+}
+
+function updateStep(step: HTMLElement, item: CenterView['steps'][number]): void {
+  setClass(step, `step step-${item.status}`);
+  if (item.status === 'now') {
+    step.setAttribute('aria-current', 'step');
+  } else {
+    step.removeAttribute('aria-current');
+  }
+}
+
+function lineNode(line: { label: string; text: string }): HTMLElement {
+  const row = el('p', 'line-detail');
+  row.append(el('strong', undefined, `${line.label}: `), document.createTextNode(line.text));
+  return row;
+}
+
+function whyNodes(rows: CenterView['why']): HTMLElement[] {
+  return rows.flatMap((row) => [el('dt', undefined, row.label), el('dd', undefined, row.value)]);
+}
+
+function buildResult(actions: CenterActions): { box: HTMLElement; title: HTMLElement; line: HTMLElement } {
+  const box = el('div', 'result');
+  const title = el('h2', 'ticket-title', 'Run complete at real speed');
+  title.tabIndex = -1;
+  const line = el('p', 'result-line');
+  const how = el(
+    'p',
+    undefined,
+    'Until now the run was slowed down so a person can follow it. This is the same run with no pacing and no cards drawn. The page measures it in your browser.',
+  );
+  const note = el('p', 'muted', "Reviews are simulated, so this is the software's speed, not a person's.");
+  box.append(title, line, how, note, button('btn btn-line', 'Replay at learn speed', actions.restart));
+  return { box, title, line };
+}
+
+function buildTicket(actions: CenterActions): TicketPanel {
+  const box = el('div', 'now');
+  const title = el('h2', 'ticket-title');
+  const tag = el('span', 'tag');
+  const stage = el('span', 'now-stage');
+  const titleBox = el('div', 'now-title');
+  titleBox.append(title, tag);
+  const head = el('div', 'now-head');
+  head.append(titleBox, stage);
+  const track = el('ol', 'track');
+  const text = el('p', 'ticket-text');
+  const lines = el('div', 'lines-detail');
+  const say = el('p', 'say');
+  const toggle = button('btn btn-link', '', actions.toggleExplain);
+  toggle.append(el('span', 'chevron'), document.createTextNode('Why this choice'));
+  const why = el('dl', 'why-list');
+  const off = el('p', 'muted', 'Explanations are off on the busy day. Pause to read one.');
+  box.append(head, track, text, lines, say, toggle, why, off);
+  return { box, title, tag, stage, track, text, lines, say, toggle, why, off };
+}
+
+function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView): void {
+  setText(panel.title, `Ticket ${ticket.id}`);
+  panel.tag.hidden = ticket.tag === null;
+  setText(panel.tag, ticket.tag?.word ?? '');
+  setClass(panel.tag, `tag tag-${ticket.tag?.level ?? 'low'}`);
+  setText(panel.stage, `Now: ${ticket.stageName}`);
+  reconcile(panel.track, ticket.steps, (s) => s.name, makeStep, updateStep);
+  panel.text.replaceChildren(...segmentNodes(ticket.segments));
+  panel.lines.replaceChildren(...ticket.lines.map(lineNode));
+  setText(panel.say, ticket.plain);
+  const offered = input.explain === 'offered';
+  const open = offered && input.explainOpen;
+  panel.toggle.hidden = !offered;
+  panel.toggle.classList.toggle('open', open);
+  panel.toggle.setAttribute('aria-expanded', String(open));
+  panel.off.hidden = offered;
+  panel.why.hidden = !open;
+  if (open) panel.why.replaceChildren(...whyNodes(ticket.why));
+}
+
+/**
+ * The center, the widest column: the ticket being worked, its stage track, its masked text,
+ * a line for each stage reached, the plain sentence and a closed "Why this choice". It is
+ * built once and then updated in place, so a button the viewer has focused is never replaced
+ * by a render. The same space shows the real speed result and the idle line.
+ */
+export function mountCenter(
+  root: HTMLElement,
+  actions: CenterActions,
+): { render(input: CenterInput): void; focusResult(): void } {
+  const result = buildResult(actions);
+  const panel = buildTicket(actions);
+  const idle = el('p', 'muted idle');
+  const cta = el('div', 'cta');
+  const real = button('btn btn-link', '', actions.finishNow);
+  cta.append(real);
+  root.replaceChildren(result.box, panel.box, idle, cta);
+  return {
+    render(input) {
+      const { ticket } = input;
+      const finished = input.result !== undefined;
+      result.box.hidden = !finished;
+      panel.box.hidden = finished || ticket === undefined;
+      idle.hidden = finished || ticket !== undefined;
+      cta.hidden = finished || input.realSpeedLabel === null;
+      if (input.result !== undefined) setText(result.line, resultLine(input.result));
+      if (ticket !== undefined) renderTicket(panel, input, ticket);
+      setText(idle, input.idle);
+      setText(real, input.realSpeedLabel ?? '');
+    },
+    focusResult() {
+      result.title.focus();
+    },
+  };
+}

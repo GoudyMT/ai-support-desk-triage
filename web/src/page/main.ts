@@ -1,25 +1,61 @@
 import { loadModel, type Model } from '../model/scorer';
-import { createSchedule } from '../run/clock';
-import { createRun, type Run } from '../run/engine';
+import { createSchedule, type Schedule } from '../run/clock';
+import { createRun, type Run, type RunState } from '../run/engine';
+import { createPrescreener, type Tag } from '../run/prescreen';
 import { foldOf, parseSeed } from '../run/seed';
 import './page.css';
-import { mountControls } from './controls';
-import { mountCurrentTicket } from './currentTicket';
-import { mountFeed } from './feed';
-import { mountNumbers } from './numbers';
-import { nextDelayMs } from './pacing';
-import { el, mountStageRow } from './stageRow';
-import { mountTakeOverForm } from './takeOverForm';
+import { mountCenter } from './center';
+import { mountControls, mountTabs } from './controls';
+import { el, setText } from './dom';
+import { mountIncoming } from './incoming';
+import { mountOutgoing } from './outgoing';
+import { mountReviewForm } from './reviewForm';
+import { mountStats } from './stats';
 import {
+  centerView,
   controlsView,
-  currentTicketView,
-  feedView,
-  narrationView,
-  numbersView,
-  stageRowView,
+  explainMode,
+  incomingView,
+  moreNumbersView,
+  outgoingView,
+  realSpeedView,
+  reviewView,
+  statsView,
   statusView,
-  takeOverDefaults,
 } from './view';
+
+const PENDING_LABEL = 'Pending review';
+const IDLE_TEXT: Record<string, string> = {
+  'Run complete': 'Run complete',
+  Paused: 'Press Play to see the next ticket.',
+};
+const WAITING_IDLE = 'Waiting for the next ticket';
+
+interface Setup {
+  seed: number;
+  model: Model;
+  schedule: Schedule;
+  prescreen: (maskedText: string) => Tag;
+}
+
+// What changes while the page runs. `run` is replaced by Restart; the panels read it through here.
+interface Page {
+  run: Run;
+  stopListening(): void;
+  timer: number | undefined;
+  explain: boolean;
+  announced: string;
+  reviewing: boolean;
+  finished: boolean;
+}
+
+type Panels = ReturnType<typeof mountPanels>;
+
+interface Mounted {
+  setup: Setup;
+  page: Page;
+  panels: Panels;
+}
 
 function byId(id: string): HTMLElement {
   const node = document.getElementById(id);
@@ -38,103 +74,143 @@ async function fetchModel(fold: number): Promise<Model> {
   return loadModel(await response.json());
 }
 
-function mountRun(run: Run): void {
-  const schedule = createSchedule(run.state().seed);
-  const ui = { explain: false };
-  const status = byId('status');
-  const announcer = byId('announcer');
-  const currentPanel = byId('current');
-  const formPanel = byId('take-over');
-  const stageRow = mountStageRow(byId('stages'));
-  const feed = mountFeed(byId('feed'));
-  const numbers = mountNumbers(byId('numbers'));
-  const current = mountCurrentTicket(currentPanel);
-  let timer: number | undefined;
-  let wasWaiting = false;
-  let announced = '';
+function newRun({ seed, model, schedule, prescreen }: Setup): Run {
+  return createRun({ seed, model, schedule, wallClock: () => performance.now(), prescreen });
+}
 
-  function render(): void {
-    const state = run.state();
-    const ticket = currentTicketView(state);
-    const narration = narrationView(state);
-    const defaults = takeOverDefaults(state);
-    const waiting = defaults !== undefined;
-    controls.render(controlsView(state), ui.explain);
-    stageRow.render(stageRowView(state));
-    feed.render(feedView(state, run.truthOf));
-    numbers.render(numbersView(state, run.truthOf));
-    form.render(defaults, ticket, narration);
-    current.render(ticket, narration, ui.explain);
-    currentPanel.hidden = waiting;
-    formPanel.hidden = !waiting;
-    status.textContent = statusView(state);
-    if (waiting && !wasWaiting) {
-      form.focus();
-    }
-    wasWaiting = waiting;
-    // Real speed would flood a screen reader, so only learn speed is spoken.
-    const key = `${state.current?.trail.id ?? ''}|${state.current?.stage ?? ''}`;
-    if (state.speed === 'learn' && narration !== undefined && key !== announced) {
-      announcer.textContent = narration.plain;
-    }
-    announced = key;
-  }
-
-  // The timer is re-armed after every change, so a pause, a speed switch or a viewer's
-  // confirm restarts it from the state they leave.
-  function sync(): void {
-    render();
-    window.clearTimeout(timer);
-    const delay = nextDelayMs(run.state(), schedule);
-    if (delay !== null) {
-      timer = window.setTimeout(() => {
-        run.advance();
-      }, delay);
-    }
-  }
-
+function mountPanels(page: Page, restart: () => void, render: () => void) {
   const controls = mountControls(byId('controls'), {
-    playPause() {
-      if (run.state().playing) {
-        run.pause();
-      } else {
-        ui.explain = false;
-        run.play();
-      }
-      sync();
-    },
-    step: () => {
-      run.step();
-    },
-    setSpeed: (speed) => {
-      run.setSpeed(speed);
-    },
-    toggleExplain() {
-      ui.explain = !ui.explain;
-      if (ui.explain) {
-        run.pause();
-      }
-      sync();
-    },
-    toggleTakeOver: () => {
-      run.setTakeOver(!run.state().takeOver);
-    },
+    playPause: () => (page.run.state().playing ? page.run.pause() : page.run.play()),
+    step: () => page.run.step(),
+    restart,
   });
-  const form = mountTakeOverForm(formPanel, (decision) => {
-    run.confirm(decision);
-    controls.focusPlay();
+  return {
+    stats: mountStats(byId('stats'), byId('more-toggle'), byId('numbers')),
+    controls,
+    tabs: mountTabs(byId('tabs'), byId('app')),
+    incoming: mountIncoming(byId('incoming')),
+    outgoing: mountOutgoing(byId('outgoing'), { review: (id) => page.run.review(id) }),
+    center: mountCenter(byId('ticket'), {
+      toggleExplain: () => {
+        page.explain = !page.explain;
+        render();
+      },
+      finishNow: () => page.run.finishNow(),
+      restart,
+    }),
+    form: mountReviewForm(byId('review'), {
+      confirm: (decision) => {
+        page.run.confirm(decision);
+        controls.focusPrimary();
+      },
+      handBack: () => {
+        page.run.handBack();
+        controls.focusPrimary();
+      },
+    }),
+  };
+}
+
+// Only learn speed and a paused run are spoken: the busy day would flood a screen reader.
+function announce({ page }: Mounted, state: RunState): void {
+  const view = centerView(state);
+  const key = view === undefined ? '' : `${view.id}|${view.stageName}`;
+  if (view !== undefined && explainMode(state) === 'offered' && key !== page.announced) {
+    setText(byId('announcer'), view.plain);
+    page.announced = key;
+  }
+}
+
+// A control the viewer was on may have just been replaced by the form or the result.
+function moveFocus({ page, panels }: Mounted, reviewing: boolean, finished: boolean): void {
+  if (reviewing && !page.reviewing) panels.form.focus();
+  if (finished && !page.finished) panels.center.focusResult();
+  page.reviewing = reviewing;
+  page.finished = finished;
+}
+
+function render(mounted: Mounted): void {
+  const { setup, page, panels } = mounted;
+  const { run } = page;
+  const state = run.state();
+  const numbers = statsView(state, run.truthOf);
+  const pending = numbers.find((stat) => stat.label === PENDING_LABEL)?.value ?? '0';
+  const waiting = incomingView(state);
+  const review = reviewView(state);
+  const result = realSpeedView(state);
+  const controls = controlsView(state, setup.schedule.total);
+  setText(byId('status'), statusView(state));
+  panels.stats.render(numbers, moreNumbersView(state, run.truthOf));
+  panels.controls.render(controls);
+  panels.tabs.render({ in: `${waiting.length} waiting`, out: `${pending} pending` });
+  panels.incoming.render(waiting);
+  panels.outgoing.render(outgoingView(state, run.truthOf), pending);
+  byId('ticket').hidden = review !== undefined;
+  byId('review').hidden = review === undefined;
+  panels.form.render(review);
+  panels.center.render({
+    ticket: centerView(state),
+    explain: explainMode(state),
+    explainOpen: page.explain,
+    idle: IDLE_TEXT[statusView(state)] ?? WAITING_IDLE,
+    realSpeedLabel: controls.realSpeedLabel,
+    result,
   });
-  run.onChange(sync);
+  announce(mounted, state);
+  moveFocus(mounted, review !== undefined, result !== undefined);
+}
+
+// The timer is re-armed after every change to the run, so a pause, a viewer's confirm or
+// the real speed button restarts it from the state they leave.
+function sync(mounted: Mounted): void {
+  const { page } = mounted;
+  render(mounted);
+  window.clearTimeout(page.timer);
+  const delay = page.run.nextDelayMs();
+  if (delay !== null) {
+    page.timer = window.setTimeout(() => page.run.advance(), delay);
+  }
+}
+
+function restart(mounted: Mounted): void {
+  const { setup, page, panels } = mounted;
+  page.stopListening();
+  window.clearTimeout(page.timer);
+  page.run = newRun(setup);
+  page.stopListening = page.run.onChange(() => sync(mounted));
+  page.explain = false;
+  page.announced = '';
+  setText(byId('announcer'), '');
+  sync(mounted);
+  panels.controls.focusPrimary();
+}
+
+function mountRun(setup: Setup): void {
+  const page: Page = {
+    run: newRun(setup),
+    stopListening: () => undefined,
+    timer: undefined,
+    explain: false,
+    announced: '',
+    reviewing: false,
+    finished: false,
+  };
+  const mounted: Mounted = {
+    setup,
+    page,
+    panels: mountPanels(page, () => restart(mounted), () => render(mounted)),
+  };
+  page.stopListening = page.run.onChange(() => sync(mounted));
+  byId('top-live').hidden = false;
   byId('app').hidden = false;
-  sync();
+  sync(mounted);
 }
 
 function start(): void {
   const { seed, ignored } = parseSeed(location.search);
-  const seedLine = byId('seed-line');
   const replay = el('a', undefined, 'replay this run with the same seed');
   replay.href = `?seed=${seed}`;
-  seedLine.replaceChildren(document.createTextNode(`Seed ${seed} - `), replay);
+  byId('seed-line').replaceChildren(document.createTextNode(`Seed ${seed} - `), replay);
   if (ignored) {
     const notice = byId('notice');
     notice.textContent = `The seed in the replay link could not be used, so this is a new run with seed ${seed}.`;
@@ -149,7 +225,7 @@ function start(): void {
     fetchModel(foldOf(seed)).then(
       (model) => {
         loading.hidden = true;
-        mountRun(createRun({ seed, model, schedule: createSchedule(seed), wallClock: () => performance.now() }));
+        mountRun({ seed, model, schedule: createSchedule(seed), prescreen: createPrescreener(model) });
       },
       () => {
         loading.hidden = true;

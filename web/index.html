@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
     <title>Under the Hood - AI Support Desk Triage</title>
   </head>
   <body>
@@ -14,22 +15,27 @@
           <p class="muted" id="seed-line"></p>
           <p class="muted" id="status"></p>
         </div>
-        <nav aria-label="Run controls" class="controls" id="controls"></nav>
+        <div class="top-live" id="top-live" hidden>
+          <dl class="stats" id="stats"></dl>
+          <button class="btn btn-link" type="button" id="more-toggle" aria-expanded="false" aria-controls="numbers">All numbers</button>
+          <div class="controls" id="controls" role="group" aria-label="Run controls"></div>
+        </div>
       </header>
+      <section class="numbers" id="numbers" aria-label="All numbers" hidden></section>
       <p class="notice" id="notice" hidden></p>
       <p class="muted" id="loading">Loading the model...</p>
       <div class="notice error" id="load-error" hidden>
         <p id="load-error-text">The model could not be loaded.</p>
         <button class="btn" type="button" id="retry">Retry</button>
       </div>
-      <main id="app" hidden>
-        <section aria-label="Pipeline stages" class="stages" id="stages"></section>
-        <div class="grid">
-          <section class="panel feed-panel" aria-label="Ticket feed" id="feed"></section>
-          <section class="panel focus-panel" aria-label="Current ticket" id="current"></section>
-          <form class="panel focus-panel" aria-label="Review this ticket" id="take-over" tabindex="-1" hidden></form>
-          <section class="panel numbers-panel" aria-label="Live numbers" id="numbers"></section>
-        </div>
+      <main class="board show-in" id="app" hidden>
+        <section class="col col-center" id="center" aria-label="Current ticket">
+          <div class="stack" id="ticket"></div>
+          <form class="stack" id="review" aria-label="Review this ticket" hidden></form>
+        </section>
+        <div class="tabs" id="tabs" role="tablist" aria-label="Ticket lists"></div>
+        <section class="col col-in" id="incoming" aria-label="Coming in"></section>
+        <section class="col col-out" id="outgoing" aria-label="Going out"></section>
       </main>
       <div class="sr-only" id="announcer" aria-live="polite"></div>
     </div>
