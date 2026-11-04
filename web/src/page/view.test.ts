@@ -273,7 +273,12 @@ describe('the ticket being worked', () => {
       { name: 'Review', status: 'pending' },
       { name: 'Done', status: 'pending' },
     ]);
-    expect(view.lines.map((line) => line.label)).toEqual(['Privacy', 'Classify', 'Guardrails']);
+    // Each row names the stage for what it is: rules, a trained model, rules.
+    expect(view.lines.map((line) => line.label)).toEqual([
+      'Privacy (rules)',
+      'Classify (trained model)',
+      'Guardrails (rules)',
+    ]);
     expect(reached(view)).toEqual([true, true, false]);
     expect(reached(must(centerView(atStage('intake'))))).toEqual([false, false, false]);
     expect(reached(must(centerView(atStage('privacy'))))).toEqual([true, false, false]);
@@ -283,9 +288,9 @@ describe('the ticket being worked', () => {
   it('holds no text from the trail in a row whose stage has not been reached', () => {
     const view = must(centerView(atStage('intake')));
     expect(view.lines).toEqual([
-      { label: 'Privacy', text: null },
-      { label: 'Classify', text: null },
-      { label: 'Guardrails', text: null },
+      { label: 'Privacy (rules)', text: null },
+      { label: 'Classify (trained model)', text: null },
+      { label: 'Guardrails (rules)', text: null },
     ]);
     // Nothing of the later results is anywhere in the rows, whatever the field is called.
     const trail = must(atStage('intake').current).trail;
@@ -293,7 +298,7 @@ describe('the ticket being worked', () => {
     expect(rows).not.toContain(trail.category.label);
     expect(rows).not.toContain('flagged');
     const guardrails = must(centerView(atStage('classify'))).lines[2];
-    expect(guardrails).toEqual({ label: 'Guardrails', text: null });
+    expect(guardrails).toEqual({ label: 'Guardrails (rules)', text: null });
   });
 
   it('explains the flag in the Guardrails line', () => {

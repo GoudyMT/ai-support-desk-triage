@@ -61,6 +61,13 @@ const TAG_VIEWS: Record<Priority, TagView> = {
   Low: { word: 'Low', level: 'low' },
 };
 
+// Each row names its stage for what it is: the checks are rules, the Classify step is the trained model.
+const LINE_LABELS: Record<'privacy' | 'classify' | 'guardrails', string> = {
+  privacy: 'Privacy (rules)',
+  classify: 'Classify (trained model)',
+  guardrails: 'Guardrails (rules)',
+};
+
 // The stages that write a line in the center; Intake only shows the ticket arriving.
 const LINE_STAGES = ['privacy', 'classify', 'guardrails'] as const;
 type LineStage = (typeof LINE_STAGES)[number];
@@ -242,7 +249,7 @@ export function centerView(state: RunState): CenterView | undefined {
     })),
     segments: segmentsOf(trail, at),
     lines: LINE_STAGES.map((line) => ({
-      label: STAGE_NAMES[line],
+      label: LINE_LABELS[line],
       text: stageIndex(line) <= at ? lineText(trail, line) : null,
     })),
     plain: narrate(trail, stage).plain,
