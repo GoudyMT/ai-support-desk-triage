@@ -395,7 +395,8 @@ test.describe('on a phone', () => {
           window.scrollTo(0, document.documentElement.scrollHeight);
           const bar = document.getElementById('bar')?.getBoundingClientRect();
           const board = document.getElementById('app')?.getBoundingClientRect();
-          return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0);
+          // Firefox lays out in sixtieths of a pixel: the board ends where the bar starts, give or take that.
+          return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0) + 0.01;
         }),
       )
       .toBe(true);
@@ -458,7 +459,8 @@ test.describe('on a wide screen', () => {
         page.evaluate(() => {
           const bar = document.getElementById('bar')?.getBoundingClientRect();
           const board = document.getElementById('app')?.getBoundingClientRect();
-          return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0);
+          // Firefox lays out in sixtieths of a pixel: the board ends where the bar starts, give or take that.
+          return (board?.bottom ?? Number.POSITIVE_INFINITY) <= (bar?.top ?? 0) + 0.01;
         }),
       )
       .toBe(true);
