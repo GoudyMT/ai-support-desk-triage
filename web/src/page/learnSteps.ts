@@ -46,7 +46,7 @@ export const STEPS: readonly LearnStep[] = [
   },
   {
     title: 'A person has the final say',
-    text: 'Doubtful messages wait here for a person. In this demo a simulated reviewer stands in. In See The Process, you can press Review to take its place. The rest go straight to the right team.',
+    text: 'Doubtful messages wait here for a person. In this demo a simulated reviewer stands in. In See The Process, you can press Review to take its place. The rest go straight to the right team. The demo stops once the ticket reaches its team. The team writes the reply.',
     lit: ['#outgoing'],
     tab: 'out',
     // The simulated reviewer would close the card within 1.5 seconds, long before these words are read.

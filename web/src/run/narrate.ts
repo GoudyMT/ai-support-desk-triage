@@ -60,7 +60,7 @@ function reasonPhrase(reason: FlagReason): string {
     case 'category':
       return `the model reads it as ${reason.category}, a kind that always goes to a person`;
     case 'low confidence':
-      return `the model is only ${percent(reason.confidence)} sure, below the ${percent(CONFIDENCE_FLOOR)} floor`;
+      return `the model is only ${percent(reason.confidence)} sure, below the ${percent(CONFIDENCE_FLOOR)} line`;
   }
 }
 
@@ -72,7 +72,7 @@ function guardrailsPlain(trail: TicketTrail): string {
   }
   if (guard.clearedBySecondCheck) {
     return (
-      `The model's confidence was low (${percent(category.confidence)}), but a second check found ` +
+      `The model's guess was weak (${percent(category.confidence)}), but a second check found ` +
       'its two best guesses are ordinary, so the ticket goes straight through.'
     );
   }
@@ -89,15 +89,15 @@ function plainFor(trail: TicketTrail, stage: Stage): string {
     case 'privacy': {
       const counts = maskedCounts(trail.found);
       return counts.length === 0
-        ? `Privacy: ${NONE_FOUND}, so nothing was masked.`
-        : `Privacy: masked ${joinList(counts)}.`;
+        ? `Privacy: ${NONE_FOUND}, so nothing was hidden.`
+        : `Privacy: hid ${joinList(counts)}.`;
     }
     case 'classify': {
       const leaning = trail.category.topTerms.slice(0, TOP_WORDS_SPOKEN).map((top) => top.term);
       const leaned = leaning.length > 0 ? `, leaning most on ${quoted(leaning)}` : '';
       return (
-        `The model reads the masked text and picks ${trail.category.label} ` +
-        `with ${percent(trail.category.confidence)} confidence${leaned}.`
+        `The model reads the text with private details hidden and picks ${trail.category.label}, ` +
+        `${percent(trail.category.confidence)} sure${leaned}.`
       );
     }
     case 'guardrails':

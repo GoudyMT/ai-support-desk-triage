@@ -63,7 +63,7 @@ export interface MoreRow {
 
 const PERCENT = 100;
 const MS_PER_SECOND = 1000;
-const NO_VALUE = '-';
+const NO_VALUE = 'none yet';
 const PREVIEW_CHARS = 60;
 const WHITESPACE = /\s+/g;
 const MAX_REASONS_SHOWN = 2;
@@ -203,7 +203,7 @@ function lineText(trail: TicketTrail, stage: LineStage): string {
   switch (stage) {
     case 'privacy': {
       const masked = narrate(trail, 'privacy').detail.find((row) => row.label === 'Masked')?.value ?? 'nothing';
-      return masked === 'nothing' ? `${NONE_FOUND}.` : `masked ${masked}.`;
+      return masked === 'nothing' ? `${NONE_FOUND}.` : `hid ${masked}.`;
     }
     case 'classify':
       return (
@@ -262,7 +262,7 @@ export function moreNumbersView(
         source: { text: VALUE_SAVED_SOURCE, link: VALUE_SOURCE_LINK },
       },
       { label: "Model's category right so far (closed tickets)", value: share(live.modelAccuracy) },
-      { label: 'Old keyword rules (v0), same tickets', value: share(live.v0Accuracy) },
+      { label: 'Old keyword rules, same tickets', value: share(live.v0Accuracy) },
       { label: 'Simulated reviewer overrides', value: String(live.overrides) },
       { label: 'Tickets per second', value: perSecond === null ? NO_VALUE : perSecond.toFixed(1) },
       { label: 'Your reviews correct', value: total === 0 ? NO_VALUE : `${correct} of ${total}` },

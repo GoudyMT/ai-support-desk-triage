@@ -32,7 +32,7 @@ describe('top stats', () => {
   it('starts at zero, with a dash where a share needs a ticket', () => {
     expect(statsView(makeRun().state(), noTruth)).toEqual([
       { label: 'Tickets done', value: '0', alert: false },
-      { label: 'Flagged for a person', value: '-', alert: false },
+      { label: 'Flagged for a person', value: 'none yet', alert: false },
       { label: 'Pending review', value: '0', alert: false },
       { label: 'High-risk missed', value: '0', alert: false },
     ]);
@@ -78,11 +78,11 @@ describe('more numbers', () => {
     expect(view.rows.map((row) => [row.label, row.value])).toEqual([
       ['Time saved', '0 min'],
       ['Value saved', '$0.00'],
-      ["Model's category right so far (closed tickets)", '-'],
-      ['Old keyword rules (v0), same tickets', '-'],
+      ["Model's category right so far (closed tickets)", 'none yet'],
+      ['Old keyword rules, same tickets', 'none yet'],
       ['Simulated reviewer overrides', '0'],
-      ['Tickets per second', '-'],
-      ['Your reviews correct', '-'],
+      ['Tickets per second', 'none yet'],
+      ['Your reviews correct', 'none yet'],
     ]);
     expect(view.assumptions).toEqual([
       'Assumed arrivals: 100 tickets in a business day shown as 90 seconds',
@@ -110,7 +110,7 @@ describe('more numbers', () => {
   it('reads the real speed run as tickets per second, and a dash when its time was zero', () => {
     const state = makeRun().state();
     expect(value({ ...state, realSpeed: { tickets: 12, ms: 6 } }, 'Tickets per second')).toBe('2000.0');
-    expect(value({ ...state, realSpeed: { tickets: 12, ms: 0 } }, 'Tickets per second')).toBe('-');
+    expect(value({ ...state, realSpeed: { tickets: 12, ms: 0 } }, 'Tickets per second')).toBe('none yet');
   });
 });
 
@@ -234,7 +234,7 @@ describe('the ticket being worked', () => {
     const privacy = (found: TicketTrail['found']) =>
       must(centerView(withState({ current: { trail: trailOf({ found }), stage: 'privacy', deep: true } }))).lines[0]?.text;
     expect(privacy([])).toBe('no email, phone, order or card number found.');
-    expect(privacy(['phone', 'phone', 'card'])).toBe('masked 2 phone numbers, 1 card number.');
+    expect(privacy(['phone', 'phone', 'card'])).toBe('hid 2 phone numbers, 1 card number.');
   });
 
   it('ends the Classify line with the team the model category sends the ticket to', () => {
@@ -257,7 +257,7 @@ describe('the ticket being worked', () => {
 
   it('speaks for the stage it is at, in plain words', () => {
     expect(must(centerView(atStage('intake'))).plain).toContain('The ticket arrived');
-    expect(must(centerView(atStage('classify'))).plain).toContain('The model reads the masked text');
+    expect(must(centerView(atStage('classify'))).plain).toContain('The model reads the text with private details hidden');
   });
 
   describe('the plain sentence', () => {

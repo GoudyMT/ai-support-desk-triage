@@ -106,7 +106,7 @@ describe('narrate: every stage reads as a short plain note', () => {
 describe('narrate: privacy', () => {
   it('says what was masked, in the wording of the trail line', () => {
     expect(narrate({ ...CALM, found: ['phone'] }, 'privacy').plain).toBe(
-      'Privacy: masked 1 phone number.',
+      'Privacy: hid 1 phone number.',
     );
   });
 
@@ -120,7 +120,7 @@ describe('narrate: privacy', () => {
   // address was checked.
   it('names the four kinds it looked for when none was found', () => {
     expect(narrate(CALM, 'privacy').plain).toBe(
-      'Privacy: no email, phone, order or card number found, so nothing was masked.',
+      'Privacy: no email, phone, order or card number found, so nothing was hidden.',
     );
   });
 });
@@ -138,7 +138,7 @@ describe('narrate: classify', () => {
 describe('narrate: guardrails', () => {
   it('speaks the first reasons as a whole sentence and leaves the rest to the detail', () => {
     const { plain, detail } = narrate(EVERYTHING_FLAGGED, 'guardrails');
-    expect(plain).toMatch(/"[^"]+".$|floor.$|person.$/);
+    expect(plain).toMatch(/"[^"]+".$|line.$|person.$/);
     expect(plain).not.toContain('more');
     expect(detail.filter((row) => row.label.startsWith('Flag'))).toHaveLength(EVERYTHING_FLAGGED.guard.reasons.length);
   });
