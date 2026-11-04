@@ -81,6 +81,7 @@ export function createDim(): Dim {
       ? placeBlock(shown, { width: block.offsetWidth, height: block.offsetHeight }, { width: window.innerWidth, height: room() }, [
           boxOf(byId('view-learn')),
           boxOf(byId('view-see')),
+          boxOf(byId('view-note')),
         ])
       : { left: 0, top: 0 };
     block.style.left = wide ? `${at.left}px` : '';
