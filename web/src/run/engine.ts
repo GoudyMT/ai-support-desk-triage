@@ -90,6 +90,8 @@ interface Held {
 interface Center extends Held {
   stage: number;
   nextAt: number;
+  // One of the first tickets to enter the center, which are given the slow pace.
+  deep: boolean;
   tag?: Tag;
 }
 
@@ -115,8 +117,8 @@ function hideAnswer(trail: TicketTrail): TicketTrail {
   return shown;
 }
 
-function stageMs(index: number): number {
-  return index < DEEP_TICKETS ? DEEP_STAGE_MS : QUICK_STAGE_MS;
+function stageMs(deep: boolean): number {
+  return deep ? DEEP_STAGE_MS : QUICK_STAGE_MS;
 }
 
 export interface RunOptions {
@@ -147,6 +149,8 @@ export function createRun(opts: RunOptions): Run {
   let now = 0;
   let playing = false;
   let nextArrival = 0;
+  // How many tickets have entered the center; a Critical ticket can enter before a lower number.
+  let entered = 0;
   let closeAt: number | null = null;
   let center: Center | undefined;
   let reviewing: Held | undefined;
@@ -204,7 +208,9 @@ export function createRun(opts: RunOptions): Run {
     }
     const held = { index: next.index, text: next.text };
     const trail = runWith(held, next.waiting.id, simulatedReviewer);
-    center = { ...held, trail, stage: 0, nextAt: now + stageMs(next.index) };
+    const deep = entered < DEEP_TICKETS;
+    entered += 1;
+    center = { ...held, trail, stage: 0, nextAt: now + stageMs(deep), deep };
     if (next.waiting.tag !== undefined) {
       center.tag = next.waiting.tag;
     }
@@ -249,7 +255,7 @@ export function createRun(opts: RunOptions): Run {
     }
     if (center.stage < CENTER_STAGES.length - 1) {
       center.stage += 1;
-      center.nextAt = now + stageMs(center.index);
+      center.nextAt = now + stageMs(center.deep);
       return;
     }
     const { index, text, trail } = center;
@@ -398,7 +404,7 @@ export function createRun(opts: RunOptions): Run {
       snapshot.current = {
         trail: hideAnswer(center.trail),
         stage: CENTER_STAGES[center.stage] ?? 'intake',
-        deep: center.index < DEEP_TICKETS,
+        deep: center.deep,
       };
       if (center.tag !== undefined) {
         snapshot.current.tag = center.tag;

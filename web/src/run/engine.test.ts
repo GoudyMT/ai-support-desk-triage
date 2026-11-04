@@ -134,6 +134,29 @@ describe('events in run time', () => {
     }
   });
 
+  // A Critical ticket that jumps the line must not scatter the slow, fully narrated stages: they
+  // belong to the first tickets to enter the center, whatever their numbers are.
+  it('takes the slow pace for the first three tickets to enter the center, not the first three by number', () => {
+    const run = makeRun({ schedule: fakeSchedule(8, 6), prescreen: criticalAt([3, 5]) });
+    const deep = new Map<string, boolean>();
+    const entered = new Map<string, number>();
+    const stayed = new Map<string, number>();
+    let last: string | undefined;
+    stepToEnd(run, (s) => {
+      const id = s.current?.trail.id;
+      if (id !== last) {
+        if (last !== undefined) stayed.set(last, s.simTime - (entered.get(last) ?? 0));
+        if (id !== undefined) entered.set(id, s.simTime);
+      }
+      if (id !== undefined) deep.set(id, s.current?.deep === true);
+      last = id;
+    });
+    const order = [0, 3, 5, 1, 2, 4, 6, 7].map(idOf);
+    expect([...entered.keys()]).toEqual(order);
+    expect(order.map((id) => deep.get(id))).toEqual([true, true, true, false, false, false, false, false]);
+    expect(order.map((id) => stayed.get(id))).toEqual([20000, 20000, 20000, 1000, 1000, 1000, 1000, 1000]);
+  });
+
   it('closes the top open ticket CLOSE_EVERY_MS after it opened', () => {
     const run = makeRun();
     stepUntil(run, (s) => s.open.length === 1);
