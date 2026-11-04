@@ -15,7 +15,7 @@ test.describe('the title block', () => {
 });
 
 test.describe('the note that the run is slowed down', () => {
-  // The note moved from above the ticket to the bar's status line, where the other words about the pace are.
+  // The bar's status line words the pace beside the controls that change it. It is a plain line, not a live region, so a screen reader is not told the pace twice.
   test('is the bar status, and gives way to the offer when the fourth ticket is due in the center', async ({ page }) => {
     await open(page);
     await expect(page.locator('#pace')).toHaveCount(0);
