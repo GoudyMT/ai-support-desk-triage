@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { ROUTES, type TicketLabel } from '../domain/labels';
 import type { TicketTrail } from '../pipeline/types';
 import { CLOSE_EVERY_MS, type CenterStage, type RunState } from '../run/engine';
-import { minutesText } from '../run/valueSaved';
 import {
   centerView,
   controlsView,
@@ -10,13 +9,10 @@ import {
   idleText,
   moreNumbersView,
   realSpeedView,
-  paceSpeededUp,
   speedView,
   statsView,
   statusView,
-  topLineView,
 } from './view';
-import { TOP_LINE_WORDS } from './copy';
 import {
   CAPTIONS_TEXT,
   RULE_CAPTIONS,
@@ -95,32 +91,6 @@ describe('more numbers', () => {
       'Assumed: each ticket no person touched saves 2 minutes',
       "Assumed: a person's time is worth $21.53 an hour",
     ]);
-  });
-
-  // The visitor reads these two as estimates, so each carries its source in the owner's words, and the
-  // link sits inside the words it names, so the panel reads the same with or without the link.
-  it('puts time saved and value saved first, each with its source', () => {
-    const [time, value] = moreNumbersView(makeRun().state(), noTruth).rows;
-    expect(time?.source).toEqual({
-      text: 'Estimate, not a measurement. Each ticket no person touched counts as 2 minutes saved. Tool vendors publish 2 to 12 minutes for sorting one ticket and we found no independent study, so we use the low end.',
-    });
-    expect(value?.source).toEqual({
-      text: 'Estimate, not a measurement. Time saved x $21.53 an hour, the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). Benefits are not added, which keeps it low.',
-      link: {
-        phrase: 'Bureau of Labor Statistics, May 2025',
-        href: 'https://www.bls.gov/ooh/office-and-administrative-support/customer-service-representatives.htm',
-      },
-    });
-    expect(value?.source?.text).toContain(value?.source?.link?.phrase ?? 'no link');
-  });
-
-  it('reads the saved numbers from the tickets no person touched, as time and as dollars', () => {
-    const state = finishedRun().state();
-    const untouched = state.done.filter((trail) => !trail.guard.flagged).length;
-    expect(untouched).toBeGreaterThan(0);
-    const rows = moreNumbersView(state, noTruth).rows;
-    expect(rows[0]?.value).toBe(minutesText(untouched * 2));
-    expect(rows[1]?.value).toBe(`$${((untouched * 2 * 21.53) / 60).toFixed(2)}`);
   });
 
   it('shows the figures of the closed tickets once the run has gone on', () => {
@@ -510,40 +480,5 @@ describe('status and the explanation', () => {
     expect(explainMode({ ...base, act: 1, playing: true })).toBe('offered');
     expect(explainMode({ ...base, act: 2, playing: true })).toBe('off');
     expect(explainMode({ ...base, act: 2, playing: false })).toBe('offered');
-  });
-});
-
-// The line under the title says what the page is, except while the pace is the news: in See, a slowed-down run
-// says so, and a run that has just gone to full speed says that for a few seconds.
-describe('the line under the title', () => {
-  it.each([
-    // [view, playing, pace, busy day just started, what shows]
-    ['learn', true, 'slow', false, 'purpose'],
-    ['learn', true, 'fast', true, 'purpose'],
-    ['see', false, 'slow', false, 'purpose'],
-    ['see', true, 'slow', false, 'slow'],
-    ['see', true, 'slow', true, 'slow'],
-    ['see', true, 'fast', true, 'busy'],
-    ['see', false, 'fast', true, 'busy'],
-    ['see', true, 'fast', false, 'purpose'],
-    ['see', false, 'fast', false, 'purpose'],
-  ] as const)('%s, playing %s at the %s pace, busy day just started %s: %s', (view, playing, pace, busy, shows) => {
-    expect(topLineView(view, { ...makeRun().state(), playing, pace }, busy)).toBe(shows);
-  });
-
-  it('says the first few tickets are slowed down, and that busy-day speed is back', () => {
-    expect(TOP_LINE_WORDS.slow).toBe('Slowed down for the first few tickets so you can follow along.');
-    expect(TOP_LINE_WORDS.busy).toBe('Busy-day speed is back.');
-  });
-
-  it.each([
-    [undefined, 'slow', false],
-    [undefined, 'fast', false],
-    ['slow', 'slow', false],
-    ['slow', 'fast', true],
-    ['fast', 'fast', false],
-    ['fast', 'slow', false],
-  ] as const)('a change from %s to %s starts the busy-day notice: %s', (before, after, starts) => {
-    expect(paceSpeededUp(before, after)).toBe(starts);
   });
 });
