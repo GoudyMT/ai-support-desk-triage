@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openLearn } from './helpers';
+import { openLearn, playToFirstOpen, tabTo } from './helpers';
 import { count, next } from './learnKit';
 
 // Longer than the reviewer's 1.5 s to close a card, shorter than the nine seconds step 6's words take.
@@ -50,6 +50,70 @@ test.describe('the bar on a phone', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });
+
+test.describe('keyboard focus in Learn', () => {
+  // Back cannot be used on step 1, so pressing it there takes the key's own target away. Focus goes to the main
+  // button of the row instead of to nowhere.
+  test('moves from Back to the main button when Back is pressed into step 1', async ({ page }) => {
+    await openLearn(page);
+    // By keyboard all the way: Safari does not focus a button that was clicked.
+    await tabTo(page, 'Next');
+    await page.keyboard.press('Enter');
+    await expect(count(page)).toHaveText('Step 2 of 7');
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    const back = page.getByRole('button', { name: 'Back' });
+    await expect(back).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(count(page)).toHaveText('Step 1 of 7');
+    await expect(back).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
+    // And the keyboard still works from there.
+    await page.keyboard.press('Tab');
+    await expect(next(page)).toBeFocused();
+  });
+});
+
+// The bar is fixed over the bottom of the screen. A control the keyboard reaches near the bottom is scrolled into
+// view, and must stop above the bar rather than behind it.
+const MAX_TABS = 45;
+// The stops above the bar before Tab reaches it: the numbers' buttons, the link, the center's button and the lists.
+const MIN_STOPS = 5;
+
+for (const viewport of [
+  { width: 375, height: 812 },
+  { width: 768, height: 640 },
+]) {
+  test.describe(`at ${viewport.width} px wide and ${viewport.height} tall`, () => {
+    test.use({ viewport });
+
+    test('every control Tab reaches stops clear of the bar', async ({ page }) => {
+      // A run with an open card, so the board has its buttons; then Pause, and the numbers open.
+      await playToFirstOpen(page);
+      await page.getByRole('button', { name: 'Pause' }).click();
+      await page.getByRole('button', { name: 'All numbers' }).click();
+      const hidden: string[] = [];
+      const trace: (string | null)[] = [];
+      let reached = 0;
+      for (let n = 0; n < MAX_TABS; n += 1) {
+        await page.keyboard.press('Tab');
+        const seen = await page.evaluate(() => {
+          const node = document.activeElement;
+          const bar = document.getElementById('bar')?.getBoundingClientRect();
+          if (!(node instanceof HTMLElement) || bar === undefined || node.closest('#bar') !== null || node === document.body) return null;
+          const box = node.getBoundingClientRect();
+          return { name: node.getAttribute('aria-label') ?? node.textContent?.trim().slice(0, 30) ?? node.id, covered: box.bottom > bar.top + 0.5 && box.width > 0 };
+        });
+        trace.push(seen?.name ?? null);
+        if (seen === null) continue;
+        reached += 1;
+        if (seen.covered) hidden.push(seen.name);
+      }
+      expect(reached, JSON.stringify(trace)).toBeGreaterThan(MIN_STOPS);
+      expect(hidden).toEqual([]);
+    });
+  });
+}
 
 test.describe('the reviewer in Learn', () => {
   test('is held through step 6 so the walked card stays in Going out, and step 7 lets it close', async ({ page }) => {

@@ -114,6 +114,8 @@ export function mountBar(root: HTMLElement, actions: BarActions, steps: number):
       setText(status, view.status);
     },
     renderLearn(view: ReturnType<typeof learnBarView>) {
+      // A disabled button cannot keep focus: from Back on step 1 it goes to the main button, not to nowhere.
+      if (view.backDisabled && document.activeElement === back) main.focus();
       back.disabled = view.backDisabled;
       face(main, view.mainLabel === 'Pause' ? 'pause' : 'play', view.mainLabel);
       face(next, 'next', view.nextLabel);

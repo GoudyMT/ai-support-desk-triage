@@ -15,6 +15,7 @@ import './bar.css';
 import './learn.css';
 import './a11y.css';
 import type { Bar } from './bar';
+import { keepFocusClearOfBar } from './clearOfBar';
 import { byId, el, setText } from './dom';
 import { fetchModel } from './fetchModel';
 import { createLearn, type Learn } from './learn';
@@ -184,6 +185,7 @@ function mountRun(setup: Setup): Bar {
       if (page.mode !== mode) showView(mounted, mode, true);
     });
   }
+  keepFocusClearOfBar();
   byId('views').hidden = false;
   byId('top-live').hidden = false;
   byId('app').hidden = false;

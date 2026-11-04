@@ -7,6 +7,12 @@
   display: none !important;
 }
 
+/* A control the keyboard reaches is scrolled into view above the fixed bar (and above the docked Learn block),
+   not behind it. */
+html {
+  scroll-padding-bottom: calc(var(--bar-h) + var(--block-h));
+}
+
 body {
   margin: 0;
   background: var(--bg);
