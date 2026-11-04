@@ -8,12 +8,14 @@ export const FIRST_OPEN_MS = 20_500;
 export const OPEN_POLL_MS = 250;
 const MAX_OPEN_POLLS = 4000;
 
-// Opens the page with the clock under the test's control: nothing moves until `runFor`.
+// Opens the page with the clock under the test's control: nothing moves until `runFor`. The
+// clock is stopped before the page loads: an installed clock ticks in real time, so pausing it
+// after a slow load (the model is 3 MB) could land in the past and fail.
 export async function open(page: Page, query = `?seed=${SEED}`): Promise<void> {
   await page.clock.install({ time: START });
+  await page.clock.pauseAt(new Date(START.getTime() + 1000));
   await page.goto(`/${query}`);
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
-  await page.clock.pauseAt(new Date(START.getTime() + 1000));
 }
 
 export function reviewButton(page: Page, id: string) {
