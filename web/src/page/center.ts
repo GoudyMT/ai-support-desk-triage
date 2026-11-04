@@ -155,7 +155,8 @@ function renderTicket(panel: TicketPanel, input: CenterInput, ticket: CenterView
   setText(panel.say, input.sentence ?? '');
   const offered = input.explain === 'offered';
   const open = offered && input.explainOpen;
-  panel.toggle.hidden = !offered;
+  // Nothing is decided at Intake, so there is nothing yet to open.
+  panel.toggle.hidden = !offered || ticket.why.length === 0;
   panel.toggle.classList.toggle('open', open);
   panel.toggle.setAttribute('aria-expanded', String(open));
   panel.off.hidden = offered;

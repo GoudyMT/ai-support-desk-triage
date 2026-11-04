@@ -8,6 +8,7 @@ import {
   FIRST_OPEN_MS,
   SEED,
   START,
+  WHY_READY_MS,
   moreNumber,
   open,
   playToFirstOpen,
@@ -274,6 +275,21 @@ test.describe('All numbers', () => {
 });
 
 test.describe('Why this choice', () => {
+  // Opened at Intake it would show an empty list: nothing has been decided yet.
+  test('is not offered until the ticket has a result to explain', async ({ page }) => {
+    await open(page);
+    const toggle = page.getByRole('button', { name: 'Why this choice' });
+    const stage = page.locator('#ticket .now-stage');
+    await page.getByRole('button', { name: 'Step' }).click();
+    await expect(stage).toHaveText('Now: Intake');
+    await expect(toggle).toBeHidden();
+    for (let n = 0; n < MAX_STEPS && (await stage.innerText()) !== 'Now: Privacy'; n += 1) {
+      await page.getByRole('button', { name: 'Step' }).click();
+    }
+    await expect(stage).toHaveText('Now: Privacy');
+    await expect(toggle).toBeVisible();
+  });
+
   test('adds the note on the highlighted words once Classify is reached, and not before', async ({ page }) => {
     await open(page);
     const stage = page.locator('#ticket .now-stage');
@@ -332,10 +348,10 @@ test.describe('a phone-width screen', () => {
     await open(page);
     expect(await fits(page)).toBe(true);
     await page.getByRole('button', { name: 'Play' }).click();
-    await page.clock.runFor(FIRST_OPEN_MS);
-    expect(await fits(page)).toBe(true);
+    await page.clock.runFor(WHY_READY_MS);
     await page.getByRole('button', { name: 'All numbers' }).click();
     await page.getByRole('button', { name: 'Why this choice' }).click();
+    await page.clock.runFor(FIRST_OPEN_MS - WHY_READY_MS);
     expect(await fits(page)).toBe(true);
     await page.getByRole('tab', { name: /Going out/ }).click();
     await reviewButton(page, 'T-1001-0').click();
@@ -481,9 +497,10 @@ test.describe('the content security policy', () => {
     violations.length = 0;
 
     await page.getByRole('button', { name: 'Play' }).click();
-    await page.clock.runFor(FIRST_OPEN_MS);
-    await page.getByRole('button', { name: 'All numbers' }).click();
+    await page.clock.runFor(WHY_READY_MS);
     await page.getByRole('button', { name: 'Why this choice' }).click();
+    await page.clock.runFor(FIRST_OPEN_MS - WHY_READY_MS);
+    await page.getByRole('button', { name: 'All numbers' }).click();
     await page.getByRole('button', { name: 'Collapse' }).click();
     await page.getByRole('button', { name: /^Show tickets going out/ }).click();
     await reviewButton(page, 'T-1001-0').click();

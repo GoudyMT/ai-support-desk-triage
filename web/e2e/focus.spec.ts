@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, open, playUntilOpenCount, reviewButton } from './helpers';
+import { FIRST_OPEN_MS, SEED, WHY_READY_MS, open, playUntilOpenCount, reviewButton } from './helpers';
 
 // When the control a viewer was on goes away, is hidden or is disabled, focus must land on another
 // control, never on the body: a keyboard or screen reader user would be thrown back to the top.
@@ -56,7 +56,7 @@ test.describe('focus never falls to the body', () => {
   test('when Why this choice is focused and the busy day starts', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Play' }).click();
-    await page.clock.runFor(FIRST_OPEN_MS);
+    await page.clock.runFor(WHY_READY_MS);
     const why = page.getByRole('button', { name: 'Why this choice' });
     await why.focus();
     for (let n = 0; n < WALK_LIMIT && (await page.locator('#status').innerText()) !== 'Busy day'; n += 1) {

@@ -5,6 +5,8 @@ import { expect, type Page } from '@playwright/test';
 export const SEED = 1001;
 export const START = new Date('2026-01-01T09:00:00');
 export const FIRST_OPEN_MS = 20_500;
+// T-1001-0 is at Privacy from 5 s, so from then Why this choice has something to show.
+export const WHY_READY_MS = 6_000;
 export const OPEN_POLL_MS = 250;
 const MAX_OPEN_POLLS = 4000;
 

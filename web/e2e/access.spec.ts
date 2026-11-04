@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { open, playToFirstOpen, reviewButton, tabTo } from './helpers';
+import { FIRST_OPEN_MS, WHY_READY_MS, open, reviewButton, tabTo } from './helpers';
 
 // What the page promises every viewer: visible focus, big targets, speech, tabs by arrow keys,
 // the busy-day line, a dark theme, and its assumptions stated.
@@ -33,9 +33,13 @@ test.describe('focus and targets', () => {
   });
 
   test('every button and select is at least 44 px, with a review form open', async ({ page }) => {
-    await playToFirstOpen(page);
+    await open(page);
+    await page.getByRole('button', { name: 'Play' }).click();
+    await page.clock.runFor(WHY_READY_MS);
     await page.getByRole('button', { name: 'All numbers' }).click();
     await page.getByRole('button', { name: 'Why this choice' }).click();
+    await page.clock.runFor(FIRST_OPEN_MS - WHY_READY_MS);
+    await expect(reviewButton(page, 'T-1001-0')).toHaveCount(1);
     expect(await smallTargets(page)).toEqual([]);
     await page.getByRole('button', { name: 'Collapse' }).click();
     expect(await smallTargets(page)).toEqual([]);
