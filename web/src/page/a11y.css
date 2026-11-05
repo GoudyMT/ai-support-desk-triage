@@ -1,6 +1,17 @@
 /* Motion only where the viewer allows it, and a shape for each mark in forced colors. This file
    is loaded last so that its rules win over the panels' where they overlap. */
 @media (prefers-reduced-motion: no-preference) {
+  /* The ring on See The Process fades slowly in and out: enough to draw the eye, not to hold it. */
+  #view-see[aria-pressed='false']:not(:focus-visible) {
+    animation: ring-breath 3s ease-in-out infinite;
+  }
+
+  @keyframes ring-breath {
+    50% {
+      outline-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+  }
+
   .btn,
   .step-bar {
     transition:

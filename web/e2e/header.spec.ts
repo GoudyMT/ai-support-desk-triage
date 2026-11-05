@@ -176,6 +176,8 @@ test.describe('the switch between the views', () => {
   });
 
   test('rings See The Process in Learn only, with no note beside it', async ({ page }) => {
+    // Reduced motion holds the ring still, so its color can be read.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await openLearn(page);
     const ring = () =>
       page.locator('#view-see').evaluate((node) => {
@@ -197,6 +199,30 @@ test.describe('the switch between the views', () => {
     expect((await ring()).style).toBe('none');
     await page.getByRole('button', { name: 'Learn The Process' }).click();
     expect((await ring()).style).toBe('solid');
+  });
+
+  test('fades the ring slowly in and out, and only while Learn is showing', async ({ page }) => {
+    await openLearn(page);
+    const breath = () =>
+      page.locator('#view-see').evaluate((node) =>
+        // The button's own 150 ms color change also runs when it is pressed: only the ring counts here.
+        node.getAnimations().filter((animation) => (animation as CSSAnimation).animationName === 'ring-breath').map((animation) => {
+          const timing = animation.effect?.getComputedTiming();
+          return { state: animation.playState, ms: Number(timing?.duration), runs: timing?.iterations };
+        }),
+      );
+    const [ring] = await breath();
+    expect(ring).toMatchObject({ state: 'running', runs: Number.POSITIVE_INFINITY });
+    // Slow enough to draw the eye without holding it.
+    expect(ring?.ms ?? 0).toBeGreaterThanOrEqual(2000);
+    await page.getByRole('button', { name: 'See The Process' }).click();
+    expect(await breath()).toEqual([]);
+  });
+
+  test('holds the ring still under reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openLearn(page);
+    expect(await page.locator('#view-see').evaluate((node) => node.getAnimations().length)).toBe(0);
   });
 
   test('keeps the ring inside the switch, so it never touches what is around it', async ({ page }) => {

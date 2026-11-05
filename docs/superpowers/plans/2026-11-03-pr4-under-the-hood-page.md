@@ -367,7 +367,8 @@ Design section 5, the 2026-11-04 entry on the second sweep.
 ## Execution Notes & Deviations
 
 - 2026-11-04 (owner, after the clip): the note under the switch sat at an odd spot, so a ring on See The Process in Learn
-  replaces it; nothing else changes. The ring is a static outline inside the button: no motion, no room in the header.
+  replaces it; nothing else changes. The ring is an outline inside the button, so it takes no room in the header; at the owner's ask it fades slowly in and
+  out, and holds still under reduced motion.
 
 - 2026-11-04 Task 15 (second sweep, fix round): the page is 48,083 bytes gzipped (JS 43.16 kB, CSS 4.93 kB, HTML 1.17
   kB), 583 over the 47,500 limit; the gate's size step is the only step that fails. No trim pass has been run; the
