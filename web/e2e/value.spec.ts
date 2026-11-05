@@ -164,7 +164,8 @@ for (const viewport of [
   });
 }
 
-// The numbers rise only when a ticket that no person touched closes: one ticket, 2 minutes, at a time.
+// The numbers rise only when a ticket closes that was sorted right, on team and priority, with no review: one ticket,
+// 2 minutes, at a time.
 const MINUTES_PER_TICKET = 2;
 const STEP_MS = 250;
 const MAX_STEPS = 600;
@@ -192,27 +193,28 @@ async function runUntilSaved(page: Page): Promise<void> {
 }
 
 test.describe('what the saved numbers count', () => {
-  test('rise only when a ticket no person touched closes, by 2 minutes for each', async ({ page }) => {
+  test('rise only when a ticket sorted right with no review closes, by 2 minutes for each', async ({ page }) => {
     await openNumbers(page);
     await playOn(page);
-    let sawTouched = false;
-    let sawUntouched = false;
+    let sawNothingSaved = false;
+    let sawSaved = false;
     let was = { done: 0, minutes: 0 };
-    for (let n = 0; n < MAX_STEPS && !(sawTouched && sawUntouched); n += 1) {
+    for (let n = 0; n < MAX_STEPS && !(sawNothingSaved && sawSaved); n += 1) {
       await tick(page);
       const now = { done: Number(await doneText(page).innerText()), minutes: Number.parseInt(await timeText(page).innerText(), 10) };
       if (now.minutes !== was.minutes) {
         // Every rise comes with a ticket closing, and counts that one ticket only.
         expect(now.done - was.done, `done at step ${n}`).toBe(1);
         expect(now.minutes - was.minutes, `minutes at step ${n}`).toBe(MINUTES_PER_TICKET);
-        sawUntouched = true;
+        sawSaved = true;
       } else if (now.done > was.done) {
-        // A ticket a person looked at (here the simulated reviewer) closed and saved nothing.
-        sawTouched = true;
+        // A ticket closed and saved nothing: it had a review (here the simulated reviewer's), or went to the wrong
+        // team or at the wrong priority.
+        sawNothingSaved = true;
       }
       was = now;
     }
-    expect(sawTouched && sawUntouched).toBe(true);
+    expect(sawNothingSaved && sawSaved).toBe(true);
     await expect(valueText(page)).toHaveText(`$${((was.minutes / 60) * 21.53).toFixed(2)}`);
   });
 
