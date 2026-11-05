@@ -102,7 +102,7 @@ describe('Review', () => {
 
     run.confirm(rightPick(run, idOf(6)));
     expect(run.state().reviewing).toBeUndefined();
-    expect(run.state().viewerReviews).toEqual([{ id: idOf(6), correct: true }]);
+    expect(run.state().viewerReviews).toEqual([{ id: idOf(6), correct: true, quick: false }]);
     expect(lastDone(run).id).toBe(idOf(6));
     expect(lastDone(run).final.by).toBe('reviewer');
     expect(run.nextDelayMs()).toBe(due);
@@ -157,7 +157,7 @@ describe('Review', () => {
     });
     expect(lastDone(run)).toEqual({ ...rerun, receivedAt: fakeSchedule(TOTAL, 6).arrivesAt(indexOf(id)) });
     expect(lastDone(run).final).toEqual({ ...pick, by: 'reviewer' });
-    expect(run.state().viewerReviews).toEqual([{ id, correct: false }]);
+    expect(run.state().viewerReviews).toEqual([{ id, correct: false, quick: false }]);
     expect(run.state().open.some((t) => t.id === id)).toBe(false);
   });
 
@@ -196,7 +196,7 @@ describe('Review', () => {
     const id = firstOpen(run).id;
     run.review(id);
     run.confirm(pickFor(run.truthOf(id)));
-    expect(run.state().viewerReviews).toEqual([{ id, correct }]);
+    expect(run.state().viewerReviews).toEqual([{ id, correct, quick: false }]);
   });
 
   it('ignores Review on an unknown or non-open ticket, Review while a form is open, and Confirm or Hand back with no form', () => {

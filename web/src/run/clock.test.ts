@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ACT1_SECONDS, ACT1_TICKETS, ACT2_SECONDS, ACT2_TICKETS_PER_DAY, createSchedule } from './clock';
+import {
+  ACT1_SECONDS,
+  ACT1_TICKETS,
+  ACT2_SECONDS,
+  ACT2_TICKETS_PER_DAY,
+  DESK_ARRIVAL_SECONDS,
+  createDeskSchedule,
+  createSchedule,
+} from './clock';
 
 const SEED = 1001;
 const QUARTERS = 4;
@@ -62,6 +70,60 @@ describe('createSchedule', () => {
 
   it('refuses a ticket number outside 0..total-1 with a static code', () => {
     const schedule = createSchedule(SEED);
+    for (const bad of [-1, 130, 1.5, Number.NaN]) {
+      expect(() => schedule.act(bad)).toThrow('E_TICKET_RANGE');
+      expect(() => schedule.arrivesAt(bad)).toThrow('E_TICKET_RANGE');
+    }
+    expect(() => schedule.arrivesAt(129)).not.toThrow();
+  });
+});
+
+describe('createDeskSchedule', () => {
+  const DESK_TOTAL = 130;
+  const MEAN_TOLERANCE = 0.05;
+
+  function deskTimes(seed: number): number[] {
+    const schedule = createDeskSchedule(seed);
+    return Array.from({ length: schedule.total }, (_, i) => schedule.arrivesAt(i));
+  }
+
+  it('holds the same 130 tickets as the demo, all in one act, so the desk never reads a day split in two', () => {
+    const schedule = createDeskSchedule(SEED);
+    expect(schedule.total).toBe(DESK_TOTAL);
+    expect(Array.from({ length: DESK_TOTAL }, (_, i) => schedule.act(i)).every((a) => a === 2)).toBe(true);
+  });
+
+  it('never has two tickets arrive at once or out of order, for any seed', () => {
+    for (const seed of [1000, SEED, 424242, 4294967295]) {
+      const times = deskTimes(seed);
+      expect(times).toHaveLength(DESK_TOTAL);
+      times.forEach((time, i) => {
+        if (i > 0) expect(time).toBeGreaterThan(times[i - 1] ?? Infinity);
+      });
+    }
+  });
+
+  it('keeps a ticket inside its own slot of DESK_ARRIVAL_SECONDS, so the pace is steady and not bunched', () => {
+    deskTimes(SEED).forEach((time, i) => {
+      expect(time).toBeGreaterThanOrEqual(i * DESK_ARRIVAL_SECONDS);
+      expect(time).toBeLessThan((i + 1) * DESK_ARRIVAL_SECONDS);
+    });
+  });
+
+  it('averages one arrival every 1.8 seconds, within 5%', () => {
+    expect(DESK_ARRIVAL_SECONDS).toBe(1.8);
+    const times = deskTimes(SEED);
+    const mean = ((times.at(-1) ?? 0) - (times[0] ?? 0)) / (DESK_TOTAL - 1);
+    expect(Math.abs(mean - DESK_ARRIVAL_SECONDS) / DESK_ARRIVAL_SECONDS).toBeLessThan(MEAN_TOLERANCE);
+  });
+
+  it('replays: the same seed gives the same times and another seed gives other ones', () => {
+    expect(deskTimes(SEED)).toEqual(deskTimes(SEED));
+    expect(deskTimes(SEED + 1)).not.toEqual(deskTimes(SEED));
+  });
+
+  it('refuses a ticket number outside 0..total-1 with a static code', () => {
+    const schedule = createDeskSchedule(SEED);
     for (const bad of [-1, 130, 1.5, Number.NaN]) {
       expect(() => schedule.act(bad)).toThrow('E_TICKET_RANGE');
       expect(() => schedule.arrivesAt(bad)).toThrow('E_TICKET_RANGE');
