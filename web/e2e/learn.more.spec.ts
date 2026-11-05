@@ -118,7 +118,8 @@ test.describe('going back in Learn', () => {
 // without the bar growing or the Pause button moving, or the button a viewer is about to press jumps away.
 for (const width of [360, 375, 390]) {
   test.describe(`the bar on the last step at ${width} px`, () => {
-    test.use({ viewport: { width, height: 812 } });
+    // The style tag below is a test's stand-in for a wider font; the page's own policy would refuse it.
+    test.use({ viewport: { width, height: 812 }, bypassCSP: true });
 
     test('is as tall as before and keeps Back and Pause where they were', async ({ page }) => {
       await openLearn(page);
@@ -141,6 +142,18 @@ for (const width of [360, 375, 390]) {
       expect(after.back).toEqual(before.back);
       expect(after.pause).toEqual(before.pause);
       expect(after.sideways).toBe(false);
+    });
+
+    // A phone's own font can run wider than the one these tests are read with, and the row must still hold.
+    test('stays one row when the words run wider', async ({ page }) => {
+      await openLearn(page);
+      await page.addStyleTag({ content: '#learn-controls .btn { letter-spacing: 0.03em; }' });
+      for (let n = 0; n < 6; n += 1) await next(page).click();
+      await expect(count(page)).toHaveText('Step 7 of 7');
+      const tops = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('#learn-controls button')].filter((b) => b.offsetParent !== null).map((b) => b.getBoundingClientRect().top),
+      );
+      expect(new Set(tops).size).toBe(1);
     });
   });
 }

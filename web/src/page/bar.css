@@ -87,7 +87,7 @@
   }
 
   #learn-controls .btn {
-    padding-inline: var(--space-3);
+    padding-inline: var(--space-2);
     font-size: var(--fs-phone-button);
   }
 }
