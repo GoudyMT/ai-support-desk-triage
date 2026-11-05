@@ -115,7 +115,8 @@ numbers CI already holds (parent section 6 start point).
   place", and the simulated reviewer holds during that step. Step 2 reads "This is what the customer wrote, with any
   private details already covered"; the page shows masked text only. Every bar icon keeps its word on phones. The seed
   line lives in All numbers. The page limit is 45,000 bytes. In See, the line under the title shows the pace notice, and
-  a note under the switch invites the viewer on. Time saved and Value saved move up from PR 5, into All numbers: 2 minutes
+  a ring on See The Process invites the viewer on in Learn (the owner replaced the note under the switch after the
+  clip). Time saved and Value saved move up from PR 5, into All numbers: 2 minutes
   per ticket no person touched (low end of vendor figures; no independent study found) x $21.53 an hour (BLS median,
   May 2025, no benefits). Measured over 8 seeds: 8.5% to 14.6% of tickets go untouched, 22 to 38 minutes, $7.89 to
   $13.64 a run. They rise with a light flash and show their source on hover, focus or tap.

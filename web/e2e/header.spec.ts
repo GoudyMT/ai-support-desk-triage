@@ -13,29 +13,20 @@ const play = (page: Page) => page.getByRole('button', { name: 'Play', exact: tru
 // The line under the title: what the page is, or in See what the pace is doing. One line of the header, so
 // the words change and the height does not.
 test.describe('the line under the title', () => {
-  // On a wide screen the note under the switch hangs over this row, so in Learn the row shows the note alone: the
-  // purpose keeps its place (the row keeps its height) and is not drawn, rather than being cut in half by the note.
-  test('is left to the note in Learn on a wide screen, and shows the purpose again in See', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await openLearn(page);
-    await expect(purpose(page)).toBeHidden();
-    await expect(note(page)).toBeVisible();
-    await expect(notice(page)).toBeHidden();
-    const rowHeight = () => page.locator('.purpose').evaluate((node) => node.getBoundingClientRect().height);
-    const inLearn = await rowHeight();
-    await page.getByRole('button', { name: 'See The Process' }).click();
-    await page.getByRole('button', { name: 'Pause' }).click();
-    await expect(purpose(page)).toBeVisible();
-    expect(await rowHeight()).toBe(inLearn);
-  });
-
-  test('keeps the purpose in Learn below 1024 px, where the note sits in the flow', async ({ page }) => {
-    await page.setViewportSize({ width: 768, height: 1024 });
-    await openLearn(page);
-    await expect(purpose(page)).toBeVisible();
-    await expect(note(page)).toBeVisible();
-    await expect(notice(page)).toBeHidden();
-  });
+  for (const width of [1280, 768]) {
+    test(`keeps the purpose in Learn at ${width} px, and the row as tall in See`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1024 });
+      await openLearn(page);
+      await expect(purpose(page)).toBeVisible();
+      await expect(notice(page)).toBeHidden();
+      const rowHeight = () => page.locator('.purpose').evaluate((node) => node.getBoundingClientRect().height);
+      const inLearn = await rowHeight();
+      await page.getByRole('button', { name: 'See The Process' }).click();
+      await page.getByRole('button', { name: 'Pause' }).click();
+      await expect(purpose(page)).toBeVisible();
+      expect(await rowHeight()).toBe(inLearn);
+    });
+  }
 
   test('keeps the purpose in See while the run is at rest', async ({ page }) => {
     await open(page);
@@ -148,8 +139,6 @@ for (const viewport of [
 const LEARN_STEPS = 7;
 // Longer than the half second the hole takes to ease to the next lit part.
 const EASE_WAIT_MS = 6000;
-const VIEW_NOTE = 'Ready? Switch to See The Process to watch it run.';
-const note = (page: Page) => page.locator('#view-note');
 // The switch is 44 px tall inside its border, and it was 285 px wide before it was widened.
 const SWITCH_HEIGHT_PX = 46;
 const OLD_SWITCH_WIDTH_PX = 285;
@@ -174,7 +163,7 @@ const boxes = (page: Page, selectors: string[]) =>
 const apart = (a: Box | null | undefined, b: Box | null | undefined): boolean =>
   a != null && b != null && (a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
 
-// The two views: a switch that is bigger to click by its width alone, and a note under it in Learn.
+// The two views: a switch that is bigger to click by its width alone, with a ring on See The Process in Learn.
 test.describe('the switch between the views', () => {
   test('is wider than it was and no taller', async ({ page }) => {
     await openLearn(page);
@@ -186,27 +175,34 @@ test.describe('the switch between the views', () => {
     }
   });
 
-  test('has a note under it in Learn only', async ({ page }) => {
+  test('rings See The Process in Learn only, with no note beside it', async ({ page }) => {
     await openLearn(page);
-    await expect(note(page)).toBeVisible();
-    await expect(note(page)).toHaveText(VIEW_NOTE);
+    const ring = () =>
+      page.locator('#view-see').evaluate((node) => {
+        const style = getComputedStyle(node);
+        return { style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth), color: style.outlineColor };
+      });
+    const accent = await page.evaluate(() => {
+      const probe = document.createElement('i');
+      probe.style.color = 'var(--accent)';
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
+    expect(await ring()).toMatchObject({ style: 'solid', color: accent });
+    expect((await ring()).width).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('#view-note')).toHaveCount(0);
     await page.getByRole('button', { name: 'See The Process' }).click();
-    await expect(note(page)).toBeHidden();
+    expect((await ring()).style).toBe('none');
     await page.getByRole('button', { name: 'Learn The Process' }).click();
-    await expect(note(page)).toBeVisible();
+    expect((await ring()).style).toBe('solid');
   });
 
-  test('has a note on a solid background, above the dim layer', async ({ page }) => {
+  test('keeps the ring inside the switch, so it never touches what is around it', async ({ page }) => {
     await openLearn(page);
-    const seen = await page.evaluate(() => {
-      const node = document.getElementById('view-note');
-      if (node === null) return null;
-      const box = node.getBoundingClientRect();
-      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-      return { background: getComputedStyle(node).backgroundColor, onTop: top?.closest('#view-note') != null };
-    });
-    expect(seen?.onTop).toBe(true);
-    expect(seen?.background).not.toBe('rgba(0, 0, 0, 0)');
+    const offset = await page.locator('#view-see').evaluate((node) => Number.parseFloat(getComputedStyle(node).outlineOffset));
+    expect(offset).toBeLessThan(0);
   });
 });
 
@@ -218,32 +214,30 @@ for (const viewport of [
   test.describe(`the header at ${viewport.width} px`, () => {
     test.use({ viewport });
 
-    test('has its stats clear of the switch and the note, and the note adds no height', async ({ page }) => {
+    test('has its stats clear of the switch, and the header is as tall in Learn as in See', async ({ page }) => {
       await openLearn(page);
-      const learn = await boxes(page, ['.top', '#views', '#view-note', '#stats', '#more-toggle']);
+      const learn = await boxes(page, ['.top', '#views', '#stats', '#more-toggle']);
       for (const [name, clearOf] of [
         ['stats', learn['#stats']],
         ['All numbers', learn['#more-toggle']],
       ] as const) {
         expect(apart(learn['#views'], clearOf), `the switch and ${name}`).toBe(true);
-        expect(apart(learn['#view-note'], clearOf), `the note and ${name}`).toBe(true);
       }
       await page.getByRole('button', { name: 'See The Process' }).click();
       const see = await boxes(page, ['.top', '#views', '#stats', '#more-toggle']);
       expect(apart(see['#views'], see['#stats'])).toBe(true);
-      // The note hangs over the row below the switch, so the header is as tall with it as without.
       expect((learn['.top']?.bottom ?? 0) - (learn['.top']?.top ?? 0)).toBe((see['.top']?.bottom ?? 0) - (see['.top']?.top ?? 0));
     });
 
-    test('keeps the Learn block off the note on every step', async ({ page }) => {
+    test('keeps the Learn block off the switch on every step', async ({ page }) => {
       await openLearn(page);
       for (let step = 0; step < LEARN_STEPS; step += 1) {
         if (step > 0) await page.getByRole('button', { name: 'Next', exact: true }).click();
         // Polled: the block follows the hole as it eases to the next lit part.
         await expect
           .poll(async () => {
-            const seen = await boxes(page, ['.learn-block', '#view-note']);
-            return apart(seen['.learn-block'], seen['#view-note']);
+            const seen = await boxes(page, ['.learn-block', '#views']);
+            return apart(seen['.learn-block'], seen['#views']);
           }, { message: `step ${step + 1}`, timeout: EASE_WAIT_MS })
           .toBe(true);
       }
@@ -259,15 +253,14 @@ for (const viewport of [
   test.describe(`the header at ${viewport.width} px`, () => {
     test.use({ viewport });
 
-    test('has its stats clear of the switch and the note, in Learn and in See', async ({ page }) => {
+    test('has its stats clear of the switch, in Learn and in See', async ({ page }) => {
       await openLearn(page);
-      const learn = await boxes(page, ['#views', '#view-note', '#stats', '#more-toggle']);
+      const learn = await boxes(page, ['#views', '#stats', '#more-toggle']);
       for (const [name, other] of [
         ['stats', learn['#stats']],
         ['All numbers', learn['#more-toggle']],
       ] as const) {
         expect(apart(learn['#views'], other), `the switch and ${name} in Learn`).toBe(true);
-        expect(apart(learn['#view-note'], other), `the note and ${name} in Learn`).toBe(true);
       }
       await page.getByRole('button', { name: 'See The Process' }).click();
       const see = await boxes(page, ['#views', '#stats', '#more-toggle']);
@@ -280,11 +273,8 @@ for (const viewport of [
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test('the note sits in the flow under the switch, with no sideways scroll and 44 px buttons', async ({ page }) => {
+  test('the switch has no sideways scroll and 44 px buttons', async ({ page }) => {
     await openLearn(page);
-    await expect(note(page)).toBeVisible();
-    const { '#views': views, '#view-note': under } = await boxes(page, ['#views', '#view-note']);
-    expect(under?.top ?? 0).toBeGreaterThanOrEqual(views?.bottom ?? 0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     for (const id of ['view-learn', 'view-see']) {
       const box = await page.locator(`#${id}`).boundingBox();

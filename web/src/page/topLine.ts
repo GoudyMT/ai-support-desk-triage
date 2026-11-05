@@ -33,8 +33,6 @@ export function mountTopLine(purpose: HTMLElement, notice: HTMLElement): { rende
   return {
     render(view, state) {
       latest = { view, state };
-    // The styles hide the purpose in Learn on a wide screen, where the note under the switch hangs over its row.
-    if (purpose.parentElement !== null) purpose.parentElement.dataset.view = view;
       // A pace change only counts when it is watched: in Learn, or after a restart, there is nothing to announce.
       if (view !== 'see') {
         paceBefore = undefined;

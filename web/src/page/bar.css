@@ -113,35 +113,8 @@
   padding-inline: var(--space-5);
 }
 
-.views-wrap {
-  position: relative;
-}
-
-/* Learn only: a tag hanging from the switch. It is solid and above the dim layer, like the switch. On a phone
-   it sits in the flow under the switch. */
-.view-note {
-  position: relative;
-  z-index: var(--z-views);
-  margin: var(--space-1) 0 0;
-  padding: var(--space-1) var(--space-3);
-  border: var(--border) solid var(--control-line);
-  border-radius: var(--radius);
-  background: var(--raised);
-  color: var(--text);
-  font-size: var(--fs-sm);
-}
-
-/* Wide screens: it hangs from the switch's right edge over the row below, so the header is no taller for it. The
-   stats are never under it: they are left of the switch's row or on the row below, and it ends at the switch. */
-@media (min-width: 1024px) {
-  .view-note {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin: calc(-1 * var(--border)) 0 0;
-    border-top-color: transparent;
-    border-radius: 0 0 var(--radius) var(--radius);
-    box-shadow: var(--lift);
-    white-space: nowrap;
-  }
+/* Learn only: a ring says See The Process is there to tap. Inside the button, so it takes no room in the header. */
+#view-see[aria-pressed='false']:not(:focus-visible) {
+  outline: var(--stroke) solid var(--accent);
+  outline-offset: calc(-1 * var(--stroke));
 }

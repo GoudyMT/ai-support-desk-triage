@@ -148,8 +148,6 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
     view.classList.toggle('btn-solid', which === mode);
   }
   for (const id of BEHIND_THE_DIM) byId(id).inert = mode === 'learn';
-  // The note under the switch invites a viewer who is walking Learn to go on; in See there is nothing to invite.
-  byId('view-note').hidden = mode !== 'learn';
   panels.bar.show(mode);
   if (mode === 'learn') {
     if (from === 'see') {

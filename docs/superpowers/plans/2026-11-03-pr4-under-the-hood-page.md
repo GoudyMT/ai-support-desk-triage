@@ -308,8 +308,8 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
 - [x] Check on the way out (owner, 2026-11-04): a small-model agent with no project context walks the built page's
       screens and words as a non-technical first-time visitor, says back the process in its own words and lists what it
       did not understand -> verify: its report, each question fixed or answered with the owner
-- [ ] After the clip and that walk, the owner decides whether small eye-drawing cues are needed; none are built before
-      that -> verify: the owner's answer
+- [x] After the clip and that walk, the owner decides whether small eye-drawing cues are needed; none are built before
+      that -> verify: the owner's answer, 2026-11-04: a ring on See The Process replaces the note, nothing else
 
 ### Task 13 (builder): the value numbers, the pace notice and the switch note
 
@@ -365,6 +365,9 @@ Design section 5, the 2026-11-04 entry on the second sweep.
 | A floor for the test count | The gate passes if a test file is deleted; nothing fails when the count falls | A gate check, PR 6 or later |
 
 ## Execution Notes & Deviations
+
+- 2026-11-04 (owner, after the clip): the note under the switch sat at an odd spot, so a ring on See The Process in Learn
+  replaces it; nothing else changes. The ring is a static outline inside the button: no motion, no room in the header.
 
 - 2026-11-04 Task 15 (second sweep, fix round): the page is 48,083 bytes gzipped (JS 43.16 kB, CSS 4.93 kB, HTML 1.17
   kB), 583 over the 47,500 limit; the gate's size step is the only step that fails. No trim pass has been run; the

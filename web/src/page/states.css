@@ -42,14 +42,6 @@
   visibility: hidden;
 }
 
-/* In Learn on a wide screen the note under the switch hangs over this row, so the row shows the note alone: the
-   purpose keeps its place and its height, and is not drawn rather than cut in half. */
-@media (min-width: 1024px) {
-  .purpose[data-view='learn'] > #purpose {
-    visibility: hidden;
-  }
-}
-
 /* The pace notice is a short line of its own: a border, a tint and a word, so it is not a color alone. */
 .purpose-notice {
   /* As big as its own words: the cell is as tall as the longer purpose, and a stretched tint would fill it. */
