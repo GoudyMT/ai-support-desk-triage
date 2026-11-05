@@ -317,6 +317,21 @@ test.describe('the pulse when a saved number goes up', () => {
     expect((await flashes(page)).length).toBe(before);
   });
 
+  // The run put away while Learn walks comes back with more than the fresh run showed; nobody watched it rise.
+  test('does not run when the viewer comes back to See with the numbers they had', async ({ page }) => {
+    await watchFlashes(page);
+    await openNumbers(page);
+    await playOn(page);
+    await runUntilSaved(page);
+    const before = (await flashes(page)).length;
+    const minutes = await timeText(page).innerText();
+    await page.getByRole('button', { name: 'Learn The Process', exact: true }).click();
+    await expect(timeText(page)).toHaveText('0 min');
+    await page.getByRole('button', { name: 'See The Process', exact: true }).first().click();
+    await expect(timeText(page)).toHaveText(minutes);
+    expect((await flashes(page)).length).toBe(before);
+  });
+
   test.describe('with reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
 

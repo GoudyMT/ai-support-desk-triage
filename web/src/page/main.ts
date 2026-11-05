@@ -52,6 +52,8 @@ interface Mounted {
   learn: Learn;
   // The viewer's run, paused, while Learn walks a fresh one; See brings it back.
   stash?: Run;
+  // Set when the view changes, until the next drawing.
+  switched: boolean;
 }
 
 // Learn lights one part of the page at a time; the board and the numbers behind the dim take no clicks.
@@ -73,8 +75,11 @@ function render(mounted: Mounted): void {
   const review = reviewView(state);
   const result = realSpeedView(state);
   const controls = controlsView(state, setup.schedule.total);
-  // A real speed finish lands the whole day in one drawing, and Learn is a narrated walk: neither pulses.
-  panels.stats.render(numbers, moreNumbersView(state, run.truthOf), result === undefined && page.mode === 'see');
+  // A real speed finish lands the whole day in one drawing, and Learn is a narrated walk: neither pulses. Nor does
+  // the first drawing after a change of view: a run brought back from the stash shows numbers nobody watched rise.
+  const pulsing = result === undefined && page.mode === 'see' && !mounted.switched;
+  mounted.switched = false;
+  panels.stats.render(numbers, moreNumbersView(state, run.truthOf), pulsing);
   panels.topLine.render(page.mode, state);
   panels.bar.renderSee({ controls, speed: speedView(state), status: statusView(state) });
   panels.tabs.render({ in: `${waiting.length} waiting`, out: `${pending} pending` });
@@ -141,6 +146,7 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
   const { page, panels } = mounted;
   const from = page.mode;
   page.mode = mode;
+  mounted.switched = true;
   document.body.dataset.view = mode;
   if (mode === 'see') byId('view-see').classList.add('found');
   for (const which of ['learn', 'see']) {
@@ -200,7 +206,7 @@ function mountRun(setup: Setup): Bar {
     panels.dim,
     panels.bar,
   );
-  const mounted: Mounted = { setup, page, panels, learn };
+  const mounted: Mounted = { setup, page, panels, learn, switched: false };
   for (const mode of ['learn', 'see'] as const) {
     byId(`view-${mode}`).addEventListener('click', () => {
       byId('view-see').classList.add('found');
