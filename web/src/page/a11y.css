@@ -98,7 +98,7 @@
     background: Highlight;
   }
 
-  .view[aria-pressed='true'] {
+  .view[aria-pressed='true']:not(:focus-visible) {
     outline: var(--stroke) solid Highlight;
     outline-offset: calc(-1 * var(--stroke));
   }

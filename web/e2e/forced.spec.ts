@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openLearn } from './helpers';
+import { openLearn, tabTo } from './helpers';
 import { next } from './learnKit';
 
 // Forced colors drop backgrounds: a bar that is only a color on a color disappears, and so does the button that
@@ -43,5 +43,29 @@ test.describe('in forced colors', () => {
     expect(seen.learn.outline).toBe('solid');
     expect(Number.parseFloat(seen.learn.width)).toBeGreaterThanOrEqual(2);
     expect(seen.see.outline).toBe('none');
+  });
+
+  // The ring of the view in use sits inside the button; the keyboard's focus ring stands outside it. If the first
+  // were drawn over the second, a keyboard viewer on that button could not tell focus from the mark.
+  test('keeps the focus ring, not the ring of the view in use, on that view when the keyboard is on it', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'WebKit does not emulate forced colors');
+    await openLearn(page);
+    await tabTo(page, 'Learn The Process');
+    const seen = await page.evaluate(() => {
+      const node = document.activeElement as HTMLElement;
+      const style = getComputedStyle(node);
+      const root = getComputedStyle(document.documentElement);
+      const probe = document.createElement('div');
+      probe.style.width = root.getPropertyValue('--focus-width');
+      probe.style.marginLeft = root.getPropertyValue('--focus-offset');
+      document.body.append(probe);
+      const focus = { width: getComputedStyle(probe).width, offset: getComputedStyle(probe).marginLeft };
+      probe.remove();
+      return { id: node.id, pressed: node.getAttribute('aria-pressed'), width: style.outlineWidth, offset: style.outlineOffset, focus };
+    });
+    expect(seen.id).toBe('view-learn');
+    expect(seen.pressed).toBe('true');
+    expect(seen.width).toBe(seen.focus.width);
+    expect(seen.offset).toBe(seen.focus.offset);
   });
 });
