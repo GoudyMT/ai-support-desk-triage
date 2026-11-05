@@ -114,8 +114,11 @@
 }
 
 /* Learn only, until the viewer has found the switch: a ring says See The Process is there to tap. Inside the button,
-   so it takes no room in the header. */
-#view-see[aria-pressed='false']:not(.found, :focus-visible) {
-  outline: var(--stroke) solid var(--accent);
-  outline-offset: calc(-1 * var(--stroke));
+   so it takes no room in the header. Forced colors mark the view in use with an outline, so a ring there would mix
+   the two up. */
+@media not (forced-colors: active) {
+  #view-see[aria-pressed='false']:not(.found, :focus-visible) {
+    outline: var(--stroke) solid var(--accent);
+    outline-offset: calc(-1 * var(--stroke));
+  }
 }
