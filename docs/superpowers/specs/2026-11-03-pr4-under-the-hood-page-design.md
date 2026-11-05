@@ -126,7 +126,8 @@ numbers CI already holds (parent section 6 start point).
   no review counts as 2 minutes saved. Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant
   Rocketship) and we found no independent study, so we use less than their lowest figure", with both names linked, and
   the assumption line "each ticket sorted correctly with no review saves 2 minutes". On the same seeds 1000, 1001 and
-  1003 the count falls from 18, 11 and 15 to 15, 11 and 12. The closed list gains a "Wrong team" mark for a ticket
+  1003 the count falls from 18, 11 and 15 to 15, 11 and 12, then to 11, 10 and 12 when the closing priority must be true
+  as well (the owner, 2026-11-05; 8 seeds: 9 to 17 tickets, 18 to 34 minutes, $6.46 to $12.20). The closed list gains a "Wrong team" mark for a ticket
   nobody checked that went to the wrong team ("it went to the wrong team and nobody checked it"); Auto reads "no
   review" and Flagged "the reviewer checked it and kept the model's category". Words: steps 2 to 7 name the steps and
   say the model's team is sometimes wrong; the classify sentence opens "After the privacy step, the model picks ..."

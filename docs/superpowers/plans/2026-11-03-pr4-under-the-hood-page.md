@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 11, the re-sweep's fix round
+- Current task: 11, the PR
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -19,8 +19,9 @@
   page 47,070 of 47,500 bytes (the owner's yes), Opus check ESCALATE settled by the owner, visitor walk done
   Task 15 and the second sweep - through 4e74f57; the ring - 5973698, 131e503, 564c15c, 3c62c33; limit 48,500 - e9a0eb0;
   test gaps from the lead-run planted bugs - f95dd0a, fafd51e: gate exit 0, 1,165 unit tests, 662 e2e passed, 1 skipped,
-  lead break check red; fix check FIX and the short re-sweep, their fixes in a last round
-- Next: that fix round, PR body, the owner's go; a real device stays unproven and carries to PR 6
+  lead break check red; fix check FIX and the short re-sweep; their fix round a464385..c1530ef: gate exit 0, 1,165 unit
+  tests, page 48,199 of 48,500 bytes, 685 e2e passed in three browsers, 2 skipped (WebKit forced colors), lead break check red
+- Next: PR body, the owner's go; a real device stays unproven and carries to PR 6
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -368,6 +369,11 @@ Design section 5, the 2026-11-04 entry on the second sweep.
 | A floor for the test count | The gate passes if a test file is deleted; nothing fails when the count falls | A gate check, PR 6 or later |
 
 ## Execution Notes & Deviations
+
+- 2026-11-05 Fix round of the re-sweep: leaving See with a review form open hands the ticket back, so a half-filled form
+  is not kept (the owner's yes). Saved numbers also need the true priority (the owner's yes). The rare fall from Act 2 to
+  Act 1 stays: it needs two reviews with Slow down at the offers, and `currentAct` reads the center ticket by design at
+  the act change, so a fix would change the words at every act change. Carried with the re-sweep's low findings.
 
 - 2026-11-04 (owner, after the clip): the note under the switch sat at an odd spot, so a ring on See The Process in Learn
   replaces it; nothing else changes. The ring is an outline inside the button, so it takes no room in the header; at the owner's ask it fades slowly in and
