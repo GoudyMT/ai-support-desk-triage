@@ -3,6 +3,8 @@ import { expect, type Page } from '@playwright/test';
 // Seed 1001 runs on fold 1. At learn pace its first ticket (T-1001-0) leaves the center for the
 // open list 20 s into the run; the model's picks for it are Billing, Medium and the Billing Team.
 export const SEED = 1001;
+// The demo lives beside the desk, which is the site root.
+export const DEMO_PATH = '/under-the-hood.html';
 export const START = new Date('2026-01-01T09:00:00');
 export const FIRST_OPEN_MS = 20_500;
 // T-1001-0 is at Privacy from 5 s, so from then Why this choice has something to show.
@@ -23,7 +25,7 @@ const MAX_OPEN_POLLS = 4000;
 export async function openLearn(page: Page, query = `?seed=${SEED}`): Promise<void> {
   await page.clock.install({ time: START });
   await page.clock.pauseAt(new Date(START.getTime() + 1000));
-  await page.goto(`/${query}`);
+  await page.goto(`${DEMO_PATH}${query}`);
   await expect(page.locator('#learn-controls')).toBeVisible();
 }
 

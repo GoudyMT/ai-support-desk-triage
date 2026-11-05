@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { FIRST_OPEN_MS, SEED, SLOW_TEST_MS, START, seeAndPause } from './helpers';
+import { DEMO_PATH, FIRST_OPEN_MS, SEED, SLOW_TEST_MS, START, seeAndPause } from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -45,14 +45,14 @@ async function serveBuild(): Promise<{ origin: string; asked: string[]; stop: ()
 }
 
 test.describe('what the server is asked for', () => {
-  const OWN_FILES = [/^\/$/, /^\/assets\/[\w.-]+\.(js|css)$/, /^\/models\/fold_1\.json$/, /^\/favicon\.svg$/];
+  const OWN_FILES = [/^\/under-the-hood\.html$/,/^\/assets\/[\w.-]+\.(js|css)$/, /^\/models\/fold_1\.json$/, /^\/favicon\.svg$/];
 
   test('is the page, its own scripts and styles, its one model and its icon, and nothing else', async ({ page }) => {
     const build = await serveBuild();
     try {
       await page.clock.install({ time: START });
       await page.clock.pauseAt(new Date(START.getTime() + 1000));
-      await page.goto(`${build.origin}/?seed=${SEED}`);
+      await page.goto(`${build.origin}${DEMO_PATH}?seed=${SEED}`);
       await seeAndPause(page);
       await page.getByRole('button', { name: 'Play' }).click();
       await page.clock.runFor(FIRST_OPEN_MS);
@@ -68,7 +68,7 @@ test.describe('what the server is asked for', () => {
   test('has an icon of its own, linked by a relative path, that the server hands out', async ({ page, request }) => {
     const build = await serveBuild();
     try {
-      await page.goto(`${build.origin}/?seed=${SEED}`);
+      await page.goto(`${build.origin}${DEMO_PATH}?seed=${SEED}`);
       const href = await page.locator('link[rel="icon"]').getAttribute('href');
       expect(href).toBe('favicon.svg');
       const icon = await request.get(`${build.origin}/${href}`);

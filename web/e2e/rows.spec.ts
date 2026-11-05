@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  DEMO_PATH,
   FAST_STATUS,
   FIRST_OPEN_MS,
   SEED,
@@ -59,7 +60,7 @@ test.describe('by keyboard alone', () => {
 
 test.describe('the measured real speed result', () => {
   test('pressed late on the real clock, it still times a pass over all 130 tickets', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     const real = page.getByRole('button', { name: /at real speed$/ });
     await expect(real).toBeVisible();
     // Step needs a paused run, so the page is taken from Learn to See and paused first.

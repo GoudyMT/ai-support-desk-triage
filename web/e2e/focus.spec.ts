@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  DEMO_PATH,
   FAST_STATUS,
   FIRST_OPEN_MS,
   SEED,
@@ -109,7 +110,7 @@ test.describe('focus never falls to the body', () => {
   // Learn The Process opens first, so the main button of the bar is the Learn pause.
   test('when Retry succeeds, focus goes to the main button of the bar', async ({ page }) => {
     await page.route('**/models/*', (route) => route.fulfill({ status: 404, body: 'not found' }));
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     await expect(page.getByRole('button', { name: 'Retry' })).toBeFocused();
     await page.unroute('**/models/*');
     await page.keyboard.press('Enter');
