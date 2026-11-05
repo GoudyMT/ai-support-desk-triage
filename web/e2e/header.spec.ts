@@ -197,11 +197,19 @@ test.describe('the switch between the views', () => {
     await expect(page.locator('#view-note')).toHaveCount(0);
     await page.getByRole('button', { name: 'See The Process' }).click();
     expect((await ring()).style).toBe('none');
+    // Once the viewer has found the switch the ring has done its job: it stays gone back in Learn.
     await page.getByRole('button', { name: 'Learn The Process' }).click();
-    expect((await ring()).style).toBe('solid');
+    expect((await ring()).style).toBe('none');
   });
 
-  test('fades the ring slowly in and out, and only while Learn is showing', async ({ page }) => {
+  test('stops the ring when the viewer presses Learn The Process first', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openLearn(page);
+    await page.getByRole('button', { name: 'Learn The Process' }).click();
+    expect(await page.locator('#view-see').evaluate((node) => getComputedStyle(node).outlineStyle)).toBe('none');
+  });
+
+  test('fades the ring slowly in and out, until the first press of the switch', async ({ page }) => {
     await openLearn(page);
     const breath = () =>
       page.locator('#view-see').evaluate((node) =>
@@ -216,6 +224,8 @@ test.describe('the switch between the views', () => {
     // Slow enough to draw the eye without holding it.
     expect(ring?.ms ?? 0).toBeGreaterThanOrEqual(2000);
     await page.getByRole('button', { name: 'See The Process' }).click();
+    expect(await breath()).toEqual([]);
+    await page.getByRole('button', { name: 'Learn The Process' }).click();
     expect(await breath()).toEqual([]);
   });
 

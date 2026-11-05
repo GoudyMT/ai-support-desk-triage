@@ -2,7 +2,7 @@
    is loaded last so that its rules win over the panels' where they overlap. */
 @media (prefers-reduced-motion: no-preference) {
   /* The ring on See The Process fades slowly in and out: enough to draw the eye, not to hold it. */
-  #view-see[aria-pressed='false']:not(:focus-visible) {
+  #view-see[aria-pressed='false']:not(.found, :focus-visible) {
     animation: ring-breath 3s ease-in-out infinite;
   }
 

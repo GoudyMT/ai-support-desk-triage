@@ -113,8 +113,9 @@
   padding-inline: var(--space-5);
 }
 
-/* Learn only: a ring says See The Process is there to tap. Inside the button, so it takes no room in the header. */
-#view-see[aria-pressed='false']:not(:focus-visible) {
+/* Learn only, until the viewer has found the switch: a ring says See The Process is there to tap. Inside the button,
+   so it takes no room in the header. */
+#view-see[aria-pressed='false']:not(.found, :focus-visible) {
   outline: var(--stroke) solid var(--accent);
   outline-offset: calc(-1 * var(--stroke));
 }

@@ -142,6 +142,7 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
   const from = page.mode;
   page.mode = mode;
   document.body.dataset.view = mode;
+  if (mode === 'see') byId('view-see').classList.add('found');
   for (const which of ['learn', 'see']) {
     const view = byId(`view-${which}`);
     view.setAttribute('aria-pressed', String(which === mode));
@@ -200,6 +201,7 @@ function mountRun(setup: Setup): Bar {
   const mounted: Mounted = { setup, page, panels, learn };
   for (const mode of ['learn', 'see'] as const) {
     byId(`view-${mode}`).addEventListener('click', () => {
+      byId('view-see').classList.add('found');
       if (page.mode !== mode) showView(mounted, mode, true);
     });
   }
