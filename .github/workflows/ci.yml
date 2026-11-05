@@ -120,17 +120,16 @@ jobs:
         working-directory: web
       - run: npm run build
         working-directory: web
-      # The course prototype's public link must keep working, so the file is
-      # published at the same path. cp fails the job if it ever moves.
-      - run: |
-          mkdir -p web/dist/capstone/prototype
-          cp capstone/prototype/AI_Support_Desk_Triage_Prototype.html web/dist/capstone/prototype/
+      # The prototype and checkpoints have public links from before this deploy, so
+      # they stay at the same paths. cp fails the job if the folder ever moves.
+      - run: cp -r capstone web/dist/capstone
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: web/dist
 
   # The only job with write access, and it runs no repository or package code.
   deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: site
     runs-on: ubuntu-24.04
     permissions:
