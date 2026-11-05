@@ -94,7 +94,7 @@ numbers CI already holds (parent section 6 start point).
   numbers expand from the top stats. The chosen layout is locked.
 - 2026-11-04 (owner, on the real-data screens): Privacy, Classify and Guardrails rows show from Intake, with small waiting
   dots until each result is there; each row names what it is (rules, trained model); the team shows on the Classify row
-  and on each open card; open cards are short, with Review beside the reason and clear of the tag (6 of 13 fit at
+  and on each open card; open cards are short, with Review beside the reason and clear of the tag (5 of 13 fit at rest at
   1280x800, measured); Why this choice carries a note on the highlighted words: "The highlighted words moved the model
   most. It counts words and does not read meaning, so small words can show up."; All numbers has the same arrow as Why
   this choice; the center takes the room when Going out folds.

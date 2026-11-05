@@ -301,7 +301,7 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
       verify: engine rows red first, including `finishNow` and the timing pass ignoring both
 - [x] One bottom bar, fixed to the screen's bottom edge, holds every control and the plain status; the switch has its
       own top space, never dimmed, never over the stats; icons carry a word -> verify: e2e at 1280x800, 768 and 375 px,
-      six of thirteen open cards still in view at 1280x800, no sideways scroll, 44 px targets
+      five of thirteen open cards still in view at 1280x800, at rest (the owner, 2026-11-05: full reasons over a sixth card), no sideways scroll, 44 px targets
 - [x] Learn The Process opens first: dim layer with one lit area measured from the real element, a context block beside
       it holding the step's text and the live ticket's own sentence, a loading bar per step on the bar's top edge, each
       step timed at 238 words a minute, Back / Pause / Next, ends into See -> verify: e2e rows for each step's lit area,
@@ -369,6 +369,10 @@ Design section 5, the 2026-11-04 entry on the second sweep.
 | A floor for the test count | The gate passes if a test file is deleted; nothing fails when the count falls | A gate check, PR 6 or later |
 
 ## Execution Notes & Deviations
+
+- 2026-11-05 First CI run: three faults Windows hid. The last step's bar wrapped on a wider font (fixed, with a
+  wider-words row); a WebKit Tab assumption held on Windows only; and the open-cards row read cards mid-slide, so six
+  of thirteen was never true at rest. Five fit, because reasons take two lines. The owner kept full reasons and set five.
 
 - 2026-11-05 Fix round of the re-sweep: leaving See with a review form open hands the ticket back, so a half-filled form
   is not kept (the owner's yes). Saved numbers also need the true priority (the owner's yes). The rare fall from Act 2 to

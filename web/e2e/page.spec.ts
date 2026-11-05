@@ -25,7 +25,7 @@ test.describe.configure({ timeout: SLOW_TEST_MS });
 const PROBE_SETTLE_MS = 300;
 const FREED_PX = 200;
 const OPEN_CARDS = 13;
-const CARDS_THAT_FIT = 6;
+const CARDS_THAT_FIT = 5;
 const MIN_TAG_GAP_PX = 4;
 const REVIEWER_CLOSE_MS = 1_600;
 const MAX_STEPS = 120;
@@ -165,11 +165,13 @@ test.describe('the right column', () => {
 });
 
 test.describe('open cards', () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
+  // Reduced motion and a paused run, so the cards are read where they rest, never part way through a slide.
+  test.use({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
 
-  test('are short enough that six of thirteen show without scrolling the column', async ({ page }) => {
+  test('are short enough that five of thirteen show without scrolling the column', async ({ page }) => {
     await open(page);
     await playUntilOpenCount(page, OPEN_CARDS);
+    await page.getByRole('button', { name: 'Pause' }).click();
     const fit = await page.evaluate(() => {
       const column = document.getElementById('outgoing')?.getBoundingClientRect();
       const boxes = [...document.querySelectorAll('#outgoing .open > li')].map((card) => card.getBoundingClientRect());
