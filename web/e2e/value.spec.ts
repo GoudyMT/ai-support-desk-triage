@@ -69,14 +69,15 @@ test.describe('where the saved numbers come from', () => {
     await page.keyboard.press('Escape');
     await page.keyboard.press('Enter');
     await expect(panel(page, 'Value saved')).toBeVisible();
-    // WebKit's Tab skips links unless the user turns that on in the browser's settings, so there the first
-    // Tab already leaves the row; Chromium and Firefox cover the step onto the link.
-    if (browserName !== 'webkit') {
-      await page.keyboard.press('Tab');
-      await expect(panel(page, 'Value saved').getByRole('link')).toBeFocused();
-      await expect(panel(page, 'Value saved')).toBeVisible();
-    }
+    // Whether WebKit's Tab stops on a link depends on its platform and settings, so there the first Tab may already
+    // leave the row; Chromium and Firefox hold the step onto the link.
+    const link = panel(page, 'Value saved').getByRole('link');
     await page.keyboard.press('Tab');
+    if (browserName !== 'webkit') await expect(link).toBeFocused();
+    if (await page.evaluate(() => document.activeElement?.closest('.source-panel') != null)) {
+      await expect(panel(page, 'Value saved')).toBeVisible();
+      await page.keyboard.press('Tab');
+    }
     await expect(panel(page, 'Value saved')).toBeHidden();
   });
 
