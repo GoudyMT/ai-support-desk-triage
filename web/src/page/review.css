@@ -1,0 +1,43 @@
+/* The review form */
+.why {
+  margin: 0;
+  color: var(--rule-text);
+  font-size: var(--fs-sm);
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex: 1 1 var(--field-min);
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.field label {
+  font-size: var(--fs-sm);
+  font-weight: var(--w-medium);
+}
+
+.field select {
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

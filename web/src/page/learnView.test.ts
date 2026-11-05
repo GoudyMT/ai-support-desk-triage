@@ -1,0 +1,274 @@
+import { describe, expect, it } from 'vitest';
+import type { Run } from '../run/engine';
+import { narrate } from '../run/narrate';
+import { STEPS } from './learnSteps';
+import {
+  WORDS_PER_MINUTE,
+  announcement,
+  barFills,
+  learnBarView,
+  placeBlock,
+  reachStep,
+  replayWalk,
+  seeEntry,
+  stepMs,
+  ticketLine,
+  unionBox,
+  type Box,
+} from './learnView';
+import { makeRun } from './viewTestKit';
+
+const step = (n: number) => {
+  const found = STEPS[n];
+  if (found === undefined) throw new Error('test: no such step');
+  return found;
+};
+
+describe('how long a step stays', () => {
+  const MS_PER_MINUTE = 60_000;
+  // "Messages come in" is 3 words and its text is 26.
+  const FIRST_WORDS = 29;
+
+  it('reads at 238 words a minute, counting the title and the text split on spaces', () => {
+    expect(WORDS_PER_MINUTE).toBe(238);
+    expect(stepMs(step(0), null)).toBeCloseTo((FIRST_WORDS / 238) * MS_PER_MINUTE, 6);
+  });
+
+  it('adds the words of the live ticket sentence when there is one', () => {
+    const sentence = 'The model is fairly sure this is a billing question.';
+    expect(stepMs(step(2), sentence)).toBeCloseTo(stepMs(step(2), null) + (10 / 238) * MS_PER_MINUTE, 6);
+  });
+});
+
+// What a screen reader is told when a step comes up: the same words the block shows, the live ticket's sentence
+// included, in one announcement, so a listener hears what a viewer reads.
+describe('what is announced for a step', () => {
+  it('is the title and the text alone on a step with no live ticket sentence', () => {
+    expect(announcement(step(0), null)).toBe(`${step(0).title}. ${step(0).text}`);
+  });
+
+  it('adds the live ticket sentence, as the block labels it, on a step that has one', () => {
+    const sentence = 'The model is fairly sure this is a billing question.';
+    expect(announcement(step(2), sentence)).toBe(`${step(2).title}. ${step(2).text} This ticket: ${sentence}`);
+  });
+});
+
+// What See does with the run it is handed. It never asks for the busy day on the viewer's behalf: a run that is
+// already waiting at the offer stays there, and one Learn played on at the quick pace on Act 1 is offered it again.
+describe('what See does with the run it is handed', () => {
+  const state = makeRun().state();
+
+  it.each([
+    ['a run at the slow pace', { pace: 'slow', act: 1, offerSpeedUp: false }, 'play'],
+    ['a run waiting at the offer', { pace: 'slow', act: 1, offerSpeedUp: true }, 'keep'],
+    ['a run at the quick pace on Act 1', { pace: 'fast', act: 1, offerSpeedUp: false }, 'offer'],
+    ['a run on the busy day', { pace: 'fast', act: 2, offerSpeedUp: false }, 'play'],
+    ['a run slowed down on the busy day', { pace: 'slow', act: 2, offerSpeedUp: false }, 'play'],
+  ] as const)('%s: %s', (_name, change, expected) => {
+    expect(seeEntry({ ...state, ...change })).toBe(expected);
+  });
+});
+
+// Back goes to the earlier step on a fresh run, and a run cannot be undone: the walk is played again to the run time
+// each step ended at, so the live ticket is the one the viewer saw. Reading a step takes seconds of run time, and in
+// them the line fills and the pre-screener tags: a Critical ticket can then be ahead of the first one.
+describe('going back to an earlier step', () => {
+  const READING_MS = 8000;
+
+  // Plays the run on for `ms` the way the page's timer does, event by event, and says where its clock stood.
+  function playFor(run: Run, ms: number): number {
+    run.play();
+    const end = run.state().simTime + ms;
+    for (let n = 0; n < 5000; n += 1) {
+      const delay = run.nextDelayMs();
+      if (delay === null || run.state().simTime + delay > end) break;
+      run.advance();
+    }
+    return run.state().simTime;
+  }
+
+  const seen = (run: Run) => {
+    const s = run.state();
+    return JSON.stringify([s.simTime, s.current?.trail.id, s.current?.stage, s.incoming.map((w) => w.id), s.open.map((t) => t.id), s.done.map((t) => t.id)]);
+  };
+
+  // The walk forward to `upTo`, reading each step for a while, and the clock as each step ended.
+  function walkForward(upTo: number): { run: Run; leftAt: number[] } {
+    const run = makeRun();
+    const leftAt: number[] = [];
+    for (let n = 0; n < upTo; n += 1) {
+      expect(reachStep(run, step(n))).toBe(true);
+      leftAt.push(playFor(run, READING_MS));
+    }
+    expect(reachStep(run, step(upTo))).toBe(true);
+    return { run, leftAt };
+  }
+
+  it.each([2, 3, 4])('puts the run where the walk had it at step %i', (upTo) => {
+    const { run: forward, leftAt } = walkForward(upTo);
+    const back = makeRun();
+    replayWalk(back, STEPS, leftAt, upTo);
+    expect(reachStep(back, step(upTo))).toBe(true);
+    expect(seen(back)).toBe(seen(forward));
+  });
+
+  it('returns the same ticket where a fresh run reached directly would have another', () => {
+    const { run: forward, leftAt } = walkForward(1);
+    const direct = makeRun();
+    reachStep(direct, step(1));
+    // The Critical ticket tagged while step 1 was read is the one the center took, not the first to arrive.
+    expect(forward.state().current?.trail.id).not.toBe(direct.state().current?.trail.id);
+    const back = makeRun();
+    replayWalk(back, STEPS, leftAt, 1);
+    reachStep(back, step(1));
+    expect(back.state().current?.trail.id).toBe(forward.state().current?.trail.id);
+  });
+});
+
+describe('reaching a step on the real engine', () => {
+  // Long enough for a ticket to pass every stage three times over at the slow pace.
+  const READING_END_MS = 60_000;
+
+  // The hold is only set; the engine has to be walked until the live ticket is where the words say.
+  const where = (n: number) => {
+    const run = makeRun();
+    expect(reachStep(run, step(n))).toBe(true);
+    return run.state();
+  };
+
+  it.each([
+    [2, 'intake'],
+    [3, 'privacy'],
+    [4, 'classify'],
+    [5, 'guardrails'],
+  ])('puts the first ticket at the stage of step %i, not past it', (n, stage) => {
+    const state = where(n - 1);
+    expect(state.current?.trail.id).toBe('T-1001-0');
+    expect(state.current?.stage).toBe(stage);
+  });
+
+  // The walk plays on while a step is read: the hold is what keeps the ticket at the stage the words are about.
+  it.each([
+    [2, 'intake'],
+    [3, 'privacy'],
+    [4, 'classify'],
+    [5, 'guardrails'],
+  ])('keeps the ticket at the stage of step %i while the step is read', (n, stage) => {
+    const run = makeRun();
+    expect(reachStep(run, step(n - 1))).toBe(true);
+    const id = run.state().current?.trail.id;
+    run.play();
+    for (let at = 0; at < 5000; at += 1) {
+      const delay = run.nextDelayMs();
+      if (delay === null || run.state().simTime + delay > READING_END_MS) break;
+      run.advance();
+    }
+    expect(run.state().current?.trail.id).toBe(id);
+    expect(run.state().current?.stage).toBe(stage);
+  });
+
+  it('holds the line for the first step: tickets wait and none is in the center', () => {
+    const state = where(0);
+    expect(state.current).toBeUndefined();
+    expect(state.incoming.length).toBeGreaterThan(0);
+  });
+
+  it('lets the first flagged ticket reach the outgoing list for step 6 and one close for step 7', () => {
+    expect(where(5).open.length).toBeGreaterThan(0);
+    expect(where(6).done.length).toBeGreaterThan(0);
+  });
+
+  it('walks forward from one step to the next on the same run', () => {
+    const run = makeRun();
+    for (const n of [0, 1, 2, 3, 4]) expect(reachStep(run, step(n))).toBe(true);
+    expect(run.state().current?.stage).toBe('guardrails');
+  });
+
+  it('gives up at the limit instead of looping for ever', () => {
+    expect(reachStep(makeRun(), step(4), 3)).toBe(false);
+  });
+
+  it('moves a paused run too, by stepping it', () => {
+    const run = makeRun();
+    run.pause();
+    expect(reachStep(run, step(3))).toBe(true);
+    expect(run.state().current?.stage).toBe('classify');
+  });
+});
+
+describe('the live ticket sentence', () => {
+  it("is the narration of the lit stage for the ticket in the center, or none when it is empty", () => {
+    const run = makeRun();
+    reachStep(run, step(2));
+    const state = run.state();
+    const trail = state.current?.trail;
+    expect(trail).toBeDefined();
+    expect(ticketLine(state, 'privacy')).toBe(narrate(trail as NonNullable<typeof trail>, 'privacy').plain);
+    const empty = makeRun();
+    expect(ticketLine(empty.state(), 'privacy')).toBeNull();
+  });
+});
+
+describe('the loading bars', () => {
+  it('shows done steps full, later steps empty and the current one by its share', () => {
+    expect(barFills(2, 0.25, 4)).toEqual([1, 1, 0.25, 0]);
+  });
+
+  it('never fills the current step past full', () => {
+    expect(barFills(0, 1.4, 3)).toEqual([1, 0, 0]);
+  });
+});
+
+describe('the Learn row of the bar', () => {
+  it('turns Next into See The Process on the last step and cannot go back from the first', () => {
+    expect(learnBarView(0, 7, false)).toEqual({ backDisabled: true, mainLabel: 'Pause', nextLabel: 'Next', count: 'Step 1 of 7' });
+    expect(learnBarView(6, 7, true)).toEqual({ backDisabled: false, mainLabel: 'Resume', nextLabel: 'See The Process', count: 'Step 7 of 7' });
+  });
+});
+
+describe('where the context block goes', () => {
+  const VIEW = { width: 1280, height: 730 };
+  const BLOCK = { width: 336, height: 190 };
+  const overlaps = (a: Box, b: Box): boolean =>
+    a.left < b.left + b.width && b.left < a.left + a.width && a.top < b.top + b.height && b.top < a.top + a.height;
+  const inside = (b: Box): boolean => b.left >= 0 && b.top >= 0 && b.left + b.width <= VIEW.width && b.top + b.height <= VIEW.height;
+
+  it.each<[string, Box]>([
+    ['the line on the left', { left: 16, top: 100, width: 240, height: 600 }],
+    ['the going-out column on the right', { left: 940, top: 100, width: 320, height: 600 }],
+    ['the stats along the top', { left: 400, top: 8, width: 500, height: 56 }],
+    ['a line in the wide middle', { left: 270, top: 300, width: 660, height: 40 }],
+  ])('puts the block beside %s, inside the screen and clear of it', (_name, hole) => {
+    const at = placeBlock(hole, BLOCK, VIEW);
+    const box = { ...at, ...BLOCK };
+    expect(inside(box)).toBe(true);
+    expect(overlaps(box, hole)).toBe(false);
+  });
+
+  it('sits on the bottom edge, inside the screen, when the hole leaves no free place', () => {
+    const hole = { left: 100, top: 0, width: 1080, height: VIEW.height };
+    expect(placeBlock(hole, BLOCK, VIEW)).toEqual({ left: 100, top: VIEW.height - BLOCK.height });
+  });
+
+  it('moves on to the next place when the first one would sit on something that must stay clear', () => {
+    const hole = { left: 660, top: 8, width: 500, height: 56 };
+    const view = { left: 340, top: 12, width: 290, height: 46 };
+    const at = placeBlock(hole, BLOCK, VIEW, [view]);
+    const box = { ...at, ...BLOCK };
+    expect(inside(box)).toBe(true);
+    expect(overlaps(box, hole)).toBe(false);
+    expect(overlaps(box, view)).toBe(false);
+  });
+});
+
+describe('the box a hole covers', () => {
+  it('is the smallest box holding all the lit parts', () => {
+    expect(
+      unionBox([
+        { left: 10, top: 10, width: 100, height: 20 },
+        { left: 20, top: 40, width: 200, height: 10 },
+      ]),
+    ).toEqual({ left: 10, top: 10, width: 210, height: 40 });
+    expect(unionBox([])).toBeUndefined();
+  });
+});

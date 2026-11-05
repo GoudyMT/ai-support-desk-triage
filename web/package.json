@@ -12,16 +12,21 @@
     "test": "vitest run",
     "parity": "vitest run --config vitest.parity.config.ts",
     "export-data": "tsx scripts/exportDataset.ts",
-    "gate": "npm run lint && npm run typecheck && npm run test"
+    "build": "vite build",
+    "preview": "vite preview",
+    "e2e": "playwright test",
+    "sizes": "tsx scripts/checkSizes.ts",
+    "gate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run sizes"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@playwright/test": "1.64.1",
     "@types/node": "22.19.21",
     "eslint": "9.39.5",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2",
-    "vite": "6.4.4",
+    "vite": "6.4.5",
     "vitest": "5.0.5"
   }
 }

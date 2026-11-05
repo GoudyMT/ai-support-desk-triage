@@ -1,0 +1,241 @@
+/* The page's base: element defaults, the top bar, buttons, and the tags and pills. */
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* A control the keyboard reaches is scrolled into view above the fixed bar (and above the docked Learn block),
+   not behind it. */
+html {
+  scroll-padding-bottom: calc(var(--bar-h) + var(--block-h));
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: var(--lh-tight);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.sr-only {
+  position: absolute;
+  width: var(--sr-size);
+  height: var(--sr-size);
+  margin: calc(-1 * var(--sr-size));
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* Page shell: on a wide screen the page is one screen tall and each column scrolls inside itself. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-4);
+  /* The bar is fixed over the bottom of the screen; its height is kept clear under the content. */
+  padding-bottom: calc(var(--bar-h) + var(--block-h));
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-5);
+  padding-bottom: var(--space-1);
+  border-bottom: var(--border) solid var(--line);
+}
+
+.top-text {
+  min-width: 0;
+}
+
+h1 {
+  font-size: var(--fs-h1);
+  font-weight: var(--w-strong);
+}
+
+/* All numbers stays as the viewer left it but is not drawn in Learn: it is behind the dim, and on a screen one
+   page tall it would take the room the lit part of the board needs. */
+body[data-view='learn'] #numbers {
+  display: none;
+}
+
+.top-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  font-size: var(--fs-sm);
+}
+
+.notice p {
+  margin: 0 0 var(--space-2);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--target);
+  min-height: var(--target);
+  padding: 0 var(--space-4);
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--w-medium);
+  cursor: pointer;
+}
+
+.btn-solid {
+  border-color: var(--solid-bg);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+}
+
+.btn-link {
+  padding: 0 var(--space-1);
+  border-color: transparent;
+  background: none;
+  color: var(--accent);
+  font-weight: var(--w-strong);
+}
+
+.btn-small {
+  padding: 0 var(--space-2);
+}
+
+.btn:disabled {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+.chevron {
+  width: var(--chevron);
+  height: var(--chevron);
+  border-right: var(--stroke) solid currentColor;
+  border-bottom: var(--stroke) solid currentColor;
+  transform: rotate(var(--turn-closed));
+}
+
+.open > .chevron,
+[aria-expanded='true'] > .chevron {
+  transform: rotate(var(--turn-open));
+}
+
+/* Tags (priority) and pills (outcome): a word on a color, never the color alone. */
+.tag,
+.pill {
+  display: inline-block;
+  flex: none;
+  padding: 0 var(--space-2);
+  border: var(--border) solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: var(--w-strong);
+  line-height: var(--lh-body);
+  white-space: nowrap;
+}
+
+.tag-critical {
+  background: var(--tag-critical-bg);
+  color: var(--tag-critical-text);
+}
+
+.tag-high {
+  background: var(--tag-high-bg);
+  color: var(--tag-high-text);
+}
+
+.tag-medium {
+  background: var(--tag-medium-bg);
+  color: var(--tag-medium-text);
+}
+
+.tag-low {
+  background: var(--tag-low-bg);
+  color: var(--tag-low-text);
+}
+
+.pill-auto {
+  background: var(--pill-auto-bg);
+  color: var(--pill-auto-text);
+}
+
+.pill-flagged {
+  background: var(--pill-flagged-bg);
+  color: var(--pill-flagged-text);
+}
+
+.pill-overridden {
+  background: var(--pill-overridden-bg);
+  color: var(--pill-overridden-text);
+}
+
+.pill-missed {
+  border-color: var(--pill-missed-text);
+  background: var(--pill-missed-bg);
+  color: var(--pill-missed-text);
+}
+
+/* Like Missed, it carries a border, so it stands out from the plain marks by shape as well as color. */
+.pill-wrong {
+  border-color: var(--pill-wrong-text);
+  background: var(--pill-wrong-bg);
+  color: var(--pill-wrong-text);
+}
+
+.pill-you {
+  background: var(--pill-you-bg);
+  color: var(--pill-you-text);
+}

@@ -176,6 +176,8 @@ owner reviews it in PR 4); how the most instructive misses are ranked.
   ticket is reviewed, so this sets only the priority shown before review.
 - **Fold models in CI, not committed:** follows the PR 2 precedent (the model job retrains and checks the floor
   on a fresh export); it costs the training time of four fold models in the CI model job.
+  > SUPERSEDED (2026-11-03): the live page needs them, so they are committed and checked against their retrain -
+  > see the PR 4 design.
 - **Intake cap:** set from a measurement in the plan: the masker's time at 2,000 / 5,000 / 10,000 / 20,000
   characters, and the largest size that masks in under 5 ms on the owner's PC. Measured 2026-10-31: 20,000
   characters mask in 0.50 ms (median), so the cap is 20,000.
@@ -184,6 +186,8 @@ owner reviews it in PR 4); how the most instructive misses are ranked.
   > task counts as long - see the plan's Execution Notes.
 - **Live stream split:** all folds, its own seed range (parent 5.2 already says so); the live page has no
   held-out claim, and its accuracy is labelled "on generated tickets".
+  > SUPERSEDED (2026-11-03): one fold's held-out templates per run, scored by that fold's model - see the PR 4
+  > design.
 - **Who writes the keyword rules:** a fresh builder whose brief gives only parent C1 and this doc, and forbids
   reading the generator, its data or the hand-written set; the lead has read the generator and so does not
   write them.

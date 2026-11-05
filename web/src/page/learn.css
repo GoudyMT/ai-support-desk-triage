@@ -1,0 +1,48 @@
+/* Learn The Process: one dim layer with a hole over the lit part of the page, and one block of words. */
+.dim {
+  position: fixed;
+  z-index: var(--z-dim);
+  border-radius: var(--radius-lg);
+  outline: var(--stroke) solid var(--accent);
+  box-shadow: 0 0 0 var(--dim-spread) var(--dim);
+  pointer-events: none;
+}
+
+.learn-block {
+  position: fixed;
+  z-index: var(--z-block);
+  display: grid;
+  gap: var(--space-2);
+  width: min(var(--block-width), 46vw);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  box-shadow: var(--lift);
+}
+
+.learn-block p {
+  margin: 0;
+}
+
+.learn-title {
+  font-size: var(--fs-h3);
+}
+
+/* Below 1024 px there is no room beside the hole: the block docks above the bar. */
+@media (max-width: 1023px) {
+  .learn-block {
+    right: 0;
+    bottom: var(--bar-h);
+    left: 0;
+    width: auto;
+    /* On a very small screen, or at a large text size, the words are more than fit above the bar. The block takes
+       at most this share of the room above the bar and scrolls inside itself, so it never grows past the top of
+       the screen and the lit part keeps the rest. */
+    max-height: calc((100dvh - var(--bar-h)) * var(--block-share));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: none;
+  }
+}

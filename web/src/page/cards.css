@@ -1,0 +1,150 @@
+/* Coming in and Going out: waiting cards, open cards, and one gray line for each closed ticket. */
+.cards,
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.open {
+  gap: var(--space-1);
+}
+
+.col-body > .sub-title:first-child {
+  margin-top: 0;
+}
+
+.lines {
+  gap: var(--space-1);
+}
+
+.col-note {
+  margin: 0 0 var(--space-2);
+}
+
+.card {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  font-size: var(--fs-sm);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.card-title {
+  font-variant-numeric: tabular-nums;
+}
+
+.card-line,
+.card-team {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+}
+
+/* An open card is three short lines (id, category and tag; the team; the reason) with the Review
+   button at the right, beside the team and the reason, so the column shows more cards at once. */
+.card-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-2);
+  padding-block: var(--space-1);
+  line-height: var(--lh-card);
+}
+
+.card-open .btn {
+  padding: 0 var(--space-2);
+}
+
+.card-open .tag {
+  line-height: var(--lh-card);
+}
+
+.card-open .card-head {
+  grid-column: 1 / -1;
+}
+
+.card-open .card-team,
+.card-open .card-line {
+  grid-column: 1;
+  margin-top: 0;
+}
+
+/* The button starts below the first line, with clear space under the tag, so the two never meet. */
+.card-open .btn {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  align-self: center;
+  margin-top: var(--tag-clear);
+}
+
+/* The card that travels between sections: one fixed layer above the page that takes no clicks, so
+   it can cross clipped, scrolling columns and never add to the page's width. */
+.ghost-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.ghost-id {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The key to the marks on the closed lines: one mark and its meaning on each row. */
+.key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+
+.key-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.line-title {
+  font-variant-numeric: tabular-nums;
+}

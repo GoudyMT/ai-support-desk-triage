@@ -1,0 +1,54 @@
+import { button, el, setText } from './dom';
+
+export type TabName = 'in' | 'out';
+
+const TABS: { name: TabName; label: string; listId: string }[] = [
+  { name: 'in', label: 'Coming in', listId: 'incoming' },
+  { name: 'out', label: 'Going out', listId: 'outgoing' },
+];
+
+/**
+ * Under 1024 px the two lists share one slot: these tabs choose which one shows, and the
+ * tab itself carries the count (the pending count on Going out). CSS hides the tabs, and
+ * shows both lists, at wider screens. Arrow keys move between the tabs.
+ */
+export function mountTabs(
+  root: HTMLElement,
+  board: HTMLElement,
+): { render(counts: Record<TabName, string>): void; select(name: TabName): void } {
+  const nodes = new Map<TabName, { tab: HTMLButtonElement; count: HTMLElement }>();
+  const select = (name: TabName, focus: boolean): void => {
+    board.classList.toggle('show-in', name === 'in');
+    board.classList.toggle('show-out', name === 'out');
+    for (const [key, { tab }] of nodes) {
+      tab.setAttribute('aria-selected', String(key === name));
+      tab.classList.toggle('btn-solid', key === name);
+      tab.tabIndex = key === name ? 0 : -1;
+      if (focus && key === name) tab.focus();
+    }
+  };
+  for (const { name, label, listId } of TABS) {
+    const tab = button('btn tab', '', () => {
+      select(name, false);
+    });
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', listId);
+    const count = el('span', 'tab-count');
+    tab.append(document.createTextNode(label), count);
+    nodes.set(name, { tab, count });
+    root.append(tab);
+  }
+  root.addEventListener('keydown', (event) => {
+    const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    select(event.key === 'ArrowLeft' || event.key === 'Home' ? 'in' : 'out', true);
+  });
+  select('in', false);
+  return {
+    render(counts) {
+      for (const [name, { count }] of nodes) setText(count, counts[name]);
+    },
+    select: (name) => select(name, false),
+  };
+}
