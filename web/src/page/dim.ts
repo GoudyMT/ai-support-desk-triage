@@ -31,8 +31,11 @@ const drawn = (node: Element): boolean => node.getClientRects().length > 0;
 export function createDim(): Dim {
   const hole = el('div', 'dim');
   const block = el('section', 'learn-block');
-  block.setAttribute('aria-label', 'Learn The Process');
+  // The words can run past the block on a small screen, and only a focusable block can be scrolled by key.
+  block.tabIndex = 0;
   const title = el('h2', 'learn-title');
+  title.id = 'learn-title';
+  block.setAttribute('aria-labelledby', title.id);
   const text = el('p');
   const ticket = el('p', 'muted');
   block.append(title, text, ticket);
@@ -123,6 +126,7 @@ export function createDim(): Dim {
       ticket.hidden = line === null;
       setText(ticket, `This ticket: ${line ?? ''}`);
       block.hidden = false;
+      block.scrollTop = 0;
       hole.hidden = false;
       layOut();
     },

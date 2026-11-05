@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openLearn } from './helpers';
-import { LIT, count, eachStep, litBox, next, zoomText } from './learnKit';
+import { openLearn } from './helpers';import { LIT, count, eachStep, litBox, next, zoomText } from './learnKit';
 
 // Learn on a small screen and at a large text size: the words stay reachable, the lit part stays on the screen above
 // the bar, and what the viewer had open (All numbers) does not push it away. Each is held to every step.
@@ -75,6 +74,48 @@ test.describe('the docked block, on a very small screen and at a large text size
     test('keeps its title and words reachable inside the screen on every step', async ({ page }) => {
       await openLearn(page);
       await eachStep(page, (at) => wordsReachable(page, at));
+    });
+  });
+
+  // Words that run past the block are for a reader with a keyboard too: Tab reaches the block, and the arrow keys scroll it.
+  test.describe('by keyboard at 320 by 256', () => {
+    test.use({ viewport: { width: 320, height: 256 } });
+    const LONG_STEP = 6;
+    const MAX_STOPS = 12;
+    const overflow = (page: Page) =>
+      page.evaluate(() => {
+        const box = document.querySelector<HTMLElement>('.learn-block');
+        return (box?.scrollHeight ?? 0) - (box?.clientHeight ?? 0);
+      });
+
+    test('is reached by Tab, has a name from its title and scrolls with the arrow keys', async ({ page }) => {
+      await openLearn(page);
+      for (let n = 1; n < LONG_STEP; n += 1) await next(page).click();
+      await expect(count(page)).toHaveText(`Step ${LONG_STEP} of 7`);
+      expect(await overflow(page), 'the words run past the block').toBeGreaterThan(0);
+      const title = (await page.locator('.learn-title').innerText()).trim();
+      const stops: string[] = [];
+      for (let n = 0; n < MAX_STOPS && !(await page.locator('.learn-block').evaluate((box) => box === document.activeElement)); n += 1) {
+        await page.keyboard.press('Tab');
+        stops.push(await page.evaluate(() => document.activeElement?.getAttribute('class') ?? document.activeElement?.tagName ?? ''));
+      }
+      await expect(page.locator('.learn-block'), `Tab stops: ${stops.join(', ')}`).toBeFocused();
+      await expect(page.getByRole('region', { name: title })).toHaveCount(1);
+      await page.keyboard.press('ArrowDown');
+      await expect.poll(() => page.locator('.learn-block').evaluate((box) => box.scrollTop)).toBeGreaterThan(0);
+    });
+
+    test('opens at its top on each step, not where the last one was read to', async ({ page }) => {
+      await openLearn(page);
+      for (let n = 1; n < LONG_STEP; n += 1) await next(page).click();
+      await page.locator('.learn-block').evaluate((box) => {
+        box.scrollTop = box.scrollHeight;
+      });
+      expect(await page.locator('.learn-block').evaluate((box) => box.scrollTop)).toBeGreaterThan(0);
+      await next(page).click();
+      await expect(count(page)).toHaveText('Step 7 of 7');
+      expect(await overflow(page), 'step 7 runs past the block too').toBeGreaterThan(0);
+      expect(await page.locator('.learn-block').evaluate((box) => box.scrollTop)).toBe(0);
     });
   });
 
