@@ -238,7 +238,8 @@ on the test seeds, with no download, section 5).
    the same way (PR 3 Parking Lot); a term with no written span appears only in the technical detail.
 7. **Narration:** one or two plain sentences built from the trail: each stage of the first three tickets (and of the
    three after a Slow down on the busy day), none on the busy day at full speed while playing, and the current stage
-   on Pause. The one sentence per ticket after the first three is replaced by the busy-day jump (section 5).
+   on Pause. The one sentence per ticket after the first three is replaced in See by the busy-day jump (section 5); that tier is
+   reached only when Learn plays.
    "Why this choice" expands to list confidence, the floor, each reason that fired, the top words and what was masked;
    it is closed by default, offered at learn speed and on Pause, and replaced on the busy day by a line that says to
    pause. It shows only what the current stage has reached. Rules, the model, the pre-screener and the simulated
@@ -265,7 +266,9 @@ on the test seeds, with no download, section 5).
 - Shared vocabulary in the model file (parked item), only if the first build shows the model budget needs it.
 - Motion, after the static screen is approved (owner, 2026-11-04): the one big motion is cards moving between sections:
   left incoming, center focused, right completed or pending, and up the line when tagged, timed so a person can follow
-  them. The only other movement is the small waiting dots. None of it under reduced motion. A later second review gets
+  them. The only other movement is the small waiting dots and the ring on See The Process, which fades slowly in and out
+  in Learn until the first press of the switch or the first time See is reached (the owner, 2026-11-04; a still ring
+  under reduced motion, none in forced colors, where an outline marks the view in use). None of it under reduced motion. A later second review gets
   its own area on the board, so its cards move the same way.
 
 **Later (seams only)**
@@ -307,10 +310,10 @@ number on screen traces to a measurement" for the numbers it shows.
 
 ## 10. Risks and open questions
 
-- **Blocking, the owner (at the first build):** the two size-budget limits.
+- **Settled, the owner:** the two size-budget limits (48,500 and 3,600,000).
 - **Non-blocking, a probe:** a fold model is 3.32-3.39 MB of JSON (measured 2026-11-03); load time on the phone is measured at the
   first build, and the shared vocabulary is the first lever if it is too slow.
-- **Non-blocking, the owner:** narration wording (parent 8) is reviewed on the built page.
+- **Settled, the owner:** narration wording (parent 8), reviewed on the built page.
 - **Non-blocking:** fold 3 shows about 2 misses per run (section 1); that is the honest number, not a defect of
   this PR; it is already the start point PR 3 recorded.
 

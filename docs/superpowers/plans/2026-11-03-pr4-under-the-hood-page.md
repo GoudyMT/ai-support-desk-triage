@@ -1,7 +1,7 @@
 # PR 4: The Under the Hood Page - Implementation Plan
 
 ## Progress
-- Current task: 11, the re-sweep
+- Current task: 11, the re-sweep's fix round
 - Done (with evidence): design and plan approved 2026-11-03 (447d07d); Task 0 - 0c15366 - owner's yes on the
   lockfile (`@playwright/test` 1.64.1, 3 packages, no audit finding of its own), browsers 1.26 GB, smoke spec red
   on the missing `index.html`, workflow parsed with js-yaml, gate 733 tests green; Task 1 - 2d9d2ec - fold
@@ -17,7 +17,10 @@
   with 1029 unit tests, page 40,565 of 43,000 bytes, 282 e2e green in three browsers
   Tasks 12, 13 and 14 - through 1aaca15 with the word fixes a960d62: 570 e2e green in three browsers, 1128 unit tests,
   page 47,070 of 47,500 bytes (the owner's yes), Opus check ESCALATE settled by the owner, visitor walk done
-- Next: re-sweep, PR body, the owner's go; a real device stays unproven and carries to PR 6
+  Task 15 and the second sweep - through 4e74f57; the ring - 5973698, 131e503, 564c15c, 3c62c33; limit 48,500 - e9a0eb0;
+  test gaps from the lead-run planted bugs - f95dd0a, fafd51e: gate exit 0, 1,165 unit tests, 662 e2e passed, 1 skipped,
+  lead break check red; fix check FIX and the short re-sweep, their fixes in a last round
+- Next: that fix round, PR body, the owner's go; a real device stays unproven and carries to PR 6
 - Branch: feat/under-the-hood-page (from main @ 524e34d)
 - Open questions: none
 
@@ -32,7 +35,7 @@ in full.
 through a timed list of events; the PR 3 `runTicket` stays unchanged. Plain TypeScript panels in `web/src/page/`
 render the engine's state, static first, motion after the owner sees it. Fold models are
 committed under `web/public/models/` and CI proves each equals its retrain.
-**Stack:** TypeScript 5.9.3, Vite 6.4.4, Vitest 5.0.5, Node 22.22.3, tsx; Python 3.12 venv `ml/.venv`
+**Stack:** TypeScript 5.9.3, Vite 6.4.5, Vitest 5.0.5, Node 22.22.3, tsx; Python 3.12 venv `ml/.venv`
 (adapter A6, A11); `@playwright/test` for browser tests in Chromium, Firefox and WebKit (owner, 2026-11-03).
 
 ## Global Constraints
@@ -50,7 +53,7 @@ committed under `web/public/models/` and CI proves each equals its retrain.
   100 tickets over 90 s, more mid-morning). The simulated reviewer closes one ticket every 1.5 s. Pause and an open
   review form stop the clock.
 - Accessibility: WCAG 2.2 AA contrast; every control a real `<button>`; 44 px targets; visible focus; reduced
-  motion = no sliding; a tag is a word plus a color; polite live region during Act 1 only; no sideways scroll at 375 px.
+  motion = no sliding; a tag is a word plus a color; polite live region, quiet only at busy-day speed; no sideways scroll at 375 px.
 - A Content-Security-Policy meta tag with `default-src 'self'` (adapter A3).
 - Copy names each stage for what it is: the model, a rule, the pre-screener, the simulated reviewer, you. Never "AI"
   for a rule or the reviewer.
@@ -282,7 +285,7 @@ Delete `pacing.ts`, `pacing.test.ts` (`main.ts` imports them until this task, an
 ### Task 10 (lead, after the owner's yes on the static screen): motion
 
 - [x] Cards slide between sections (left, center, right) and up the line, timed so a person can follow; no other motion
-      but the waiting dots (owner, 2026-11-04: too much motion is hard to follow); nothing moves under reduced motion ->
+      but the waiting dots and later the owner's ring (owner, 2026-11-04: too much motion is hard to follow); nothing moves under reduced motion ->
       verify: e2e reduced-motion spec green; the owner's look on the running page
 - [x] Commit `feat: animate the cards`
 
@@ -311,7 +314,7 @@ https://claude.ai/artifact/DEPDEP4nsEwsMPye2Ex5Tn. Same board and same engine; t
 - [x] After the clip and that walk, the owner decides whether small eye-drawing cues are needed; none are built before
       that -> verify: the owner's answer, 2026-11-04: a ring on See The Process replaces the note, nothing else
 
-### Task 13 (builder): the value numbers, the pace notice and the switch note
+### Task 13 (builder): the value numbers, the pace notice and the switch note (the note later replaced by a ring)
 
 Design section 5, the 2026-11-04 entries on the clip and the Opus check and on the second sweep.
 
@@ -351,9 +354,9 @@ Design section 5, the 2026-11-04 entry on the second sweep.
 
 - [x] HARD STOP: the owner sets the two budget limits from the measured build (adapter A12): 48,500 and 3,600,000, set
       by the owner on 2026-11-04 -> verify: `npm --prefix web run gate` exit 0 with the limits in `size-budgets.json`.
-      Met after the owner raised the limit to 48,500: the page is 48,083 bytes gzipped, 417 under
-- [ ] Owner review on the built page: narration wording (parent 8) and the device test on the Samsung S26 at
-      learn speed (parent 6) -> verify: the owner's answers in Execution Notes
+      Met after the owner raised the limit to 48,500: the page was 48,083 bytes gzipped then; see Progress for the last figure
+- [x] Owner review on the built page: narration wording (parent 8) answered; the device test on the Samsung S26 at
+      learn speed (parent 6) carried to PR 6 by the owner -> verify: the owner's answers in Execution Notes
 - [ ] ui-review; full gate (both CI jobs' commands); parking-lot triage; sweep at the tier above; PR body;
       the owner's go for push and PR.
 
