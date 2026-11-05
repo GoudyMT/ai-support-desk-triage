@@ -160,6 +160,17 @@ describe('the slow count', () => {
     expect(currentOf(run).deep).toBe(false);
   });
 
+  // Asking for speed never makes a stage wait longer than it already had to.
+  it('leaves a stage that is due in 100 ms due then, and does not push it to a quarter second', () => {
+    // Ticket 0 leaves Intake at 5500 ms; ticket 1 arrives at 5400 ms.
+    const run = makeRun({ schedule: scheduleAt([0.5, 5.4], 2) });
+    stepUntil(run, (s) => s.simTime === 5400);
+    run.speedUp();
+    run.step();
+    expect(run.state().simTime).toBe(5500);
+    expect(currentOf(run).stage).toBe('privacy');
+  });
+
   it('slows the next three tickets down again', () => {
     const run = makeRun();
     run.speedUp();
@@ -251,6 +262,13 @@ describe('finishNow with a hold, a slow count and the offer', () => {
       },
     ],
     ['the offer showing', (run: Run) => playUntil(run, (s) => s.offerSpeedUp)],
+    [
+      'a hold on the line after every ticket has arrived',
+      (run: Run) => {
+        run.hold('line');
+        stepUntil(run, (s) => s.incoming.length === TOTAL);
+      },
+    ],
     [
       'a hold on the reviewer',
       (run: Run) => {

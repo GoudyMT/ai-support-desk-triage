@@ -121,6 +121,17 @@ describe('arrival and tag', () => {
     expect(ids(run.state().incoming)).toEqual([3, 5, 1, 2, 4, 6, 7].map(idOf));
   });
 
+  // The tag for the ticket in the center comes while others wait: it belongs to the center ticket, and the waiting
+  // ones keep their own routine tags and their places.
+  it('puts a tag on its own ticket in the center and not on the ones waiting', () => {
+    const run = makeRun({ prescreen: criticalAt([0]) });
+    stepUntil(run, (s) => s.incoming.length >= 2 && s.incoming.every((w) => w.tag !== undefined));
+    expect(currentOf(run).trail.id).toBe(idOf(0));
+    expect(currentOf(run).tag).toEqual({ priority: 'Urgent', critical: true });
+    expect(run.state().incoming.map((w) => w.tag?.critical)).toEqual(run.state().incoming.map(() => false));
+    expect(ids(run.state().incoming)).toEqual(run.state().incoming.map((_, at) => idOf(at + 1)));
+  });
+
   it('keeps a routine ticket where it arrived', () => {
     const run = makeRun({ schedule: fakeSchedule(5, 5) });
     stepUntil(run, (s) => s.incoming.length === 4 && s.incoming.every((w) => w.tag !== undefined));

@@ -161,6 +161,19 @@ describe('Review', () => {
     expect(run.state().open.some((t) => t.id === id)).toBe(false);
   });
 
+  // The ticket is sent where the viewer chose, not where its category would send it.
+  it('closes the ticket on the team the viewer picked, even when that is not its category team', () => {
+    const run = makeRun();
+    stepUntil(run, (s) => s.open.length > 0);
+    const id = firstOpen(run).id;
+    const truth = run.truthOf(id);
+    const otherTeam = Object.values(ROUTES).find((team) => team !== ROUTES[truth.category]);
+    expect(otherTeam).toBeDefined();
+    run.review(id);
+    run.confirm({ category: truth.category, priority: truth.priority, route: otherTeam ?? '' });
+    expect(lastDone(run).final.route).toBe(otherTeam);
+  });
+
   // The parent design's rule: right means category and priority both match the truth; the team is shown, not scored.
   it.each([
     ['category and priority right, team wrong', (t: TicketLabel) => ({ category: t.category, priority: t.priority, route: 'Nowhere' }), true],

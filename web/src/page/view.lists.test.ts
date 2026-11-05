@@ -3,6 +3,7 @@ import { CATEGORIES, PRIORITIES, ROUTES, type Category, type TicketLabel } from 
 import type { TicketTrail } from '../pipeline/types';
 import { incomingView, moreNumbersView, outgoingView, reviewView } from './view';
 import {
+  CAPTIONS_TEXT,
   PREVIEW_CHARS,
   RULE_CAPTIONS,
   agreeingTruth,
@@ -70,6 +71,24 @@ describe('going out', () => {
         why: 'the model is not sure enough',
       },
     ]);
+  });
+
+  // A rule can raise a ticket to Critical: the card has to show the priority the guardrails settled on.
+  it('tags a card with the priority the guardrails settled on, not the one the model first picked', () => {
+    const raised = trailOf({ priority: 'Low', reasons: [RULE_CAPTIONS] });
+    raised.guard = { ...raised.guard, priority: 'Urgent' };
+    expect(must(outgoingView(withState({ open: [raised] }), noTruth).open[0]).tag).toEqual({ word: 'Critical', level: 'critical' });
+  });
+
+  it('names at most two caught words and at most two reasons for a flag', () => {
+    const rule = { kind: 'rule' as const, reason: 'accessibility issue' as const, words: ['captions', 'subtitles', 'transcript'] };
+    const trail = trailOf({
+      model: 'Billing',
+      reasons: [rule, { kind: 'category', category: 'Billing' }, { kind: 'low confidence', confidence: 0.4 }],
+    });
+    expect(must(outgoingView(withState({ open: [trail] }), noTruth).open[0]).why).toBe(
+      'a rule caught "captions" and "subtitles", and Billing tickets always go to a person',
+    );
   });
 
   it('names the team from the model category, never from an answer the trail carries', () => {
@@ -185,6 +204,23 @@ describe('the review form', () => {
       route: ROUTES.Other,
       why: 'the model is not sure enough.',
     });
+  });
+
+  it('marks the words of the text being reviewed: model words, the rule word and the hidden detail', () => {
+    const trail = trailOf({
+      text: CAPTIONS_TEXT,
+      found: ['phone'],
+      model: 'Accessibility Support',
+      terms: ['so cannot', 'follow'],
+      reasons: [RULE_CAPTIONS],
+    });
+    const marked = must(reviewView(withState({ reviewing: trail }))).segments.filter((segment) => segment.kind !== 'plain');
+    expect(marked.map((segment) => [segment.kind, segment.text])).toEqual([
+      ['rule', 'captions'],
+      ['chip', 'so I cannot'],
+      ['chip', 'follow'],
+      ['mask', '[PHONE_NUMBER]'],
+    ]);
   });
 
   it('says when a rule raised the priority above the model pick, and not otherwise', () => {

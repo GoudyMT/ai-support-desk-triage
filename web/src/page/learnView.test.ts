@@ -126,6 +126,9 @@ describe('going back to an earlier step', () => {
 });
 
 describe('reaching a step on the real engine', () => {
+  // Long enough for a ticket to pass every stage three times over at the slow pace.
+  const READING_END_MS = 60_000;
+
   // The hold is only set; the engine has to be walked until the live ticket is where the words say.
   const where = (n: number) => {
     const run = makeRun();
@@ -142,6 +145,26 @@ describe('reaching a step on the real engine', () => {
     const state = where(n - 1);
     expect(state.current?.trail.id).toBe('T-1001-0');
     expect(state.current?.stage).toBe(stage);
+  });
+
+  // The walk plays on while a step is read: the hold is what keeps the ticket at the stage the words are about.
+  it.each([
+    [2, 'intake'],
+    [3, 'privacy'],
+    [4, 'classify'],
+    [5, 'guardrails'],
+  ])('keeps the ticket at the stage of step %i while the step is read', (n, stage) => {
+    const run = makeRun();
+    expect(reachStep(run, step(n - 1))).toBe(true);
+    const id = run.state().current?.trail.id;
+    run.play();
+    for (let at = 0; at < 5000; at += 1) {
+      const delay = run.nextDelayMs();
+      if (delay === null || run.state().simTime + delay > READING_END_MS) break;
+      run.advance();
+    }
+    expect(run.state().current?.trail.id).toBe(id);
+    expect(run.state().current?.stage).toBe(stage);
   });
 
   it('holds the line for the first step: tickets wait and none is in the center', () => {
@@ -220,6 +243,11 @@ describe('where the context block goes', () => {
     const box = { ...at, ...BLOCK };
     expect(inside(box)).toBe(true);
     expect(overlaps(box, hole)).toBe(false);
+  });
+
+  it('sits on the bottom edge, inside the screen, when the hole leaves no free place', () => {
+    const hole = { left: 100, top: 0, width: 1080, height: VIEW.height };
+    expect(placeBlock(hole, BLOCK, VIEW)).toEqual({ left: 100, top: VIEW.height - BLOCK.height });
   });
 
   it('moves on to the next place when the first one would sit on something that must stay clear', () => {

@@ -11,6 +11,7 @@ import {
   makeRun,
   outline,
   pacedDay,
+  rightPick,
   stepUntil,
   withoutMsTrail,
 } from './engineTestKit';
@@ -162,6 +163,17 @@ describe('Speed up on Act 1', () => {
     expect(run.state().simTime).toBe(during.simTime);
     expect(arrived(run.state())).toBe(arrived(during));
     run.handBack();
+    expect(arrived(run.state())).toBe(ACT1);
+    expect(run.state().simTime).toBe(FIRST_ACT2_MS);
+  });
+
+  it('moves to the busy day when the viewer confirms the ticket they were reviewing', () => {
+    const run = makeRealRun();
+    stepUntil(run, (s) => s.open.length > 0);
+    const id = firstOpen(run).id;
+    run.review(id);
+    run.speedUp();
+    run.confirm(rightPick(run, id));
     expect(arrived(run.state())).toBe(ACT1);
     expect(run.state().simTime).toBe(FIRST_ACT2_MS);
   });

@@ -107,6 +107,15 @@ describe('more numbers', () => {
     expect(value(state, "Times the simulated reviewer changed the model's category", run.truthOf)).toBe(String(overrides));
   });
 
+  it('gives the older keyword method its own figure, not the model\'s', () => {
+    const run = finishedRun();
+    const state = run.state();
+    const oldRight = state.done.filter((trail) => trail.v0.category === run.truthOf(trail.id).category).length;
+    const modelRight = state.done.filter((trail) => trail.category.label === run.truthOf(trail.id).category).length;
+    expect(oldRight).not.toBe(modelRight);
+    expect(value(state, 'Older simple keyword method, same tickets', run.truthOf)).toBe(`${Math.round((oldRight / TOTAL) * 100)}%`);
+  });
+
   it('reads the real speed run as tickets per second, and a dash when its time was zero', () => {
     const state = makeRun().state();
     expect(value({ ...state, realSpeed: { tickets: 12, ms: 6 } }, 'Tickets per second at real speed')).toBe('2000.0');
@@ -361,6 +370,13 @@ describe('the ticket being worked', () => {
         ['chip', 'so I cannot'],
         ['chip', 'follow'],
         ['mask', '[PHONE_NUMBER]'],
+      ]);
+    });
+
+    it('marks a word as the rule word when the model also picked it', () => {
+      const both = trailOf({ text: 'The call has no captions at all', terms: ['captions'], reasons: [RULE_CAPTIONS] });
+      expect(at('guardrails', both).segments.filter((segment) => segment.kind !== 'plain')).toEqual([
+        { kind: 'rule', text: 'captions' },
       ]);
     });
 
