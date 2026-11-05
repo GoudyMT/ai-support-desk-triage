@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, ROUTES, type TicketLabel } from '../domain/labels';
+import { CATEGORIES, PRIORITIES, ROUTES, type TicketLabel } from '../domain/labels';
 import { loadModel } from '../model/scorer';
 import { createSchedule } from './clock';
 import { createRun, type RunState } from './engine';
@@ -27,12 +27,13 @@ function finishedDay(seed: number): { state: RunState; truthOf: (id: string) => 
 
 describe('value saved', () => {
   // Counted by hand from the closed trails of a whole day, with no tool of this module: tickets with no review,
-  // less those the truth says needed a person (Missed) and those sent to a team other than the true one.
+  // less those the truth says needed a person (Missed), those sent to a team other than the true one and those
+  // sorted to the right team at the wrong priority.
   it.each([
-    { seed: 1001, noReview: 11, missed: 0, wrongTeam: 0, counted: 11, minutes: 22, dollars: 7.89 },
-    { seed: 1000, noReview: 18, missed: 0, wrongTeam: 3, counted: 15, minutes: 30, dollars: 10.77 },
-    { seed: 1003, noReview: 15, missed: 1, wrongTeam: 2, counted: 12, minutes: 24, dollars: 8.61 },
-  ])('seed $seed: $noReview with no review, $missed missed and $wrongTeam to the wrong team leave $counted', ({ seed, counted, minutes, dollars }) => {
+    { seed: 1001, noReview: 11, missed: 0, wrongTeam: 0, wrongPriority: 1, counted: 10, minutes: 20, dollars: 7.18 },
+    { seed: 1000, noReview: 18, missed: 0, wrongTeam: 3, wrongPriority: 4, counted: 11, minutes: 22, dollars: 7.89 },
+    { seed: 1003, noReview: 15, missed: 1, wrongTeam: 2, wrongPriority: 0, counted: 12, minutes: 24, dollars: 8.61 },
+  ])('seed $seed: $noReview with no review, $missed missed, $wrongTeam to the wrong team and $wrongPriority at the wrong priority leave $counted', ({ seed, counted, minutes, dollars }) => {
     const { state, truthOf } = finishedDay(seed);
     const saved = valueSaved(state, truthOf);
     expect(saved.counted).toBe(counted);
@@ -40,20 +41,24 @@ describe('value saved', () => {
     expect(saved.dollars).toBeCloseTo(dollars, 2);
   });
 
-  // Each reason on its own: one counted ticket is made a must-review ticket, then another is given a true team
-  // other than the one the system sent it to.
-  it('does not count a ticket that needed a person, or one sent to the wrong team, and counts the rest', () => {
-    const { state, truthOf } = finishedDay(1001);
+  // Each reason on its own: one counted ticket is made a must-review ticket, another is given a true team other
+  // than the one the system sent it to, and a third a true priority other than the one the system closed it at.
+  it('does not count a ticket that needed a person, or one sent to the wrong team or priority, and counts the rest', () => {
+    const { state, truthOf } = finishedDay(1005);
     const counted = state.done.filter((trail) => trail.review === undefined);
-    const [first, second] = counted;
-    if (first === undefined || second === undefined) throw new Error('test: no ticket to change');
+    expect(valueSaved(state, truthOf).counted).toBe(counted.length);
+    const [first, second, third] = counted;
+    if (first === undefined || second === undefined || third === undefined) throw new Error('test: no ticket to change');
     const otherTeam = CATEGORIES.find((category) => ROUTES[category] !== second.final.route);
     if (otherTeam === undefined) throw new Error('test: every category has the same team');
+    const otherPriority = PRIORITIES.find((priority) => priority !== third.final.priority);
+    if (otherPriority === undefined) throw new Error('test: every priority is the same');
     const asMissed = (id: string): TicketLabel => ({ ...truthOf(id), mustReview: id === first.id || truthOf(id).mustReview });
     const asWrong = (id: string): TicketLabel => (id === second.id ? { ...truthOf(id), category: otherTeam } : truthOf(id));
-    expect(valueSaved(state, truthOf).counted).toBe(counted.length);
+    const asUrgent = (id: string): TicketLabel => (id === third.id ? { ...truthOf(id), priority: otherPriority } : truthOf(id));
     expect(valueSaved(state, asMissed).counted).toBe(counted.length - 1);
     expect(valueSaved(state, asWrong).counted).toBe(counted.length - 1);
+    expect(valueSaved(state, asUrgent).counted).toBe(counted.length - 1);
   });
 
   it('starts at nothing, and a ticket in the center or the open list saves nothing yet', () => {
