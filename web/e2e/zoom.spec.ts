@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openLearn } from './helpers';import { LIT, count, eachStep, litBox, next, zoomText } from './learnKit';
+import { openLearn } from './helpers';
+import { LIT, count, eachStep, litBox, next, zoomText } from './learnKit';
 
 // Learn on a small screen and at a large text size: the words stay reachable, the lit part stays on the screen above
 // the bar, and what the viewer had open (All numbers) does not push it away. Each is held to every step.
