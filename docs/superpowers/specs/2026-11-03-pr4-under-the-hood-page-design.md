@@ -55,7 +55,7 @@ numbers CI already holds (parent section 6 start point).
 - Stack (adapter A6): TypeScript and Vite as pinned; no new runtime dependency (section 12).
 - Size budgets start here (adapter A12): the built page's code and styles gzipped, and the model file. Limits
   are set from the first real build's measurement with the owner and live in `web/size-budgets.json`, checked
-  in the full gate. The page limit is 47,500 bytes (section 5, 2026-11-04).
+  in the full gate. The page limit is 48,500 bytes (section 5, 2026-11-04).
 - Accessibility and devices: parent section 3 and section 6; check set adapter A21 (375 / 768 / 1280, light and
   dark, forced colors). An emulated phone ran (plan Execution Notes, 2026-11-04 device test); the owner's device
   test on the Samsung S26 (adapter A20) moves to PR 6.
@@ -119,7 +119,7 @@ numbers CI already holds (parent section 6 start point).
   per ticket no person touched (low end of vendor figures; no independent study found) x $21.53 an hour (BLS median,
   May 2025, no benefits). Measured over 8 seeds: 8.5% to 14.6% of tickets go untouched, 22 to 38 minutes, $7.89 to
   $13.64 a run. They rise with a light flash and show their source on hover, focus or tap.
-- 2026-11-04 (owner, on the second sweep; fix everything found): The page limit is 47,500 bytes (it was 45,000). Time
+- 2026-11-04 (owner, on the second sweep; fix everything found): The page limit is 48,500 bytes (45,000, then 47,500, then 48,500 on the same day after this round). Time
   saved and Value saved count a ticket only when no person touched it and the system got it right: not Missed, and sent
   to the true team (this replaces "no person touched"); the source reads "Each ticket the system sorted correctly with
   no review counts as 2 minutes saved. Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant

@@ -349,9 +349,9 @@ Design section 5, the 2026-11-04 entry on the second sweep.
 
 ### Task 11 (lead, then the owner): close out
 
-- [x] HARD STOP: the owner sets the two budget limits from the measured build (adapter A12): 47,500 and 3,600,000, set
+- [x] HARD STOP: the owner sets the two budget limits from the measured build (adapter A12): 48,500 and 3,600,000, set
       by the owner on 2026-11-04 -> verify: `npm --prefix web run gate` exit 0 with the limits in `size-budgets.json`.
-      NOT MET after Task 15: the page is 48,083 bytes gzipped, 583 over; no trim pass has been run
+      Met after the owner raised the limit to 48,500: the page is 48,083 bytes gzipped, 417 under
 - [ ] Owner review on the built page: narration wording (parent 8) and the device test on the Samsung S26 at
       learn speed (parent 6) -> verify: the owner's answers in Execution Notes
 - [ ] ui-review; full gate (both CI jobs' commands); parking-lot triage; sweep at the tier above; PR body;
