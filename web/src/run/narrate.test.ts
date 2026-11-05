@@ -138,7 +138,7 @@ describe('narrate: classify', () => {
     expect(narrate(ACCESSIBILITY, 'classify').plain).toMatch(/^After the privacy step, the model picks Accessibility Support, 95% sure/);
   });
 
-  // The model reads the masked text, so a mask label can be among its top words. A viewer hears "leaning most on
+  // The model reads the masked text, so a mask label can be among its top words. A viewer hears "leaning on
   // card_number", which is a label the page put there, not a word the customer wrote.
   describe('with a mask label among the top words', () => {
     const withTerms = (terms: string[]): TicketTrail => ({
@@ -148,7 +148,7 @@ describe('narrate: classify', () => {
 
     it('does not speak a label, alone or inside a pair, and speaks the next words instead', () => {
       const { plain } = narrate(withTerms(['card_number', 'my email_address', 'cannot', 'follow', 'screen']), 'classify');
-      expect(plain).toContain('leaning most on "cannot" and "follow"');
+      expect(plain).toContain('leaning on "cannot" and "follow"');
       expect(plain).not.toMatch(/card_number|email_address|phone_number|order_number/);
     });
 

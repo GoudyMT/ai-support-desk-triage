@@ -103,7 +103,7 @@ function plainFor(trail: TicketTrail, stage: Stage): string {
     }
     case 'classify': {
       const leaning = spokenTerms(trail).slice(0, TOP_WORDS_SPOKEN);
-      const leaned = leaning.length > 0 ? `, leaning most on ${quoted(leaning)}` : '';
+      const leaned = leaning.length > 0 ? `, leaning on ${quoted(leaning)}` : '';
       return (
         `After the privacy step, the model picks ${trail.category.label}, ` +
         `${percent(trail.category.confidence)} sure${leaned}.`

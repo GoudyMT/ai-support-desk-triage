@@ -15,14 +15,14 @@ export const STEPS: readonly LearnStep[] = [
   },
   {
     title: 'One message at a time',
-    text: 'The top message, called a ticket, moves to the middle so the system can work on it. This is what the customer wrote, with some private details already covered. The bars along the top show its steps.',
+    text: 'The top message, called a ticket, moves to the middle so the system can work on it. This is what the customer wrote. Any email, phone, order or card number in it is already covered. The bars along the top show its steps.',
     lit: ['.now-head', '.track', '.ticket-text'],
     hold: 'intake',
     ready: (s) => s.current?.stage === 'intake',
   },
   {
     title: 'Private details get hidden',
-    text: 'This step is called Privacy. Before the model reads the message, any email addresses, phone numbers, order numbers and card numbers it finds are swapped for labels.',
+    text: 'This step is called Privacy. Before the model reads the message, this step swaps any email addresses, phone numbers, order numbers and card numbers it finds for labels.',
     lit: [`${LINE}(1)`],
     hold: 'privacy',
     ticketStage: 'privacy',
@@ -55,7 +55,7 @@ export const STEPS: readonly LearnStep[] = [
   },
   {
     title: 'Keeping score',
-    text: 'Because we know the true answer for each made-up message, these numbers are measured, not claimed. They include the mistakes.',
+    text: 'Because we know the true answer for each made-up message, these numbers are measured, not claimed. All numbers, in See The Process, shows how often it was right and wrong.',
     lit: ['#stats'],
     hold: null,
     ready: (s) => s.done.length > 0,
