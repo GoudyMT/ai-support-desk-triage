@@ -105,19 +105,28 @@ export function createDim(): Dim {
   // Everything a step does for the screen it is on: the room kept for the docked block, the lit part brought into
   // view, and the hole measured. Run when a step is shown and again when the screen changes (a turned phone, a
   // window, a larger text size), which can take the layout from docked to beside the hole, or move the lit part.
-  function layOut(): void {
+  function layOut(scroll = true): void {
     if (hole.hidden) return;
     const docked = !window.matchMedia(WIDE).matches;
     keepRoom(docked ? block.offsetHeight : 0);
-    if (docked) scrollAbove();
-    else scrollLit();
+    if (scroll) {
+      if (docked) scrollAbove();
+      else scrollLit();
+    }
     measure();
   }
 
-  window.addEventListener('resize', layOut);
+  // A phone's toolbar sliding away changes the height only, and a reader who has scrolled on is not brought back; a
+  // turned phone or a resized window changes the width, and the lit part is brought into view again.
+  let width = window.innerWidth;
+  window.addEventListener('resize', () => {
+    const widthChanged = window.innerWidth !== width;
+    width = window.innerWidth;
+    layOut(widthChanged);
+  });
   window.addEventListener('scroll', measure, true);
   // The bar's height decides how tall the board is, so a change to it moves what is lit.
-  new ResizeObserver(layOut).observe(byId('bar'));
+  new ResizeObserver(() => layOut()).observe(byId('bar'));
   return {
     show(step, line) {
       lit = step.lit;

@@ -178,6 +178,21 @@ test.describe('the walk when the screen changes size', () => {
     expect(await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-h')))).toBe(0);
   });
 
+  // A phone's address bar slides away as the page is read, which changes the height and not the width. A reader who
+  // has scrolled on must not be snapped back to the lit part each time.
+  test('leaves the page where the reader scrolled it when only the height changes', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await toStepFour(page);
+    await page.waitForTimeout(SETTLE_MS);
+    await page.evaluate(() => window.scrollBy(0, 2000));
+    const before = await page.evaluate(() => Math.round(window.scrollY));
+    const lit = await litBox(page, LIT[THIRD_STEP] ?? '');
+    expect(lit.top, 'the lit part has been scrolled off the top').toBeLessThan(0);
+    await page.setViewportSize({ width: 375, height: 740 });
+    await page.waitForTimeout(SETTLE_MS);
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(before);
+  });
+
   test('lays it out again when a phone is turned on its side', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await toStepFour(page);
