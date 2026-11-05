@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { open, openLearn, playToFirstOpen, tabTo } from './helpers';
+import { FAST_STATUS, open, openLearn, playToFirstOpen, playUntilOpenCount, reviewButton, tabTo } from './helpers';
 import { block, count, next } from './learnKit';
 
 // Step 1's words take seven seconds to read; this is a little over.
@@ -218,6 +218,42 @@ for (const viewport of [
     });
   });
 }
+
+// A viewer who goes to Learn with the review form open takes the ticket off the form: it is back on the open list
+// when they return, and a Speed up pressed under the form has become the busy day, not a false offer.
+test.describe('leaving See with the review form open', () => {
+  const learnButton = (page: Page) => page.getByRole('button', { name: 'Learn The Process', exact: true });
+  const seeButton = (page: Page) => page.getByRole('button', { name: 'See The Process', exact: true }).first();
+  const openFirstCard = async (page: Page, seed: number) => {
+    await open(page, `?seed=${seed}`);
+    await playUntilOpenCount(page, 1);
+    const id = (await page.locator('#outgoing .open > li').first().getAttribute('data-ticket')) ?? '';
+    await reviewButton(page, id).click();
+    await expect(page.locator('#review')).toBeVisible();
+    return id;
+  };
+
+  for (const seed of [1001, 1017]) {
+    test(`plays the busy day, with no offer, after Speed up under the form (seed ${seed})`, async ({ page }) => {
+      await openFirstCard(page, seed);
+      await page.getByRole('button', { name: 'Speed up' }).click();
+      await learnButton(page).click();
+      await seeButton(page).click();
+      await expect(page.locator('#status')).toHaveText(FAST_STATUS);
+      await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+    });
+  }
+
+  test('puts the ticket back on the open list, with no form open and focus on the bar\'s main button', async ({ page }) => {
+    const id = await openFirstCard(page, 1001);
+    await learnButton(page).click();
+    await seeButton(page).click();
+    await expect(page.locator('#review')).toBeHidden();
+    await expect(reviewButton(page, id)).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Restart' })).not.toBeFocused();
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
+  });
+});
 
 test.describe('the reviewer in Learn', () => {
   test('is held through step 6 so the walked card stays in Going out, and step 7 lets it close', async ({ page }) => {

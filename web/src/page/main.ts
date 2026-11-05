@@ -152,6 +152,8 @@ function showView(mounted: Mounted, mode: Page['mode'], moveFocus: boolean): voi
   panels.bar.show(mode);
   if (mode === 'learn') {
     if (from === 'see') {
+      // A form left open would come back reset, with a busy day asked for under it still waiting.
+      page.run.handBack();
       page.run.pause();
       mounted.stash = page.run;
     }
