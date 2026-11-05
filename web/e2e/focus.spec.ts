@@ -181,3 +181,50 @@ test.describe('while a review form is open', () => {
     for (const button of await others.all()) await expect(button).toBeEnabled();
   });
 });
+
+// A keyboard viewer who reviews card after card needs focus put where the work is each time.
+test.describe('focus around the review form', () => {
+  const heading = (page: Page) => page.getByRole('heading', { name: /^You are reviewing T-/ });
+
+  test('goes to the form each time one opens, not only the first time', async ({ page }) => {
+    await open(page);
+    await playUntilOpenCount(page, 2);
+    const first = page.locator('#outgoing .open > li').first().getByRole('button');
+    await first.click();
+    await expect(heading(page)).toBeFocused();
+    await page.getByRole('button', { name: 'Hand back to the reviewer' }).click();
+    await first.click();
+    await expect(heading(page)).toBeFocused();
+  });
+
+  // With other cards still open, a Review button is the nearest control: Confirm must not leave focus there.
+  test('Confirm hands focus to the primary control of the bar, though other cards are open', async ({ page }) => {
+    await open(page);
+    await playUntilOpenCount(page, 2);
+    await page.locator('#outgoing .open > li').first().getByRole('button').click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect(heading(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeFocused();
+  });
+});
+
+// A control the keyboard reaches behind the fixed bar is scrolled up above it.
+test.describe('a focused control and the bar', () => {
+  test.use({ viewport: { width: 375, height: 500 } });
+
+  test('scrolls a control that sits behind the bar up above it', async ({ page }) => {
+    await open(page);
+    const gap = await page.evaluate(() => {
+      const barTop = document.getElementById('bar')?.getBoundingClientRect().top ?? 0;
+      const bar = document.getElementById('bar');
+      const target = [...document.querySelectorAll<HTMLElement>('button, [tabindex="0"]')].find((node) => {
+        const box = node.getBoundingClientRect();
+        return !(bar?.contains(node) ?? true) && box.height > 0 && box.top >= 0 && box.bottom > barTop && box.height < barTop - 16;
+      });
+      if (target === undefined) return Number.NaN;
+      target.focus({ preventScroll: true });
+      return barTop - target.getBoundingClientRect().bottom;
+    });
+    expect(gap).toBeGreaterThanOrEqual(0);
+  });
+});

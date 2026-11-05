@@ -44,6 +44,30 @@ async function wordsReachable(page: Page, at: number): Promise<void> {
   expect(showing, `step ${at + 1} lit part above the block`).toBeGreaterThanOrEqual(Math.min(lit.bottom - lit.top, LIT_SHOWING_PX));
 }
 
+// On a phone the hole stops above the docked block and never starts above the screen, and the room kept under the
+// page for the block is given back when Learn ends.
+test.describe('the hole and the room on a phone', () => {
+  test.use({ viewport: { width: 375, height: 560 } });
+
+  test('the hole stays on the screen and above the block on every step, and the room goes in See', async ({ page }) => {
+    await openLearn(page);
+    await eachStep(page, async (at) => {
+      const seen = await page.evaluate(() => {
+        const hole = document.querySelector('.dim')?.getBoundingClientRect();
+        const block = document.querySelector('.learn-block')?.getBoundingClientRect();
+        return { top: hole?.top ?? Number.NaN, bottom: hole?.bottom ?? Number.NaN, blockTop: block?.top ?? Number.NaN };
+      });
+      expect(seen.top, `step ${at + 1} hole top`).toBeGreaterThanOrEqual(-0.5);
+      expect(seen.bottom, `step ${at + 1} hole over the block`).toBeLessThanOrEqual(seen.blockTop + 0.5);
+    });
+    const room = () => page.evaluate(() => document.documentElement.style.getPropertyValue('--block-h'));
+    expect(parseFloat(await room())).toBeGreaterThan(0);
+    await page.locator('#view-see').click();
+    await expect(page.locator('.dim')).toBeHidden();
+    expect(parseFloat(await room())).toBe(0);
+  });
+});
+
 test.describe('the docked block, on a very small screen and at a large text size', () => {
   test.describe('at 320 by 256', () => {
     test.use({ viewport: { width: 320, height: 256 } });

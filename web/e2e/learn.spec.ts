@@ -241,6 +241,29 @@ test.describe('Pause, Back and the two views', () => {
     await expect(count(page)).not.toHaveText('Step 2 of 7');
   });
 
+  test('Next under Pause shows the next step with the run still stopped', async ({ page }) => {
+    await openLearn(page);
+    await page.getByRole('button', { name: 'Pause' }).click();
+    await next(page).click();
+    await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
+    const waiting = await page.locator('#incoming .cards li').count();
+    await page.clock.runFor(120_000);
+    await expect(count(page)).toHaveText('Step 2 of 7');
+    expect(await page.locator('#incoming .cards li').count()).toBe(waiting);
+  });
+
+  test('Resume gives a step only the time it had left, not all of it again', async ({ page }) => {
+    await openLearn(page);
+    const stay = msFor(await wordsShown(page));
+    await page.clock.runFor(stay * 0.7);
+    await page.getByRole('button', { name: 'Pause' }).click();
+    await page.clock.runFor(120_000);
+    await expect(count(page)).toHaveText('Step 1 of 7');
+    await page.getByRole('button', { name: 'Resume' }).click();
+    await page.clock.runFor(stay * 0.4);
+    await expect(count(page)).toHaveText('Step 2 of 7');
+  });
+
   test('Back from step 5 to step 3 puts the ticket at Privacy again', async ({ page }) => {
     await openLearn(page);
     for (let n = 0; n < 4; n += 1) await next(page).click();
