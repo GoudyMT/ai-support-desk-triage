@@ -75,7 +75,7 @@ function makeCard(card: DeskCard, actions: CardActions): HTMLElement {
   const meta = el('div', 'meta');
   meta.append(el('span', 'team', card.team), el('span', `tag tag-${card.tag.level}`, card.tag.word));
   const lean = el('p', 'lean');
-  lean.append(el('strong', undefined, `Leaning ${card.team}, ${card.percent}% sure.`), document.createTextNode(' '));
+  lean.append(el('strong', undefined, card.leaning), document.createTextNode(' '));
   lean.append(el('span', 'why', card.why));
   const buttons = el('div', 'buttons');
   if (card.showApprove) buttons.append(cardButton('btn btn-solid', 'Approve', card.id, actions.approve));

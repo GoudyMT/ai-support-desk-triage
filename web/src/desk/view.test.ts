@@ -4,12 +4,20 @@ import type { Run, RunState } from '../run/engine';
 import { canQuickApprove, surePercent } from '../run/engineParts';
 import { indexOf, makeDeskRun, rightPick, stepToEnd, stepUntil } from '../run/engineTestKit';
 import { valueSaved } from '../run/valueSaved';
-import { teamOf, whyFlagged } from '../page/view';
-import type { TicketLabel } from '../domain/labels';
+import { teamOf, whyFlagged, type TagView } from '../page/view';
+import type { Priority, TicketLabel } from '../domain/labels';
 import { deskCards, deskNumbers, deskReview, resultLine, sentRows } from './view';
 
 const DESK_TOTAL = 130;
 const SAMPLE_EVERY = 10;
+
+// The word and style each priority is printed with; a ticket's urgent priority is the Critical tag.
+const TAG_OF: Record<Priority, TagView> = {
+  Urgent: { word: 'Critical', level: 'critical' },
+  High: { word: 'High', level: 'high' },
+  Medium: { word: 'Medium', level: 'medium' },
+  Low: { word: 'Low', level: 'low' },
+};
 
 interface Day {
   end: RunState;
@@ -60,13 +68,26 @@ describe('deskCards', () => {
       expect(cards[at]).toEqual({
         id: trail.id,
         team: teamOf(trail),
-        tag: expect.objectContaining({ level: expect.any(String) }),
+        tag: TAG_OF[trail.guard.priority],
         text: trail.maskedText,
         why: `${whyFlagged(trail).charAt(0).toUpperCase()}${whyFlagged(trail).slice(1)}.`,
         percent: surePercent(trail),
+        leaning: `Leaning ${teamOf(trail)}, ${surePercent(trail)}% sure.`,
         showApprove: canQuickApprove(trail),
       });
     });
+  });
+
+  it('shows the priority a rule raised a ticket to and the words the card prints, not the model\'s own priority', () => {
+    // On this seed the model calls T-1085-0 Medium and the guard raises it to Urgent, which the card tags Critical.
+    const run = makeDeskRun(1085);
+    stepUntil(run, (s) => s.open.some((t) => t.id === 'T-1085-0'));
+    const trail = run.state().open.find((t) => t.id === 'T-1085-0');
+    if (trail === undefined) throw new Error('test: the ticket is not open');
+    expect([trail.priority.label, trail.guard.priority]).toEqual(['Medium', 'Urgent']);
+    const card = deskCards({ ...run.state(), open: [trail] })[0];
+    expect(card?.tag).toEqual({ word: 'Critical', level: 'critical' });
+    expect(card?.leaning).toBe('Leaning Billing Team, 82% sure.');
   });
 
   it('puts a Critical card above an older High one, so the worst ticket is read first', () => {
@@ -137,9 +158,10 @@ describe('sentRows', () => {
   it('names the team the ticket was sent to, which is the reviewer\'s when they changed it', () => {
     const { end } = day();
     const changed = end.done.find((t) => t.final.by === 'reviewer' && t.final.category !== t.category.label);
-    const row = sentRows(end).find((r) => r.id === changed?.id);
-    expect(row?.team).toBe(changed?.final.route);
-    expect(row?.team).not.toBe(changed === undefined ? '' : teamOf(changed));
+    if (changed === undefined) throw new Error('test: the reviewer changed no ticket');
+    const row = sentRows(end).find((r) => r.id === changed.id);
+    expect(row?.team).toBe(changed.final.route);
+    expect(row?.team).not.toBe(teamOf(changed));
   });
 });
 

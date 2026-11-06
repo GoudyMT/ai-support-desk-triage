@@ -16,6 +16,7 @@ export interface DeskCard {
   text: string;
   why: string;
   percent: number;
+  leaning: string;
   showApprove: boolean;
 }
 
@@ -42,15 +43,20 @@ function sentence(phrase: string): string {
 
 // The open list is already ordered by severity and then oldest first.
 export function deskCards(state: RunState): DeskCard[] {
-  return state.open.map((trail) => ({
-    id: trail.id,
-    team: teamOf(trail),
-    tag: tagView(trail.guard.priority),
-    text: trail.maskedText,
-    why: sentence(whyFlagged(trail)),
-    percent: surePercent(trail),
-    showApprove: canQuickApprove(trail),
-  }));
+  return state.open.map((trail) => {
+    const team = teamOf(trail);
+    const percent = surePercent(trail);
+    return {
+      id: trail.id,
+      team,
+      tag: tagView(trail.guard.priority),
+      text: trail.maskedText,
+      why: sentence(whyFlagged(trail)),
+      percent,
+      leaning: `Leaning ${team}, ${percent}% sure.`,
+      showApprove: canQuickApprove(trail),
+    };
+  });
 }
 
 function howClosed(state: RunState, trail: TicketTrail): string {

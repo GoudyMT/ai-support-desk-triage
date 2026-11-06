@@ -7,8 +7,8 @@ import {
   DESK_CLOSE_EVERY_MS,
   MAX_STEPS,
   makeDeskRun,
+  eventKind,
   makeRun,
-  rightPick,
   stepToClose,
   stepToEnd,
   stepUntil,
@@ -157,15 +157,68 @@ describe('approve', () => {
     expect(run.state().open.map((t) => t.id)).toContain(card.id);
     expect(run.state().viewerReviews).toEqual([]);
   });
-});
 
-describe('confirm', () => {
-  it('records a review through the form as not quick, so the report can tell the two apart', () => {
+  it('keeps the reviewer to its own pace: after the last open ticket is approved, the next to open waits a full closeEveryMs', () => {
     const run = makeDeskRun();
-    stepUntil(run, (s) => s.open.length >= 1);
-    const id = run.state().open[0]?.id ?? '';
-    run.review(id);
-    run.confirm(rightPick(run, id));
-    expect(run.state().viewerReviews).toEqual([{ id, correct: true, quick: false }]);
+    // The case that shows it: the next ticket opens before the wait the approved one started would have run out.
+    let measured = false;
+    while (!measured) {
+      stepUntil(run, (s) => s.open.length === 1 && openCard(s, true) !== undefined);
+      const approvedAt = run.state().simTime;
+      run.approve(run.state().open[0]?.id ?? '');
+      expect(run.state().open).toEqual([]);
+      stepUntil(run, (s) => s.open.length >= 1);
+      const opened = run.state().simTime;
+      if (opened - approvedAt < DESK_CLOSE_EVERY_MS) {
+        expect(stepToClose(run)).toBe(opened + DESK_CLOSE_EVERY_MS);
+        measured = true;
+      }
+    }
+  });
+
+  it('leaves the run\'s timing as it was: the next event is due at the same moment, and the run is still playing', () => {
+    const run = makeDeskRun();
+    run.play();
+    // The state in which the reviewer's close is the next event, so a restart of its clock would show.
+    let lastClose: number | undefined;
+    for (let n = 0; n <= MAX_STEPS; n += 1) {
+      const before = run.state();
+      run.advance();
+      const after = run.state();
+      if (eventKind(before, after) === 'close') lastClose = after.open.length > 0 ? after.simTime : undefined;
+      const closeNext = lastClose !== undefined && run.nextDelayMs() === lastClose + DESK_CLOSE_EVERY_MS - after.simTime;
+      if (closeNext && after.open.length >= 2 && openCard(after, true) !== undefined) break;
+      if (n === MAX_STEPS) throw new Error('test: the wanted state never came');
+    }
+    const due = run.state().simTime + (run.nextDelayMs() ?? Number.NaN);
+    const card = openCard(run.state(), true);
+    run.approve(card?.id ?? '');
+    expect(run.state().playing).toBe(true);
+    expect(run.state().simTime + (run.nextDelayMs() ?? Number.NaN)).toBe(due);
+  });
+
+  it('is one change for the page to draw, and never one that shows the card still open for review', () => {
+    const run = makeDeskRun();
+    stepUntil(run, (s) => openCard(s, true) !== undefined);
+    const seen: (string | undefined)[] = [];
+    run.onChange(() => {
+      seen.push(run.state().reviewing?.id);
+    });
+    run.approve(openCard(run.state(), true)?.id ?? '');
+    expect(seen).toEqual([undefined]);
+  });
+
+  it('closes at the priority the card shows when a rule raised it above the model\'s own', () => {
+    const SEED_RAISED = 1085;
+    const ID = 'T-1085-0';
+    const run = makeDeskRun(SEED_RAISED);
+    stepUntil(run, (s) => s.open.some((t) => t.id === ID));
+    const held = run.state().open.find((t) => t.id === ID);
+    if (held === undefined) throw new Error('test: the ticket is not open');
+    expect([held.priority.label, held.guard.priority, canQuickApprove(held)]).toEqual(['Medium', 'Urgent', true]);
+    run.approve(ID);
+    const final = run.state().done.find((t) => t.id === ID)?.final;
+    expect(final?.priority).toBe('Urgent');
+    expect(final?.category).toBe(held.category.label);
   });
 });
