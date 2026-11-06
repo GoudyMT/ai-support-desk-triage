@@ -5,7 +5,8 @@ import { canQuickApprove, surePercent } from '../run/engineParts';
 import { indexOf, makeDeskRun, rightPick, stepToEnd, stepUntil } from '../run/engineTestKit';
 import { valueSaved } from '../run/valueSaved';
 import { teamOf, whyFlagged } from '../page/view';
-import { deskCards, deskNumbers, sentRows } from './view';
+import type { TicketLabel } from '../domain/labels';
+import { deskCards, deskNumbers, deskReview, resultLine, sentRows } from './view';
 
 const DESK_TOTAL = 130;
 const SAMPLE_EVERY = 10;
@@ -139,6 +140,55 @@ describe('sentRows', () => {
     const row = sentRows(end).find((r) => r.id === changed?.id);
     expect(row?.team).toBe(changed?.final.route);
     expect(row?.team).not.toBe(changed === undefined ? '' : teamOf(changed));
+  });
+});
+
+describe('deskReview', () => {
+  it('is nothing until a ticket is opened, then holds that ticket at the model\'s picks', () => {
+    const run = makeDeskRun();
+    stepUntil(run, (s) => s.open.length >= 2);
+    expect(deskReview(run.state())).toBeUndefined();
+    const card = deskCards(run.state())[1];
+    if (card === undefined) throw new Error('test: no second card');
+    run.review(card.id);
+    const trail = run.state().reviewing;
+    expect(deskReview(run.state())).toEqual({
+      id: card.id,
+      text: card.text,
+      why: card.why,
+      tag: card.tag,
+      category: trail?.category.label,
+      priority: trail?.guard.priority,
+      route: teamOf(trail as NonNullable<typeof trail>),
+    });
+    run.handBack();
+    expect(deskReview(run.state())).toBeUndefined();
+  });
+
+  it('starts at the priority the card shows when a rule raised it above the model\'s own', () => {
+    const run = makeDeskRun();
+    const raised = (s: RunState) => s.open.find((t) => t.guard.priority !== t.priority.label);
+    stepUntil(run, (s) => raised(s) !== undefined);
+    const trail = raised(run.state());
+    if (trail === undefined) throw new Error('test: no raised card');
+    run.review(trail.id);
+    const review = deskReview(run.state());
+    expect(review?.priority).toBe(trail.guard.priority);
+    expect(review?.tag).toEqual(deskCards({ ...run.state(), open: [trail] })[0]?.tag);
+  });
+});
+
+describe('resultLine', () => {
+  const truth: TicketLabel = { category: 'Billing', priority: 'Urgent', mustReview: true };
+
+  it('says the call matched when category and priority are both the true ones', () => {
+    expect(resultLine({ category: 'Billing', priority: 'Urgent' }, truth)).toBe('Your call matched the true answer.');
+  });
+
+  it('names the true answer when either differs, with Critical as the tags say it', () => {
+    const answer = 'The true answer was Billing, Critical.';
+    expect(resultLine({ category: 'Technical Issue', priority: 'Urgent' }, truth)).toBe(answer);
+    expect(resultLine({ category: 'Billing', priority: 'High' }, truth)).toBe(answer);
   });
 });
 

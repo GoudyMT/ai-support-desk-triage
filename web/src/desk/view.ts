@@ -1,7 +1,7 @@
 // What the operator desk shows, worked out from the run's state. Pure: no DOM, so a test reads it directly and
 // the page only draws. The engine hides the simulated reviewer's answer on every open card, and nothing here
 // puts it back.
-import type { TicketLabel } from '../domain/labels';
+import type { Category, Priority, TicketLabel } from '../domain/labels';
 import type { TicketTrail } from '../pipeline/types';
 import { tagView, teamOf, whyFlagged, type TagView } from '../page/view';
 import type { RunState } from '../run/engine';
@@ -72,6 +72,39 @@ export function sentRows(state: RunState): SentRow[] {
     how: howClosed(state, trail),
     text: trail.maskedText,
   }));
+}
+
+export interface DeskReview {
+  id: string;
+  text: string;
+  why: string;
+  tag: TagView;
+  category: Category;
+  priority: Priority;
+  route: string;
+}
+
+// The ticket the viewer has open, with the model's picks the card starts from.
+export function deskReview(state: RunState): DeskReview | undefined {
+  const trail = state.reviewing;
+  if (trail === undefined) return undefined;
+  return {
+    id: trail.id,
+    text: trail.maskedText,
+    why: sentence(whyFlagged(trail)),
+    tag: tagView(trail.guard.priority),
+    category: trail.category.label as Category,
+    priority: trail.guard.priority,
+    route: teamOf(trail),
+  };
+}
+
+// What the viewer is told right after sending: the call is scored on category and priority, as the report is.
+export function resultLine(sent: { category: Category; priority: Priority }, truth: TicketLabel): string {
+  if (sent.category === truth.category && sent.priority === truth.priority) {
+    return 'Your call matched the true answer.';
+  }
+  return `The true answer was ${truth.category}, ${tagView(truth.priority).word}.`;
 }
 
 export function deskNumbers(state: RunState, total: number, truthOf: (id: string) => TicketLabel): DeskNumbers {
