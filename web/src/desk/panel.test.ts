@@ -39,7 +39,13 @@ describe('parseAssumption', () => {
     ['not a number', 'abc'],
     ['negative', '-1'],
     ['infinite', 'Infinity'],
+    ['past the ceiling', '100001'],
+    ['too big to print', '1e308'],
   ])('keeps the last good value and says so for an input that is %s', (_name, raw) => {
     expect(parseAssumption(raw, 21.53)).toEqual({ value: 21.53, message: 'Kept 21.53. Enter a number of 0 or more.' });
+  });
+
+  it('takes the ceiling itself', () => {
+    expect(parseAssumption('100000', 5)).toEqual({ value: 100000, message: '' });
   });
 });

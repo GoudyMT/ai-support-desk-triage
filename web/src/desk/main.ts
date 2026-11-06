@@ -23,6 +23,7 @@ const PAUSED = 'Paused while you review.';
 const PAUSED_TRY = 'Paused while you try a ticket.';
 const PAUSED_REPORT = 'Paused while you read the report.';
 const RESULT_MS = 4000;
+const STARTED = 'Run started.';
 
 interface Live {
   run: Run;
@@ -38,8 +39,14 @@ interface Live {
 }
 
 let live: Live | undefined;
+const addressSeed = parseSeed(location.search);
 // The seed the next Start runs: the address's, when it has a valid one, else a fresh draw.
-let nextSeed = parseSeed(location.search).seed;
+let nextSeed = addressSeed.seed;
+// Whether the address named a seed that could not be used, until the first run has said so.
+let seedIgnored = addressSeed.ignored;
+// Whether a model is on its way or failed to come, which the bar shows over everything else: a hold that ends (Try a
+// ticket closed, a report closed) redraws the bar and must not turn Loading or Retry back into Start.
+let loadState: 'idle' | 'loading' | 'failed' = 'idle';
 // The viewer's notes by ticket id, for this run only: never stored, sent, put in the address or in a report.
 const notes = new Map<string, string>();
 // Where in the open list the viewer last acted, so focus goes to the card that took its place.
@@ -72,10 +79,24 @@ function holdLine(reviewing: boolean): string {
   return report === undefined ? '' : PAUSED_REPORT;
 }
 
+// The bar while a model loads or after it failed to, or false when it is neither and the run says what the bar shows.
+function drawLoad(): boolean {
+  if (loadState === 'loading') {
+    setButton('Loading...', true, true);
+    say('Loading...');
+  } else if (loadState === 'failed') {
+    setButton('Retry', true);
+    say('', MODEL_FAILED);
+  }
+  return loadState !== 'idle';
+}
+
 function drawBar(playing: boolean, numbers: DeskNumbers, held: string, result: string): void {
+  if (drawLoad()) return;
   const ended = numbers.closed >= numbers.total;
   setButton(playing && !ended ? 'Stop' : 'Start', !playing || ended);
-  if (held !== '') {
+  // A run at its end says so, whatever is open over it, unless the viewer's last answer is still being shown.
+  if (held !== '' && !ended) {
     say(held);
   } else if (result !== '') {
     say('', result);
@@ -117,8 +138,32 @@ const reviewCard = createReviewCard({
   },
 });
 
-// Try a ticket sits beside the numbers at rest. During a run the bar's button opens the same panel over the desk and the
-// run holds while it is open, then goes on only if it was going when the panel opened, or if a new run arrived under it.
+// A held Enter repeats its keydown, and each repeat would press the focused button again, closing ticket after ticket down
+// the list unread: only the first keydown of a press counts.
+document.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.repeat && event.key === 'Enter' && event.target instanceof HTMLButtonElement) event.preventDefault();
+  },
+  true,
+);
+
+// The second press of a double press lands on whatever the first brought under it: the card that just opened, or the bar
+// behind the card that just closed. It is not a new choice, so nothing hears it.
+document.addEventListener(
+  'click',
+  (event) => {
+    if (reviewCard.settling()) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+  },
+  true,
+);
+
+// Try a ticket sits beside the numbers at rest on a wide screen. During a run the bar's button opens the same panel over
+// the desk and the run holds while it is open, then goes on only if it was going when the panel opened, or if a new run
+// arrived under it.
 const tryOpen = byId('try-open');
 const tryPanel = createTryPanel();
 byId('rest').append(tryPanel);
@@ -245,6 +290,11 @@ function focusList(at: number): void {
 const cardActions: CardActions = {
   approve(id) {
     actedAt = indexOfCard(id);
+    // The answer to an earlier review is about that ticket, not this one.
+    if (live !== undefined) {
+      window.clearTimeout(live.resultTimer);
+      live.result = '';
+    }
     live?.run.approve(id);
     focusList(actedAt);
   },
@@ -298,7 +348,9 @@ function sync(current: Live): void {
   }
 }
 
-function mount(seed: number, run: Run, total: number): void {
+// `announce` is said once in the live region when the run starts, since a screen reader hears nothing from a bar that
+// only changes its words.
+function mount(seed: number, run: Run, total: number, announce: string): void {
   if (live !== undefined) {
     live.stopListening();
     window.clearTimeout(live.timer);
@@ -332,15 +384,17 @@ function mount(seed: number, run: Run, total: number): void {
     render(current);
   } else {
     run.play();
+    setText(byId('notice'), announce);
   }
 }
 
 function load(): void {
   const seed = nextSeed;
-  setButton('Loading...', true, true);
-  say('Loading...');
+  loadState = 'loading';
+  drawLoad();
   fetchModel(foldOf(seed)).then(
     (model) => {
+      loadState = 'idle';
       const schedule = createDeskSchedule(seed);
       const run = createRun({
         seed,
@@ -351,15 +405,24 @@ function load(): void {
         closeEveryMs: REVIEWER_PACE_MS,
         deepTickets: 0,
       });
-      mount(seed, run, schedule.total);
+      mount(seed, run, schedule.total, startLine(seed));
       toggle().focus();
     },
     () => {
-      setButton('Retry', true);
-      say('', MODEL_FAILED);
+      loadState = 'failed';
+      drawLoad();
       toggle().focus();
     },
   );
+}
+
+// What the first run says when it starts: the same line Under the Hood gives when the address's seed was refused.
+function startLine(seed: number): string {
+  const line = seedIgnored
+    ? `The seed in the replay link could not be used, so this is a new run with seed ${seed}.`
+    : STARTED;
+  seedIgnored = false;
+  return line;
 }
 
 toggle().addEventListener('click', () => {

@@ -1,5 +1,5 @@
 // Puts the report into the page's report article, whose labels are already in the markup. Every value goes in with
-// textContent, because a ticket's words are data. Loaded the first time Generate report is pressed.
+// textContent, because a ticket's words are data.
 import type { TicketLabel } from '../domain/labels';
 import { byId, el, setText } from '../page/dom';
 import type { RunState } from '../run/engine';

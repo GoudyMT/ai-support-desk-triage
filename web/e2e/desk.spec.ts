@@ -10,6 +10,7 @@ const MAX_RUN_STEPS = 60;
 const ENDED = 'All 130 tickets handled. Press Start to run a new set.';
 const MODEL_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';
 const TAG_RANK: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+const STARTED = 'Run started.';
 
 // Opens the desk with the clock under the test's control: nothing moves until `runFor`.
 async function openDesk(page: Page, query = `?seed=${SEED}`): Promise<void> {
@@ -41,6 +42,30 @@ async function fadesDone(page: Page): Promise<void> {
     .toBe(0);
 }
 
+// Lets a run go to its end, the way the finished-run rows below do.
+async function finishRun(page: Page): Promise<void> {
+  const toggle = page.locator('#toggle');
+  for (let step = 0; step < MAX_RUN_STEPS && (await toggle.innerText()) !== 'Start'; step += 1) {
+    await page.clock.runFor(RUN_STEP_MS);
+  }
+  await expect(toggle).toHaveText('Start');
+  await expect(page.getByText(ENDED)).toBeVisible();
+}
+
+// Holds every model file back until `release` is called, so a load can be watched while it is still going.
+async function holdModels(page: Page): Promise<{ release: () => void }> {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((open) => {
+    release = open;
+  });
+  await page.route('**/models/*', async (route) => {
+    await gate;
+    await route.continue();
+  });
+  return { release };
+}
+
+const tryButton = (page: Page) => page.getByRole('button', { name: 'Try a ticket' });
 const openCards =(page: Page) => page.locator('#open-list > li');
 const sentRows = (page: Page) => page.locator('#sent-list > li');
 
@@ -180,6 +205,91 @@ test('a model that fails to load shows a plain message and Retry, and Retry star
   await expect(page.getByText(MODEL_FAILED)).toBeHidden();
   await page.clock.runFor(30_000);
   expect(await sentRows(page).count()).toBeGreaterThan(0);
+});
+
+// A screen reader hears nothing when a run starts unless the live region says so.
+test('Start says once, in the live region, that the run started', async ({ page }) => {
+  await openDesk(page);
+  await expect(page.locator('#notice')).toBeEmpty();
+  await start(page);
+  await expect(page.locator('#notice')).toHaveText(STARTED);
+  await page.clock.runFor(10_000);
+  await expect(page.locator('#notice')).toBeEmpty();
+});
+
+test('Start on an address whose seed cannot be used says so and names the seed it ran', async ({ page }) => {
+  await openDesk(page, '?seed=abc');
+  await start(page);
+  const seed = await page.locator('body').getAttribute('data-seed');
+  expect(seed).toMatch(/^\d+$/);
+  await expect(page.locator('#notice')).toHaveText(
+    `The seed in the replay link could not be used, so this is a new run with seed ${seed}.`,
+  );
+});
+
+// The bar says what the viewer needs most: at the end it says so, whatever is open over it.
+test('at the end of a run the bar says so while Try a ticket or a report is open, not that it is paused', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await openDesk(page);
+  await start(page);
+  await finishRun(page);
+  await tryButton(page).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('#notice')).toHaveText(ENDED);
+  await expect(page.locator('#status')).toBeEmpty();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await page.getByRole('button', { name: /^(More|Fewer) numbers$/ }).click();
+  await page.getByRole('button', { name: 'Generate report' }).click();
+  await expect(page.locator('#report')).toBeVisible();
+  await expect(page.locator('#notice')).toHaveText(ENDED);
+  await expect(page.locator('#status')).toBeEmpty();
+});
+
+// Closing Try a ticket or the report ends a hold, and a hold's end redraws the bar: it must not forget a load.
+test('Start stays off while the next run loads, even when Try a ticket is opened and closed meanwhile', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await openDesk(page);
+  await start(page);
+  await finishRun(page);
+  const model = await holdModels(page);
+  const toggle = page.locator('#toggle');
+  await toggle.click();
+  await expect(toggle).toBeDisabled();
+  await tryButton(page).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(toggle).toHaveText('Loading...');
+  await expect(toggle).toBeDisabled();
+  model.release();
+  await expect(toggle).toHaveText('Stop');
+  await expect(page.locator('#n-closed')).toHaveText(`0 of ${TICKETS_IN_A_RUN}`);
+});
+
+test('after a failed load, closing Try a ticket leaves Retry and the message on the bar', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openDesk(page);
+  await start(page);
+  await finishRun(page);
+  await page.route('**/models/*', (route) => route.abort());
+  const toggle = page.locator('#toggle');
+  await toggle.click();
+  await expect(toggle).toHaveText('Retry');
+  await expect(page.locator('#notice')).toHaveText(MODEL_FAILED);
+  await tryButton(page).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(toggle).toHaveText('Retry');
+  await expect(page.locator('#notice')).toHaveText(MODEL_FAILED);
+  await page.unroute('**/models/*');
+  await toggle.click();
+  await expect(toggle).toHaveText('Stop');
 });
 
 test('a finished run ends on Start, and Start draws a new seed and resets every number', async ({ page }) => {

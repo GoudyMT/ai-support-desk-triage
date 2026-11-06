@@ -4,7 +4,7 @@
   --change: #166534;
   --change-size: 0.8125rem;
   --history-max: 62.5rem;
-  --table-min: 45rem;
+  --table-min: 40rem;
   --block-min: 10.5rem;
 }
 
@@ -331,5 +331,12 @@ tr > :last-child {
 
   .history h1 {
     font-size: 1.5rem;
+  }
+}
+
+/* Forced colors drop the box's background and shadow, so it gets an edge. */
+@media (forced-colors: active) {
+  .tipbox {
+    border: var(--border) solid CanvasText;
   }
 }

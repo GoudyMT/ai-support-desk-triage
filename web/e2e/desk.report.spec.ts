@@ -253,6 +253,25 @@ test('printing shows the report alone, with no bar, panel or header', async ({ p
   await expect(page.getByRole('button', { name: 'Print or save as PDF' })).toBeHidden();
 });
 
+// Ctrl+P does not need the report: whatever the page shows then is what prints, and a viewer's notes are not for paper.
+test('printing with no report open shows the run numbers and none of the tickets or notes', async ({ page }) => {
+  await runWithPanel(page, 60_000);
+  await page.locator('#open-list button[aria-label^="Review "]').first().click();
+  await page.clock.runFor(450);
+  await page.getByRole('dialog').getByLabel('Note for the team (optional)').fill('private note');
+  await page.getByRole('dialog').getByRole('button', { name: /^(Looks good, send it|Send with my changes)$/ }).click();
+  await expect(page.locator('.your-note')).toHaveText('Your note: private note');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#open-list')).toBeHidden();
+  await expect(page.locator('#sent-list')).toBeHidden();
+  await expect(page.locator('.your-note')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'This run' })).toBeVisible();
+  await expect(page.locator('#n-closed')).toBeVisible();
+  await expect(page.locator('.bar')).toBeHidden();
+  await expect(more(page)).toBeHidden();
+  await expect(generate(page)).toBeHidden();
+});
+
 test('Print or save as PDF asks the browser to print', async ({ page }) => {
   await page.addInitScript(() => {
     Object.assign(window, { printed: 0, print: () => ((window as unknown as { printed: number }).printed += 1) });

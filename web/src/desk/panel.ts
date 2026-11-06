@@ -13,10 +13,14 @@ export interface Assumptions {
   pay: number;
 }
 
-// The viewer's value if it is a number of 0 or more; otherwise the last good one, with a line that says so.
+// Past this a value is no estimate and its text would print as Infinity or NaN.
+const ASSUMPTION_MAX = 100_000;
+
+// The viewer's value if it is a number of 0 or more and not past the ceiling; otherwise the last good one, with a line that
+// says so.
 export function parseAssumption(raw: string, last: number): { value: number; message: string } {
   const value = raw.trim() === '' ? Number.NaN : Number(raw);
-  if (Number.isFinite(value) && value >= 0) return { value, message: '' };
+  if (Number.isFinite(value) && value >= 0 && value <= ASSUMPTION_MAX) return { value, message: '' };
   return { value: last, message: `Kept ${last}. Enter a number of 0 or more.` };
 }
 

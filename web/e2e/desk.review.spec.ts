@@ -11,6 +11,8 @@ const PAUSED = 'Paused while you review.';
 const RESULT = /^(Your call matched the true answer\.|The true answer was .+, (Critical|High|Medium|Low)\.)$/;
 const RESULT_MS = 4000;
 const NEW_MS = 2000;
+// A press this soon after a card opens or closes is a double press and is ignored; this is a moment past that.
+const SETTLE_MS = 450;
 // Half of the number fade, so a paused fade shows a clear mid-point.
 const HALF_FADE_MS = 110;
 
@@ -181,6 +183,7 @@ test.describe('Approve and Review on a card', () => {
     const card = cards(page).first();
     const id = await idOf(card);
     await reviewOf(card).click();
+    await page.clock.runFor(SETTLE_MS);
     const team = dialog(page).getByLabel('Team', { exact: true });
     const was = await team.inputValue();
     const other = (await team.locator('option').evaluateAll((nodes) => nodes.map((n) => (n as HTMLOptionElement).value))).find(
@@ -209,6 +212,7 @@ test.describe('Approve and Review on a card', () => {
     for (let step = 0; step < MAX_STEPS && (await cards(page).count()) === 0; step += 1) await page.clock.runFor(250);
     await expect(cards(page)).toHaveCount(1);
     await reviewOf(cards(page).first()).click();
+    await page.clock.runFor(SETTLE_MS);
     await mainButton(page).click();
     await expect(cards(page)).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /^Needs a person/ })).toBeFocused();
@@ -239,6 +243,7 @@ test.describe('Approve and Review on a card', () => {
     const card = await runUntilCard(page, (list) => list);
     const id = await idOf(card);
     await reviewOf(card).click();
+    await page.clock.runFor(SETTLE_MS);
     await dialog(page).getByLabel('Note for the team (optional)').fill('<b>x</b>');
     await mainButton(page).click();
     const note = page.locator(`#sent-list > li[data-ticket="${id}"] .your-note`);
@@ -264,6 +269,187 @@ test.describe('Approve and Review on a card', () => {
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toBeHidden();
   });
+});
+
+const noteBox = (page: Page): Locator => dialog(page).getByLabel('Note for the team (optional)');
+const OLD_NOTE = 'an old note for another ticket';
+
+// Runs the clock on until the list holds `count` cards.
+async function waitForCards(page: Page, count: number): Promise<void> {
+  for (let step = 0; step < MAX_STEPS * 4 && (await cards(page).count()) < count; step += 1) await page.clock.runFor(250);
+  expect(await cards(page).count()).toBeGreaterThanOrEqual(count);
+}
+
+// Opens the card of the first ticket in the list and lets the moment pass in which a press is ignored. Returns its id.
+async function openFirst(page: Page): Promise<string> {
+  const card = cards(page).first();
+  const id = await idOf(card);
+  await reviewOf(card).click();
+  await page.clock.runFor(SETTLE_MS);
+  return id;
+}
+
+// The box's own undo and redo are how an earlier note can come back, so the keys are pressed in the box.
+async function undoAndRedo(page: Page): Promise<void> {
+  await noteBox(page).focus();
+  await page.keyboard.press('ControlOrMeta+z');
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await page.keyboard.press('ControlOrMeta+y');
+}
+
+test.describe('the note box', () => {
+  test('a note that was sent does not come back on the next ticket through undo and redo, and is not sent with it', async ({
+    page,
+  }) => {
+    await openDesk(page);
+    await start(page);
+    await waitForCards(page, 3);
+    await openFirst(page);
+    await noteBox(page).pressSequentially(OLD_NOTE);
+    await mainButton(page).click();
+    await expect(dialog(page)).toBeHidden();
+    await page.clock.runFor(SETTLE_MS);
+    const id = await openFirst(page);
+    await undoAndRedo(page);
+    await expect(noteBox(page)).toHaveValue('');
+    await mainButton(page).click();
+    await expect(page.locator(`#sent-list > li[data-ticket="${id}"]`)).toBeVisible();
+    await expect(page.locator(`#sent-list > li[data-ticket="${id}"] .your-note`)).toHaveCount(0);
+  });
+
+  test('a note that was handed back does not come back when a ticket is opened again', async ({ page }) => {
+    await openDesk(page);
+    await start(page);
+    await waitForCards(page, 3);
+    await openFirst(page);
+    await noteBox(page).pressSequentially(OLD_NOTE);
+    await dialog(page).getByRole('button', { name: 'Hand back to the reviewer' }).click();
+    await expect(dialog(page)).toBeHidden();
+    await page.clock.runFor(SETTLE_MS);
+    await openFirst(page);
+    await undoAndRedo(page);
+    await expect(noteBox(page)).toHaveValue('');
+  });
+
+  test('a note from an earlier run does not come back in a new run', async ({ page }) => {
+    test.setTimeout(120_000);
+    await openDesk(page);
+    await start(page);
+    await waitForCards(page, 3);
+    await openFirst(page);
+    await noteBox(page).pressSequentially(OLD_NOTE);
+    await mainButton(page).click();
+    await expect(dialog(page)).toBeHidden();
+    const toggle = page.locator('#toggle');
+    for (let step = 0; step < 60 && (await toggle.innerText()) !== 'Start'; step += 1) await page.clock.runFor(10_000);
+    await expect(toggle).toHaveText('Start');
+    await start(page);
+    await waitForCards(page, 1);
+    await openFirst(page);
+    await undoAndRedo(page);
+    await expect(noteBox(page)).toHaveValue('');
+  });
+
+  // What is typed here is a viewer's own words: no spelling service and no autofill history may take them.
+  test('turns spell checking and autofill off, on every ticket it opens for', async ({ page }) => {
+    await openDesk(page);
+    await start(page);
+    await waitForCards(page, 3);
+    for (let ticket = 0; ticket < 2; ticket += 1) {
+      await openFirst(page);
+      await expect(noteBox(page)).toHaveJSProperty('spellcheck', false);
+      await expect(noteBox(page)).toHaveAttribute('autocomplete', 'off');
+      await mainButton(page).click();
+      await expect(dialog(page)).toBeHidden();
+      await page.clock.runFor(SETTLE_MS);
+    }
+  });
+});
+
+// A held key repeats its keydown, and Enter on a button presses it each time.
+test.describe('a held Enter', () => {
+  const OVERFLOW_PRESSES = 11;
+
+  test('approves one ticket and does not go on down the list', async ({ page }) => {
+    await openDesk(page);
+    await start(page);
+    // A card with Approve and two more behind it, so a press that went on down the list would have somewhere to land.
+    for (let step = 0; step < MAX_STEPS && !((await withApprove(cards(page)).count()) >= 1 && (await cards(page).count()) >= 3); step += 1) {
+      await page.clock.runFor(STEP_MS);
+    }
+    const approve = approveOf(withApprove(cards(page)).first());
+    await expect(approve).toBeVisible();
+    await approve.focus();
+    await page.keyboard.down('Enter');
+    await page.clock.runFor(SETTLE_MS);
+    for (let press = 0; press < OVERFLOW_PRESSES; press += 1) await page.keyboard.down('Enter');
+    await page.keyboard.up('Enter');
+    await expect(rows(page).locator('.how', { hasText: 'You approved' })).toHaveCount(1);
+    await expect(rows(page).locator('.how', { hasText: 'You reviewed' })).toHaveCount(0);
+    await expect(dialog(page)).toBeHidden();
+  });
+
+  test('opens the review card once and does not send the ticket from it', async ({ page }) => {
+    await openDesk(page);
+    await start(page);
+    await waitForCards(page, 4);
+    await reviewOf(cards(page).first()).focus();
+    await page.keyboard.down('Enter');
+    await page.clock.runFor(SETTLE_MS);
+    for (let press = 0; press < OVERFLOW_PRESSES; press += 1) await page.keyboard.down('Enter');
+    await page.keyboard.up('Enter');
+    await expect(dialog(page)).toBeVisible();
+    await expect(rows(page).locator('.how', { hasText: /^You (reviewed|approved)$/ })).toHaveCount(0);
+  });
+});
+
+// A double click is two presses of one finger: on a card's Review button the second lands on whatever the first opened.
+test.describe('a second press right after a card opens', () => {
+  test('does not land on the card that just opened, and a press a moment later does', async ({ page }) => {
+    await openDesk(page);
+    await start(page);
+    await waitForCards(page, 2);
+    const id = await idOf(cards(page).first());
+    await reviewOf(cards(page).first()).click();
+    await mainButton(page).click();
+    await expect(dialog(page)).toBeVisible();
+    await expect(page.locator(`#sent-list > li[data-ticket="${id}"]`)).toHaveCount(0);
+    await page.clock.runFor(SETTLE_MS);
+    await mainButton(page).click();
+    await expect(dialog(page)).toBeHidden();
+    await expect(page.locator(`#sent-list > li[data-ticket="${id}"]`)).toHaveCount(1);
+  });
+
+});
+
+test('an Approve soon after a sent review takes that review\'s result off the bar', async ({ page }) => {
+  await openDesk(page);
+  await start(page);
+  // One card to review and another with Approve to press after it.
+  for (let step = 0; step < MAX_STEPS; step += 1) {
+    if ((await withApprove(cards(page)).count()) >= 1 && (await withoutApprove(cards(page)).count()) >= 1) break;
+    await page.clock.runFor(STEP_MS);
+  }
+  await reviewOf(withoutApprove(cards(page)).first()).click();
+  await page.clock.runFor(SETTLE_MS);
+  await mainButton(page).click();
+  await expect(page.locator('#notice')).toHaveText(RESULT);
+  await page.clock.runFor(SETTLE_MS);
+  await approveOf(withApprove(cards(page)).first()).click();
+  await expect(rows(page).locator('.how', { hasText: 'You approved' })).toHaveCount(1);
+  await expect(page.locator('#notice')).toBeEmpty();
+  await expect(page.locator('#status')).toContainText('more on the way');
+});
+
+test('in forced colors the review card has an edge of its own', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await openDesk(page);
+  await start(page);
+  await waitForCards(page, 1);
+  await reviewOf(cards(page).first()).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page)).toHaveCSS('border-top-style', 'solid');
+  await expect(dialog(page)).not.toHaveCSS('border-top-width', '0px');
 });
 
 test.describe('numbers and cards moving', () => {

@@ -777,14 +777,19 @@ body {
   margin-top: var(--space-3);
 }
 
-/* Print shows the report alone. */
+/* Print shows the report alone when one is open, and otherwise only the page's heading and numbers: never the tickets, the
+   viewer's notes or the box they typed a ticket in. */
 @media print {
   .site-header,
   .bar,
-  .side,
   .report-actions,
   .flights,
-  dialog {
+  dialog,
+  .lists,
+  .try,
+  .run.reporting > .side,
+  .side .btn,
+  .side .more {
     display: none !important;
   }
 
@@ -840,43 +845,17 @@ body {
     font-size: 1.5rem;
   }
 
-  /* The desk is one screen high: the list or the panel scrolls inside it, between the header and the bar. */
-  body:has(> .run:not([hidden])) {
-    height: 100dvh;
-  }
-
   .run {
-    flex: 1 1 0;
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
     gap: var(--space-2);
-    min-height: 0;
     padding-top: 0;
     padding-bottom: var(--space-2);
-    overflow: hidden;
   }
 
   .run > * {
     flex: none;
-  }
-
-  .run > .lists,
-  .run > .side,
-  .run > .report {
-    flex: 1 1 0;
-    min-height: 0;
-  }
-
-  .run > .side,
-  .run > .report {
-    overflow-y: auto;
-  }
-
-  .list {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
   }
 
   .run[data-view='sent'] > #open-col,
@@ -1027,5 +1006,65 @@ body {
 
   .run:not([hidden]) ~ .bar a[href='model-history.html'] {
     display: none;
+  }
+}
+
+/* A phone with room for it (about 34rem high) holds the desk to one screen: the list or the panel scrolls inside it,
+   between the header and the bar. A shorter screen, a phone on its side, has no room to share between header, tabs, list and
+   bar, so there the page scrolls as a page does and the list takes the height of its cards. */
+@media (max-width: 40rem) and (min-height: 34rem) {
+  body:has(> .run:not([hidden])) {
+    height: 100dvh;
+  }
+
+  .run {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .run > .lists,
+  .run > .side,
+  .run > .report {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .run > .side,
+  .run > .report {
+    overflow-y: auto;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* Wider than a phone and short of three columns, the two lists sit side by side and the page scrolls, so the panel goes
+   first and takes its own row: below them it would be past every sent row. */
+@media (min-width: 40.0625rem) and (max-width: 59.9375rem) {
+  .side {
+    order: -1;
+    flex-basis: 100%;
+  }
+}
+
+/* The bar sticks to the bottom of a page that scrolls, so a control scrolled into view rests above it, not under it. */
+html {
+  scroll-padding-bottom: 9rem;
+}
+
+/* Forced colors drop backgrounds and shadows, so the selected tab and each box that stood on a shadow get an edge. */
+@media (forced-colors: active) {
+  .tab[aria-selected='true'] {
+    outline: var(--stroke) solid Highlight;
+    outline-offset: calc(-1 * var(--space-1));
+  }
+
+  .tipbox,
+  .review {
+    border: var(--border) solid CanvasText;
   }
 }

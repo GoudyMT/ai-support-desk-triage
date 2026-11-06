@@ -3,7 +3,8 @@ import { loadModel, type Model } from '../model/scorer';
 export const MODEL_TIMEOUT_MS = 60_000;
 
 /**
- * The only request the page makes after its own files: the one fold model a run scores with.
+ * The request a run makes after the page's own files: the one fold model it scores with. Try a ticket asks for the shipped
+ * model on its own (`fetchShipped`).
  *
  * @param fold The fold the run's seed names.
  * @param fetcher Where the file comes from; the browser's `fetch` unless a test passes its own.

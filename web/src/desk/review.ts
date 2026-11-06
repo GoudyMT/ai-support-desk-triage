@@ -1,6 +1,7 @@
 // The review card: a modal over the desk for one ticket, starting at the model's picks. Every value goes in with
 // textContent. The team follows the category until the viewer picks a team, and the card is filled once per ticket and
-// then left alone, so a choice the viewer has made is never overwritten by a later draw.
+// then left alone, so a choice the viewer has made is never overwritten by a later draw. The note box is a new one for
+// each ticket, so what was typed on an earlier ticket cannot come back through undo and redo.
 import { CATEGORIES, PRIORITIES, ROUTES, type Category, type Priority } from '../domain/labels';
 import { button, el } from '../page/dom';
 import type { DeskReview } from './view';
@@ -20,8 +21,11 @@ export interface ReviewCard {
   open(view: DeskReview): void;
   close(): void;
   isOpen(): boolean;
+  // Whether the card opened or closed a moment ago: a press now is the second of a double press, not a new choice.
+  settling(): boolean;
 }
 
+const SETTLE_MS = 400;
 const NOTE_MAX = 500;
 const PICK = " (model's pick)";
 const SEND = 'Looks good, send it';
@@ -73,10 +77,13 @@ export function createReviewCard(actions: ReviewActions): ReviewCard {
   const noteBox = el('div', 'field');
   const noteLabel = el('label', undefined, 'Note for the team (optional)');
   noteLabel.htmlFor = 'review-note';
-  const note = el('textarea');
+  let note = el('textarea');
   note.id = 'review-note';
   note.rows = 2;
   note.maxLength = NOTE_MAX;
+  // The viewer's own words: no spelling service and no autofill list may take them.
+  note.spellcheck = false;
+  note.autocomplete = 'off';
   noteBox.append(noteLabel, note);
   const send = el('button', 'btn btn-solid', SEND);
   send.type = 'submit';
@@ -98,6 +105,16 @@ export function createReviewCard(actions: ReviewActions): ReviewCard {
   let current: DeskReview | undefined;
   let teamChosen = false;
   let attached = false;
+  let changedAt = Number.NEGATIVE_INFINITY;
+
+  // A box typed in keeps an edit history that undo and redo reach, and a box only given new text keeps it, so each
+  // ticket gets a new box with the same attributes.
+  function renewNote(): void {
+    const next = note.cloneNode(false) as HTMLTextAreaElement;
+    next.value = '';
+    note.replaceWith(next);
+    note = next;
+  }
 
   function relabel(): void {
     const changed =
@@ -158,19 +175,26 @@ export function createReviewCard(actions: ReviewActions): ReviewCard {
       pick(category.select, view.category);
       pick(priority.select, view.priority);
       pick(team.select, view.route);
-      note.value = '';
+      renewNote();
       relabel();
       if (!attached) {
         document.body.append(dialog);
         attached = true;
       }
       dialog.showModal();
+      changedAt = performance.now();
       send.focus();
     },
     close() {
       current = undefined;
-      if (dialog.open) dialog.close();
+      if (dialog.open) {
+        // What was typed goes with the card, whether it was sent or handed back.
+        renewNote();
+        dialog.close();
+        changedAt = performance.now();
+      }
     },
     isOpen: () => current !== undefined,
+    settling: () => performance.now() - changedAt < SETTLE_MS,
   };
 }

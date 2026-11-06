@@ -4,6 +4,8 @@ import { SEED, START } from './helpers';
 const PHONE = { width: 375, height: 812 };
 const TARGET = 44;
 const RUN_MS = 60_000;
+// A press this soon after a card opens or closes is a double press and is ignored; this is a moment past that.
+const SETTLE_MS = 450;
 
 // Opens the desk with the clock under the test's control: nothing moves until `runFor`. Reduced motion is on, so every
 // box and number read below is the settled one.
@@ -195,9 +197,27 @@ test.describe('on a phone', () => {
     const card = await boxOf(dialog(page));
     expect(inside(card), JSON.stringify(card)).toBe(true);
     expect(await sideways(page)).toBe(false);
+    await page.clock.runFor(SETTLE_MS);
     await dialog(page).getByRole('button', { name: /^(Looks good, send it|Send with my changes)$/ }).tap();
     await expect(dialog(page)).toBeHidden();
     await expect(page.locator('#sent-list .how', { hasText: 'You reviewed' }).first()).toBeAttached();
+  });
+
+  // The second tap of a double tap on Send finds the card gone and the bar under its finger.
+  test('a second tap right after Send does not open Try a ticket behind the card, and a tap a moment later does', async ({
+    page,
+  }) => {
+    await runDesk(page);
+    await page.locator('#open-list button[aria-label^="Review "]').first().tap();
+    await expect(dialog(page)).toBeVisible();
+    await page.clock.runFor(SETTLE_MS);
+    await dialog(page).getByRole('button', { name: /^(Looks good, send it|Send with my changes)$/ }).tap();
+    await expect(dialog(page)).toBeHidden();
+    await page.getByRole('button', { name: 'Try a ticket', exact: true }).tap();
+    await expect(dialog(page)).toBeHidden();
+    await page.clock.runFor(SETTLE_MS);
+    await page.getByRole('button', { name: 'Try a ticket', exact: true }).tap();
+    await expect(dialog(page)).toBeVisible();
   });
 
   test('Try a ticket is finished by touch, and the form fits the screen', async ({ page }) => {
@@ -262,6 +282,131 @@ test.describe('on a phone with a wider font', () => {
     await numbersButton(page).click();
     await more(page).click();
     expect(await sideways(page), 'panel').toBe(false);
+  });
+});
+
+// Phone width on a screen too short for the whole desk (a phone on its side): the page scrolls, as a page does, and the
+// bar stays within reach.
+for (const { width, height } of [
+  { width: 640, height: 400 },
+  { width: 568, height: 320 },
+  { width: 320, height: 256 },
+]) {
+  test.describe(`at ${width} by ${height}`, () => {
+    test.use({ viewport: { width, height } });
+
+    test('a card\'s Review button can be scrolled to and pressed, and the bar stays reachable', async ({ page }) => {
+      await runDesk(page);
+      await page.locator('#open-list button[aria-label^="Review "]').first().click({ timeout: 5000 });
+      await expect(dialog(page)).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog(page)).toBeHidden();
+      const room = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+      expect(room, 'the page can scroll').toBeGreaterThan(0);
+      const bar = await boxOf(page.locator('.bar'));
+      expect(bar.y + bar.height, 'the bar is on the screen').toBeLessThanOrEqual(height);
+      await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeInViewport();
+    });
+  });
+}
+
+test.describe('at a phone width and a screen tall enough for one screen', () => {
+  test.use({ viewport: PHONE });
+
+  test('the desk is still one screen: the list scrolls inside it and the page does not', async ({ page }) => {
+    await runDesk(page, 120_000);
+    const room = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+    expect(room).toBeLessThanOrEqual(0);
+    const list = await page.locator('#open-list').evaluate((node) => node.scrollHeight > node.clientHeight);
+    expect(list).toBe(true);
+  });
+});
+
+// A tablet is wider than a phone and narrower than three columns: the lists sit two across and the page scrolls, so the
+// This run panel is at the top, where it can be seen, and not below every sent row.
+test.describe('at 768 wide', () => {
+  test.use({ viewport: { width: 768, height: 1024 } });
+
+  test('the This run panel sits above the two lists, and the page does not scroll sideways', async ({ page }) => {
+    await runDesk(page, 120_000);
+    const panel = await boxOf(side(page));
+    const lists = await boxOf(page.locator('#open-col'));
+    expect(panel.y + panel.height, JSON.stringify({ panel, lists })).toBeLessThanOrEqual(lists.y);
+    expect(await sideways(page)).toBe(false);
+  });
+});
+
+// The bar sticks to the bottom of a page that scrolls, so a control brought into view must come to rest above it.
+test.describe('at 800 by 600', () => {
+  test.use({ viewport: { width: 800, height: 600 } });
+
+  test('a focused control is not left under the bar', async ({ page }) => {
+    await runDesk(page, 120_000);
+    const behind = await page.evaluate(() => {
+      const bar = document.querySelector('.bar');
+      const buttons = [...document.querySelectorAll<HTMLElement>('#open-list .buttons > button:last-child')];
+      const found: string[] = [];
+      if (bar === null) return ['no bar'];
+      for (const button of buttons) {
+        // Down to the bottom edge of the screen, under the bar, as a Tab arrives at a control below the fold.
+        const top = button.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo(0, top - window.innerHeight + button.offsetHeight + 4);
+        button.focus();
+        if (button.getBoundingClientRect().bottom > bar.getBoundingClientRect().top) {
+          found.push(button.getAttribute('aria-label') ?? '');
+        }
+      }
+      return found;
+    });
+    expect(behind).toEqual([]);
+  });
+});
+
+test.describe('in forced colors on a phone', () => {
+  test.use({ viewport: PHONE, hasTouch: true });
+
+  test('the selected tab is marked by more than its weight, and a tip box has an edge', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' });
+    await runDesk(page);
+    await expect(tab(page, 'Needs a person')).toHaveCSS('outline-style', 'solid');
+    await expect(tab(page, 'Sent to teams')).toHaveCSS('outline-style', 'none');
+    await page.locator('.phone-head .tip').focus();
+    const box = page.locator('[role="tooltip"]:not([hidden])');
+    await expect(box).toHaveCount(1);
+    await expect(box).toHaveCSS('border-top-style', 'solid');
+    await expect(box).not.toHaveCSS('border-top-width', '0px');
+  });
+});
+
+// The Model History page shares the desk's look and its tips; these are the parts that are its own.
+test.describe('the Model History page', () => {
+  const HISTORY = '/model-history.html';
+  const APPROVE_TIP = 'How many cards in a run reach 70% sure, so Approve shows. A surer model lights more of them.';
+
+  test('at 768 wide the whole table fits its box, so no column is cut off', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.goto(HISTORY);
+    await expect(page.locator('#rows > tr')).toHaveCount(2);
+    const fits = await page
+      .getByRole('region', { name: 'History, newest first' })
+      .evaluate((node) => node.scrollWidth <= node.clientWidth);
+    expect(fits).toBe(true);
+  });
+
+  test('Cards with Approve per run has an info tip that says what the number means', async ({ page }) => {
+    await page.goto(HISTORY);
+    const block = page.locator('.block', { hasText: 'Cards with Approve per run' });
+    await block.getByRole('button').focus();
+    await expect(page.locator('[role="tooltip"]:not([hidden])')).toHaveText(APPROVE_TIP);
+  });
+
+  test('in forced colors a tip box has an edge', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' });
+    await page.goto(HISTORY);
+    await page.locator('.block .tip').first().focus();
+    const box = page.locator('[role="tooltip"]:not([hidden])');
+    await expect(box).toHaveCSS('border-top-style', 'solid');
+    await expect(box).not.toHaveCSS('border-top-width', '0px');
   });
 });
 
