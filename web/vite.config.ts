@@ -18,7 +18,7 @@ function shippedModel(): Plugin {
 }
 
 // Relative asset and model paths, so the built page works from any folder it is served from.
-// Two pages come from one build: the desk (the site root) and Under the Hood. The manifest tells
+// Three pages come from one build: the desk (the site root), Under the Hood and Model History. The manifest tells
 // the size check which files each page loads.
 export default defineConfig({
   base: './',
@@ -29,6 +29,7 @@ export default defineConfig({
       input: {
         desk: `${ROOT}index.html`,
         'under-the-hood': `${ROOT}under-the-hood.html`,
+        'model-history': `${ROOT}model-history.html`,
       },
     },
   },

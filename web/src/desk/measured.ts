@@ -1,12 +1,18 @@
-// The three numbers the desk shows before Start. Each is a measurement, not a run; a later change moves them to
-// a data file the build checks against CI's own measurement.
+// The numbers the desk shows before Start, read from the model history's current (newest) row, so the desk and the
+// Model History page share one source. CI holds that row equal to its own measurement (scripts/measurePipeline.ts).
+// The fresh hand-written set is 60 tickets written blind to the rules and the model, 24 of them must-review; the frozen
+// hand-written set is 48 tickets, and the old keyword method is the history's prototype row.
+import history from '../history/history.json';
+import { formatCount, formatPercent, type HistoryRow } from '../history/view';
 
-// The fresh hand-written set: 60 tickets written blind to the rules and the model, 24 of them must-review. Source:
-// the parent design (2026-10-29-v1-triage-demo-design.md) section 6, "0 missed of 24 must-review, 78% flagged".
-export const HIGH_RISK_MISSED = '0 of 24';
-export const SENT_TO_PERSON = '78%';
+const ROWS: readonly HistoryRow[] = history;
+const CURRENT = ROWS[0];
+const KEYWORDS = ROWS.find((row) => row.id === 'prototype');
+if (CURRENT === undefined || KEYWORDS === undefined) {
+  throw new Error('E_NO_HISTORY');
+}
 
-// The frozen hand-written set of 48 tickets: the model's category right on 39, the old keyword method on 14.
-// Source: ml/reports/eval.json, "handwritten" model_category.k and v0_category.k.
-export const HAND_WRITTEN_RIGHT = '39 of 48';
-export const KEYWORD_RIGHT = 14;
+export const HIGH_RISK_MISSED = formatCount(CURRENT.highRiskMissed);
+export const SENT_TO_PERSON = formatPercent(CURRENT.sentToPerson, 0);
+export const HAND_WRITTEN_RIGHT = formatCount(CURRENT.handWrittenRight);
+export const KEYWORD_RIGHT = KEYWORDS.handWrittenRight.k;

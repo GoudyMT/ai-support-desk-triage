@@ -1,0 +1,22 @@
+[
+  {
+    "id": "baseline",
+    "name": "Baseline model (current)",
+    "kind": "Word weights plus safety rules",
+    "heldOutRight": 0.573,
+    "handWrittenRight": { "k": 39, "n": 48 },
+    "highRiskMissed": { "k": 0, "n": 24 },
+    "sentToPerson": 0.78,
+    "approveCardsPerRun": 6.8
+  },
+  {
+    "id": "prototype",
+    "name": "Course prototype",
+    "kind": "Keyword rules",
+    "heldOutRight": 0.336,
+    "handWrittenRight": { "k": 14, "n": 48 },
+    "highRiskMissed": null,
+    "sentToPerson": null,
+    "approveCardsPerRun": null
+  }
+]

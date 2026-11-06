@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>Model History - AI Support Desk Triage</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <p class="site-name">Support Desk</p>
+    </header>
+    <main class="history">
+      <h1>Model History</h1>
+      <p class="lead">
+        Each time the model changes, it is tested the same way and compared with the baseline. The goal is more right answers and
+        fewer tickets that need a person, with no high-risk ticket missed.
+      </p>
+      <section class="current" aria-labelledby="current-title">
+        <h2 id="current-title">Current model against the baseline</h2>
+        <div class="blocks" id="blocks"></div>
+      </section>
+      <h2 id="history-title">History, newest first</h2>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="history-title">
+        <table>
+          <thead>
+            <tr id="head"></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="note">
+        "Right" means the category. The last two columns use the 60-ticket test set, written blind and frozen before any
+        measurement. A live run uses different tickets, so its numbers differ.
+      </p>
+    </main>
+    <div class="bar">
+      <a class="btn btn-solid" href="index.html">Back to the desk</a>
+      <div class="bar-links">
+        <a class="btn" href="under-the-hood.html">Learn The Process</a>
+        <a class="btn" href="under-the-hood.html">Under the Hood</a>
+      </div>
+    </div>
+    <script type="module" src="/src/history/main.ts"></script>
+  </body>
+</html>

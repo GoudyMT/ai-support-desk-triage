@@ -1,0 +1,288 @@
+/* The Model History page. Colors and sizes come from the shared tokens, so the dark theme follows the demo's. */
+:root {
+  /* Green for a change in either direction: the shape and the number carry which way, the color only says it was measured. */
+  --change: #166534;
+  --change-size: 0.8125rem;
+  --history-max: 62.5rem;
+  --table-min: 45rem;
+  --block-min: 12.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --change: #86efac;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.site-header {
+  padding: var(--space-4) 2rem;
+  border-bottom: var(--border) solid var(--line);
+}
+
+.site-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: var(--w-strong);
+}
+
+.history {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: var(--history-max);
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.history h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: var(--w-strong);
+}
+
+.history h2 {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+}
+
+.lead {
+  margin: 0;
+  max-width: 42.5rem;
+  font-size: 1.0625rem;
+  color: var(--muted);
+}
+
+.current {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--block-min), 1fr));
+  gap: var(--space-3);
+}
+
+.block {
+  padding: 0.875rem var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.block-title,
+.block-note {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.block-title {
+  line-height: var(--lh-meta);
+}
+
+.block-value {
+  margin-top: var(--space-1);
+  font-size: 1.625rem;
+  font-weight: var(--w-strong);
+  line-height: var(--lh-tight);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: var(--table-min);
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+th,
+td {
+  padding: 0.75rem;
+  border-bottom: var(--border) solid var(--line);
+  text-align: left;
+}
+
+thead th {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  border-bottom-color: var(--control-line);
+  font-size: var(--fs-sm);
+  font-weight: var(--w-medium);
+  color: var(--muted);
+}
+
+tr > :first-child {
+  padding-left: 0;
+}
+
+tr > :last-child {
+  padding-right: 0;
+}
+
+.figure {
+  text-align: right;
+}
+
+.version {
+  font-weight: var(--w-medium);
+}
+
+.name,
+.kind {
+  display: block;
+}
+
+.kind {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.current-row {
+  background: var(--panel);
+}
+
+.current-row > :first-child {
+  padding-left: var(--space-2);
+}
+
+.current-row > :last-child {
+  padding-right: var(--space-2);
+}
+
+.current-row .version,
+.current-row .value {
+  font-weight: var(--w-strong);
+}
+
+.value {
+  display: block;
+}
+
+.unmeasured {
+  color: var(--muted);
+}
+
+.change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-size: var(--change-size);
+  font-weight: 400;
+  color: var(--change);
+  font-variant-numeric: tabular-nums;
+}
+
+.block-note .change {
+  margin-left: var(--space-2);
+}
+
+.note {
+  margin: 0;
+  max-width: 45rem;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+
+/* The bottom bar. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 2rem;
+  border-top: var(--border) solid var(--line);
+  background: var(--bg);
+}
+
+.bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  padding: 0 0.875rem;
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: var(--w-strong);
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: var(--hover-bg);
+}
+
+.btn-solid {
+  padding: 0 1.5rem;
+  border-color: var(--solid-bg);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+  font-size: var(--fs-body);
+}
+
+.btn-solid:hover {
+  background: var(--solid-hover-bg);
+}
+
+@media (max-width: 40rem) {
+  .site-header,
+  .bar {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .history {
+    padding: var(--space-4);
+  }
+
+  .history h1 {
+    font-size: 1.5rem;
+  }
+}
