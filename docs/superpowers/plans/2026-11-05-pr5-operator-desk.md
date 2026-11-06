@@ -49,7 +49,7 @@ integration.
 
 ## Sweep tier
 
-Feature; modifier: public text (privacy copy, cited assumptions). A screen change adds the ui-review role.
+Launch gate, since version 1.0 is a public major version (rule:milestone-sweep trigger 3); modifier: public text (privacy copy, cited assumptions). A screen change adds the ui-review role.
 
 ## Units
 
@@ -106,8 +106,6 @@ Items 1 and 3 approved with the plan, 2026-11-05.
 - **Visual check with the owner:** after U4, and at the end.
 
 ## Parking Lot
-
-- Widen the mask for the forms it misses (`.kit/reports/u6-check-2026-11-05.md`), with the next model version.
 
 ## Execution Notes & Deviations
 
