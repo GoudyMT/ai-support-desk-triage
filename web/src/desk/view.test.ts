@@ -6,7 +6,8 @@ import { indexOf, makeDeskRun, rightPick, stepToEnd, stepUntil } from '../run/en
 import { valueSaved } from '../run/valueSaved';
 import { teamOf, whyFlagged, type TagView } from '../page/view';
 import type { Priority, TicketLabel } from '../domain/labels';
-import { deskCards, deskNumbers, deskReview, resultLine, sentRows } from './view';
+import { computeMetrics } from '../pipeline/metrics';
+import { deskCards, deskNumbers, deskReview, moreNumbers, resultLine, sentRows } from './view';
 
 const DESK_TOTAL = 130;
 const SAMPLE_EVERY = 10;
@@ -211,6 +212,24 @@ describe('resultLine', () => {
     const answer = 'The true answer was Billing, Critical.';
     expect(resultLine({ category: 'Technical Issue', priority: 'Urgent' }, truth)).toBe(answer);
     expect(resultLine({ category: 'Billing', priority: 'High' }, truth)).toBe(answer);
+  });
+});
+
+describe('moreNumbers', () => {
+  it('reads the same closed tickets as the report: how many went to a person, and the software time per ticket', () => {
+    const { end, truthOf } = day();
+    const m = computeMetrics(end.done, truthOf);
+    const flagged = end.done.filter((trail) => trail.guard.flagged).length;
+    expect(moreNumbers(end, truthOf)).toEqual({
+      sent: `${flagged} (${Math.round(m.flagRate * 100)}%)`,
+      ms: `${m.msPerTicket.toFixed(1)} ms`,
+    });
+    expect(flagged).toBeGreaterThan(0);
+  });
+
+  it('reads zero before any ticket has closed, without throwing', () => {
+    const run = makeDeskRun();
+    expect(moreNumbers(run.state(), (id) => run.truthOf(id))).toEqual({ sent: '0 (0%)', ms: '0.0 ms' });
   });
 });
 

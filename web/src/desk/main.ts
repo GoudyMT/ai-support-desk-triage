@@ -8,9 +8,11 @@ import { createPrescreener } from '../run/prescreen';
 import { foldOf, parseSeed, randomSeed } from '../run/seed';
 import { createArrivals, drawCards, drawMeasured, drawNumbers, drawSent, type CardActions } from './draw';
 import { createCardMotion } from './motion';
+import { createPanel } from './panel';
+import { drawReport } from './reportPage';
 import { createReviewCard } from './review';
 import { createTryModal, createTryPanel } from './tryPanel';
-import { deskCards, deskNumbers, deskReview, resultLine, sentRows, type DeskNumbers } from './view';
+import { deskCards, deskNumbers, deskReview, moreNumbers, resultLine, sentRows, type DeskNumbers } from './view';
 
 const MODEL_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';
 // How often the simulated reviewer closes the top card: one every two and a half seconds, a slow trickle a viewer can follow.
@@ -117,6 +119,48 @@ tryOpen.addEventListener('click', () => {
   tryModal.open();
 });
 
+// The report shows the tickets closed when Generate report is pressed and holds the run while it is open, as Try a
+// ticket does.
+interface Report {
+  // Whether the run was going when the report opened.
+  resume: boolean;
+  // Draws the report from the tickets closed at the press, again after an edit to an assumption.
+  draw: () => void;
+}
+let report: Report | undefined;
+const panel = createPanel(() => report?.draw());
+
+function closeReport(resume: boolean): void {
+  const open = report;
+  report = undefined;
+  byId('run').classList.remove('reporting');
+  byId('report').hidden = true;
+  if (resume && open?.resume === true) live?.run.play();
+}
+
+panel.generate.addEventListener('click', () => {
+  const current = live;
+  if (current === undefined || report !== undefined) return;
+  const state = current.run.state();
+  report = {
+    resume: state.playing,
+    draw: () => drawReport(state, current.run.truthOf, current.total, panel.assumptions()),
+  };
+  current.run.pause();
+  report.draw();
+  byId('run').classList.add('reporting');
+  byId('report').hidden = false;
+  byId('report-title').focus();
+});
+
+byId('report-print').addEventListener('click', () => window.print());
+byId('report-close').addEventListener('click', () => {
+  closeReport(true);
+  panel.generate.focus();
+  // Fewer numbers may have folded the button away while the report was open.
+  if (document.activeElement !== panel.generate) byId('more').focus();
+});
+
 // After a card leaves the list, focus goes to the Review button of the card that now stands in its place, and to the
 // list's heading when the list is empty, so a keyboard user is never left at the top of the page.
 function focusList(at: number): void {
@@ -154,6 +198,7 @@ function render(current: Live): DeskNumbers {
   drawSent(byId('sent-list'), rows, notes);
   motion.play();
   drawNumbers(numbers, cards.length, rows.length);
+  panel.draw(numbers, moreNumbers(state, run.truthOf));
   const review = deskReview(state);
   if (review === undefined) reviewCard.close();
   else if (!reviewCard.isOpen()) reviewCard.open(review);
@@ -201,6 +246,8 @@ function mount(seed: number, run: Run, total: number): void {
   notes.clear();
   arrivals.reset();
   motion.reset();
+  closeReport(false);
+  setText(byId('frame-opt'), `This run (${total} tickets)`);
   document.body.dataset.seed = String(seed);
   byId('rest').hidden = true;
   byId('run').hidden = false;
@@ -236,6 +283,7 @@ function load(): void {
 }
 
 toggle().addEventListener('click', () => {
+  closeReport(false);
   const current = live;
   if (current === undefined || current.ended) {
     load();

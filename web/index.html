@@ -45,8 +45,63 @@
         <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
         <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
       </section>
+      <article id="report" class="col report" aria-labelledby="report-title" hidden>
+        <div class="report-head">
+          <h2 id="report-title" tabindex="-1"></h2>
+          <div class="report-actions">
+            <button id="report-print" type="button" class="btn btn-solid">Print or save as PDF</button>
+            <button id="report-close" type="button" class="btn">Close report</button>
+          </div>
+        </div>
+        <p id="report-lead" class="lead"></p>
+        <table id="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Right answers</th>
+              <th scope="col">Old keyword method</th>
+              <th scope="col">Model alone</th>
+              <th scope="col">After review</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Category</th>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <th scope="row">Priority</th>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        <dl id="report-rows" class="stats">
+          <dt>Sent to a person</dt>
+          <dd></dd>
+          <dt>Reviewer changed the model</dt>
+          <dd></dd>
+          <dt>Handled with no person</dt>
+          <dd></dd>
+          <dt>Software time per ticket</dt>
+          <dd></dd>
+          <dt>Time saved (estimate)</dt>
+          <dd></dd>
+          <dt>Value saved (estimate)</dt>
+          <dd></dd>
+          <dt>Wrong quick approvals</dt>
+          <dd></dd>
+        </dl>
+        <h3>Where the model went wrong</h3>
+        <ul id="report-misses" class="misses"></ul>
+      </article>
       <aside class="col side" aria-labelledby="run-title">
-        <h2 id="run-title" class="col-head">This run</h2>
+        <div class="side-head">
+          <h2 id="run-title" class="col-head">This run</h2>
+          <button id="more" type="button" class="btn" aria-expanded="false" aria-controls="more-block"><span>More numbers</span><span hidden>Fewer numbers</span></button>
+        </div>
         <dl class="stats">
           <dt>Closed</dt>
           <dd id="n-closed">0</dd>
@@ -57,6 +112,33 @@
           <dt>Reviewer changed the model</dt>
           <dd id="n-changed">0</dd>
         </dl>
+        <div id="more-block" class="more" hidden>
+          <dl class="stats">
+            <dt>Sent to a person</dt>
+            <dd id="n-sent">0 (0%)</dd>
+            <dt>Software time per ticket</dt>
+            <dd id="n-ms">0.0 ms</dd>
+          </dl>
+          <h3>Estimated value (change these)</h3>
+          <div class="assume">
+            <label for="in-minutes">Minutes saved per ticket</label>
+            <input id="in-minutes" inputmode="decimal" autocomplete="off" aria-describedby="err-minutes" />
+            <p id="err-minutes" class="assume-error" role="alert"></p>
+          </div>
+          <div class="assume">
+            <label for="in-pay">Hourly pay ($)</label>
+            <input id="in-pay" inputmode="decimal" autocomplete="off" aria-describedby="err-pay" />
+            <p id="err-pay" class="assume-error" role="alert"></p>
+          </div>
+          <p class="value-line"><strong id="value-now">0 min, $0.00</strong> saved this run. An estimate, not a measurement.</p>
+          <div class="field">
+            <label for="frame">Time frame</label>
+            <select id="frame">
+              <option id="frame-opt">This run (130 tickets)</option>
+            </select>
+          </div>
+          <button id="generate" type="button" class="btn btn-solid" disabled>Generate report</button>
+        </div>
       </aside>
     </main>
     <div class="bar">

@@ -2,6 +2,7 @@
 // the page only draws. The engine hides the simulated reviewer's answer on every open card, and nothing here
 // puts it back.
 import type { Category, Priority, TicketLabel } from '../domain/labels';
+import { computeMetrics } from '../pipeline/metrics';
 import type { TicketTrail } from '../pipeline/types';
 import { tagView, teamOf, whyFlagged, type TagView } from '../page/view';
 import type { RunState } from '../run/engine';
@@ -111,6 +112,28 @@ export function resultLine(sent: { category: Category; priority: Priority }, tru
     return 'Your call matched the true answer.';
   }
   return `The true answer was ${truth.category}, ${tagView(truth.priority).word}.`;
+}
+
+// A share as the page prints it: a whole percent.
+export const percent = (share: number): string => `${Math.round(share * 100)}%`;
+
+export const msText = (ms: number): string => `${ms.toFixed(1)} ms`;
+
+export const flaggedCount = (done: readonly TicketTrail[]): number => done.filter((trail) => trail.guard.flagged).length;
+
+// How many closed tickets went to a person, with their share: `119 (92%)`.
+export const sentText = (flagged: number, share: number): string => `${flagged} (${percent(share)})`;
+
+export interface MoreNumbers {
+  sent: string;
+  ms: string;
+}
+
+// The side panel's extra rows, from the same closed tickets the report reads, so the two cannot disagree.
+export function moreNumbers(state: RunState, truthOf: (id: string) => TicketLabel): MoreNumbers {
+  if (state.done.length === 0) return { sent: sentText(0, 0), ms: msText(0) };
+  const metrics = computeMetrics(state.done, truthOf);
+  return { sent: sentText(flaggedCount(state.done), metrics.flagRate), ms: msText(metrics.msPerTicket) };
 }
 
 export function deskNumbers(state: RunState, total: number, truthOf: (id: string) => TicketLabel): DeskNumbers {
