@@ -2,6 +2,7 @@
 // test reads it directly. It reads `state.done` only, and nothing in it comes from a viewer's note.
 import type { TicketLabel } from '../domain/labels';
 import { computeMetrics } from '../pipeline/metrics';
+import { REVIEWER_ERROR_RATE } from '../pipeline/reviewer';
 import type { RunState } from '../run/engine';
 import { dollarsText, minutesText, valueSaved } from '../run/valueSaved';
 import { estimate, type Assumptions } from './panel';
@@ -18,6 +19,8 @@ export interface ReportView {
   rows: string[];
   // One line each; a miss with nothing more to say has an empty detail.
   misses: { text: string; detail: string }[];
+  // What the numbers rest on, with the assumptions in force.
+  footer: string;
 }
 
 function leadOf(missed: number, modelRight: number, flagged: number, closed: number): string {
@@ -25,7 +28,7 @@ function leadOf(missed: number, modelRight: number, flagged: number, closed: num
     missed === 0
       ? 'No high-risk ticket got past review.'
       : `${missed} high-risk ticket${missed === 1 ? '' : 's'} got past review.`;
-  return `${risk} The model alone got the category right ${percent(modelRight)} of the time, and people checked ${flagged} of ${closed} tickets.`;
+  return `${risk} The model alone got the category right ${percent(modelRight)} of the time, and the simulated reviewer checked ${flagged} of ${closed} tickets.`;
 }
 
 /**
@@ -74,5 +77,9 @@ export function reportView(
             text: trail(miss.id),
             detail: `Said ${miss.predicted}, truly ${miss.truth}. Words that misled it: ${miss.topTerms.map((t) => t.term).join(', ')}`,
           })),
+    footer:
+      `Made-up tickets. After review uses a simulated reviewer that is wrong ${percent(REVIEWER_ERROR_RATE)} of the time. ` +
+      `Estimates assume ${assumed.minutes} minutes per ticket and $${assumed.pay} an hour. ` +
+      'A live run uses different tickets from the test sets, so these numbers differ.',
   };
 }

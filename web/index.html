@@ -16,8 +16,8 @@
       <div class="intro">
         <h1>You are the support team. Tickets reach your desk already sorted.</h1>
         <p class="lead">
-          Press Start and made-up tickets arrive. Each one is either sent to a team or held for a person to check.
-          Nothing here is a real customer.
+          Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you
+          can step in on any ticket. Nothing here is a real customer.
         </p>
         <ul class="measured">
           <li>
@@ -30,10 +30,13 @@
           </li>
           <li>
             <span id="m-sent" class="num"></span>
-            <span class="what">of tickets on that test set still went to a person</span>
+            <span class="what">of tickets on the blind test set still went to a person</span>
           </li>
         </ul>
-        <p class="note">Measured on every code change.</p>
+        <p class="note">
+          Measured on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is
+          sometimes missed.
+        </p>
       </div>
     </main>
     <main id="run" class="run" data-view="open" hidden>
@@ -66,9 +69,10 @@
           <button type="button" class="tip" aria-label="Why the order changes" aria-describedby="tip-order"></button>
           <span id="tip-order" class="tipbox" role="tooltip" hidden>The most serious tickets go to the top, so a person sees them first. Two tickets at the same level stay oldest first.</span>
         </div>
+        <p id="open-none" class="hint" hidden>Nothing waiting.</p>
         <ul id="open-list" class="list" tabindex="0" aria-labelledby="open-title"></ul>
         <p class="hint">
-          What does % sure mean?&#8288;<button type="button" class="tip" aria-label="What percent sure means" aria-describedby="tip-sure"></button>
+          Highest risk first. The simulated reviewer takes the top one. Press Review to take one yourself. What does % sure mean?&#8288;<button type="button" class="tip" aria-label="What percent sure means" aria-describedby="tip-sure"></button>
           <span id="tip-sure" class="tipbox" role="tooltip" hidden>How sure the model is about the category. At 70% or more, Approve appears, so a person can send the ticket in one press. Below that, open it with Review.</span>
         </p>
       </section>
@@ -76,7 +80,7 @@
         <div class="col-title">
           <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
           <button type="button" class="tip" aria-label="What the labels mean" aria-describedby="tip-labels"></button>
-          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: a person agreed. Reviewer changed it: a person corrected the model.</span>
+          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed. Reviewer changed it: the simulated reviewer changed the model's answer.</span>
         </div>
         <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
       </section>
@@ -116,7 +120,7 @@
         <dl id="report-rows" class="stats">
           <dt>Sent to a person</dt>
           <dd></dd>
-          <dt>Reviewer changed the model</dt>
+          <dt>Changed at review</dt>
           <dd></dd>
           <dt>Handled with no person</dt>
           <dd></dd>
@@ -131,12 +135,13 @@
         </dl>
         <h3>Where the model went wrong</h3>
         <ul id="report-misses" class="misses"></ul>
+        <p id="report-footer" class="report-footer"></p>
       </article>
       <aside class="col side" aria-labelledby="run-title">
         <button id="numbers-back" type="button" class="btn side-back">Back to the tickets</button>
         <div class="side-head">
           <h2 id="run-title" class="col-head" tabindex="-1">This run</h2>
-          <button id="more" type="button" class="btn" aria-expanded="false" aria-controls="more-block"><span>More numbers</span><span hidden>Fewer numbers</span></button>
+          <button id="more" type="button" class="btn" aria-expanded="false" aria-controls="more-block"><span>More numbers and report</span><span hidden>Fewer numbers</span></button>
         </div>
         <dl class="stats">
           <dt>Closed</dt>
@@ -151,7 +156,7 @@
           <dd id="n-right">0</dd>
           <dt>
             Reviewer changed the model&#8288;<button type="button" class="tip" aria-label="Why the reviewer changes the model" aria-describedby="tip-changed"></button>
-            <span id="tip-changed" class="tipbox" role="tooltip" hidden>Times the simulated reviewer disagreed with the model. This is how mistakes get caught before a ticket goes out.</span>
+            <span id="tip-changed" class="tipbox" role="tooltip" hidden>Times the simulated reviewer disagreed with the model. This is how most mistakes get caught before a ticket goes out.</span>
           </dt>
           <dd id="n-changed">0</dd>
         </dl>

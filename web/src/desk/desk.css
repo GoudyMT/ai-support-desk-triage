@@ -233,15 +233,23 @@ body {
   font-size: 0.8125rem;
 }
 
-.row .meta {
-  justify-content: space-between;
+/* A row that has just been sent carries the thin outline a new card does, on the inside so the list never grows for it. */
+.row.fresh {
+  outline: var(--border) solid var(--accent);
+  outline-offset: calc(-1 * var(--border));
+}
+
+/* How a ticket was closed, and the team its card showed when it went elsewhere, stand together at the right. */
+.row .how {
+  margin-left: auto;
 }
 
 .team {
   font-weight: var(--w-strong);
 }
 
-.how {
+.how,
+.was {
   color: var(--muted);
 }
 
@@ -438,6 +446,12 @@ body {
 
 .report .lead {
   color: var(--text);
+}
+
+.report-footer {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 
 .report table {

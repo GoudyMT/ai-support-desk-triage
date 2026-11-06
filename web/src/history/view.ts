@@ -97,7 +97,7 @@ const COLUMNS: readonly Column[] = [
     size: points,
   },
   {
-    title: 'Right on hand-written tickets',
+    title: 'Right on tickets written for this project',
     show: (row) => formatCount(row.handWrittenRight),
     figure: (row) => countFigure(row.handWrittenRight),
     size: tickets('ticket', 'tickets'),

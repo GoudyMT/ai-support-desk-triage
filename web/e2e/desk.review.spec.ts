@@ -36,6 +36,13 @@ async function fadesDone(page: Page): Promise<void> {
     .toBe(0);
 }
 
+// The desk holds the run while the pointer or the keyboard is in Needs a person. A row that waits for the run to go on
+// after pressing a card takes both out of the list first, as a viewer does who has finished reading.
+async function leaveList(page: Page): Promise<void> {
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+}
+
 const cards = (page: Page): Locator => page.locator('#open-list > li');
 const rows = (page: Page): Locator => page.locator('#sent-list > li');
 const approveOf = (card: Locator): Locator => card.getByRole('button', { name: /^Approve/ });
@@ -232,6 +239,8 @@ test.describe('Approve and Review on a card', () => {
     await expect(rows(page).locator('.how', { hasText: 'You reviewed' })).toHaveCount(0);
     await expect(cards(page)).toHaveCount(before);
     await expect(page.getByText(PAUSED)).toBeHidden();
+    await leaveList(page);
+    await fadesDone(page);
     const closed = await page.locator('#n-closed').innerText();
     await page.clock.runFor(30_000);
     await expect(page.locator('#n-closed')).not.toHaveText(closed);
@@ -438,6 +447,7 @@ test('an Approve soon after a sent review takes that review\'s result off the ba
   await approveOf(withApprove(cards(page)).first()).click();
   await expect(rows(page).locator('.how', { hasText: 'You approved' })).toHaveCount(1);
   await expect(page.locator('#notice')).toBeEmpty();
+  await leaveList(page);
   await expect(page.locator('#status')).toContainText('more on the way');
 });
 

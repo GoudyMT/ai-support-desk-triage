@@ -26,7 +26,7 @@ async function runDesk(page: Page, ms = RUN_MS): Promise<void> {
 const tab = (page: Page, name: string): Locator => page.getByRole('tab', { name: new RegExp(`^${name} \\d+$`) });
 const side = (page: Page): Locator => page.locator('aside.side');
 const numbersButton = (page: Page): Locator => page.getByRole('button', { name: 'Numbers', exact: true });
-const more = (page: Page): Locator => page.getByRole('button', { name: /^(More|Fewer) numbers$/ });
+const more = (page: Page): Locator => page.getByRole('button', { name: /^(More numbers and report|Fewer numbers)$/ });
 const generate = (page: Page): Locator => page.getByRole('button', { name: 'Generate report' });
 const report = (page: Page): Locator => page.locator('#report');
 const dialog = (page: Page): Locator => page.getByRole('dialog');
@@ -173,6 +173,7 @@ test.describe('on a phone', () => {
 
   test('Numbers pressed over a report goes back to the panel, and Model History is a link at the end of the panel', async ({
     page,
+    context,
   }) => {
     await runDesk(page);
     await numbersButton(page).tap();
@@ -186,8 +187,11 @@ test.describe('on a phone', () => {
     await history.scrollIntoViewIfNeeded();
     await expect(history).toBeVisible();
     expect(inside(await boxOf(history))).toBe(true);
+    // A run is going, so the page opens in a new tab and the run stays where it is.
+    const opened = context.waitForEvent('page');
     await history.tap();
-    await expect(page).toHaveURL(/\/model-history\.html$/);
+    await expect(await opened).toHaveURL(/\/model-history\.html$/);
+    await expect(page).toHaveURL(/\/\?seed=/);
   });
 
   test('a review is finished by touch, and the card fits the screen', async ({ page }) => {
@@ -301,6 +305,9 @@ for (const { width, height } of [
       await expect(dialog(page)).toBeVisible();
       await page.keyboard.press('Escape');
       await expect(dialog(page)).toBeHidden();
+      // The run holds while the pointer or the keyboard is in the list; this row is about the bar, so both leave it first.
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       const room = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
       expect(room, 'the page can scroll').toBeGreaterThan(0);
       const bar = await boxOf(page.locator('.bar'));
@@ -375,6 +382,20 @@ test.describe('in forced colors on a phone', () => {
     await expect(box).toHaveCount(1);
     await expect(box).toHaveCSS('border-top-style', 'solid');
     await expect(box).not.toHaveCSS('border-top-width', '0px');
+  });
+});
+
+// The way on after a run names the button this screen has: the wide screen's More numbers and report is not on a phone.
+test.describe('the end of a run on a phone', () => {
+  test.use({ viewport: PHONE, hasTouch: true });
+
+  test('the bar sends the viewer to Numbers', async ({ page }) => {
+    test.setTimeout(120_000);
+    await runDesk(page, 0);
+    const toggle = page.locator('#toggle');
+    for (let step = 0; step < 60 && (await toggle.innerText()) !== 'Start'; step += 1) await page.clock.runFor(10_000);
+    await expect(toggle).toHaveText('Start');
+    await expect(page.locator('#notice')).toHaveText('All 130 tickets handled. Open Numbers, or press Start to run a new set.');
   });
 });
 

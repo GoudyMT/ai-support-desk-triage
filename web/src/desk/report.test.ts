@@ -4,6 +4,7 @@ import { computeMetrics } from '../pipeline/metrics';
 import type { RunState } from '../run/engine';
 import { makeDeskRun, stepToEnd, stepUntil } from '../run/engineTestKit';
 import { HOURLY_PAY_USD, MINUTES_PER_TICKET, dollarsText, minutesText, valueSaved } from '../run/valueSaved';
+import { REVIEWER_ERROR_RATE } from '../pipeline/reviewer';
 import { reportView } from './report';
 
 const TOTAL = 130;
@@ -76,6 +77,22 @@ describe('reportView on a finished run', () => {
   });
 });
 
+// The footer says what the numbers rest on, so a printed copy cannot be read as a measurement of a live run.
+describe('the footer', () => {
+  const footer = (minutes: string, pay: string): string =>
+    `Made-up tickets. After review uses a simulated reviewer that is wrong ${Math.round(REVIEWER_ERROR_RATE * 100)}% of the time. ` +
+    `Estimates assume ${minutes} minutes per ticket and $${pay} an hour. ` +
+    'A live run uses different tickets from the test sets, so these numbers differ.';
+
+  it('names the assumptions in force, the defaults first and then the viewer\'s edits', () => {
+    const run = finished();
+    expect(reportView(run.state, run.truthOf, TOTAL, ASSUMED).footer).toBe(
+      footer(String(MINUTES_PER_TICKET), String(HOURLY_PAY_USD)),
+    );
+    expect(reportView(run.state, run.truthOf, TOTAL, { minutes: 3.5, pay: 40 }).footer).toBe(footer('3.5', '40'));
+  });
+});
+
 describe('reportView in the middle of a run', () => {
   it('covers the one ticket that has closed, says so far, and does not throw', () => {
     const run = held((s) => s.done.length >= 1);
@@ -137,7 +154,7 @@ describe('the lead sentence', () => {
   }
 
   const second = (w: { flagged: number; closed: number; right: string }): string =>
-    ` The model alone got the category right ${w.right} of the time, and people checked ${w.flagged} of ${w.closed} tickets.`;
+    ` The model alone got the category right ${w.right} of the time, and the simulated reviewer checked ${w.flagged} of ${w.closed} tickets.`;
 
   it('says no high-risk ticket got past review when none did', () => {
     const w = withMissed(0);
@@ -181,7 +198,7 @@ describe('where the model went wrong', () => {
   it('holds nothing but the figures, words and masked tickets: no field for a viewer\'s note', () => {
     const run = finished();
     const view = reportView(run.state, run.truthOf, TOTAL, ASSUMED);
-    expect(Object.keys(view).sort()).toEqual(['heading', 'lead', 'misses', 'rows', 'table']);
+    expect(Object.keys(view).sort()).toEqual(['footer', 'heading', 'lead', 'misses', 'rows', 'table']);
     for (const miss of view.misses) expect(Object.keys(miss).sort()).toEqual(['detail', 'text']);
   });
 });

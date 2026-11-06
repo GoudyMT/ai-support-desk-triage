@@ -7,7 +7,7 @@ import { SEED, START } from './helpers';
 const TICKETS_IN_A_RUN = 130;
 const RUN_STEP_MS = 10_000;
 const MAX_RUN_STEPS = 60;
-const ENDED = 'All 130 tickets handled. Press Start to run a new set.';
+const ENDED = 'All 130 tickets handled. Open More numbers and report, or press Start to run a new set.';
 const MODEL_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';
 const TAG_RANK: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 const STARTED = 'Run started.';
@@ -90,7 +90,18 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
   for (const number of ['0 of 24', '39 of 48', '78%']) {
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
-  await expect(page.getByText('hand-written tickets sorted right; the old keyword method got 14')).toBeVisible();
+  await expect(page.getByText('tickets written for this project, category right; the old keyword method got 14')).toBeVisible();
+  await expect(page.getByText('of tickets on the blind test set still went to a person')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you can step in on any ticket. Nothing here is a real customer.',
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      'Measured on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is sometimes missed.',
+    ),
+  ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Under the Hood' })).toHaveAttribute('href', 'under-the-hood.html');
   expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);
@@ -176,7 +187,7 @@ test('while the report is open the bar says the run is paused for reading, and a
   await openDesk(page);
   await start(page);
   await page.clock.runFor(30_000);
-  await page.getByRole('button', { name: /^(More|Fewer) numbers$/ }).click();
+  await page.getByRole('button', { name: /^(More numbers and report|Fewer numbers)$/ }).click();
   await page.getByRole('button', { name: 'Generate report' }).click();
   await expect(page.locator('#status')).toHaveText('Paused while you read the report.');
   await expect(page.locator('#notice')).toBeEmpty();
@@ -241,7 +252,7 @@ test('at the end of a run the bar says so while Try a ticket or a report is open
   await expect(page.locator('#status')).toBeEmpty();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await page.getByRole('button', { name: /^(More|Fewer) numbers$/ }).click();
+  await page.getByRole('button', { name: /^(More numbers and report|Fewer numbers)$/ }).click();
   await page.getByRole('button', { name: 'Generate report' }).click();
   await expect(page.locator('#report')).toBeVisible();
   await expect(page.locator('#notice')).toHaveText(ENDED);
@@ -306,9 +317,12 @@ test('a finished run ends on Start, and Start draws a new seed and resets every 
   await expect(page.locator('#sent-count')).toHaveText(String(TICKETS_IN_A_RUN));
   await expect(page.locator('#open-count')).toHaveText('0');
   await expect(page.locator('#n-closed')).toHaveText(`${TICKETS_IN_A_RUN} of ${TICKETS_IN_A_RUN}`);
+  // An empty list at the end says so, so it does not look broken; it is not said mid-run.
+  await expect(page.getByText('Nothing waiting.')).toBeVisible();
   const firstRun = await texts(page, '#sent-list .text');
 
   await start(page);
+  await expect(page.getByText('Nothing waiting.')).toBeHidden();
   await expect(page.locator('body')).not.toHaveAttribute('data-seed', String(SEED));
   await expect(page.locator('#sent-count')).toHaveText('0');
   await expect(page.locator('#open-count')).toHaveText('0');

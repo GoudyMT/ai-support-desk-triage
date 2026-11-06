@@ -22,6 +22,7 @@ export function drawReport(
   const view = reportView(state, truthOf, total, assumed);
   setText(byId('report-title'), view.heading);
   setText(byId('report-lead'), view.lead);
+  setText(byId('report-footer'), view.footer);
   fill('#report-table td', view.table);
   fill('#report-rows dd', view.rows);
   byId('report-misses').replaceChildren(

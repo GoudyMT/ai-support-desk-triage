@@ -2,6 +2,7 @@
 // because a ticket's words and a viewer's note are data. The lists are reconciled by ticket id, so a card that stays
 // keeps its node.
 import { button, byId, el, reconcile, setText } from '../page/dom';
+import type { TagView } from '../page/view';
 import { HAND_WRITTEN_RIGHT, HIGH_RISK_MISSED, KEYWORD_RIGHT, SENT_TO_PERSON } from './measured';
 import { fadeNumber } from './motion';
 import type { DeskCard, DeskNumbers, SentRow } from './view';
@@ -19,15 +20,23 @@ export interface CardActions {
 export function drawMeasured(): void {
   setText(byId('m-missed'), HIGH_RISK_MISSED);
   setText(byId('m-hand'), HAND_WRITTEN_RIGHT);
-  setText(byId('m-hand-what'), `hand-written tickets sorted right; the old keyword method got ${KEYWORD_RIGHT}`);
+  setText(byId('m-hand-what'), `tickets written for this project, category right; the old keyword method got ${KEYWORD_RIGHT}`);
   setText(byId('m-sent'), SENT_TO_PERSON);
 }
 
-// The ids ever shown in the open list, so a ticket handed back to it is not mistaken for an arrival, and the ones that
+// What an arrival is told by: a card has a tag, a sent row has none and so is never moved up.
+interface Arrival {
+  id: string;
+  tag?: TagView;
+}
+
+const levelOf = (item: Arrival): number => LEVELS.indexOf(item.tag?.level ?? '');
+
+// The ids ever shown in a list, so a ticket handed back to it is not mistaken for an arrival, and the ones that
 // arrived within the last two seconds with the word they carry.
 export interface Arrivals {
-  // The word each card that is still new carries.
-  mark(cards: readonly DeskCard[], now: number): ReadonlyMap<string, string>;
+  // The word each item that is still new carries.
+  mark(items: readonly Arrival[], now: number): ReadonlyMap<string, string>;
   // When the oldest word is due to go, or undefined when none is showing.
   nextExpiry(): number | undefined;
   reset(): void;
@@ -38,15 +47,15 @@ export function createArrivals(): Arrivals {
   const until = new Map<string, { word: string; at: number }>();
   let first = true;
   return {
-    mark(cards, now) {
-      cards.forEach((card, at) => {
-        if (seen.has(card.id)) return;
-        seen.add(card.id);
+    mark(items, now) {
+      items.forEach((item, at) => {
+        if (seen.has(item.id)) return;
+        seen.add(item.id);
         if (first) return;
-        const level = LEVELS.indexOf(card.tag.level);
-        const above = cards.slice(at + 1).some((later) => LEVELS.indexOf(later.tag.level) < level);
+        const level = levelOf(item);
+        const above = items.slice(at + 1).some((later) => levelOf(later) < level);
         const moved = level >= LEVELS.indexOf('high') && above;
-        until.set(card.id, { word: moved ? NEW_MOVED_UP : NEW, at: now + NEW_MS });
+        until.set(item.id, { word: moved ? NEW_MOVED_UP : NEW, at: now + NEW_MS });
       });
       first = false;
       for (const [id, mark] of until) if (mark.at <= now) until.delete(id);
@@ -102,6 +111,7 @@ function markNew(node: HTMLElement, word: string | undefined): void {
 function makeRow(row: SentRow, note: string | undefined): HTMLElement {
   const head = el('div', 'meta');
   head.append(el('span', 'team', row.team), el('span', 'how', row.how));
+  if (row.was !== undefined) head.append(el('span', 'was', `Was ${row.was}`));
   const node = el('li', 'row');
   node.dataset.ticket = row.id;
   node.append(head, el('p', 'text', row.text));
@@ -118,10 +128,17 @@ export function drawCards(
   reconcile(list, cards, (card) => card.id, (card) => makeCard(card, actions), (node, card) => markNew(node, fresh.get(card.id)));
 }
 
-// A row never changes once drawn: it only enters or moves, so there is nothing to update. The note is the viewer's, kept
-// by the page and set before the ticket closes, so it is on the row from the start.
-export function drawSent(list: HTMLElement, rows: readonly SentRow[], notes: ReadonlyMap<string, string>): void {
-  reconcile(list, rows, (row) => row.id, (row) => makeRow(row, notes.get(row.id)), () => undefined);
+// A row's words never change once drawn: it enters or moves, and for a moment after it enters it carries the card's thin
+// outline. The note is the viewer's, kept by the page and set before the ticket closes, so it is on the row from the start.
+export function drawSent(
+  list: HTMLElement,
+  rows: readonly SentRow[],
+  notes: ReadonlyMap<string, string>,
+  fresh: ReadonlyMap<string, string>,
+): void {
+  reconcile(list, rows, (row) => row.id, (row) => makeRow(row, notes.get(row.id)), (node, row) =>
+    node.classList.toggle('fresh', fresh.has(row.id)),
+  );
 }
 
 export function drawNumbers(numbers: DeskNumbers, cards: number, rows: number): void {

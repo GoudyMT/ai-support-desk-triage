@@ -22,8 +22,11 @@ const SLOW_NOTE = 'Slowed down so you can follow.';
 const PAUSED = 'Paused while you review.';
 const PAUSED_TRY = 'Paused while you try a ticket.';
 const PAUSED_REPORT = 'Paused while you read the report.';
+const PAUSED_READ = 'Paused while you read. Move away to carry on.';
 const RESULT_MS = 4000;
 const STARTED = 'Run started.';
+// The width where the lists show one at a time, as the style sheet has it (40rem): there the card's flight does not show.
+const PHONE = window.matchMedia('(max-width: 40rem)');
 
 interface Live {
   run: Run;
@@ -55,6 +58,7 @@ let actedAt = 0;
 const toggle = (): HTMLButtonElement => byId('toggle') as HTMLButtonElement;
 const openList = (): HTMLElement => byId('open-list');
 const arrivals = createArrivals();
+const sentArrivals = createArrivals();
 const motion = createCardMotion(openList(), byId('sent-list'));
 
 // A line about what is happening goes in the status; a message that must be heard goes in the notice, the one
@@ -76,7 +80,8 @@ function setButton(label: string, solid: boolean, disabled = false): void {
 function holdLine(reviewing: boolean): string {
   if (reviewing) return PAUSED;
   if (tryModal.isOpen()) return PAUSED_TRY;
-  return report === undefined ? '' : PAUSED_REPORT;
+  if (report !== undefined) return PAUSED_REPORT;
+  return reading && readOwes ? PAUSED_READ : '';
 }
 
 // The bar while a model loads or after it failed to, or false when it is neither and the run says what the bar shows.
@@ -91,7 +96,9 @@ function drawLoad(): boolean {
   return loadState !== 'idle';
 }
 
-function drawBar(playing: boolean, numbers: DeskNumbers, held: string, result: string): void {
+// `last` is the team the latest closed ticket went to. On a phone the card's flight does not show, so while a run plays the
+// bar says where the ticket went.
+function drawBar(playing: boolean, numbers: DeskNumbers, held: string, result: string, last: string | undefined): void {
   if (drawLoad()) return;
   const ended = numbers.closed >= numbers.total;
   setButton(playing && !ended ? 'Stop' : 'Start', !playing || ended);
@@ -101,7 +108,10 @@ function drawBar(playing: boolean, numbers: DeskNumbers, held: string, result: s
   } else if (result !== '') {
     say('', result);
   } else if (ended) {
-    say('', `All ${numbers.total} tickets handled. Press Start to run a new set.`);
+    const next = PHONE.matches ? 'Numbers' : 'More numbers and report';
+    say('', `All ${numbers.total} tickets handled. Open ${next}, or press Start to run a new set.`);
+  } else if (playing && PHONE.matches && last !== undefined) {
+    say(`Sent to ${last}.`);
   } else if (playing) {
     say(`${numbers.total - numbers.closed - numbers.waiting} more on the way. ${SLOW_NOTE}`);
   } else {
@@ -113,7 +123,7 @@ function drawBar(playing: boolean, numbers: DeskNumbers, held: string, result: s
 function redrawBar(current: Live): void {
   const state = current.run.state();
   const numbers = deskNumbers(state, current.total, current.run.truthOf);
-  drawBar(state.playing, numbers, holdLine(state.reviewing !== undefined), current.result);
+  drawBar(state.playing, numbers, holdLine(state.reviewing !== undefined), current.result, state.done.at(-1)?.final.route);
 }
 
 const reviewCard = createReviewCard({
@@ -161,6 +171,65 @@ document.addEventListener(
   true,
 );
 
+// A viewer reading a card must not see it taken away, so the run holds while a mouse pointer is over Needs a person or the
+// keyboard is working inside it, and goes on when that ends. It is the held run Try a ticket and the report make: it holds
+// only a run that is going and starts only a run it held, so a run the viewer stopped, or one that has ended, stays as it is.
+let pointerIn = false;
+let keyboardIn = false;
+// Whether the last input was a key: focus that a script moved after a mouse press is not the keyboard working there.
+let lastInputWasKey = false;
+let reading = false;
+// A going run was held for reading and has not been started again. It may have to wait for Try a ticket or a report that
+// opened meanwhile, which hold the run in their own way and start it again only for themselves.
+let readOwes = false;
+
+function settleReading(): void {
+  const current = live;
+  const list = openList();
+  // A list that is not showing (the report over it, the other tab on a phone) is not being read.
+  const shown = list.getClientRects().length > 0;
+  if (!shown) pointerIn = false;
+  if (!shown || !list.contains(document.activeElement)) keyboardIn = false;
+  reading = current !== undefined && !current.ended && (pointerIn || keyboardIn);
+  if (current === undefined) return;
+  if (current.ended) readOwes = false;
+  if (reading && current.run.state().playing) {
+    readOwes = true;
+    current.run.pause();
+  } else if (!reading && readOwes && !tryModal.isOpen() && report === undefined) {
+    readOwes = false;
+    current.run.play();
+  }
+}
+
+openList().addEventListener('pointerenter', (event) => {
+  pointerIn = event.pointerType !== 'touch';
+  settleReading();
+});
+openList().addEventListener('pointerleave', () => {
+  pointerIn = false;
+  settleReading();
+});
+document.addEventListener(
+  'keydown',
+  () => {
+    lastInputWasKey = true;
+    keyboardIn = openList().contains(document.activeElement);
+    settleReading();
+  },
+  true,
+);
+document.addEventListener('pointerdown', () => (lastInputWasKey = false), true);
+document.addEventListener('focusin', (event) => {
+  keyboardIn = lastInputWasKey && openList().contains(event.target as Node);
+  settleReading();
+});
+document.addEventListener('focusout', (event) => {
+  if (openList().contains(event.relatedTarget as Node | null)) return;
+  keyboardIn = false;
+  settleReading();
+});
+
 // Try a ticket sits beside the numbers at rest on a wide screen. During a run the bar's button opens the same panel over
 // the desk and the run holds while it is open, then goes on only if it was going when the panel opened, or if a new run
 // arrived under it.
@@ -174,6 +243,7 @@ const tryModal = createTryModal(tryPanel, byId('rest'), () => {
   else if (current !== undefined) redrawBar(current);
   resumeAfterTry = false;
   tryOpen.focus();
+  settleReading();
 });
 
 tryOpen.addEventListener('click', () => {
@@ -206,6 +276,7 @@ function closeReport(resume: boolean): void {
     // A run that stays held has nothing to tell the desk, so the bar is drawn again to drop the report's line.
     redrawBar(live);
   }
+  settleReading();
 }
 
 panel.generate.addEventListener('click', () => {
@@ -222,6 +293,7 @@ panel.generate.addEventListener('click', () => {
   byId('run').classList.add('reporting');
   byId('report').hidden = false;
   byId('report-title').focus();
+  settleReading();
 });
 
 byId('report-print').addEventListener('click', () => window.print());
@@ -308,6 +380,20 @@ function indexOfCard(id: string): number {
   return [...openList().children].findIndex((card) => (card as HTMLElement).dataset.ticket === id);
 }
 
+// A run that is live is lost by leaving its page, so while one is going the links to other pages open beside it, in a tab
+// that cannot reach it; at rest and after the end they open here.
+function openLinksIn(newTab: boolean): void {
+  for (const link of document.querySelectorAll('a[href]')) {
+    if (newTab) {
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener');
+    } else {
+      link.removeAttribute('target');
+      link.removeAttribute('rel');
+    }
+  }
+}
+
 function render(current: Live): DeskNumbers {
   const { run, total } = current;
   const state = run.state();
@@ -316,21 +402,26 @@ function render(current: Live): DeskNumbers {
   const numbers = deskNumbers(state, total, run.truthOf);
   const now = performance.now();
   const fresh = arrivals.mark(cards, now);
+  const freshRows = sentArrivals.mark(rows, now);
   motion.snapshot();
   drawCards(openList(), cards, fresh, cardActions);
-  drawSent(byId('sent-list'), rows, notes);
+  drawSent(byId('sent-list'), rows, notes, freshRows);
   motion.play();
   drawNumbers(numbers, cards.length, rows.length);
   drawPhone(numbers, cards.length, rows.length);
   panel.draw(numbers, moreNumbers(state, run.truthOf));
+  const ended = numbers.closed >= numbers.total;
+  byId('open-none').hidden = !ended;
+  openLinksIn(!ended);
   const review = deskReview(state);
   if (review === undefined) reviewCard.close();
   else if (!reviewCard.isOpen()) reviewCard.open(review);
-  drawBar(state.playing, numbers, holdLine(review !== undefined), current.result);
+  drawBar(state.playing, numbers, holdLine(review !== undefined), current.result, state.done.at(-1)?.final.route);
   // The New words go after about two seconds of the run going on: a held run (stopped, or waiting on a review) keeps
   // the screen as it is.
   window.clearTimeout(current.newTimer);
-  const due = arrivals.nextExpiry();
+  const expiries = [arrivals.nextExpiry(), sentArrivals.nextExpiry()].filter((at): at is number => at !== undefined);
+  const due = expiries.length === 0 ? undefined : Math.min(...expiries);
   if (due !== undefined && run.nextDelayMs() !== null) {
     current.newTimer = window.setTimeout(() => render(current), Math.max(0, due - now));
   }
@@ -346,6 +437,7 @@ function sync(current: Live): void {
     current.ended = true;
     nextSeed = randomSeed();
   }
+  settleReading();
 }
 
 // `announce` is said once in the live region when the run starts, since a screen reader hears nothing from a bar that
@@ -371,7 +463,10 @@ function mount(seed: number, run: Run, total: number, announce: string): void {
   live = current;
   notes.clear();
   arrivals.reset();
+  sentArrivals.reset();
   motion.reset();
+  reading = false;
+  readOwes = false;
   closeReport(false);
   setText(byId('frame-opt'), `This run (${total} tickets)`);
   document.body.dataset.seed = String(seed);
@@ -426,11 +521,14 @@ function startLine(seed: number): string {
 }
 
 toggle().addEventListener('click', () => {
-  closeReport(false);
   const current = live;
+  // Read before the report closes: closing it may start a run that was held for reading, and a press is about the state the
+  // viewer saw.
+  const going = current?.run.state().playing === true;
+  closeReport(false);
   if (current === undefined || current.ended) {
     load();
-  } else if (current.run.state().playing) {
+  } else if (going) {
     current.run.pause();
   } else {
     current.run.play();

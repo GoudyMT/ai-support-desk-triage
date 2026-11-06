@@ -107,7 +107,7 @@ describe('the current model against the baseline', () => {
     const view = historyView([BASELINE, PROTOTYPE]);
     expect(view.blocks.map((b) => [b.title, b.value, b.baseline, b.change])).toEqual([
       ['Right on tickets it never saw', '57.3%', 'Baseline 57.3%. No change yet', null],
-      ['Right on hand-written tickets', '39 of 48', 'Baseline 39 of 48. No change yet', null],
+      ['Right on tickets written for this project', '39 of 48', 'Baseline 39 of 48. No change yet', null],
       ['High-risk missed', '0 of 24', 'Baseline 0 of 24. No change yet', null],
       ['Sent to a person', '78%', 'Baseline 78%. No change yet', null],
       ['Cards with Approve per run', '50.0', 'Baseline 50.0. No change yet', null],

@@ -164,6 +164,20 @@ describe('sentRows', () => {
     expect(row?.team).toBe(changed.final.route);
     expect(row?.team).not.toBe(teamOf(changed));
   });
+
+  // The card said one team and the ticket went to another: the row says which team the card showed, and says nothing when
+  // the two are the same.
+  it('names the team the card showed on a ticket that went to another team, and nothing on one that did not', () => {
+    const { end } = day();
+    const rows = sentRows(end);
+    const wasOf = (id: string): string | undefined => rows.find((r) => r.id === id)?.was;
+    const moved = end.done.filter((trail) => trail.final.route !== teamOf(trail));
+    const kept = end.done.filter((trail) => trail.final.route === teamOf(trail));
+    expect(moved.length).toBeGreaterThan(0);
+    expect(kept.length).toBeGreaterThan(0);
+    for (const trail of moved) expect(wasOf(trail.id), trail.id).toBe(teamOf(trail));
+    for (const trail of kept) expect(wasOf(trail.id), trail.id).toBeUndefined();
+  });
 });
 
 describe('deskReview', () => {

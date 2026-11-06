@@ -18,12 +18,12 @@ const TIPS = [
   },
   {
     name: 'What the labels mean',
-    text: 'These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: a person agreed. Reviewer changed it: a person corrected the model.',
+    text: 'These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed. Reviewer changed it: the simulated reviewer changed the model\'s answer.',
   },
   { name: 'What high-risk missed means', text: 'Tickets that truly needed a person but went out without one. The goal is zero.' },
   {
     name: 'Why the reviewer changes the model',
-    text: 'Times the simulated reviewer disagreed with the model. This is how mistakes get caught before a ticket goes out.',
+    text: 'Times the simulated reviewer disagreed with the model. This is how most mistakes get caught before a ticket goes out.',
   },
   { name: 'Where the minutes figure comes from', text: TIME_SAVED_SOURCE },
   { name: 'Where the hourly pay figure comes from', text: VALUE_SAVED_SOURCE },
@@ -61,7 +61,7 @@ const tooltip = (page: Page): Locator => page.getByRole('tooltip');
 async function openPanel(page: Page): Promise<void> {
   const numbers = page.getByRole('button', { name: 'Numbers', exact: true });
   if (await numbers.isVisible()) await numbers.click();
-  await page.getByRole('button', { name: 'More numbers' }).click();
+  await page.getByRole('button', { name: 'More numbers and report' }).click();
 }
 
 // How far the page can scroll each way, and how wide it shows: a box that sticks out adds to the first two.

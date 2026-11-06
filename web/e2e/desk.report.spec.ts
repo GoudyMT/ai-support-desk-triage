@@ -5,12 +5,12 @@ import { SEED, START, tabTo } from './helpers';
 const TICKETS_IN_A_RUN = 130;
 const RUN_STEP_MS = 10_000;
 const MAX_RUN_STEPS = 60;
-const ENDED = 'All 130 tickets handled. Press Start to run a new set.';
+const ENDED = 'All 130 tickets handled. Open More numbers and report, or press Start to run a new set.';
 const KEPT = 'Kept 3. Enter a number of 0 or more.';
 const VALUE_TAIL = ' saved this run. An estimate, not a measurement.';
 const ROW_LABELS = [
   'Sent to a person',
-  'Reviewer changed the model',
+  'Changed at review',
   'Handled with no person',
   'Software time per ticket',
   'Time saved (estimate)',
@@ -30,7 +30,7 @@ async function start(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
 }
 
-const more = (page: Page): Locator => page.getByRole('button', { name: /^(More|Fewer) numbers$/ });
+const more = (page: Page): Locator => page.getByRole('button', { name: /^(More numbers and report|Fewer numbers)$/ });
 const generate = (page: Page): Locator => page.getByRole('button', { name: 'Generate report' });
 const closeReport = (page: Page): Locator => page.getByRole('button', { name: 'Close report' });
 const report = (page: Page): Locator => page.locator('#report');
@@ -180,7 +180,11 @@ test.describe('Generate report', () => {
     // The panel and the report read the same closed tickets.
     await expect(reportRows(page).nth(0)).toHaveText((await page.locator('#n-sent').textContent()) ?? '');
     await expect(reportRows(page).nth(6)).toHaveText('0 of 0');
-    await expect(page.locator('#report-lead')).toHaveText(/got past review\. The model alone got the category right \d+% of the time, and people checked \d+ of 130 tickets\.$/);
+    await expect(page.locator('#report-lead')).toHaveText(/got past review\. The model alone got the category right \d+% of the time, and the simulated reviewer checked \d+ of 130 tickets\.$/);
+    // The footer says what the numbers rest on, with the assumption edited above.
+    await expect(page.locator('#report-footer')).toHaveText(
+      'Made-up tickets. After review uses a simulated reviewer that is wrong 5% of the time. Estimates assume 3 minutes per ticket and $21.53 an hour. A live run uses different tickets from the test sets, so these numbers differ.',
+    );
     await shot(page, info, 'report');
     await page.getByRole('button', { name: 'Start' }).click();
     await expect(report(page)).toBeHidden();
@@ -251,6 +255,8 @@ test('printing shows the report alone, with no bar, panel or header', async ({ p
   await expect(page.locator('aside.side')).toBeHidden();
   await expect(page.locator('.site-header')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Print or save as PDF' })).toBeHidden();
+  // What the numbers rest on goes to paper with them.
+  await expect(page.locator('#report-footer')).toBeVisible();
 });
 
 // Ctrl+P does not need the report: whatever the page shows then is what prints, and a viewer's notes are not for paper.

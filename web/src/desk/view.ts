@@ -25,6 +25,8 @@ export interface SentRow {
   id: string;
   team: string;
   how: string;
+  // The team the card showed, when the ticket went to another one; otherwise nothing.
+  was: string | undefined;
   text: string;
 }
 
@@ -77,6 +79,7 @@ export function sentRows(state: RunState): SentRow[] {
     id: trail.id,
     team: trail.final.route,
     how: howClosed(state, trail),
+    was: trail.final.route === teamOf(trail) ? undefined : teamOf(trail),
     text: trail.maskedText,
   }));
 }

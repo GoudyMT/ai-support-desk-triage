@@ -20,6 +20,9 @@ test('the page lists the newest model first with its numbers and an arrow a scre
   await expect(arrow).toHaveCSS('font-weight', '400');
   await expect(arrow).toHaveCSS('color', 'rgb(22, 101, 52)');
   await expect(page.getByText('Baseline 57.3%. No change yet')).toBeVisible();
+  // The column and its block say what the tickets are: written for this project, not hand-written.
+  await expect(page.locator('#head th').nth(2)).toHaveText('Right on tickets written for this project');
+  await expect(page.locator('.block', { hasText: 'Right on tickets written for this project' })).toContainText('39 of 48');
 });
 
 test('the bottom bar reaches the desk, Learn The Process and Under the Hood', async ({ page }) => {
