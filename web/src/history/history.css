@@ -5,7 +5,7 @@
   --change-size: 0.8125rem;
   --history-max: 62.5rem;
   --table-min: 45rem;
-  --block-min: 12.5rem;
+  --block-min: 10.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
