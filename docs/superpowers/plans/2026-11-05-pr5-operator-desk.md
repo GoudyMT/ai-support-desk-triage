@@ -113,3 +113,4 @@ Items 1 and 3 approved with the plan, 2026-11-05.
 - 2026-11-05 (drift, design 80-83): Approve uses a new `Run.approve`, not `review` then `confirm`; both settle through `settleReview`, so scoring is the same.
 - 2026-11-05 (drift, design 24): 272 cards reach the printed 70% cutoff on seeds 2000 to 2039, not 258; 258 was raw `>= 0.7`. Counts use `canQuickApprove`.
 - 2026-11-05 (lead): Try a ticket stays inline at rest, as the wireframe shows; during a run the bar button opens it over the desk and the run holds, the same as a review card.
+- 2026-11-05 (owner): the report loads with the page, not on demand, and the desk limit is 47,000. Measured: on demand 45,784, with the page 44,702, because the report is about 1,000 bytes and loading it on demand adds about 1,080. Supersedes design section 5 "report loaded on demand" and plan U7 "report code loads on demand".
