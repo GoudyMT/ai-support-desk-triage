@@ -1,9 +1,9 @@
 # PR 5: The Operator Desk - Implementation Plan
 
 ## Progress
-- Current task: U6 fix round from `.kit/reports/u6-check-2026-11-05.md` (local), paused for the owner's interview
-- Done (with evidence): U1 91e69a6, U2 ba5d5fa, U3 38117fe, U4 80c3adf, U8 378d6da, U5 02699f7, fix round 42d219c, U6 125d679, U7 20a63a0; unit suite 1,265 passed at 20a63a0; desk 44,618 of 47,000, demo 49,629 of 50,000, history 4,986 of 8,000; Chromium desk browser rows 54 passed in U7's worktree, three-browser run not yet done
-- Next: U6 fixes, U9 (info icons with the assumption sources, phone layout; the panel header clips when scrolled in the report view), full gate, Linux CI push with the owner's go, sweep
+- Current task: full gate
+- Done (with evidence): all units U1 to U9 built, with their fix rounds, at 27ce2e3 plus the 1.0.0 version bump
+- Next: full gate, early Linux check with the owner's go, feature sweep with public-text modifier and the ui-review role, re-sweep, PR body
 - Branch: `feature/operator-desk`, from `main` at 5f5eca2
 - Open questions: none
 
@@ -94,7 +94,7 @@ Feature; modifier: public text (privacy copy, cited assumptions). A screen chang
 
 Items 1 and 3 approved with the plan, 2026-11-05.
 
-1. **Privacy copy line.** "Before the model reads a ticket, we hide email addresses, phone numbers, order numbers and
+1. **Privacy copy line.** "Before the model reads a ticket, we hide common forms of email addresses, phone numbers, order numbers and
    card-like numbers. Names and street addresses are not hidden. Nothing you type is saved or sent." Recommendation: use it.
 2. **Desk size limit:** after U4, from the measured number plus headroom. Comes to the owner then.
 3. **Model limit:** 3,600,000 to 3,850,000 for the shipped model (the owner's Q6 pick). Recommendation: confirmed by approving.
