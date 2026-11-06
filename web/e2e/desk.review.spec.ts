@@ -26,6 +26,14 @@ async function start(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
 }
 
+// A changed number fades out and then in on the browser's own clock, not the test's, so its text is final only once the
+// animations are over.
+async function fadesDone(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.effect !== null).length), { timeout: 5000 })
+    .toBe(0);
+}
+
 const cards = (page: Page): Locator => page.locator('#open-list > li');
 const rows = (page: Page): Locator => page.locator('#sent-list > li');
 const approveOf = (card: Locator): Locator => card.getByRole('button', { name: /^Approve/ });
@@ -121,9 +129,11 @@ test.describe('Approve and Review on a card', () => {
       });
       expect(picked, label).toContain("(model's pick)");
     }
+    await fadesDone(page);
     const held = await page.locator('#run').innerText();
     await page.clock.runFor(60_000);
     await expect(dialog(page)).toBeVisible();
+    await fadesDone(page);
     expect(await page.locator('#run').innerText()).toBe(held);
   });
 

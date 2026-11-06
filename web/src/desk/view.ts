@@ -37,8 +37,8 @@ export interface DeskNumbers {
   reviewerChanged: number;
 }
 
-// The demo's reason is a phrase inside a longer line; on a card it stands alone.
-function sentence(phrase: string): string {
+// The demo's reason is a phrase inside a longer line; on a card, and in Try a ticket, it stands alone.
+export function sentence(phrase: string): string {
   return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}.`;
 }
 

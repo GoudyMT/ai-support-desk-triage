@@ -20,6 +20,8 @@ const MODEL_FAILED = 'The sorting model could not be loaded. Check your connecti
 const REVIEWER_PACE_MS = 2500;
 const SLOW_NOTE = 'Slowed down so you can follow.';
 const PAUSED = 'Paused while you review.';
+const PAUSED_TRY = 'Paused while you try a ticket.';
+const PAUSED_REPORT = 'Paused while you read the report.';
 const RESULT_MS = 4000;
 
 interface Live {
@@ -62,11 +64,19 @@ function setButton(label: string, solid: boolean, disabled = false): void {
   button.disabled = disabled;
 }
 
-function drawBar(playing: boolean, numbers: DeskNumbers, reviewing: boolean, result: string): void {
+// What the run is held for, as the bar says it, or '' when nothing holds it. Try a ticket can open over a report, so
+// it is named first.
+function holdLine(reviewing: boolean): string {
+  if (reviewing) return PAUSED;
+  if (tryModal.isOpen()) return PAUSED_TRY;
+  return report === undefined ? '' : PAUSED_REPORT;
+}
+
+function drawBar(playing: boolean, numbers: DeskNumbers, held: string, result: string): void {
   const ended = numbers.closed >= numbers.total;
   setButton(playing && !ended ? 'Stop' : 'Start', !playing || ended);
-  if (reviewing) {
-    say(PAUSED);
+  if (held !== '') {
+    say(held);
   } else if (result !== '') {
     say('', result);
   } else if (ended) {
@@ -76,6 +86,13 @@ function drawBar(playing: boolean, numbers: DeskNumbers, reviewing: boolean, res
   } else {
     say('', 'Stopped.');
   }
+}
+
+// The bar alone, for a change in what holds a run that has nothing else to tell the desk: the lists stay as they are.
+function redrawBar(current: Live): void {
+  const state = current.run.state();
+  const numbers = deskNumbers(state, current.total, current.run.truthOf);
+  drawBar(state.playing, numbers, holdLine(state.reviewing !== undefined), current.result);
 }
 
 const reviewCard = createReviewCard({
@@ -100,24 +117,26 @@ const reviewCard = createReviewCard({
   },
 });
 
-// Try a ticket sits below the numbers at rest. During a run the bar's button opens the same panel over the desk and the
-// run holds while it is open, then goes on only if it was going when the panel opened.
+// Try a ticket sits beside the numbers at rest. During a run the bar's button opens the same panel over the desk and the
+// run holds while it is open, then goes on only if it was going when the panel opened, or if a new run arrived under it.
 const tryOpen = byId('try-open');
 const tryPanel = createTryPanel();
 byId('rest').append(tryPanel);
 let resumeAfterTry = false;
 const tryModal = createTryModal(tryPanel, byId('rest'), () => {
-  if (resumeAfterTry) live?.run.play();
+  const current = live;
+  if (resumeAfterTry) current?.run.play();
+  else if (current !== undefined) redrawBar(current);
   resumeAfterTry = false;
   tryOpen.focus();
 });
 
 tryOpen.addEventListener('click', () => {
-  // The review card covers the desk, so while it is open there is nothing new to open.
-  if (reviewCard.isOpen() || tryModal.isOpen()) return;
   resumeAfterTry = live?.run.state().playing === true;
-  live?.run.pause();
   tryModal.open();
+  live?.run.pause();
+  // Pausing only tells the desk when the run was going; a stopped run still has to show why it is held.
+  if (live !== undefined && !resumeAfterTry) redrawBar(live);
 });
 
 // The report shows the tickets closed when Generate report is pressed and holds the run while it is open, as Try a
@@ -136,7 +155,12 @@ function closeReport(resume: boolean): void {
   report = undefined;
   byId('run').classList.remove('reporting');
   byId('report').hidden = true;
-  if (resume && open?.resume === true) live?.run.play();
+  if (resume && open?.resume === true) {
+    live?.run.play();
+  } else if (open !== undefined && live !== undefined) {
+    // A run that stays held has nothing to tell the desk, so the bar is drawn again to drop the report's line.
+    redrawBar(live);
+  }
 }
 
 panel.generate.addEventListener('click', () => {
@@ -148,6 +172,7 @@ panel.generate.addEventListener('click', () => {
     draw: () => drawReport(state, current.run.truthOf, current.total, panel.assumptions()),
   };
   current.run.pause();
+  if (!state.playing) redrawBar(current);
   report.draw();
   byId('run').classList.add('reporting');
   byId('report').hidden = false;
@@ -251,7 +276,7 @@ function render(current: Live): DeskNumbers {
   const review = deskReview(state);
   if (review === undefined) reviewCard.close();
   else if (!reviewCard.isOpen()) reviewCard.open(review);
-  drawBar(state.playing, numbers, review !== undefined, current.result);
+  drawBar(state.playing, numbers, holdLine(review !== undefined), current.result);
   // The New words go after about two seconds of the run going on: a held run (stopped, or waiting on a review) keeps
   // the screen as it is.
   window.clearTimeout(current.newTimer);
@@ -301,7 +326,13 @@ function mount(seed: number, run: Run, total: number): void {
   byId('rest').hidden = true;
   byId('run').hidden = false;
   tryOpen.hidden = false;
-  run.play();
+  // The model can arrive while the form is open: the run waits under it and goes on when the form closes.
+  if (tryModal.isOpen()) {
+    resumeAfterTry = true;
+    render(current);
+  } else {
+    run.play();
+  }
 }
 
 function load(): void {

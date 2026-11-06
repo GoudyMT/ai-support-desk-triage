@@ -33,6 +33,14 @@ function realTexts(seed: number): Set<string> {
   );
 }
 
+// A changed number fades out and then in on the browser's own clock, not the test's, so its text is final only once the
+// animations are over.
+async function fadesDone(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.effect !== null).length), { timeout: 5000 })
+    .toBe(0);
+}
+
 const openCards =(page: Page) => page.locator('#open-list > li');
 const sentRows = (page: Page) => page.locator('#sent-list > li');
 
@@ -61,6 +69,13 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Under the Hood' })).toHaveAttribute('href', 'under-the-hood.html');
   expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);
+});
+
+test('the Model History link on the desk goes to the model history page', async ({ page }) => {
+  await openDesk(page);
+  await page.getByRole('link', { name: 'Model History' }).click();
+  await expect(page).toHaveURL(/\/model-history\.html$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Model History' })).toBeVisible();
 });
 
 test('a run fills both lists from the real tickets, with matching counts and the most serious first', async ({
@@ -117,13 +132,38 @@ test('Stop holds every list and number until Start picks the run up again', asyn
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   await expect(page.getByText('Stopped.')).toBeVisible();
+  await fadesDone(page);
   const held = await page.locator('#run').innerText();
   expect(await sentRows(page).count()).toBeGreaterThan(0);
   await page.clock.runFor(60_000);
+  await fadesDone(page);
   expect(await page.locator('#run').innerText()).toBe(held);
   await page.getByRole('button', { name: 'Start' }).click();
   await page.clock.runFor(30_000);
   expect(await page.locator('#run').innerText()).not.toBe(held);
+});
+
+// A hold the viewer did not ask for is not "Stopped.": the bar says what the run is waiting for, in the status and not in
+// the live region, and goes back to the real state when the hold ends.
+test('while the report is open the bar says the run is paused for reading, and a real Stop still says Stopped', async ({
+  page,
+}) => {
+  await openDesk(page);
+  await start(page);
+  await page.clock.runFor(30_000);
+  await page.getByRole('button', { name: /^(More|Fewer) numbers$/ }).click();
+  await page.getByRole('button', { name: 'Generate report' }).click();
+  await expect(page.locator('#status')).toHaveText('Paused while you read the report.');
+  await expect(page.locator('#notice')).toBeEmpty();
+  await page.getByRole('button', { name: 'Close report' }).click();
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.locator('#notice')).toHaveText('Stopped.');
+  await page.getByRole('button', { name: 'Generate report' }).click();
+  await expect(page.locator('#status')).toHaveText('Paused while you read the report.');
+  await expect(page.locator('#notice')).toBeEmpty();
+  await page.getByRole('button', { name: 'Close report' }).click();
+  await expect(page.locator('#notice')).toHaveText('Stopped.');
+  await expect(page.locator('#status')).toBeEmpty();
 });
 
 test('a model that fails to load shows a plain message and Retry, and Retry starts the run', async ({ page }) => {

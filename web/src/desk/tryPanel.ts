@@ -1,6 +1,6 @@
 // Try a ticket: a box, a Sort button and the result. Every value goes in with textContent, because the visitor's words
-// are data. What was typed is read once into a local variable and the box is then given the masked text, so the typed
-// words are not left on screen or in the page.
+// are data. What was typed is read once into a local variable and the box is then replaced by a new one holding the
+// masked text, so the typed words are not left on screen, in the page or in the old box's undo history.
 import type { Model } from '../model/scorer';
 import { button, el } from '../page/dom';
 import { fetchShipped } from '../page/fetchModel';
@@ -25,6 +25,18 @@ export interface TryModal {
   isOpen(): boolean;
 }
 
+// The text-hiding style of a screen-reader-only element, as the demo's shared class sets it.
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: 'var(--sr-size)',
+  height: 'var(--sr-size)',
+  margin: 'calc(-1 * var(--sr-size))',
+  padding: '0',
+  overflow: 'hidden',
+  clipPath: 'inset(50%)',
+  whiteSpace: 'nowrap',
+};
+
 // Loaded the first time a valid ticket is sorted and kept for the page; a failed load leaves it unset so Retry asks again.
 let shipped: Model | undefined;
 
@@ -33,7 +45,7 @@ export function createTryPanel(): HTMLElement {
   title.id = 'try-title';
   const label = el('label', undefined, TRY_LABEL);
   label.htmlFor = 'try-text';
-  const box = el('textarea');
+  let box = el('textarea');
   box.id = 'try-text';
   box.rows = 4;
   box.autocomplete = 'off';
@@ -57,15 +69,23 @@ export function createTryPanel(): HTMLElement {
   });
   const warning = el('p', 'try-warning', TRY_WARNING);
   warning.hidden = true;
+  // The result as one sentence for a screen reader. It lives in the panel, which moves into the dialog, because the
+  // desk's own live region is behind the dialog while it is open. The desk's shared hidden-text class is in a
+  // stylesheet this page does not load, so the style is set here.
+  const spoken = el('p');
+  spoken.setAttribute('role', 'status');
+  Object.assign(spoken.style, VISUALLY_HIDDEN);
   const section = el('section', 'try');
   section.setAttribute('aria-labelledby', title.id);
-  section.append(title, field, error, sort, privacy, result, warning);
+  section.append(title, field, error, sort, privacy, result, warning, spoken);
 
   // An old answer is never left beside a message about the new ticket.
   function refuse(message: string): void {
     error.textContent = message;
     result.hidden = true;
     warning.hidden = true;
+    spoken.textContent = '';
+    sort.textContent = TRY_SORT;
   }
 
   async function sortTicket(): Promise<void> {
@@ -95,7 +115,12 @@ export function createTryPanel(): HTMLElement {
       if (shipped === undefined) return;
     }
     const view = tryTicket(typed, shipped);
-    box.value = view.text;
+    // A box that is only given new text keeps its edit history, and undo and redo would bring the typed words back.
+    const masked = box.cloneNode(false) as HTMLTextAreaElement;
+    masked.value = view.text;
+    box.replaceWith(masked);
+    box = masked;
+    spoken.textContent = view.spoken;
     [view.category, view.priority, view.team, view.person].forEach((text, at) => {
       const value = values[at];
       if (value !== undefined) value.textContent = text;

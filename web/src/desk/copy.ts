@@ -8,8 +8,8 @@ export const TRY_LOADING = 'Loading...';
 export const TRY_RETRY = 'Retry';
 export const TRY_CLOSE = 'Close';
 export const TRY_PRIVACY =
-  'Before the model reads a ticket, we hide email addresses, phone numbers, order numbers and card-like numbers. ' +
-  'Names and street addresses are not hidden. Nothing you type is saved or sent.';
+  'Before the model reads a ticket, we hide common forms of email addresses, phone numbers, order numbers and ' +
+  'card-like numbers. Names and street addresses are not hidden. Nothing you type is saved or sent.';
 // The result's row names, in the order they are shown.
 export const TRY_ROWS = ['Category', 'Priority', 'Team', 'Person needed'] as const;
 export const TRY_WARNING = 'These are suggestions. A person must check them before anything reaches a customer.';

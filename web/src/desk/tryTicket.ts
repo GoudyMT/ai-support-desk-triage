@@ -6,6 +6,7 @@ import { tagView, whyFlagged } from '../page/view';
 import { intake } from '../pipeline/intake';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { Reviewer } from '../pipeline/types';
+import { sentence } from './view';
 
 export interface TryView {
   text: string;
@@ -13,6 +14,8 @@ export interface TryView {
   priority: string;
   team: string;
   person: string;
+  // The result as one plain sentence, for a screen reader.
+  spoken: string;
 }
 
 export type Refusal = 'empty' | 'long';
@@ -34,17 +37,13 @@ export function refusal(text: string): Refusal | undefined {
   return undefined;
 }
 
-// The same sentence form the cards use for a reason.
-function sentence(phrase: string): string {
-  return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}.`;
-}
-
 /**
  * Sorts one typed ticket on the shipped model.
  *
  * @param text The ticket as typed; it must have passed `refusal`.
  * @param model The shipped model.
- * @returns What the visitor sees: the masked text and the final category, priority, team and whether a person is needed.
+ * @returns What the visitor sees: the masked text and the final category, priority, team and whether a person is needed,
+ *   and the same result as one sentence.
  */
 export function tryTicket(text: string, model: Model): TryView {
   const trail = runTicket(text, TRY_ID, {
@@ -54,11 +53,14 @@ export function tryTicket(text: string, model: Model): TryView {
     secondCheckOn: SECOND_CHECK_ON,
     now: Date.now,
   });
+  const { category, route: team } = trail.final;
+  const priority = tagView(trail.final.priority).word;
   return {
     text: trail.maskedText,
-    category: trail.final.category,
-    priority: tagView(trail.final.priority).word,
-    team: trail.final.route,
+    category,
+    priority,
+    team,
     person: trail.guard.flagged ? `Yes: ${sentence(whyFlagged(trail))}` : 'No',
+    spoken: `Sorted: ${category}, ${priority}, ${team}. Person needed: ${trail.guard.flagged ? 'yes' : 'no'}.`,
   };
 }

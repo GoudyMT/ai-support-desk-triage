@@ -4,10 +4,7 @@ import { ROUTES, type Category } from '../domain/labels';
 import { loadModel, score } from '../model/scorer';
 import { MAX_TICKET_CHARS } from '../pipeline/intake';
 import { MASK_TOKENS, maskText } from '../privacy/mask';
-import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
-import type { RunState } from '../run/engine';
 import { refusal, tryTicket } from './tryTicket';
-import { deskCards } from './view';
 
 const MODEL = loadModel(JSON.parse(readFileSync(new URL('../model/model.json', import.meta.url), 'utf8')));
 
@@ -51,17 +48,10 @@ describe('tryTicket answer', () => {
     expect(tryTicket(RAISED_BY_RULE, MODEL).priority).toBe('High');
   });
 
-  // The reason is worded by a copy of the cards' sentence rule, so a change to the cards' wording must show here.
-  it('gives the reason in the words the desk cards use', () => {
-    const trail = runTicket(SAFETY, 'T-1', {
-      model: MODEL,
-      reviewer: { decide: ({ suggestion }) => ({ ...suggestion, route: ROUTES[suggestion.category] }) },
-      floor: CONFIDENCE_FLOOR,
-      secondCheckOn: SECOND_CHECK_ON,
-      now: () => 0,
-    });
-    const [card] = deskCards({ open: [trail] } as unknown as RunState);
-    expect(tryTicket(SAFETY, MODEL).person).toBe(`Yes: ${card?.why ?? ''}`);
+  // The desk's run holds a ticket the model is under half sure of, and the box must do the same. This ticket is 26 percent
+  // sure and no rule matches it, so a floor of 0 or the second check being on would show No here.
+  it('needs a person when the model is not sure enough and no rule matches', () => {
+    expect(tryTicket(PERSONAL, MODEL).person).toBe('Yes: The model is not sure enough.');
   });
 
   it('says Urgent as the desk does, Critical', () => {
