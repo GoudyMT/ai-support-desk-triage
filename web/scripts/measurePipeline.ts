@@ -198,6 +198,9 @@ export function loadSets(
 export interface EvalNumbers {
   heldOutRight: number;
   handWrittenRight: { k: number; n: number };
+  // The old keyword method (v0), which the history's prototype row repeats.
+  keywordHeldOutRight: number;
+  keywordHandWrittenRight: { k: number; n: number };
 }
 
 function dig(value: unknown, ...path: string[]): unknown {
@@ -207,26 +210,47 @@ function dig(value: unknown, ...path: string[]): unknown {
   );
 }
 
-// The two numbers of ml/reports/eval.json that the history's current row repeats. A report without them is refused
-// rather than read as zero, which a row could then match.
+// The numbers of ml/reports/eval.json that the history's current and prototype rows repeat. A report without them is
+// refused rather than read as zero, which a row could then match.
 export function evalNumbers(report: unknown): EvalNumbers {
   const heldOutRight = dig(report, 'summary', 'model_category', 'mean');
   const k = dig(report, 'handwritten', 'model_category', 'k');
   const n = dig(report, 'handwritten', 'model_category', 'n');
-  if (typeof heldOutRight !== 'number' || typeof k !== 'number' || typeof n !== 'number') {
+  const keywordHeldOutRight = dig(report, 'summary', 'v0_category', 'mean');
+  const keywordK = dig(report, 'handwritten', 'v0_category', 'k');
+  const keywordN = dig(report, 'handwritten', 'v0_category', 'n');
+  if (
+    typeof heldOutRight !== 'number' ||
+    typeof k !== 'number' ||
+    typeof n !== 'number' ||
+    typeof keywordHeldOutRight !== 'number' ||
+    typeof keywordK !== 'number' ||
+    typeof keywordN !== 'number'
+  ) {
     throw new Error('E_EVAL_SHAPE');
   }
-  return { heldOutRight, handWrittenRight: { k, n } };
+  return { heldOutRight, handWrittenRight: { k, n }, keywordHeldOutRight, keywordHandWrittenRight: { k: keywordK, n: keywordN } };
 }
 
-// Static codes, one per number of the current history row that differs from what CI measures. High-risk missed and
-// Sent to a person are the fresh set's recorded start point; Approve cards per run is held to one decimal.
-export function historyFailures(current: HistoryRow, evaluated: EvalNumbers, fresh: StartPoint, approve: number): string[] {
+// Static codes, one per number of the history's current and prototype rows that differs from the figure it repeats. Held-out
+// and hand-written right are the evaluation report's recorded numbers, for both rows. High-risk missed and Sent to a person
+// are the fresh set's recorded start point, which the gate holds the measured set to. Only Approve cards per run is measured
+// by this command, and it is held to one decimal.
+export function historyFailures(
+  current: HistoryRow,
+  prototype: HistoryRow,
+  evaluated: EvalNumbers,
+  fresh: StartPoint,
+  approve: number,
+): string[] {
   const failures: string[] = [];
   if (current.heldOutRight !== evaluated.heldOutRight) failures.push('E_HISTORY_HELD_OUT');
   if (current.handWrittenRight.k !== evaluated.handWrittenRight.k || current.handWrittenRight.n !== evaluated.handWrittenRight.n) {
     failures.push('E_HISTORY_HAND');
   }
+  if (prototype.heldOutRight !== evaluated.keywordHeldOutRight) failures.push('E_HISTORY_PROTOTYPE_HELD');
+  const keyword = evaluated.keywordHandWrittenRight;
+  if (prototype.handWrittenRight.k !== keyword.k || prototype.handWrittenRight.n !== keyword.n) failures.push('E_HISTORY_PROTOTYPE_HAND');
   if (current.highRiskMissed?.k !== fresh.missed || current.highRiskMissed?.n !== fresh.mustReview) failures.push('E_HISTORY_MISSED');
   if (current.sentToPerson !== Math.round(fresh.flagRate * PERCENT) / PERCENT) failures.push('E_HISTORY_SENT');
   if (current.approveCardsPerRun !== Number(approve.toFixed(1))) failures.push('E_HISTORY_APPROVE');
@@ -277,8 +301,9 @@ export interface HistoryCheck {
 export function checkHistory(foldsDir: string, read: (path: string) => string = readText, runs = APPROVE_RUNS): HistoryCheck {
   const rows: unknown = JSON.parse(read(HISTORY));
   const current = Array.isArray(rows) ? (rows[0] as HistoryRow | undefined) : undefined;
+  const prototype = Array.isArray(rows) ? (rows as HistoryRow[]).find((row) => row.id === 'prototype') : undefined;
   const fresh = START_POINT[FRESH_SET_NAME];
-  if (current === undefined || fresh === undefined) throw new Error('E_HISTORY_SHAPE');
+  if (current === undefined || prototype === undefined || fresh === undefined) throw new Error('E_HISTORY_SHAPE');
   const folds = new Map<number, Model>();
   const foldModel = (fold: number): Model => {
     const known = folds.get(fold) ?? loadModel(JSON.parse(read(join(foldsDir, `fold_${fold}.json`))));
@@ -286,7 +311,7 @@ export function checkHistory(foldsDir: string, read: (path: string) => string = 
     return known;
   };
   const approve = approveCardsPerRun(foldModel, APPROVE_FIRST_SEED, runs);
-  return { approve, failures: historyFailures(current, evalNumbers(JSON.parse(read(EVAL_REPORT))), fresh, approve) };
+  return { approve, failures: historyFailures(current, prototype, evalNumbers(JSON.parse(read(EVAL_REPORT))), fresh, approve) };
 }
 
 function argValue(args: string[], flag: string): string | undefined {
@@ -317,7 +342,7 @@ export function main(args: string[], load = loadSets, start = START_POINT, histo
     }
     const failed = gateFailures(results, start);
     console.log(failed.length === 0 ? 'PASS: every set at or under its start point' : `FAIL: start point broken in ${failed.join(', ')}`);
-    console.log(approved.failures.length === 0 ? 'PASS: the history current row equals this measurement' : `FAIL: ${approved.failures.join(', ')}`);
+    console.log(approved.failures.length === 0 ? 'PASS: the history rows match the recorded evaluation and start point, and the Approve count measured here' : `FAIL: ${approved.failures.join(', ')}`);
     return checkExitCode(results, start) === 0 && approved.failures.length === 0 ? 0 : 1;
   }
   for (const secondCheckOn of [false, true]) {

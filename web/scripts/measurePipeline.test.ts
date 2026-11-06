@@ -156,15 +156,35 @@ const CURRENT: HistoryRow = {
   sentToPerson: 0.78,
   approveCardsPerRun: 12.3,
 };
-const EVALUATED = { heldOutRight: 0.573, handWrittenRight: { k: 39, n: 48 } };
+// The old keyword method: the desk's home page says "the old keyword method got 14" from this row.
+const PROTOTYPE: HistoryRow = {
+  id: 'prototype',
+  name: 'Course prototype',
+  kind: 'Keyword rules',
+  heldOutRight: 0.336,
+  handWrittenRight: { k: 14, n: 48 },
+  highRiskMissed: null,
+  sentToPerson: null,
+  approveCardsPerRun: null,
+};
+const EVALUATED = {
+  heldOutRight: 0.573,
+  handWrittenRight: { k: 39, n: 48 },
+  keywordHeldOutRight: 0.336,
+  keywordHandWrittenRight: { k: 14, n: 48 },
+};
+const EVAL_FILE = {
+  summary: { model_category: { mean: 0.573 }, v0_category: { mean: 0.336 } },
+  handwritten: { model_category: { k: 39, n: 48 }, v0_category: { k: 14, n: 48 } },
+};
 
-// The history page shows what the history file says, so a number there that CI does not measure would be a made-up
-// claim on the page.
+// The history page shows what the history file says, so a number there that nothing holds would be a made-up claim on
+// the page.
 describe('the history check', () => {
-  it('passes when the current row equals the evaluation, the fresh-set start point and the Approve count', () => {
-    expect(historyFailures(CURRENT, EVALUATED, FRESH_POINT, 12.3)).toEqual([]);
+  it('passes when both rows equal the evaluation and the current row the fresh-set start point and the Approve count', () => {
+    expect(historyFailures(CURRENT, PROTOTYPE, EVALUATED, FRESH_POINT, 12.3)).toEqual([]);
     // The measured count is held to one decimal.
-    expect(historyFailures(CURRENT, EVALUATED, FRESH_POINT, 12.34)).toEqual([]);
+    expect(historyFailures(CURRENT, PROTOTYPE, EVALUATED, FRESH_POINT, 12.34)).toEqual([]);
   });
 
   it.each([
@@ -177,13 +197,23 @@ describe('the history check', () => {
     ['sent to a person', { sentToPerson: 0.79 }, 'E_HISTORY_SENT'],
     ['Approve cards per run', { approveCardsPerRun: 12.4 }, 'E_HISTORY_APPROVE'],
   ])('fails with its code when the row changes %s', (_name, change, code) => {
-    expect(historyFailures({ ...CURRENT, ...change }, EVALUATED, FRESH_POINT, 12.3)).toEqual([code]);
+    expect(historyFailures({ ...CURRENT, ...change }, PROTOTYPE, EVALUATED, FRESH_POINT, 12.3)).toEqual([code]);
+  });
+
+  // The home page says how many the old keyword method got right, from the prototype row.
+  it.each([
+    ['keyword held-out accuracy up', { heldOutRight: 0.337 }, 'E_HISTORY_PROTOTYPE_HELD'],
+    ['keyword held-out accuracy down', { heldOutRight: 0.335 }, 'E_HISTORY_PROTOTYPE_HELD'],
+    ['keyword hand-written right', { handWrittenRight: { k: 15, n: 48 } }, 'E_HISTORY_PROTOTYPE_HAND'],
+    ['keyword hand-written set size', { handWrittenRight: { k: 14, n: 49 } }, 'E_HISTORY_PROTOTYPE_HAND'],
+  ])('fails with its code when the prototype row changes %s', (_name, change, code) => {
+    expect(historyFailures(CURRENT, { ...PROTOTYPE, ...change }, EVALUATED, FRESH_POINT, 12.3)).toEqual([code]);
   });
 
   it('reads the numbers it compares with from the evaluation report, and refuses a report without them', () => {
-    const report = { summary: { model_category: { mean: 0.573 } }, handwritten: { model_category: { k: 39, n: 48 } } };
-    expect(evalNumbers(report)).toEqual(EVALUATED);
+    expect(evalNumbers(EVAL_FILE)).toEqual(EVALUATED);
     expect(() => evalNumbers({ summary: {} })).toThrow('E_EVAL_SHAPE');
+    expect(() => evalNumbers({ ...EVAL_FILE, summary: { model_category: { mean: 0.573 } } })).toThrow('E_EVAL_SHAPE');
   });
 
   // CI reads the exit code: a failing history must fail the command the same way a broken set does.
@@ -200,7 +230,7 @@ describe('the history check', () => {
 
   const served = (history: HistoryRow[]): Record<string, string> => ({
     'history.json': JSON.stringify(history),
-    'eval.json': JSON.stringify({ summary: { model_category: { mean: 0.573 } }, handwritten: { model_category: { k: 39, n: 48 } } }),
+    'eval.json': JSON.stringify(EVAL_FILE),
     'fold_0.json': MODEL_TEXT,
     'fold_1.json': MODEL_TEXT,
     'fold_2.json': MODEL_TEXT,
@@ -212,12 +242,15 @@ describe('the history check', () => {
     return text;
   };
 
-  it('reads the first history row as the current one and the fresh set as the real start point', () => {
+  it('reads the first history row as the current one, the prototype row by its id, and the fresh set as the real start point', () => {
     const approve = approveCardsPerRun(() => MODEL, 2000, 1);
     const row = { ...CURRENT, approveCardsPerRun: Number(approve.toFixed(1)) };
-    expect(checkHistory('folds', readFrom(served([row, { ...CURRENT, id: 'old', heldOutRight: 0.1 }])), 1).failures).toEqual([]);
+    expect(checkHistory('folds', readFrom(served([row, PROTOTYPE])), 1).failures).toEqual([]);
     const moved = { ...row, sentToPerson: 0.5 };
-    expect(checkHistory('folds', readFrom(served([moved])), 1).failures).toEqual(['E_HISTORY_SENT']);
+    expect(checkHistory('folds', readFrom(served([moved, PROTOTYPE])), 1).failures).toEqual(['E_HISTORY_SENT']);
+    const tampered = { ...PROTOTYPE, handWrittenRight: { k: 15, n: 48 } };
+    expect(checkHistory('folds', readFrom(served([row, tampered])), 1).failures).toEqual(['E_HISTORY_PROTOTYPE_HAND']);
+    expect(() => checkHistory('folds', readFrom(served([row])), 1)).toThrow('E_HISTORY_SHAPE');
     expect(() => checkHistory('folds', readFrom(served([])), 1)).toThrow('E_HISTORY_SHAPE');
   });
 });
