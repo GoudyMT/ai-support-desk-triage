@@ -1,11 +1,11 @@
 # PR 5: The Operator Desk - Implementation Plan
 
 ## Progress
-- Current task: fix round on U2 and U3, and U6
-- Done (with evidence): U1 91e69a6, U2 ba5d5fa, U3 38117fe, U4 80c3adf, U8 378d6da, U5 02699f7; unit suite 1,225 passed at 02699f7; desk 41,395 of 45,000, demo 49,558 of 50,000
-- Next: U7, then U9
+- Current task: the check of U6, then U9
+- Done (with evidence): U1 91e69a6, U2 ba5d5fa, U3 38117fe, U4 80c3adf, U8 378d6da, U5 02699f7, fix round 42d219c, U6 125d679, U7 20a63a0; unit suite 1,265 passed at 20a63a0; desk 44,618 of 47,000, demo 49,629 of 50,000, history 4,986 of 8,000; Chromium desk browser rows 54 passed in U7's worktree, three-browser run not yet done
+- Next: U6 check findings, U9 (info icons with the assumption sources, phone layout; the panel header clips when scrolled in the report view), full gate, Linux CI push with the owner's go, sweep
 - Branch: `feature/operator-desk`, from `main` at 5f5eca2
-- Open questions: the Model History page limit (recommended 8,000) and its fifth column, with the owner
+- Open questions: none
 
 **Goal:** a visitor lands on an operator's desk, watches tickets arrive sorted, can step in, try their own ticket, read a
 live report, and see how the model compares with its baseline.
