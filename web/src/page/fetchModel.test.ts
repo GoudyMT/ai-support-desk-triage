@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MODEL_TIMEOUT_MS, fetchModel } from './fetchModel';
+import { MODEL_TIMEOUT_MS, fetchModel, fetchShipped } from './fetchModel';
 
 const FOLD_FILE = fileURLToPath(new URL('../../public/models/fold_1.json', import.meta.url));
 
@@ -61,5 +61,27 @@ describe('fetchModel', () => {
     };
     await expect(fetchModel(3, missing)).rejects.toThrow('E_MODEL_LOAD');
     expect(urls).toEqual(['/models/fold_3.json']);
+  });
+});
+
+describe('fetchShipped', () => {
+  // Try a ticket reads the shipped model; a wrong file name would score every visitor's ticket on nothing.
+  it('asks for the shipped model file and loads it', async () => {
+    const urls: string[] = [];
+    const reply: typeof fetch = (url) => {
+      urls.push(String(url));
+      return Promise.resolve(new Response(readFileSync(FOLD_FILE, 'utf8')));
+    };
+    const model = await fetchShipped(reply);
+    expect(urls).toEqual(['/models/shipped.json']);
+    expect(model.heads.category.classes.length).toBeGreaterThan(2);
+  });
+
+  // A visitor whose file did not come sees Retry, so both ways it can fail must reject.
+  it('rejects on a reply that is not ok and on a file that is not a model', async () => {
+    const missing: typeof fetch = () => Promise.resolve(new Response('not found', { status: 404 }));
+    await expect(fetchShipped(missing)).rejects.toThrow('E_MODEL_LOAD');
+    const notAModel: typeof fetch = () => Promise.resolve(new Response('{"heads":{}}'));
+    await expect(fetchShipped(notAModel)).rejects.toThrow();
   });
 });

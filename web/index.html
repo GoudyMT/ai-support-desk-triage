@@ -13,26 +13,28 @@
       <p class="site-name">Support Desk</p>
     </header>
     <main id="rest" class="rest">
-      <h1>You are the support team. Tickets reach your desk already sorted.</h1>
-      <p class="lead">
-        Press Start and made-up tickets arrive. Each one is either sent to a team or held for a person to check.
-        Nothing here is a real customer.
-      </p>
-      <ul class="measured">
-        <li>
-          <span id="m-missed" class="num"></span>
-          <span class="what">high-risk tickets missed on a test set written blind</span>
-        </li>
-        <li>
-          <span id="m-hand" class="num"></span>
-          <span id="m-hand-what" class="what"></span>
-        </li>
-        <li>
-          <span id="m-sent" class="num"></span>
-          <span class="what">of tickets on that test set still went to a person</span>
-        </li>
-      </ul>
-      <p class="note">Measured on every code change.</p>
+      <div class="intro">
+        <h1>You are the support team. Tickets reach your desk already sorted.</h1>
+        <p class="lead">
+          Press Start and made-up tickets arrive. Each one is either sent to a team or held for a person to check.
+          Nothing here is a real customer.
+        </p>
+        <ul class="measured">
+          <li>
+            <span id="m-missed" class="num"></span>
+            <span class="what">high-risk tickets missed on a test set written blind</span>
+          </li>
+          <li>
+            <span id="m-hand" class="num"></span>
+            <span id="m-hand-what" class="what"></span>
+          </li>
+          <li>
+            <span id="m-sent" class="num"></span>
+            <span class="what">of tickets on that test set still went to a person</span>
+          </li>
+        </ul>
+        <p class="note">Measured on every code change.</p>
+      </div>
     </main>
     <main id="run" class="run" hidden>
       <section class="col lists" aria-labelledby="open-title">
@@ -63,6 +65,8 @@
         <span id="status">130 made-up tickets, about 5 minutes</span><span id="notice" role="status"></span>
       </p>
       <div id="bar-links" class="bar-links">
+        <button id="try-open" type="button" class="btn" hidden>Try a ticket</button>
+        <a class="btn" href="model-history.html">Model History</a>
         <a class="btn" href="under-the-hood.html">Under the Hood</a>
       </div>
     </div>

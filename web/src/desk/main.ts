@@ -9,12 +9,13 @@ import { foldOf, parseSeed, randomSeed } from '../run/seed';
 import { createArrivals, drawCards, drawMeasured, drawNumbers, drawSent, type CardActions } from './draw';
 import { createCardMotion } from './motion';
 import { createReviewCard } from './review';
+import { createTryModal, createTryPanel } from './tryPanel';
 import { deskCards, deskNumbers, deskReview, resultLine, sentRows, type DeskNumbers } from './view';
 
 const MODEL_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';
-// How often the simulated reviewer closes the top card: one every two seconds, a slow trickle a viewer can follow.
+// How often the simulated reviewer closes the top card: one every two and a half seconds, a slow trickle a viewer can follow.
 const REVIEWER_PACE_MS = 2500;
-const SLOW_NOTE ='Slowed down so you can follow.';
+const SLOW_NOTE = 'Slowed down so you can follow.';
 const PAUSED = 'Paused while you review.';
 const RESULT_MS = 4000;
 
@@ -94,6 +95,26 @@ const reviewCard = createReviewCard({
     live?.run.handBack();
     focusList(actedAt);
   },
+});
+
+// Try a ticket sits below the numbers at rest. During a run the bar's button opens the same panel over the desk and the
+// run holds while it is open, then goes on only if it was going when the panel opened.
+const tryOpen = byId('try-open');
+const tryPanel = createTryPanel();
+byId('rest').append(tryPanel);
+let resumeAfterTry = false;
+const tryModal = createTryModal(tryPanel, byId('rest'), () => {
+  if (resumeAfterTry) live?.run.play();
+  resumeAfterTry = false;
+  tryOpen.focus();
+});
+
+tryOpen.addEventListener('click', () => {
+  // The review card covers the desk, so while it is open there is nothing new to open.
+  if (reviewCard.isOpen() || tryModal.isOpen()) return;
+  resumeAfterTry = live?.run.state().playing === true;
+  live?.run.pause();
+  tryModal.open();
 });
 
 // After a card leaves the list, focus goes to the Review button of the card that now stands in its place, and to the
@@ -183,6 +204,7 @@ function mount(seed: number, run: Run, total: number): void {
   document.body.dataset.seed = String(seed);
   byId('rest').hidden = true;
   byId('run').hidden = false;
+  tryOpen.hidden = false;
   run.play();
 }
 

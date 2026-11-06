@@ -38,15 +38,25 @@ body {
 }
 
 /* Screen 1: the desk at rest. */
+/* The sentence and numbers stand beside Try a ticket on a wide screen; on a narrow one it wraps below them. */
 .rest {
   flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 2rem;
   width: 100%;
   max-width: 76rem;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.intro {
+  flex: 999 1 35rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 .rest h1 {
@@ -507,6 +517,93 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* Try a ticket: below the numbers at rest, and the same panel in a modal during a run. */
+.try {
+  flex: 1 1 22.5rem;
+  min-width: 0;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 1.25rem;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.try-title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+}
+
+.try-error {
+  margin: 0;
+  color: var(--alert);
+  font-weight: var(--w-strong);
+}
+
+.try-error:empty {
+  display: none;
+}
+
+.try-privacy {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.try-result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.375rem 1rem;
+  margin: 0;
+}
+
+.try-result dt {
+  color: var(--muted);
+}
+
+.try-result dd {
+  margin: 0;
+  font-weight: var(--w-strong);
+  overflow-wrap: anywhere;
+}
+
+.try-warning {
+  margin: 0;
+  padding: var(--space-2) 0.625rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  font-size: var(--fs-sm);
+}
+
+.try-dialog {
+  width: min(40rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--lift);
+}
+
+.try-dialog::backdrop {
+  background: var(--dim);
+}
+
+.try-dialog .try {
+  padding: 0;
+  border: 0;
+}
+
+.try-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
 }
 
 @media (max-width: 40rem) {
