@@ -41,6 +41,16 @@ describe('the change shown for each number', () => {
     expect(cell([BASELINE, PROTOTYPE], 0, 1)?.change).toEqual({ direction: 'up', text: '25', label: 'up 25 tickets' });
   });
 
+  // A later model that is surer lights more cards, and that change is what the column exists to show.
+  it('shows the change in cards with Approve, and none against a model that never measured it', () => {
+    expect(cell([NEWER, BASELINE], 0, 4)).toEqual({
+      value: '60.0',
+      change: { direction: 'up', text: '10', label: 'up 10 cards' },
+    });
+    expect(cell([BASELINE, PROTOTYPE], 1, 4)).toEqual({ value: 'Not measured', change: null });
+    expect(cell([BASELINE, PROTOTYPE], 0, 4)?.change).toBeNull();
+  });
+
   it('shows a down arrow when a number is lower than the row below', () => {
     const rows = [NEWER, BASELINE];
     expect(cell(rows, 0, 0)?.change).toEqual({ direction: 'down', text: '2.3 pts', label: 'down 2.3 points' });
@@ -56,7 +66,7 @@ describe('the change shown for each number', () => {
   // A change against a number nobody measured would be made up.
   it('shows no change for the last row, or when either side was not measured', () => {
     const view = historyView([BASELINE, PROTOTYPE]);
-    expect(view.rows[1]?.cells.map((c) => c.change)).toEqual([null, null, null, null]);
+    expect(view.rows[1]?.cells.map((c) => c.change)).toEqual([null, null, null, null, null]);
     expect(view.rows[0]?.cells[2]?.change).toBeNull();
     expect(view.rows[0]?.cells[3]?.change).toBeNull();
     const unmeasuredAbove = [{ ...NEWER, sentToPerson: null }, BASELINE];
@@ -77,15 +87,15 @@ describe('the table', () => {
       ['Baseline model (current)', 'Word weights plus safety rules', true],
       ['Course prototype', 'Keyword rules', false],
     ]);
-    expect(view.rows[0]?.cells.map((c) => c.value)).toEqual(['57.3%', '39 of 48', '0 of 24', '78%']);
-    expect(view.rows[1]?.cells.map((c) => c.value)).toEqual(['33.6%', '14 of 48', 'Not measured', 'Not measured']);
+    expect(view.rows[0]?.cells.map((c) => c.value)).toEqual(['57.3%', '39 of 48', '0 of 24', '78%', '50.0']);
+    expect(view.rows[1]?.cells.map((c) => c.value)).toEqual(['33.6%', '14 of 48', 'Not measured', 'Not measured', 'Not measured']);
   });
 
   // Adding a row is how a model change reaches the page: the new row is compared with the baseline row under it.
   it('shows the change of a row added on top from the row below it, and leaves the other rows alone', () => {
     const view = historyView([NEWER, BASELINE, PROTOTYPE]);
     expect(view.rows.map((row) => row.id)).toEqual(['newer', 'baseline', 'prototype']);
-    expect(view.rows[0]?.cells.map((c) => c.change?.direction)).toEqual(['down', 'up', 'same', 'down']);
+    expect(view.rows[0]?.cells.map((c) => c.change?.direction)).toEqual(['down', 'up', 'same', 'down', 'up']);
     expect(view.rows[0]?.current).toBe(true);
     expect(view.rows[1]?.current).toBe(false);
     expect(view.rows[1]?.cells[0]?.change?.text).toBe('23.7 pts');
@@ -100,6 +110,7 @@ describe('the current model against the baseline', () => {
       ['Right on hand-written tickets', '39 of 48', 'Baseline 39 of 48. No change yet', null],
       ['High-risk missed', '0 of 24', 'Baseline 0 of 24. No change yet', null],
       ['Sent to a person', '78%', 'Baseline 78%. No change yet', null],
+      ['Cards with Approve per run', '50.0', 'Baseline 50.0. No change yet', null],
     ]);
   });
 

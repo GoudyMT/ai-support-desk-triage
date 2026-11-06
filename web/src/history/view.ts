@@ -114,6 +114,12 @@ const COLUMNS: readonly Column[] = [
     figure: (row) => shareFigure(row.sentToPerson),
     size: points,
   },
+  {
+    title: 'Cards with Approve per run',
+    show: (row) => (row.approveCardsPerRun === null ? NOT_MEASURED : row.approveCardsPerRun.toFixed(DECIMALS)),
+    figure: (row) => (row.approveCardsPerRun === null ? null : { amount: row.approveCardsPerRun, basis: 0 }),
+    size: tickets('card', 'cards'),
+  },
 ];
 
 function changeOf(column: Column, now: HistoryRow, before: HistoryRow): Change | null {

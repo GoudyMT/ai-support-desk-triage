@@ -11,8 +11,8 @@ test('the page lists the newest model first with its numbers and an arrow a scre
   await expect(rows.nth(0)).toContainText('Baseline model (current)');
   await expect(rows.nth(0)).toContainText('Word weights plus safety rules');
   await expect(rows.nth(1)).toContainText('Course prototype');
-  await expect(rows.nth(0).locator('td')).toContainText(['57.3%', '39 of 48', '0 of 24', '78%']);
-  await expect(rows.nth(1).locator('td')).toContainText(['33.6%', '14 of 48', 'Not measured', 'Not measured']);
+  await expect(rows.nth(0).locator('td')).toContainText(['57.3%', '39 of 48', '0 of 24', '78%', '6.8']);
+  await expect(rows.nth(1).locator('td')).toContainText(['33.6%', '14 of 48', 'Not measured', 'Not measured', 'Not measured']);
   const arrow = page.getByRole('img', { name: 'up 23.7 points' });
   await expect(arrow).toHaveText('23.7 pts');
   await expect(page.getByRole('img', { name: 'up 25 tickets' })).toHaveText('25');
