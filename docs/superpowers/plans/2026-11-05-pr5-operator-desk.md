@@ -1,11 +1,11 @@
 # PR 5: The Operator Desk - Implementation Plan
 
 ## Progress
-- Current task: U1
-- Done (with evidence): design and plan approved 2026-11-05 by the owner
-- Next: U2 and U3
+- Current task: fix round on U2 and U3, and U6
+- Done (with evidence): U1 91e69a6, U2 ba5d5fa, U3 38117fe, U4 80c3adf, U8 378d6da, U5 02699f7; unit suite 1,225 passed at 02699f7; desk 41,395 of 45,000, demo 49,558 of 50,000
+- Next: U7, then U9
 - Branch: `feature/operator-desk`, from `main` at 5f5eca2
-- Open questions: desk size limit after U4
+- Open questions: the Model History page limit (recommended 8,000) and its fifth column, with the owner
 
 **Goal:** a visitor lands on an operator's desk, watches tickets arrive sorted, can step in, try their own ticket, read a
 live report, and see how the model compares with its baseline.
@@ -110,3 +110,6 @@ Items 1 and 3 approved with the plan, 2026-11-05.
 ## Execution Notes & Deviations
 
 - 2026-11-05 (owner): one public release. The deploy PR stays open and unmerged until PR 5 is ready; PR 5 merges first, then the Pages source switch and the deploy PR, so the site changes once.
+- 2026-11-05 (drift, design 80-83): Approve uses a new `Run.approve`, not `review` then `confirm`; both settle through `settleReview`, so scoring is the same.
+- 2026-11-05 (drift, design 24): 272 cards reach the printed 70% cutoff on seeds 2000 to 2039, not 258; 258 was raw `>= 0.7`. Counts use `canQuickApprove`.
+- 2026-11-05 (lead): Try a ticket stays inline at rest, as the wireframe shows; during a run the bar button opens it over the desk and the run holds, the same as a review card.
