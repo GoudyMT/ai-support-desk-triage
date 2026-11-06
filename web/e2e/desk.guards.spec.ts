@@ -110,11 +110,16 @@ async function runUntilApprove(page: Page): Promise<Locator> {
   return card.first();
 }
 
+// A press within 400 ms of the card opening or closing is dropped on purpose, so these rows move at a person's pace.
+async function aPersonsPause(page: Page): Promise<void> {
+  await page.clock.runFor(A_PERSONS_PAUSE_MS);
+  await page.waitForTimeout(A_PERSONS_PAUSE_MS);
+}
+
 async function openReview(page: Page, card: Locator): Promise<void> {
   await reviewOf(card).click();
   await expect(dialog(page)).toBeVisible();
-  await page.clock.runFor(A_PERSONS_PAUSE_MS);
-  await page.waitForTimeout(A_PERSONS_PAUSE_MS);
+  await aPersonsPause(page);
 }
 
 // The same run in Node: the page's run with no viewer ends on the same closed tickets, so these are the numbers its
@@ -195,6 +200,7 @@ test.describe('a note and the report', () => {
     await noteBox(page).fill(NOTE);
     await sendButton(page).click();
     await expect(page.locator('#sent-list .your-note')).toHaveText(`Your note: ${NOTE}`);
+    await aPersonsPause(page);
     await more(page).click();
     await generate(page).click();
     await expect(report(page)).toBeVisible();
@@ -247,6 +253,7 @@ test.describe('review cards and Approve', () => {
     await noteBox(page).fill(NOTE);
     await sendButton(page).click();
     await expect(dialog(page)).toBeHidden();
+    await aPersonsPause(page);
 
     await openReview(page, cards(page).first());
     await expect(noteBox(page)).toHaveValue('');
