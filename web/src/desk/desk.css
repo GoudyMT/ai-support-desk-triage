@@ -392,8 +392,10 @@ body {
   margin: 0 0 0 var(--space-1);
 }
 
+/* A tap on whatever a box covers still reaches it: the box must never block a control. */
 .tipbox {
   position: fixed;
+  pointer-events: none;
   z-index: 10;
   width: min(17rem, calc(100vw - 1rem));
   padding: var(--space-2) var(--space-3);

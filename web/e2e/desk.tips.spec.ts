@@ -148,6 +148,8 @@ test.describe('a tap on a phone', () => {
     await expect(tooltip(page)).toHaveCount(0);
     await button.tap();
     await expect(tooltip(page)).toHaveCount(1);
+    // On a wider font the box can reach down over the tabs, and the tap must still land on them.
+    await expect(tooltip(page)).toHaveCSS('pointer-events', 'none');
     await page.getByRole('tab', { name: /^Sent to teams/ }).tap();
     await expect(tooltip(page)).toHaveCount(0);
   });
@@ -215,18 +217,25 @@ test.describe('an icon moves nothing', () => {
   test('a row with an icon is as tall as a row without one', async ({ page }) => {
     await startRun(page);
     const heights = await page.evaluate(() => {
-      const high = (selector: string) => [...document.querySelectorAll(selector)].map((node) => node.getBoundingClientRect().height);
+      // Each row against itself with the icon gone, since a wider font may wrap a long name with or without an icon.
+      const withAndWithout = (node: Element) => {
+        const icon = node.querySelector<HTMLElement>('.tip');
+        const shown = node.getBoundingClientRect().height;
+        if (icon !== null) icon.style.display = 'none';
+        const gone = node.getBoundingClientRect().height;
+        if (icon !== null) icon.style.display = '';
+        return [shown, gone];
+      };
       return {
-        terms: high('aside.side > .stats dt'),
+        terms: [...document.querySelectorAll('aside.side > .stats dt')].map(withAndWithout),
         titles: [...document.querySelectorAll('.col-title')].map((head) => [
           head.getBoundingClientRect().height,
           head.querySelector('h2')?.getBoundingClientRect().height,
         ]),
       };
     });
-    // Closed has no icon and High-risk missed has one: every term row is the same height.
-    expect(new Set(heights.terms).size).toBe(1);
     expect(heights.terms.length).toBe(4);
+    for (const [shown, gone] of heights.terms) expect(shown).toBe(gone);
     // A heading with an icon beside it is no taller than the heading alone.
     expect(heights.titles.length).toBe(2);
     for (const [head, title] of heights.titles) expect(head).toBe(title);
