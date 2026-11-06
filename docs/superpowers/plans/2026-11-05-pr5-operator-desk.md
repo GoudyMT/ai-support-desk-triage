@@ -5,7 +5,7 @@
 - Done (with evidence): U1 91e69a6, U2 ba5d5fa, U3 38117fe, U4 80c3adf, U8 378d6da, U5 02699f7, fix round 42d219c, U6 125d679, U7 20a63a0; unit suite 1,265 passed at 20a63a0; desk 44,618 of 47,000, demo 49,629 of 50,000, history 4,986 of 8,000; Chromium desk browser rows 54 passed in U7's worktree, three-browser run not yet done
 - Next: U6 fixes, U9 (info icons with the assumption sources, phone layout; the panel header clips when scrolled in the report view), full gate, Linux CI push with the owner's go, sweep
 - Branch: `feature/operator-desk`, from `main` at 5f5eca2
-- Open questions: the privacy line against what the mask misses, with the owner
+- Open questions: none
 
 **Goal:** a visitor lands on an operator's desk, watches tickets arrive sorted, can step in, try their own ticket, read a
 live report, and see how the model compares with its baseline.
@@ -107,6 +107,8 @@ Items 1 and 3 approved with the plan, 2026-11-05.
 
 ## Parking Lot
 
+- Widen the mask for the forms it misses (`.kit/reports/u6-check-2026-11-05.md`), with the next model version.
+
 ## Execution Notes & Deviations
 
 - 2026-11-05 (owner): one public release. The deploy PR stays open and unmerged until PR 5 is ready; PR 5 merges first, then the Pages source switch and the deploy PR, so the site changes once.
@@ -114,3 +116,4 @@ Items 1 and 3 approved with the plan, 2026-11-05.
 - 2026-11-05 (drift, design 24): 272 cards reach the printed 70% cutoff on seeds 2000 to 2039, not 258; 258 was raw `>= 0.7`. Counts use `canQuickApprove`.
 - 2026-11-05 (lead): Try a ticket stays inline at rest, as the wireframe shows; during a run the bar button opens it over the desk and the run holds, the same as a review card.
 - 2026-11-05 (owner): the report loads with the page, not on demand, and the desk limit is 47,000. Measured: on demand 45,784, with the page 44,702, because the report is about 1,000 bytes and loading it on demand adds about 1,080. Supersedes design section 5 "report loaded on demand" and plan U7 "report code loads on demand".
+- 2026-11-06 (owner): the privacy line reads "common forms of"; widening the mask goes with the next model version, since masked text feeds the model and needs re-measuring.
