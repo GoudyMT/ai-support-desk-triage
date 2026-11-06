@@ -1,11 +1,13 @@
 import '../page/tokens.css';
 import './history.css';
 import { byId, el } from '../page/dom';
+import { initTips } from '../desk/tips';
 import history from './history.json';
 import { NOT_MEASURED, historyView, type Change, type Direction } from './view';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const MARK_SIZE = '9';
+const WORD_JOINER = String.fromCharCode(0x2060);
 // Each direction has its own shape, so a change never depends on its color: a triangle up, a triangle down, a flat bar.
 const SHAPES: Record<Direction, string> = {
   up: 'M6 1l5 9H1z',
@@ -45,6 +47,12 @@ function draw(): void {
     node.append(el('div', 'block-title', block.title), el('div', 'block-value', block.value), note);
     blocks.append(node);
   }
+  // Each tip written in the page goes after the title it names; its box goes with it. A word joiner stops the browser
+  // starting a new line for the icon alone.
+  for (const tip of document.querySelectorAll<HTMLElement>('.tip[data-for]')) {
+    const title = [...blocks.querySelectorAll('.block-title')].find((node) => node.textContent === tip.dataset['for']);
+    title?.append(WORD_JOINER, tip, byId(tip.getAttribute('aria-describedby') ?? ''));
+  }
   const head = byId('head');
   head.append(el('th', 'version', 'Version'));
   for (const title of view.columns) {
@@ -71,3 +79,4 @@ function draw(): void {
 }
 
 draw();
+initTips();

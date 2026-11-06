@@ -7,10 +7,11 @@ import { createRun, type Run } from '../run/engine';
 import { createPrescreener } from '../run/prescreen';
 import { foldOf, parseSeed, randomSeed } from '../run/seed';
 import { createArrivals, drawCards, drawMeasured, drawNumbers, drawSent, type CardActions } from './draw';
-import { createCardMotion } from './motion';
+import { createCardMotion, fadeNumber } from './motion';
 import { createPanel } from './panel';
 import { drawReport } from './reportPage';
 import { createReviewCard } from './review';
+import { initTips } from './tips';
 import { createTryModal, createTryPanel } from './tryPanel';
 import { deskCards, deskNumbers, deskReview, moreNumbers, resultLine, sentRows, type DeskNumbers } from './view';
 
@@ -56,7 +57,7 @@ function say(status: string, notice = ''): void {
 
 function setButton(label: string, solid: boolean, disabled = false): void {
   const button = toggle();
-  setText(button, label);
+  setText(byId('toggle-word'), label);
   button.classList.toggle('btn-solid', solid);
   button.disabled = disabled;
 }
@@ -161,6 +162,53 @@ byId('report-close').addEventListener('click', () => {
   if (document.activeElement !== panel.generate) byId('more').focus();
 });
 
+// On a phone one list shows at a time and the This run panel can cover them: the run's data-view says which, and the
+// style sheet reads it only at that width. The panel's way back returns to the list that was showing.
+const tabs = [byId('tab-open'), byId('tab-sent')];
+const TAB_STEPS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
+let listView = 'open';
+
+function pickTab(tab: HTMLElement): void {
+  listView = tab.dataset['view'] ?? 'open';
+  byId('run').dataset['view'] = listView;
+  for (const other of tabs) {
+    other.setAttribute('aria-selected', String(other === tab));
+    other.tabIndex = other === tab ? 0 : -1;
+  }
+}
+
+tabs.forEach((tab, at) => {
+  tab.addEventListener('click', () => pickTab(tab));
+  tab.addEventListener('keydown', (event) => {
+    const step = TAB_STEPS[event.key];
+    const next = step === undefined ? undefined : tabs[(at + step + tabs.length) % tabs.length];
+    if (next === undefined) return;
+    event.preventDefault();
+    pickTab(next);
+    next.focus();
+  });
+});
+
+byId('numbers-open').addEventListener('click', () => {
+  // A report open over the panel gives way to it, as Close report does.
+  closeReport(true);
+  byId('run').dataset['view'] = 'numbers';
+  byId('run-title').focus();
+});
+
+byId('numbers-back').addEventListener('click', () => {
+  byId('run').dataset['view'] = listView;
+  (tabs.find((tab) => tab.dataset['view'] === listView) ?? tabs[0])?.focus();
+});
+
+function drawPhone(numbers: DeskNumbers, open: number, sent: number): void {
+  fadeNumber(byId('p-closed'), `${numbers.closed} of ${numbers.total}`);
+  fadeNumber(byId('p-missed'), String(numbers.highRiskMissed));
+  fadeNumber(byId('p-right'), String(numbers.rightNoPerson));
+  fadeNumber(byId('tab-open-n'), String(open));
+  fadeNumber(byId('tab-sent-n'), String(sent));
+}
+
 // After a card leaves the list, focus goes to the Review button of the card that now stands in its place, and to the
 // list's heading when the list is empty, so a keyboard user is never left at the top of the page.
 function focusList(at: number): void {
@@ -198,6 +246,7 @@ function render(current: Live): DeskNumbers {
   drawSent(byId('sent-list'), rows, notes);
   motion.play();
   drawNumbers(numbers, cards.length, rows.length);
+  drawPhone(numbers, cards.length, rows.length);
   panel.draw(numbers, moreNumbers(state, run.truthOf));
   const review = deskReview(state);
   if (review === undefined) reviewCard.close();
@@ -295,3 +344,4 @@ toggle().addEventListener('click', () => {
 });
 
 drawMeasured();
+initTips();

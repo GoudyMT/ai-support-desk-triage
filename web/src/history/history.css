@@ -212,6 +212,51 @@ tr > :last-child {
   margin-left: var(--space-2);
 }
 
+/* An info icon: a thin circle about 13px across with an i, set on the text line. It takes no room in the line (its right
+   margin cancels its width and left margin), so a title that just fits does not wrap for it; its hit area is larger than the
+   circle and takes none either. The words are in the box that follows it, shown and placed by script. */
+.tip {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: 13px;
+  height: 13px;
+  margin: 0 -17px 0 4px;
+  padding: 0;
+  border: var(--border) solid var(--control-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: var(--w-strong) 9px / 11px var(--font);
+  text-align: center;
+  cursor: help;
+}
+
+.tip::before {
+  content: 'i';
+}
+
+.tip::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.tipbox {
+  position: fixed;
+  z-index: 10;
+  width: min(17rem, calc(100vw - 1rem));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: var(--lh-card);
+  text-align: left;
+  box-shadow: var(--lift);
+}
+
 .note {
   margin: 0;
   max-width: 45rem;

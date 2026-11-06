@@ -21,6 +21,13 @@
       <section class="current" aria-labelledby="current-title">
         <h2 id="current-title">Current model against the baseline</h2>
         <div class="blocks" id="blocks"></div>
+        <!-- The tips are written here and the script moves each to the block whose title it names. -->
+        <div hidden>
+          <button type="button" class="tip" aria-label="Why tickets it never saw" aria-describedby="tip-never" data-for="Right on tickets it never saw"></button>
+          <span id="tip-never" class="tipbox" role="tooltip" hidden>A model can look good on tickets it trained on. These are held back from training, so the score is a fair test.</span>
+          <button type="button" class="tip" aria-label="Why fewer is better" aria-describedby="tip-fewer" data-for="Sent to a person"></button>
+          <span id="tip-fewer" class="tipbox" role="tooltip" hidden>Fewer is better, as long as High-risk missed stays at zero. Each ticket a person does not need to check is time saved.</span>
+        </div>
       </section>
       <h2 id="history-title">History, newest first</h2>
       <div class="table-wrap" tabindex="0" role="region" aria-labelledby="history-title">

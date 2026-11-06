@@ -36,13 +36,48 @@
         <p class="note">Measured on every code change.</p>
       </div>
     </main>
-    <main id="run" class="run" hidden>
-      <section class="col lists" aria-labelledby="open-title">
-        <h2 id="open-title" class="col-head" tabindex="-1">Needs a person <span id="open-count" class="count">0</span></h2>
+    <main id="run" class="run" data-view="open" hidden>
+      <div class="phone-head">
+        <dl class="phone-stats">
+          <div>
+            <dt>Closed</dt>
+            <dd id="p-closed">0 of 130</dd>
+          </div>
+          <div>
+            <dt>High-risk missed</dt>
+            <dd>
+              <span id="p-missed">0</span>&#8288;<button type="button" class="tip" aria-label="What high-risk missed means" aria-describedby="tip-missed-row"></button>
+              <span id="tip-missed-row" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Right with no person</dt>
+            <dd id="p-right">0</dd>
+          </div>
+        </dl>
+        <div class="tabs" role="tablist" aria-label="Ticket lists">
+          <button id="tab-open" type="button" class="tab" role="tab" aria-selected="true" aria-controls="open-col" data-view="open">Needs a person <span id="tab-open-n">0</span></button>
+          <button id="tab-sent" type="button" class="tab" role="tab" aria-selected="false" aria-controls="sent-col" data-view="sent" tabindex="-1">Sent to teams <span id="tab-sent-n">0</span></button>
+        </div>
+      </div>
+      <section id="open-col" class="col lists" aria-labelledby="open-title">
+        <div class="col-title">
+          <h2 id="open-title" class="col-head" tabindex="-1">Needs a person <span id="open-count" class="count">0</span></h2>
+          <button type="button" class="tip" aria-label="Why the order changes" aria-describedby="tip-order"></button>
+          <span id="tip-order" class="tipbox" role="tooltip" hidden>The most serious tickets go to the top, so a person sees them first. Two tickets at the same level stay oldest first.</span>
+        </div>
         <ul id="open-list" class="list" tabindex="0" aria-labelledby="open-title"></ul>
+        <p class="hint">
+          What does % sure mean?&#8288;<button type="button" class="tip" aria-label="What percent sure means" aria-describedby="tip-sure"></button>
+          <span id="tip-sure" class="tipbox" role="tooltip" hidden>How sure the model is about the category. At 70% or more, Approve appears, so a person can send the ticket in one press. Below that, open it with Review.</span>
+        </p>
       </section>
-      <section class="col lists" aria-labelledby="sent-title">
-        <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
+      <section id="sent-col" class="col lists" aria-labelledby="sent-title">
+        <div class="col-title">
+          <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
+          <button type="button" class="tip" aria-label="What the labels mean" aria-describedby="tip-labels"></button>
+          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: a person agreed. Reviewer changed it: a person corrected the model.</span>
+        </div>
         <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
       </section>
       <article id="report" class="col report" aria-labelledby="report-title" hidden>
@@ -98,18 +133,26 @@
         <ul id="report-misses" class="misses"></ul>
       </article>
       <aside class="col side" aria-labelledby="run-title">
+        <button id="numbers-back" type="button" class="btn side-back">Back to the tickets</button>
         <div class="side-head">
-          <h2 id="run-title" class="col-head">This run</h2>
+          <h2 id="run-title" class="col-head" tabindex="-1">This run</h2>
           <button id="more" type="button" class="btn" aria-expanded="false" aria-controls="more-block"><span>More numbers</span><span hidden>Fewer numbers</span></button>
         </div>
         <dl class="stats">
           <dt>Closed</dt>
           <dd id="n-closed">0</dd>
-          <dt>High-risk missed</dt>
+          <!-- A word joiner (&#8288;) keeps each icon on its term's line: the browser may otherwise start a new line before it. -->
+          <dt>
+            High-risk missed&#8288;<button type="button" class="tip" aria-label="What high-risk missed means" aria-describedby="tip-missed"></button>
+            <span id="tip-missed" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
+          </dt>
           <dd id="n-missed">0</dd>
           <dt>Right with no person</dt>
           <dd id="n-right">0</dd>
-          <dt>Reviewer changed the model</dt>
+          <dt>
+            Reviewer changed the model&#8288;<button type="button" class="tip" aria-label="Why the reviewer changes the model" aria-describedby="tip-changed"></button>
+            <span id="tip-changed" class="tipbox" role="tooltip" hidden>Times the simulated reviewer disagreed with the model. This is how mistakes get caught before a ticket goes out.</span>
+          </dt>
           <dd id="n-changed">0</dd>
         </dl>
         <div id="more-block" class="more" hidden>
@@ -121,12 +164,20 @@
           </dl>
           <h3>Estimated value (change these)</h3>
           <div class="assume">
-            <label for="in-minutes">Minutes saved per ticket</label>
+            <div class="assume-name">
+              <label for="in-minutes">Minutes saved per ticket</label>
+              <button type="button" class="tip" aria-label="Where the minutes figure comes from" aria-describedby="tip-minutes"></button>
+              <span id="tip-minutes" class="tipbox" role="tooltip" hidden>Estimate, not a measurement. Each ticket the system sorted correctly with no review counts as 2 minutes saved. Vendors of IT desk tools put sorting one ticket at 3 to 12 minutes (Mizo, Giant Rocketship) and we found no independent study, so we use less than their lowest figure.</span>
+            </div>
             <input id="in-minutes" inputmode="decimal" autocomplete="off" aria-describedby="err-minutes" />
             <p id="err-minutes" class="assume-error" role="alert"></p>
           </div>
           <div class="assume">
-            <label for="in-pay">Hourly pay ($)</label>
+            <div class="assume-name">
+              <label for="in-pay">Hourly pay ($)</label>
+              <button type="button" class="tip" aria-label="Where the hourly pay figure comes from" aria-describedby="tip-pay"></button>
+              <span id="tip-pay" class="tipbox" role="tooltip" hidden>Estimate, not a measurement. Time saved x $21.53 an hour, the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). Benefits are not added, which keeps it low.</span>
+            </div>
             <input id="in-pay" inputmode="decimal" autocomplete="off" aria-describedby="err-pay" />
             <p id="err-pay" class="assume-error" role="alert"></p>
           </div>
@@ -139,17 +190,35 @@
           </div>
           <button id="generate" type="button" class="btn btn-solid" disabled>Generate report</button>
         </div>
+        <a class="btn side-history" href="model-history.html">Model History</a>
       </aside>
     </main>
     <div class="bar">
-      <button id="toggle" type="button" class="btn btn-solid">Start</button>
+      <button id="toggle" type="button" class="btn btn-solid">
+        <svg class="icon-stop" aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>
+        <svg class="icon-play" aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l12 7-12 7z"></path></svg>
+        <span id="toggle-word">Start</span>
+      </button>
       <p id="status-wrap" class="status-wrap">
         <span id="status">130 made-up tickets, about 5 minutes</span><span id="notice" role="status"></span>
       </p>
       <div id="bar-links" class="bar-links">
-        <button id="try-open" type="button" class="btn" hidden>Try a ticket</button>
-        <a class="btn" href="model-history.html">Model History</a>
-        <a class="btn" href="under-the-hood.html">Under the Hood</a>
+        <button id="try-open" type="button" class="btn" hidden>
+          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>
+          <span>Try a ticket</span>
+        </button>
+        <button id="numbers-open" type="button" class="btn bar-numbers">
+          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V5M19 20v-6"></path></svg>
+          <span>Numbers</span>
+        </button>
+        <a class="btn" href="model-history.html">
+          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 8v4l3 2"></path></svg>
+          <span>Model History</span>
+        </a>
+        <a class="btn" href="under-the-hood.html">
+          <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path></svg>
+          <span>Under the Hood</span>
+        </a>
       </div>
     </div>
     <script type="module" src="/src/desk/main.ts"></script>

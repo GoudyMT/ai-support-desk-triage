@@ -336,6 +336,86 @@ body {
   gap: var(--space-1) var(--space-2);
 }
 
+.assume-name,
+.col-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.col-title {
+  gap: var(--space-1);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* An info icon: a thin circle about 13px across with an i, set on the text line. It takes no room in the line (its right
+   margin cancels its width and left margin), so a term that just fits does not wrap for it and a row never grows; its hit area
+   is larger than the circle and takes none either. The words are in the box that follows it, shown and placed by script. */
+.tip {
+  position: relative;
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+  width: 13px;
+  height: 13px;
+  margin: 0 -17px 0 4px;
+  padding: 0;
+  border: var(--border) solid var(--control-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: var(--w-strong) 9px / 11px var(--font);
+  text-align: center;
+  cursor: help;
+}
+
+.tip::before {
+  content: 'i';
+}
+
+.tip::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.col-title .tip {
+  margin: 0;
+}
+
+.assume-name .tip {
+  margin: 0 0 0 var(--space-1);
+}
+
+.tipbox {
+  position: fixed;
+  z-index: 10;
+  width: min(17rem, calc(100vw - 1rem));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: var(--lh-card);
+  text-align: left;
+  box-shadow: var(--lift);
+}
+
+/* The parts that show only on a phone. */
+.phone-head,
+.btn.side-back,
+.btn.side-history,
+.btn.bar-numbers,
+.btn svg {
+  display: none;
+}
+
 /* The report stands where the two lists were, and the panel stays beside it. */
 .run.reporting > .lists {
   display: none;
@@ -604,7 +684,8 @@ body {
   gap: var(--space-2);
 }
 
-/* Try a ticket: below the numbers at rest, and the same panel in a modal during a run. */
+/* Try a ticket: beside the numbers at rest on a wide screen (it wraps below them on a narrow one), and the same panel in a modal
+   during a run. */
 .try {
   flex: 1 1 22.5rem;
   min-width: 0;
@@ -723,6 +804,24 @@ body {
   }
 }
 
+/* Where the panel scrolls inside itself (a wide screen, and a phone, where it covers the lists), its heading stays put and
+   keeps the panel's top margin, so the heading and its button are never cut off by the edge. */
+@media (min-width: 60rem), (max-width: 40rem) {
+  .side {
+    padding-top: 0;
+  }
+
+  .side-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: var(--space-4) 0 0;
+    background: var(--panel);
+  }
+}
+
+/* A phone, under 40rem, where the lists no longer fit side by side: one list at a time under three numbers and two tabs,
+   the This run panel over them, and a bar of four buttons with the icon above the word. */
 @media (max-width: 40rem) {
   .site-header,
   .bar,
@@ -737,5 +836,194 @@ body {
 
   .rest h1 {
     font-size: 1.5rem;
+  }
+
+  /* The desk is one screen high: the list or the panel scrolls inside it, between the header and the bar. */
+  body:has(> .run:not([hidden])) {
+    height: 100dvh;
+  }
+
+  .run {
+    flex: 1 1 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: var(--space-2);
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+    overflow: hidden;
+  }
+
+  .run > * {
+    flex: none;
+  }
+
+  .run > .lists,
+  .run > .side,
+  .run > .report {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .run > .side,
+  .run > .report {
+    overflow-y: auto;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .run[data-view='sent'] > #open-col,
+  .run[data-view='open'] > #sent-col,
+  .run[data-view='numbers'] > .lists,
+  .run:not([data-view='numbers']) > .side,
+  .run.reporting > .side,
+  .run.reporting > .phone-head,
+  .run[data-view='numbers'] > .phone-head {
+    display: none;
+  }
+
+  .phone-head {
+    display: block;
+    margin: 0 calc(-1 * var(--space-4));
+  }
+
+  .phone-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--panel);
+  }
+
+  .phone-stats > div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .phone-stats dt {
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    color: var(--muted);
+  }
+
+  .phone-stats dd {
+    margin: 0;
+    font-size: var(--fs-h3);
+    font-weight: var(--w-strong);
+    line-height: var(--lh-tight);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-bottom: var(--border) solid var(--line);
+  }
+
+  .tab {
+    min-height: var(--target);
+    border: 0;
+    border-bottom: var(--stroke) solid transparent;
+    background: var(--bg);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+
+  .tab[aria-selected='true'] {
+    border-bottom-color: var(--text);
+    color: var(--text);
+    font-weight: var(--w-strong);
+  }
+
+  /* The lists' headings are the tabs, so they stay for a screen reader and no longer show; their icons go with them. */
+  .col-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .col-title .tip {
+    display: none;
+  }
+
+  .buttons .btn {
+    min-height: var(--target);
+  }
+
+  .btn.side-back,
+  .btn.side-history {
+    display: inline-flex;
+    align-self: flex-start;
+  }
+
+  .btn.side-back {
+    margin-top: var(--space-4);
+  }
+
+  .bar {
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .status-wrap {
+    order: -1;
+    flex: 1 0 100%;
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+  }
+
+  /* The three links and the two buttons share the bar's row with Start and Stop: each takes an equal share. */
+  .bar-links {
+    display: contents;
+  }
+
+  .bar .btn {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0 var(--space-1);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .bar .btn svg {
+    display: block;
+    flex: none;
+  }
+
+  #toggle {
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+
+  #toggle.btn-solid .icon-stop,
+  #toggle:not(.btn-solid) .icon-play {
+    display: none;
+  }
+
+  /* Numbers is a button of a run, and Model History moves into the Numbers panel for the length of one. */
+  .run:not([hidden]) ~ .bar .btn.bar-numbers {
+    display: flex;
+  }
+
+  .run:not([hidden]) ~ .bar a[href='model-history.html'] {
+    display: none;
   }
 }
