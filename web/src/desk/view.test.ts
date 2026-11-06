@@ -61,7 +61,7 @@ describe('deskCards', () => {
         team: teamOf(trail),
         tag: expect.objectContaining({ level: expect.any(String) }),
         text: trail.maskedText,
-        why: whyFlagged(trail),
+        why: `${whyFlagged(trail).charAt(0).toUpperCase()}${whyFlagged(trail).slice(1)}.`,
         percent: surePercent(trail),
         showApprove: canQuickApprove(trail),
       });

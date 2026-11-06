@@ -35,6 +35,11 @@ export interface DeskNumbers {
   reviewerChanged: number;
 }
 
+// The demo's reason is a phrase inside a longer line; on a card it stands alone.
+function sentence(phrase: string): string {
+  return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}.`;
+}
+
 // The open list is already ordered by severity and then oldest first.
 export function deskCards(state: RunState): DeskCard[] {
   return state.open.map((trail) => ({
@@ -42,7 +47,7 @@ export function deskCards(state: RunState): DeskCard[] {
     team: teamOf(trail),
     tag: tagView(trail.guard.priority),
     text: trail.maskedText,
-    why: whyFlagged(trail),
+    why: sentence(whyFlagged(trail)),
     percent: surePercent(trail),
     showApprove: canQuickApprove(trail),
   }));

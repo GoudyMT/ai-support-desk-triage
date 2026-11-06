@@ -1,7 +1,7 @@
 {
   "pages": {
-    "demo": { "entry": "under-the-hood.html", "limit": 48500 },
-    "desk": { "entry": "index.html", "limit": null }
+    "demo": { "entry": "under-the-hood.html", "limit": 50000 },
+    "desk": { "entry": "index.html", "limit": 45000 }
   },
   "modelBytes": { "limit": 3850000 }
 }

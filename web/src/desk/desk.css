@@ -1,0 +1,371 @@
+/* The operator desk. Colors and sizes come from the shared tokens, so the dark theme follows the demo's. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.site-header {
+  padding: var(--space-4) 2rem;
+  border-bottom: var(--border) solid var(--line);
+}
+
+.site-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: var(--w-strong);
+}
+
+/* Screen 1: the desk at rest. */
+.rest {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.rest h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: var(--w-strong);
+}
+
+.lead {
+  margin: 0;
+  max-width: 38rem;
+  font-size: 1.0625rem;
+  color: var(--muted);
+}
+
+.measured {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.measured li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.num {
+  font-size: 1.75rem;
+  font-weight: var(--w-strong);
+  line-height: var(--lh-tight);
+}
+
+.what,
+.note {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-meta);
+  color: var(--muted);
+}
+
+.note {
+  margin: 0;
+}
+
+/* Screen 2: a run. The columns wrap into one stack on a narrow screen, where the page scrolls. */
+.run {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.25rem 2rem;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.lists {
+  flex: 3 1 21rem;
+}
+
+.side {
+  flex: 2 1 15rem;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.col-head {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+}
+
+.count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.625rem 0.875rem;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0.375rem;
+  border-bottom: var(--border) solid var(--line);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.row .meta {
+  justify-content: space-between;
+}
+
+.team {
+  font-weight: var(--w-strong);
+}
+
+.how {
+  color: var(--muted);
+}
+
+.text,
+.lean {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.text {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-card);
+}
+
+.row .text {
+  color: var(--muted);
+}
+
+.lean {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.lean strong {
+  color: var(--text);
+  font-weight: var(--w-strong);
+}
+
+.tag {
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-weight: var(--w-strong);
+}
+
+.tag-critical {
+  background: var(--tag-critical-bg);
+  color: var(--tag-critical-text);
+}
+
+.tag-high {
+  background: var(--tag-high-bg);
+  color: var(--tag-high-text);
+}
+
+.tag-medium {
+  background: var(--tag-medium-bg);
+  color: var(--tag-medium-text);
+}
+
+.tag-low {
+  background: var(--tag-low-bg);
+  color: var(--tag-low-text);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.stats dt {
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-weight: var(--w-strong);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* From 60rem the three columns share one screen and each list scrolls inside its own column. */
+@media (min-width: 60rem) {
+  body {
+    height: 100dvh;
+  }
+
+  .run {
+    flex-wrap: nowrap;
+    align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .lists {
+    flex: 3 1 0;
+  }
+
+  .side {
+    flex: 2 1 0;
+    align-self: flex-start;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* The bottom bar. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 2rem;
+  border-top: var(--border) solid var(--line);
+  background: var(--bg);
+}
+
+.status-wrap {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  padding: 0 0.875rem;
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: var(--w-strong);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--hover-bg);
+}
+
+#toggle {
+  min-width: 7.5rem;
+  font-size: var(--fs-body);
+}
+
+.btn-solid {
+  border-color: var(--solid-bg);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+}
+
+.btn-solid:hover {
+  background: var(--solid-hover-bg);
+}
+
+.btn:disabled {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+@media (max-width: 40rem) {
+  .site-header,
+  .bar,
+  .run {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .rest {
+    padding: var(--space-4);
+  }
+
+  .rest h1 {
+    font-size: 1.5rem;
+  }
+}

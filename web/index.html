@@ -9,7 +9,63 @@
     <title>Support Desk - AI Support Desk Triage</title>
   </head>
   <body>
-    <h1>Support Desk</h1>
+    <header class="site-header">
+      <p class="site-name">Support Desk</p>
+    </header>
+    <main id="rest" class="rest">
+      <h1>You are the support team. Tickets reach your desk already sorted.</h1>
+      <p class="lead">
+        Press Start and made-up tickets arrive. Each one is either sent to a team or held for a person to check.
+        Nothing here is a real customer.
+      </p>
+      <ul class="measured">
+        <li>
+          <span id="m-missed" class="num"></span>
+          <span class="what">high-risk tickets missed on a test set written blind</span>
+        </li>
+        <li>
+          <span id="m-hand" class="num"></span>
+          <span id="m-hand-what" class="what"></span>
+        </li>
+        <li>
+          <span id="m-sent" class="num"></span>
+          <span class="what">of tickets on that test set still went to a person</span>
+        </li>
+      </ul>
+      <p class="note">Measured on every code change.</p>
+    </main>
+    <main id="run" class="run" hidden>
+      <section class="col lists" aria-labelledby="open-title">
+        <h2 id="open-title" class="col-head">Needs a person <span id="open-count" class="count">0</span></h2>
+        <ul id="open-list" class="list" tabindex="0" aria-labelledby="open-title"></ul>
+      </section>
+      <section class="col lists" aria-labelledby="sent-title">
+        <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
+        <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
+      </section>
+      <aside class="col side" aria-labelledby="run-title">
+        <h2 id="run-title" class="col-head">This run</h2>
+        <dl class="stats">
+          <dt>Closed</dt>
+          <dd id="n-closed">0</dd>
+          <dt>High-risk missed</dt>
+          <dd id="n-missed">0</dd>
+          <dt>Right with no person</dt>
+          <dd id="n-right">0</dd>
+          <dt>Reviewer changed the model</dt>
+          <dd id="n-changed">0</dd>
+        </dl>
+      </aside>
+    </main>
+    <div class="bar">
+      <button id="toggle" type="button" class="btn btn-solid">Start</button>
+      <p id="status-wrap" class="status-wrap">
+        <span id="status">130 made-up tickets, about 5 minutes</span><span id="notice" role="status"></span>
+      </p>
+      <div id="bar-links" class="bar-links">
+        <a class="btn" href="under-the-hood.html">Under the Hood</a>
+      </div>
+    </div>
     <script type="module" src="/src/desk/main.ts"></script>
   </body>
 </html>
