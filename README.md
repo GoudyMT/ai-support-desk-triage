@@ -6,7 +6,7 @@
 
 [Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html) | [Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) | [The original prototype](https://goudymt.github.io/ai-support-desk-triage/capstone/prototype/AI_Support_Desk_Triage_Prototype.html)
 
-![A run on the desk: tickets arrive, sort by severity, and leave for their teams](docs/images/desk-demo.gif)
+![One ticket on the desk: it arrives, private details are hidden, the model suggests a team, a person reviews it, and it goes to its team](docs/images/desk-demo.gif)
 
 **Version 1.0.** Tickets are made up and the reviewer is simulated. Nothing is connected to a real help desk, and nothing you type leaves the page.
 
@@ -41,6 +41,12 @@ flowchart LR
 4. **People stay in charge.** The model only suggests. A person, here a simulated reviewer that is wrong 5% of the time, clears what is flagged, and you can take any ticket yourself.
 
 There is no server. The site is static, makes no calls after loading its model file, and stores nothing.
+
+### Watch it think
+
+[![Under the Hood: a live ticket with the words that moved its decision](docs/images/under-the-hood.png)](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)
+
+**[Open Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)** to see it live.
 
 ## What the current model delivers
 
