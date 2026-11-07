@@ -171,9 +171,60 @@ export function writeDatasets(
   return written;
 }
 
-function main(): void {
-  const trainAll = exportTickets(TRAIN_SEED, TRAIN_COUNT);
-  for (const { target, rows } of writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), trainAll, loadHandwritten())) {
+// Settings (a confidence floor, a model's strength) are picked on these, never
+// on a test set. A model for test fold k is tuned by training on the wording of
+// the folds other than k and j and scoring on heldout_j. The pair (k, j) and
+// (j, k) train on the same wording, so one set per pair of left-out folds
+// serves both. Each has the shipped models' row count, so a picked setting
+// transfers to them.
+export interface TuningSet {
+  leftOut: [number, number];
+  train: Ticket[];
+}
+
+export function buildTuningSets(): TuningSet[] {
+  const sets: TuningSet[] = [];
+  for (let fold = 0; fold < FOLDS; fold += 1) {
+    for (let alsoHeldOut = fold + 1; alsoHeldOut < FOLDS; alsoHeldOut += 1) {
+      sets.push({ leftOut: [fold, alsoHeldOut], train: exportTickets(TRAIN_SEED, TRAIN_COUNT, { fold, side: 'train', alsoHeldOut }) });
+    }
+  }
+  return sets;
+}
+
+// One tune_<a>_<b>.jsonl per set. Its rows carry fold null: they belong to no
+// single fold, and the file name says which two they leave out. Every check
+// runs before the first write, so a leak leaves no file behind.
+export function writeTuningSets(
+  outputDir: string,
+  sets: TuningSet[],
+  folds: FoldDataset[],
+  handwritten: HandwrittenRow[],
+): { target: string; rows: number }[] {
+  assertHandwrittenIsolated(handwritten, sets.map(({ train }) => train));
+  for (const { leftOut, train } of sets) {
+    const trained = new Set(train.map((ticket) => normalizeText(ticket.text)));
+    for (const fold of leftOut) {
+      if ((folds[fold]?.heldout ?? []).some((ticket) => trained.has(normalizeText(ticket.text)))) {
+        throw new Error('E_TUNE_OVERLAP');
+      }
+    }
+  }
+  mkdirSync(outputDir, { recursive: true });
+  return sets.map(({ leftOut, train }) => {
+    const target = join(outputDir, `tune_${leftOut[0]}_${leftOut[1]}.jsonl`);
+    writeFileSync(target, toJsonl(train, null), 'utf8');
+    return { target, rows: train.length };
+  });
+}
+
+// With --tuning it writes only the tuning sets: CI never tunes, so the default
+// export leaves them out.
+function main(args: string[]): void {
+  const written = args.includes('--tuning')
+    ? writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), loadHandwritten())
+    : writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), exportTickets(TRAIN_SEED, TRAIN_COUNT), loadHandwritten());
+  for (const { target, rows } of written) {
     console.log(`wrote ${target} (${rows} rows)`);
   }
 }
@@ -188,5 +239,5 @@ export function isRunAsCommand(entryPath: string | undefined, moduleUrl: string)
 
 // Run only as a command, never when a test imports the functions above.
 if (isRunAsCommand(process.argv[1], import.meta.url)) {
-  main();
+  main(process.argv.slice(2));
 }

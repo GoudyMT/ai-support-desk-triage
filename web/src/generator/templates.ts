@@ -20,7 +20,14 @@ export interface Template {
 // folds every item is scored once. 'all' (live demo tickets) draws from everything.
 export const FOLDS = 4;
 export type Side = 'train' | 'heldout';
-export type Split = 'all' | { fold: number; side: Side };
+// alsoHeldOut (training side only) drops a second fold from the pool too: a
+// setting tuned on that fold's held-out wording then comes from a model that saw
+// neither it nor the fold it is finally scored on.
+export type Split = 'all' | { fold: number; side: Side; alsoHeldOut?: number };
+
+function isFold(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < FOLDS;
+}
 
 // The type alone does not stop a caller that passes a value from outside the
 // type system, so every entry point checks at run time.
@@ -29,8 +36,9 @@ export function checkSplit(split: unknown): asserts split is Split {
     return;
   }
   if (typeof split === 'object' && split !== null) {
-    const { fold, side } = split as { fold?: unknown; side?: unknown };
-    if (typeof fold === 'number' && Number.isInteger(fold) && fold >= 0 && fold < FOLDS && (side === 'train' || side === 'heldout')) {
+    const { fold, side, alsoHeldOut } = split as { fold?: unknown; side?: unknown; alsoHeldOut?: unknown };
+    const secondFoldOk = alsoHeldOut === undefined || (side === 'train' && isFold(alsoHeldOut) && alsoHeldOut !== fold);
+    if (isFold(fold) && (side === 'train' || side === 'heldout') && secondFoldOk) {
       return;
     }
   }
@@ -85,7 +93,7 @@ export function poolOf<T>(items: readonly T[], split: Split): readonly T[] {
   }
   const folds = foldsOf(items);
   const wantHeldout = split.side === 'heldout';
-  return items.filter((_item, index) => (folds[index] === split.fold) === wantHeldout);
+  return items.filter((_item, index) => (folds[index] === split.fold) === wantHeldout && folds[index] !== split.alsoHeldOut);
 }
 
 export const CATEGORY_SHARES: Record<Category, number> = {
