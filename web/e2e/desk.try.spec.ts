@@ -346,6 +346,7 @@ test.describe('Try a ticket during a run', () => {
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toBeHidden();
     await expect(toggle).toHaveText('Stop');
+    await expect(page.locator('#notice')).toHaveText('Run started.');
     await page.clock.runFor(30_000);
     await fadesDone(page);
     expect(await page.locator('#run').innerText()).not.toBe(held);

@@ -13,6 +13,7 @@ const RESULT_MS = 4000;
 const NEW_MS = 2000;
 // A press this soon after a card opens or closes is a double press and is ignored; this is a moment past that.
 const SETTLE_MS = 450;
+const INSIDE_SETTLE_MS = 350;
 // Half of the number fade, so a paused fade shows a clear mid-point.
 const HALF_FADE_MS = 110;
 
@@ -423,7 +424,10 @@ test.describe('a second press right after a card opens', () => {
     await mainButton(page).click();
     await expect(dialog(page)).toBeVisible();
     await expect(page.locator(`#sent-list > li[data-ticket="${id}"]`)).toHaveCount(0);
-    await page.clock.runFor(SETTLE_MS);
+    await page.clock.runFor(INSIDE_SETTLE_MS);
+    await mainButton(page).click();
+    await expect(dialog(page)).toBeVisible();
+    await page.clock.runFor(SETTLE_MS - INSIDE_SETTLE_MS);
     await mainButton(page).click();
     await expect(dialog(page)).toBeHidden();
     await expect(page.locator(`#sent-list > li[data-ticket="${id}"]`)).toHaveCount(1);

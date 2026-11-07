@@ -132,6 +132,8 @@ test.describe('reading a card', () => {
       if ((await withApprove.count()) >= 1 && (await cards(page).count()) >= 2) break;
       await page.clock.runFor(STEP_MS);
     }
+    // A key pressed earlier does not make the mouse press that follows it the keyboard's.
+    await page.keyboard.press('Shift');
     await approveOf(cards(page).filter({ has: page.getByRole('button', { name: /^Approve/ }) }).first()).click();
     await expect(page.locator('#open-list button:focus')).toHaveCount(1);
     await expect(status(page)).toHaveText(READING);
@@ -400,4 +402,120 @@ test.describe('the links on the bar', () => {
     await finishRun(page);
     await expectHere(page);
   });
+});
+
+// Keyboard and mouse meet in the same list, and a press or a Tab must do what the viewer saw on screen.
+test.describe('keyboard and mouse together', () => {
+  const FIRST_REVIEW_BEFORE_LIST = 'Why the order changes';
+
+  // Moves into the list as a keyboard viewer does, so the run holds for reading.
+  async function tabIntoList(page: Page): Promise<void> {
+    await page.getByRole('button', { name: FIRST_REVIEW_BEFORE_LIST }).focus();
+    await page.keyboard.press('Tab');
+    await expect(list(page)).toBeFocused();
+    await expect(status(page)).toHaveText(READING);
+  }
+
+  async function runUntilApprove(page: Page): Promise<void> {
+    const approve = page.locator('#open-list').getByRole('button', { name: /^Approve/ });
+    for (let step = 0; step < MAX_STEPS && (await approve.count()) === 0; step += 1) await page.clock.runFor(STEP_MS);
+    expect(await approve.count()).toBeGreaterThan(0);
+  }
+
+  test('Approve pressed from the keyboard moves focus to the next card, keeps the run held, and throws nothing', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await openDesk(page);
+    await start(page);
+    await runUntilApprove(page);
+    await tabIntoList(page);
+    const approve = page.locator('#open-list').getByRole('button', { name: /^Approve/ }).first();
+    await approve.focus();
+    const sent = await rows(page).count();
+    await page.keyboard.press('Enter');
+    await expect(rows(page)).toHaveCount(sent + 1);
+    await expect(page.locator('#open-list button:focus, #open-title:focus')).toHaveCount(1);
+    await expect(status(page)).toHaveText(READING);
+    await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('Review pressed from the keyboard opens the card and throws nothing', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await openDesk(page);
+    await start(page);
+    await runUntilCards(page, 2);
+    await tabIntoList(page);
+    await reviewOf(cards(page).first()).focus();
+    await page.keyboard.press('Enter');
+    await expect(dialog(page)).toBeVisible();
+    await expect(status(page)).toHaveText('Paused while you review.');
+    expect(errors).toEqual([]);
+  });
+
+  for (const key of ['Escape', 'Enter']) {
+    test(`a card opened by mouse and closed with ${key} lets the run go on once the pointer is away`, async ({ page }) => {
+      await openDesk(page);
+      await start(page);
+      await runUntilCards(page, 2);
+      await reviewOf(cards(page).first()).click();
+      await expect(dialog(page)).toBeVisible();
+      await page.clock.runFor(SETTLE_MS);
+      if (key === 'Enter') await dialog(page).getByRole('button', { name: SEND }).focus();
+      await page.keyboard.press(key);
+      await expect(dialog(page)).toBeHidden();
+      await awayFromList(page);
+      await expect(status(page)).not.toHaveText(READING);
+      await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+      expect(await goesOn(page)).toBe(true);
+    });
+  }
+
+  test('pressing Start while the keyboard holds the run starts it, as the button said', async ({ page }) => {
+    await openDesk(page);
+    await start(page);
+    await runUntilCards(page, 2);
+    await tabIntoList(page);
+    await page.getByRole('button', { name: 'Start' }).click();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.locator('#notice')).not.toHaveText('Stopped.');
+    expect(await goesOn(page)).toBe(true);
+  });
+
+  test('Tab into a list taller than the screen keeps the start of the list on screen', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDesk(page);
+    await start(page);
+    await runUntilCards(page, 8);
+    await page.getByRole('button', { name: FIRST_REVIEW_BEFORE_LIST }).focus();
+    await page.keyboard.press('Tab');
+    await expect(list(page)).toBeFocused();
+    const box = await list(page).boundingBox();
+    expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+  });
+
+  test('moving focus along the bar leaves the page where it is', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDesk(page);
+    await start(page);
+    await runUntilCards(page, 8);
+    const controls = page.locator('.bar button:visible, .bar a:visible');
+    for (let at = 0; at < (await controls.count()); at += 1) {
+      await controls.nth(at).focus();
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    }
+  });
+
+  for (const size of [{ width: 844, height: 390 }, { width: 667, height: 375 }]) {
+    test(`a phone on its side at ${size.width} by ${size.height} shows the first ticket above the bar`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await openDesk(page);
+      await start(page);
+      await runUntilCards(page, 1);
+      const first = await cards(page).first().boundingBox();
+      const bar = await page.locator('.bar').boundingBox();
+      expect(first?.y ?? Infinity).toBeLessThan(bar?.y ?? 0);
+    });
+  }
 });

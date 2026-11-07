@@ -1056,18 +1056,20 @@ body {
   }
 }
 
-/* Wider than a phone and short of three columns, the two lists sit side by side and the page scrolls, so the panel goes
-   first and takes its own row: below them it would be past every sent row. */
+/* Wider than a phone and short of three columns, the two lists sit side by side and the page scrolls, so the panel takes
+   its own row. */
 @media (min-width: 40.0625rem) and (max-width: 59.9375rem) {
   .side {
-    order: -1;
     flex-basis: 100%;
   }
 }
 
-/* The bar sticks to the bottom of a page that scrolls, so a control scrolled into view rests above it, not under it. */
-html {
-  scroll-padding-bottom: 9rem;
+/* With the height for it the panel goes first: below the lists it would be past every sent row. On a short screen, a phone
+   on its side, it would fill the view, so there the tickets come first. */
+@media (min-width: 40.0625rem) and (max-width: 59.9375rem) and (min-height: 40rem) {
+  .side {
+    order: -1;
+  }
 }
 
 /* Forced colors drop backgrounds and shadows, so the selected tab and each box that stood on a shadow get an edge. */

@@ -1,5 +1,6 @@
 import '../page/tokens.css';
 import './desk.css';
+import { scrollToClear } from '../page/clearOfBar';
 import { byId, setText } from '../page/dom';
 import { fetchModel } from '../page/fetchModel';
 import { createDeskSchedule } from '../run/clock';
@@ -24,7 +25,6 @@ const PAUSED_TRY = 'Paused while you try a ticket.';
 const PAUSED_REPORT = 'Paused while you read the report.';
 const PAUSED_READ = 'Paused while you read. Move away to carry on.';
 const RESULT_MS = 4000;
-const FOCUS_CLEAR_PX = 8;
 const STARTED = 'Run started.';
 // The width where the lists show one at a time, as the style sheet has it (40rem): there the card's flight does not show.
 const PHONE = window.matchMedia('(max-width: 40rem)');
@@ -55,6 +55,8 @@ let loadState: 'idle' | 'loading' | 'failed' = 'idle';
 const notes = new Map<string, string>();
 // Where in the open list the viewer last acted, so focus goes to the card that took its place.
 let actedAt = 0;
+// Whether the review card now open was opened from the keyboard.
+let reviewedByKey = false;
 
 const toggle = (): HTMLButtonElement => byId('toggle') as HTMLButtonElement;
 const openList = (): HTMLElement => byId('open-list');
@@ -141,11 +143,11 @@ const reviewCard = createReviewCard({
       render(current);
     }, RESULT_MS);
     render(current);
-    focusList(actedAt);
+    backToList();
   },
   handBack() {
     live?.run.handBack();
-    focusList(actedAt);
+    backToList();
   },
 });
 
@@ -183,8 +185,17 @@ let reading = false;
 // A going run was held for reading and has not been started again. It may have to wait for Try a ticket or a report that
 // opened meanwhile, which hold the run in their own way and start it again only for themselves.
 let readOwes = false;
+// Removing a focused card fires focus events in the middle of a draw, and starting or holding the run there would draw again
+// inside it: the settling waits for the draw to finish.
+let drawing = false;
+let settleWaiting = false;
 
 function settleReading(): void {
+  if (drawing) {
+    settleWaiting = true;
+    return;
+  }
+  settleWaiting = false;
   const current = live;
   const list = openList();
   // A list that is not showing (the report over it, the other tab on a phone) is not being read.
@@ -215,6 +226,7 @@ document.addEventListener(
   'keydown',
   () => {
     lastInputWasKey = true;
+    goingAtPress = undefined;
     keyboardIn = openList().contains(document.activeElement);
     settleReading();
   },
@@ -222,20 +234,27 @@ document.addEventListener(
 );
 document.addEventListener('pointerdown', () => (lastInputWasKey = false), true);
 let pressing = false;
+// Whether the run was going when the press began. The press itself can move focus out of the list and start a held run, and
+// the bar's button acts on what the viewer saw.
+let goingAtPress: boolean | undefined;
 document.addEventListener('pointerdown', () => {
   pressing = true;
+  goingAtPress = live?.run.state().playing === true;
 }, true);
-document.addEventListener('pointerup', () => {
-  pressing = false;
-}, true);
+for (const ending of ['pointerup', 'pointercancel']) {
+  document.addEventListener(ending, () => {
+    pressing = false;
+  }, true);
+}
 
 // WebKit leaves a focused control under the sticky bar, whatever the page's scroll padding says.
 function clearOfBar(target: HTMLElement): void {
   const bar = document.querySelector('.bar');
   // Scrolling during a press would move the button out from under it, and the click would be lost.
-  if (bar === null || pressing || target.closest('dialog') !== null) return;
-  const under = target.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
-  if (under > 0) window.scrollBy(0, under + FOCUS_CLEAR_PX);
+  if (bar === null || pressing || bar.contains(target) || target.closest('dialog') !== null) return;
+  const box = target.getBoundingClientRect();
+  const by = scrollToClear(box.top, box.bottom, bar.getBoundingClientRect().top);
+  if (by > 0) window.scrollBy(0, by);
 }
 
 document.addEventListener('focusin', (event) => {
@@ -256,11 +275,15 @@ const tryOpen = byId('try-open');
 const tryPanel = createTryPanel();
 byId('rest').append(tryPanel);
 let resumeAfterTry = false;
+// The line a run that started under the form has yet to say.
+let startWaiting = '';
 const tryModal = createTryModal(tryPanel, byId('rest'), () => {
   const current = live;
   if (resumeAfterTry) current?.run.play();
   else if (current !== undefined) redrawBar(current);
   resumeAfterTry = false;
+  if (startWaiting !== '') setText(byId('notice'), startWaiting);
+  startWaiting = '';
   tryOpen.focus();
   settleReading();
 });
@@ -391,9 +414,17 @@ const cardActions: CardActions = {
   },
   review(id) {
     actedAt = indexOfCard(id);
+    reviewedByKey = lastInputWasKey;
     live?.run.review(id);
   },
 };
+
+// Focus coming back from a review card counts as the way the card was opened: a key that closes a card opened by mouse is
+// not the keyboard starting to work in the list, and the run must not hold for it.
+function backToList(): void {
+  lastInputWasKey = lastInputWasKey && reviewedByKey;
+  focusList(actedAt);
+}
 
 function indexOfCard(id: string): number {
   return [...openList().children].findIndex((card) => (card as HTMLElement).dataset.ticket === id);
@@ -414,6 +445,14 @@ function openLinksIn(newTab: boolean): void {
 }
 
 function render(current: Live): DeskNumbers {
+  drawing = true;
+  const numbers = draw(current);
+  drawing = false;
+  if (settleWaiting) settleReading();
+  return numbers;
+}
+
+function draw(current: Live): DeskNumbers {
   const { run, total } = current;
   const state = run.state();
   const cards = deskCards(state);
@@ -495,6 +534,7 @@ function mount(seed: number, run: Run, total: number, announce: string): void {
   // The model can arrive while the form is open: the run waits under it and goes on when the form closes.
   if (tryModal.isOpen()) {
     resumeAfterTry = true;
+    startWaiting = announce;
     render(current);
   } else {
     run.play();
@@ -543,7 +583,8 @@ toggle().addEventListener('click', () => {
   const current = live;
   // Read before the report closes: closing it may start a run that was held for reading, and a press is about the state the
   // viewer saw.
-  const going = current?.run.state().playing === true;
+  const going = goingAtPress ?? current?.run.state().playing === true;
+  goingAtPress = undefined;
   closeReport(false);
   if (current === undefined || current.ended) {
     load();
