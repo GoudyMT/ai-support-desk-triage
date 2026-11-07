@@ -24,21 +24,14 @@ This began as a keyword prototype for a course capstone. It is now a trained mod
 
 ## How it works
 
-```mermaid
-flowchart LR
-    A["Ticket arrives"] --> B["Hide private details:<br/>emails, phones,<br/>orders, cards"]
-    B --> C["Model suggests<br/>category and priority"]
-    C --> D["Guardrails:<br/>safety rules and<br/>a confidence floor"]
-    D -- "Clear" --> E["Sent to its team"]
-    D -- "Flagged" --> F["Needs a person"]
-    F --> G["Reviewer checks it,<br/>or you step in"]
-    G --> E
-```
+![How one ticket moves through the masker, the model and the guardrails, then to its team or to a person](docs/images/how-it-works.png)
 
-1. **Privacy first.** Common forms of email addresses, phone numbers, order numbers and card numbers are hidden before the model reads a ticket. Names and street addresses are not hidden.
-2. **The model.** Two small classifiers, TF-IDF word and word-pair counts into logistic regression, trained in Python with scikit-learn and exported to JSON. A TypeScript scorer runs them in the browser and agrees with Python on every evaluation ticket.
-3. **Guardrails.** Keyword rules catch security incidents, accessibility issues, billing disputes, threats, escalated complaints and vague tickets, and they can raise a priority. Any ticket the model is under 50% sure about goes to a person.
-4. **People stay in charge.** The model only suggests. A person, here a simulated reviewer that is wrong 5% of the time, clears what is flagged, and you can take any ticket yourself.
+1. **The ticket.** It arrives as the customer typed it. Here the tickets are made up.
+2. **The masker.** Plain pattern rules, no AI, swap common forms of email addresses, phone numbers, order numbers and card numbers for labels like `[CARD_NUMBER]`. Names and street addresses are not hidden, and a form the masker misses reaches the model.
+3. **The model.** It reads only the masked text and suggests an answer with how sure it is. It is two small classifiers, TF-IDF word and word-pair counts into logistic regression, trained in Python with scikit-learn and exported to JSON. A TypeScript scorer runs them in the browser and agrees with Python on every evaluation ticket.
+4. **The guardrails.** Keyword rules catch security incidents, accessibility issues, billing disputes, threats, escalated complaints and vague tickets, and they can raise a priority. Any ticket the model is under 50% sure about goes to a person.
+
+Then a clear ticket goes to its team, and a flagged one waits in Needs a person. The model only suggests. A person, here a simulated reviewer that is wrong 5% of the time, clears what is flagged, and you can take any ticket yourself.
 
 There is no server. The site is static, makes no calls after loading its model file, and stores nothing.
 
