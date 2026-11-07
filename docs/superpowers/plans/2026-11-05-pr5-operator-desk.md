@@ -1,10 +1,10 @@
 # PR 5: The Operator Desk - Implementation Plan
 
 ## Progress
-- Current task: full gate
-- Done (with evidence): all units U1 to U9 built, with their fix rounds, at 27ce2e3 plus the 1.0.0 version bump
-- Next: full gate, early Linux check with the owner's go, feature sweep with public-text modifier and the ui-review role, re-sweep, PR body
-- Branch: `feature/operator-desk`, from `main` at 5f5eca2
+- Current task: none; complete
+- Done (with evidence): merged as PR #7 at 2e8c18d, CI green on 3dcf338; deploy merged at e02a94c; v1.0.0 published; live site checked in a browser
+- Next: none here
+- Branch: `feature/operator-desk`, merged
 - Open questions: none
 
 **Goal:** a visitor lands on an operator's desk, watches tickets arrive sorted, can step in, try their own ticket, read a
