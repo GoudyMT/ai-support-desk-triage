@@ -94,7 +94,8 @@ jobs:
           PARITY_MODEL: ${{ runner.temp }}/model.json
       # The full pipeline on every held-out fold (each with its own fold model) and
       # both hand-written sets: fails if any set misses more high-risk tickets,
-      # flags a larger share, or has a different ticket or must-review count than
+      # flags a larger share, gives more unchecked wrong categories or priorities,
+      # or has a different ticket or must-review count than
       # its recorded start point, if a set is missing, if a fold file names
       # another fold, or if the frozen fresh set changed.
       # --no: use the tsx that npm ci installed from the lockfile, never fetch one.
