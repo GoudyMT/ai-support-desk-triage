@@ -12,8 +12,7 @@ fitted weights are exported to `web/src/model/model.json` and scored in TypeScri
 `web/src/model/scorer.ts`, which agrees with Python on every evaluation ticket (`npm --prefix web run parity`:
 16,048 rows, largest probability gap 1.22e-15 when measured on 2026-10-30).
 
-It is a suggestion for a human reviewer, not a decision. The live demo page, built next, will add rules and a
-review step around it.
+It is a suggestion for a human reviewer, not a decision. The live desk adds rules and a review step around it.
 
 ## Data
 
@@ -21,7 +20,7 @@ review step around it.
   tickets from sentence templates, with obviously fake personal data in some of them. No customer data is used.
 - **Masked before the model sees it.** Emails, phone numbers, order numbers and card numbers are replaced by
   `[EMAIL_ADDRESS]`, `[PHONE_NUMBER]`, `[ORDER_NUMBER]` and `[CARD_NUMBER]` (`web/src/privacy/mask.ts`). The
-  live demo page will run the same masker on what a visitor types.
+  live desk runs the same masker on what a visitor types.
 - **Hand-written set:** 48 tickets written outside the generator (`ml/data/handwritten.jsonl`): 8 from the
   project README and 40 drafted by Claude for this project, the same author as the generator templates. The set
   was frozen before the first training run and is never trained on. Because of the shared author it is a sanity
@@ -77,9 +76,8 @@ stay a fair test of it.
   right against a 57.3% held-out mean. It has seen every template, the hand-written set shares an author with
   them, and 48 rows is a small sample; any of these could account for the gap, and none has been measured.
 - **Words, not meaning.** The model counts words and word pairs; it does not understand negation or context.
-- **Masking is pattern-based.** Some formats are still missed, for example an email typed with spaces around
-  "@" or spelled out ("jane at example dot com"), full-width digits or "@", card digits split by tabs, line
-  breaks or commas, a phone written with "/" or "_", or a phone that looks like a year-first date
-  ("2010-12-31"). Long digit runs, slash-written date ranges and 7+ digit ids are masked even when they are not
+- **Masking is pattern-based.** Some forms are still missed, for example an email spelled out
+  ("jane at example dot com"), a phone written with "_", a short order reference ("order 123"), or a phone that
+  looks like a year-first date ("2010-12-31"). Long digit runs, slash-written date ranges and 7+ digit ids are masked even when they are not
   personal data, and in text without spaces (Chinese, Japanese) the words joined to an email are masked with it.
 - **Size.** `model.json` is 3,825,908 bytes (about 1.4 MB gzipped).
