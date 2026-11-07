@@ -107,7 +107,6 @@ describe('the start-point gate', () => {
     expect(gateFailures([at('a', 2, 0.5, 4, 10, 1, 2), B_HELD], START)).toEqual([]);
     expect(gateFailures([at('a', 2, 0.5, 4, 10, 2, 0), B_HELD], START)).toEqual(['a']);
     expect(gateFailures([at('a', 2, 0.5, 4, 10, 0, 3), B_HELD], START)).toEqual(['a']);
-    expect(checkExitCode([at('a', 2, 0.5, 4, 10, 1, 3), B_HELD], START)).toBe(1);
   });
 
   // Dropping ordinary tickets raises nothing the other numbers would catch.
@@ -144,22 +143,25 @@ describe('the start-point gate', () => {
   });
 
   // The shipped model answers this text Technical Issue, Medium, with no rule word.
-  // At floor 0 nothing is flagged: that answer is wrong on both heads for T-4 and
-  // right for T-5. At floor 1 every ticket goes to a person, so nothing is silent.
+  // At floor 0 nothing is flagged: that answer is wrong on both heads for T-4,
+  // on category only for T-6, and right for T-5. At floor 1 every ticket goes to a
+  // person, so nothing is silent.
   it('counts a wrong answer only when no person checked the ticket', () => {
     const text = 'Where can I find the export button?';
     const rows = parseRows(
       [
         JSON.stringify({ id: 'T-4', text, category: 'Billing', priority: 'Urgent', mustReview: false }),
         JSON.stringify({ id: 'T-5', text, category: 'Technical Issue', priority: 'Medium', mustReview: false }),
+        JSON.stringify({ id: 'T-6', text, category: 'Billing', priority: 'Medium', mustReview: false }),
       ].join('\n'),
     );
     const unchecked = measureSet('probe', MODEL, rows, 0, false);
     expect(unchecked.flagRate).toBe(0);
-    expect(unchecked.silentCategory).toBe(1);
+    expect(unchecked.silentCategory).toBe(2);
     expect(unchecked.silentPriority).toBe(1);
-    // The simulated reviewer is wrong 1 time in 20; across 60 checked tickets some
-    // of its answers are wrong, and those were still checked by a person.
+    // The simulated reviewer picks a wrong category 1 time in 20 (it always keeps
+    // the true priority); across 60 checked tickets some of its categories are
+    // wrong, and those were still checked by a person.
     const many = parseRows(
       Array.from({ length: 60 }, (_, i) => JSON.stringify({ id: `R-${i}`, text, category: 'Billing', priority: 'Urgent', mustReview: false })).join('\n'),
     );

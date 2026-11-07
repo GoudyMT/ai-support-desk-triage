@@ -84,13 +84,16 @@ export function buildDatasets(): FoldDataset[] {
 // The frozen hand-written set is only ever read; the exporter writes a copy
 // with two more columns beside the generated files.
 const HANDWRITTEN_SOURCE = new URL('../../ml/data/handwritten.jsonl', import.meta.url);
+// The fresh set is the untouched test; a setting tuned on data that holds one of
+// its texts would be picked with the answer in view.
+export const FRESH_SOURCE = new URL('../../ml/data/handwritten_fresh.jsonl', import.meta.url);
 
 export interface HandwrittenRow extends Record<string, unknown> {
   text: string;
 }
 
-export function loadHandwritten(): HandwrittenRow[] {
-  return readFileSync(HANDWRITTEN_SOURCE, 'utf8')
+export function loadHandwritten(source: URL = HANDWRITTEN_SOURCE): HandwrittenRow[] {
+  return readFileSync(source, 'utf8')
     .trimEnd()
     .split(/\r?\n/)
     .map((line) => JSON.parse(line) as HandwrittenRow);
@@ -113,7 +116,8 @@ export function assertHandwrittenIsolated(
 
 // Every line carries all eleven keys, with null for what a ticket lacks, so the
 // reader on the Python side never has to guess whether a key is missing. `fold`
-// names the fold the file belongs to, or is null for the file of all wording.
+// names the fold the file belongs to, or is null for a file that belongs to no
+// single fold (train_all, and the tune_<a>_<b> sets, whose name gives the folds).
 // `maskedText` is what the model trains on; `v0` is the answer of the original
 // keyword page on the raw text, so both are scored on identical rows.
 export function toJsonl(tickets: Ticket[], fold: number | null): string {
@@ -222,7 +226,7 @@ export function writeTuningSets(
 // export leaves them out.
 function main(args: string[]): void {
   const written = args.includes('--tuning')
-    ? writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), loadHandwritten())
+    ? writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)])
     : writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), exportTickets(TRAIN_SEED, TRAIN_COUNT), loadHandwritten());
   for (const { target, rows } of written) {
     console.log(`wrote ${target} (${rows} rows)`);
