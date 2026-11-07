@@ -326,10 +326,8 @@ test.describe('info tips', () => {
     test('a tip whose icon is low on the screen opens above it, on the screen, and not over it', async ({ page }) => {
       await runDesk(page);
       await more(page).click();
-      await side(page).evaluate((node) => {
-        node.scrollTop = 0;
-      });
       const icon = tip(page, 'Where the hourly pay figure comes from');
+      await icon.evaluate((node) => node.scrollIntoView({ block: 'end' }));
       await icon.focus();
       await expect(tooltip(page)).toHaveCount(1);
       const at = await boxOf(icon);

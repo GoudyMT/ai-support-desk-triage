@@ -221,10 +221,19 @@ document.addEventListener(
   true,
 );
 document.addEventListener('pointerdown', () => (lastInputWasKey = false), true);
+let pressing = false;
+document.addEventListener('pointerdown', () => {
+  pressing = true;
+}, true);
+document.addEventListener('pointerup', () => {
+  pressing = false;
+}, true);
+
 // WebKit leaves a focused control under the sticky bar, whatever the page's scroll padding says.
 function clearOfBar(target: HTMLElement): void {
   const bar = document.querySelector('.bar');
-  if (bar === null || target.closest('dialog') !== null) return;
+  // Scrolling during a press would move the button out from under it, and the click would be lost.
+  if (bar === null || pressing || target.closest('dialog') !== null) return;
   const under = target.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
   if (under > 0) window.scrollBy(0, under + FOCUS_CLEAR_PX);
 }
