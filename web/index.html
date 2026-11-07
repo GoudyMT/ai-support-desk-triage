@@ -34,7 +34,7 @@
           </li>
         </ul>
         <p class="note">
-          Measured on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is
+          These test results are checked on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is
           sometimes missed.
         </p>
       </div>
@@ -80,7 +80,7 @@
         <div class="col-title">
           <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
           <button type="button" class="tip" aria-label="What the labels mean" aria-describedby="tip-labels"></button>
-          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed. Reviewer changed it: the simulated reviewer changed the model's answer.</span>
+          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.</span>
         </div>
         <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
       </section>
@@ -156,7 +156,7 @@
           <dd id="n-right">0</dd>
           <dt>
             Reviewer changed the model&#8288;<button type="button" class="tip" aria-label="Why the reviewer changes the model" aria-describedby="tip-changed"></button>
-            <span id="tip-changed" class="tipbox" role="tooltip" hidden>Times the simulated reviewer disagreed with the model. This is how most mistakes get caught before a ticket goes out.</span>
+            <span id="tip-changed" class="tipbox" role="tooltip" hidden>Times the simulated reviewer changed the model's category. This is how most mistakes get caught before a ticket goes out.</span>
           </dt>
           <dd id="n-changed">0</dd>
         </dl>

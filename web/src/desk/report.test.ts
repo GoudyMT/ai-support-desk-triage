@@ -154,7 +154,7 @@ describe('the lead sentence', () => {
   }
 
   const second = (w: { flagged: number; closed: number; right: string }): string =>
-    ` The model alone got the category right ${w.right} of the time, and the simulated reviewer checked ${w.flagged} of ${w.closed} tickets.`;
+    ` The model alone got the category right ${w.right} of the time, and ${w.flagged} of ${w.closed} tickets went to review.`;
 
   it('says no high-risk ticket got past review when none did', () => {
     const w = withMissed(0);

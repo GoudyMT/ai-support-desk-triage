@@ -18,12 +18,12 @@ const TIPS = [
   },
   {
     name: 'What the labels mean',
-    text: 'These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed. Reviewer changed it: the simulated reviewer changed the model\'s answer.',
+    text: 'These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.',
   },
   { name: 'What high-risk missed means', text: 'Tickets that truly needed a person but went out without one. The goal is zero.' },
   {
     name: 'Why the reviewer changes the model',
-    text: 'Times the simulated reviewer disagreed with the model. This is how most mistakes get caught before a ticket goes out.',
+    text: 'Times the simulated reviewer changed the model\'s category. This is how most mistakes get caught before a ticket goes out.',
   },
   { name: 'Where the minutes figure comes from', text: TIME_SAVED_SOURCE },
   { name: 'Where the hourly pay figure comes from', text: VALUE_SAVED_SOURCE },

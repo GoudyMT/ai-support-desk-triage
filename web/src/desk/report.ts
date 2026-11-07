@@ -28,7 +28,7 @@ function leadOf(missed: number, modelRight: number, flagged: number, closed: num
     missed === 0
       ? 'No high-risk ticket got past review.'
       : `${missed} high-risk ticket${missed === 1 ? '' : 's'} got past review.`;
-  return `${risk} The model alone got the category right ${percent(modelRight)} of the time, and the simulated reviewer checked ${flagged} of ${closed} tickets.`;
+  return `${risk} The model alone got the category right ${percent(modelRight)} of the time, and ${flagged} of ${closed} tickets went to review.`;
 }
 
 /**

@@ -183,7 +183,7 @@ test.describe('Generate report', () => {
     // The panel and the report read the same closed tickets.
     await expect(reportRows(page).nth(0)).toHaveText((await page.locator('#n-sent').textContent()) ?? '');
     await expect(reportRows(page).nth(6)).toHaveText('0 of 0');
-    await expect(page.locator('#report-lead')).toHaveText(/got past review\. The model alone got the category right \d+% of the time, and the simulated reviewer checked \d+ of 130 tickets\.$/);
+    await expect(page.locator('#report-lead')).toHaveText(/got past review\. The model alone got the category right \d+% of the time, and \d+ of 130 tickets went to review\.$/);
     // The footer says what the numbers rest on, with the assumption edited above.
     await expect(page.locator('#report-footer')).toHaveText(
       'Made-up tickets. After review uses a simulated reviewer that is wrong 5% of the time. Estimates assume 3 minutes per ticket and $21.53 an hour. A live run uses different tickets from the test sets, so these numbers differ.',
@@ -279,6 +279,23 @@ test('printing with no report open shows the run numbers and none of the tickets
   await expect(page.locator('.bar')).toBeHidden();
   await expect(more(page)).toBeHidden();
   await expect(generate(page)).toBeHidden();
+});
+
+test('printing with a review card open leaves the card and its note off the page', async ({ page }) => {
+  await runWithPanel(page, 60_000);
+  await page.locator('#open-list button[aria-label^="Review "]').first().click();
+  await page.clock.runFor(450);
+  const card = page.getByRole('dialog');
+  await card.getByLabel('Note for the team (optional)').fill('private note');
+  await page.emulateMedia({ media: 'print' });
+  await expect(card).toBeHidden();
+});
+
+test('printing at rest leaves the box a viewer typed a ticket in off the page', async ({ page }) => {
+  await page.goto(`/?seed=${SEED}`);
+  await expect(page.locator('#rest .try')).toBeVisible();
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#rest .try')).toBeHidden();
 });
 
 test('Print or save as PDF asks the browser to print', async ({ page }) => {

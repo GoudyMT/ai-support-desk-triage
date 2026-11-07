@@ -16,7 +16,7 @@ This began as a keyword prototype for a course capstone. It is now a trained mod
 
 | Page | What it shows |
 |---|---|
-| **[The desk](https://goudymt.github.io/ai-support-desk-triage/)** | The receiving end. Press Start and 130 made-up tickets arrive over about 5 minutes. Each one goes to a team or waits in Needs a person, highest risk first. Step in with Review, or press Approve when the model is at least 70% sure. |
+| **[The desk](https://goudymt.github.io/ai-support-desk-triage/)** | The receiving end. Press Start and a run of 130 made-up tickets plays out in about 5 minutes. Each one goes to a team or waits in Needs a person, highest risk first. Step in with Review, or press Approve when the model is at least 70% sure. |
 | **Try a ticket** | Type your own support message and see its category, priority, team and whether a person is needed. |
 | **The report** | An after action report for the run so far, with the numbers behind it. Print it or save it as a PDF. |
 | **[Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)** | The same pipeline slowed down, one stage at a time, with the words that moved each decision. |
@@ -44,7 +44,7 @@ There is no server. The site is static, makes no calls after loading its model f
 
 ## What the current model delivers
 
-Every number here is re-measured or checked in CI on each code change, except the two marked as estimates.
+The first table is re-measured or checked in CI on each code change. The second is a count of 40 full desk runs, and two of its rows are estimates.
 
 | Measure | Keyword prototype | Current model |
 |---|---|---|
@@ -57,13 +57,13 @@ Across 40 full desk runs, seeds 2000 to 2039, with no one stepping in:
 | Per run of 130 tickets | Result |
 |---|---|
 | Category right, model alone | 58% |
-| Category right after review | 95% |
+| Category right after review, with a simulated reviewer assumed right 95% of the time | 94.5% |
 | Sent to a person | 89% |
 | Sorted fully right with no person | about 12 tickets |
 | Time saved (estimate, at 2 minutes a ticket) | about 24 minutes |
 | Value saved (estimate, at $21.53 an hour) | about $8.52 |
 
-**What this means.** The model nearly doubles the keyword method, and the guardrails keep risky tickets in front of a person. It is also a first model. It is cautious, so most tickets still go to a person, and a live run is harder than the test sets: 30 high-risk tickets across those 40 runs went out without a person, in 17 of the runs. The goal of the next versions is more right answers and fewer tickets that need a person, with none of those misses. [Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) will show each step, and the [model card](ml/MODEL_CARD.md) has the full method and limits.
+**What this means.** The model gets about 1.7 times as many categories right as the keyword method, and the guardrails keep risky tickets in front of a person. It is also a first model. It is cautious, so most tickets still go to a person, and a live run is harder than the blind test set: 30 high-risk tickets across those 40 runs went out without a person, in 17 of the runs. The goal of the next versions is more right answers and fewer tickets that need a person, with none of those misses. [Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) will show each step, and the [model card](ml/MODEL_CARD.md) has the full method and limits.
 
 The two estimates use less than the lowest figure IT desk vendors publish for sorting a ticket, and the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). You can change both on the desk.
 
@@ -80,8 +80,8 @@ The two estimates use less than the lowest figure IT desk vendors publish for so
 |---|---|
 | Privacy | Fictional tickets only. Common forms of personal details are hidden before the model reads a ticket. Nothing typed is stored or sent. |
 | Wrong answers | Everything is a suggestion. Below 70% sure there is no one-press Approve. Wrong quick approvals are counted in the report. |
-| High-risk tickets | Safety rules send them to a person whatever the model says, and misses are the headline number. |
-| Overclaiming | Every figure is measured or a visible, editable assumption. Live runs and test sets are labeled apart. |
+| High-risk tickets | Safety rules send the ones they catch to a person whatever the model says, and misses are the headline number. |
+| Overclaiming | Every figure is measured or a stated assumption. Time and pay can be edited on the desk; the simulated reviewer's 95% is fixed. Live runs and test sets are labeled apart. |
 | Over-automation | The system never replies to a customer. |
 
 ## Run it locally

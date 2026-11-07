@@ -58,13 +58,23 @@ v0 is the original keyword-rule prototype, ported exactly (`web/src/baseline/v0.
 | Hand-written (shipped model) | 39 / 48 | 22 / 48 |
 
 v0's review flag matches the gold flag on 67.6% of held-out tickets (mean) and 32 of 48 hand-written ones. The
-model has no review flag of its own; the live page's review rules are built in a later step.
+model has no review flag of its own: the rules and confidence floor in the pipeline decide what goes to a person.
 
 **The bar.** The project's bar is that the model beats v0 on category accuracy on every fold and on the
 hand-written set: it does (`beats_v0_every_fold` and `beats_v0_handwritten` are true). The owner set this first
 run as the floor: later changes may not lower any fold's category accuracy by more than 1 point or drop the
 hand-written set below 39 of 48. Any later tuning should be judged on a separate tuning split, so the folds
 stay a fair test of it.
+
+## On the desk
+
+Counted over 40 full desk runs, seeds 2000 to 2039, with no one stepping in: the model alone gets the category right
+58.2% of the time, and 94.5% after review. That second figure rests on a simulated reviewer assumed right 95% of the
+time, not on people. 88.7% of tickets go to a person, and 30 high-risk tickets went out without one, in 17 of the runs.
+
+On the 60-ticket set written blind and frozen before measuring, 0 of 24 high-risk tickets are missed. Two of its tickets
+are near-matches, recorded rather than removed: F-19 shares an opening with a training template (word overlap 0.67), and
+F-48 rewords seen ticket H-07. The first 48-ticket hand-written set shaped the rules, so it counts as seen for them.
 
 ## Limits
 
