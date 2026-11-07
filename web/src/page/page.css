@@ -84,16 +84,16 @@ p {
 }
 
 .top-text {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
   min-width: 0;
 }
 
-.back {
+/* Under the title, not beside it: a wider header would push the numbers onto a row of their own. */
+.btn.back {
   display: inline-flex;
   align-items: center;
+  min-height: 1.5rem;
+  padding: 0 var(--space-2);
+  font-size: var(--fs-sm);
   text-decoration: none;
 }
 

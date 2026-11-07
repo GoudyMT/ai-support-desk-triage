@@ -106,6 +106,8 @@ test.describe('Generate report', () => {
     await closeReport(page).click();
     await expect(report(page)).toBeHidden();
     await expect(generate(page)).toBeFocused();
+    // The lists come back under a pointer left where Close report was, which holds the run, so it moves away.
+    await page.mouse.move(0, 0);
     await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
     await page.clock.runFor(30_000);
     expect(await held(page)).not.toEqual(before);
@@ -150,6 +152,7 @@ test.describe('Generate report', () => {
     await page.clock.runFor(60_000);
     expect(await held(page)).toEqual(before);
     await closeReport(page).click();
+    await page.mouse.move(0, 0);
     await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
     await page.clock.runFor(30_000);
     expect(await held(page)).not.toEqual(before);

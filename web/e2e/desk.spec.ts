@@ -192,6 +192,8 @@ test('while the report is open the bar says the run is paused for reading, and a
   await expect(page.locator('#status')).toHaveText('Paused while you read the report.');
   await expect(page.locator('#notice')).toBeEmpty();
   await page.getByRole('button', { name: 'Close report' }).click();
+  // The lists come back under a pointer left where Close report was, which holds the run, so it moves away.
+  await page.mouse.move(0, 0);
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.locator('#notice')).toHaveText('Stopped.');
   await page.getByRole('button', { name: 'Generate report' }).click();

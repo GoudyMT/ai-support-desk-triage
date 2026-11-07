@@ -327,9 +327,9 @@ test.describe('info tips', () => {
       await runDesk(page);
       await more(page).click();
       await side(page).evaluate((node) => {
-        node.scrollTop = 30;
+        node.scrollTop = 0;
       });
-      const icon = tip(page, 'Where the minutes figure comes from');
+      const icon = tip(page, 'Where the hourly pay figure comes from');
       await icon.focus();
       await expect(tooltip(page)).toHaveCount(1);
       const at = await boxOf(icon);

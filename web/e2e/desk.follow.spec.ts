@@ -251,6 +251,7 @@ test.describe('reading a card', () => {
     await expect(status(page)).toHaveText(PAUSED_REPORT);
     await page.getByRole('button', { name: 'Close report' }).click();
     await expect(page.locator('#report')).toBeHidden();
+    await awayFromList(page);
     await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
     expect(await goesOn(page)).toBe(true);
   });
