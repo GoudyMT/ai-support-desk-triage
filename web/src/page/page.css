@@ -69,7 +69,8 @@ p {
   margin: 0 auto;
   padding: var(--space-4);
   /* The bar is fixed over the bottom of the screen; its height is kept clear under the content. */
-  padding-bottom: calc(var(--bar-h) + var(--block-h));
+  /* One pixel more, since a page height with a fraction would leave its last row under the bar by that fraction. */
+  padding-bottom: calc(var(--bar-h) + var(--block-h) + 1px);
 }
 
 .top {
@@ -83,7 +84,17 @@ p {
 }
 
 .top-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
   min-width: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 h1 {

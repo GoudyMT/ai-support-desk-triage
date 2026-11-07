@@ -88,7 +88,7 @@ const field = (page: Page, label: string): Locator => dialog(page).getByLabel(la
 const noteBox = (page: Page): Locator => dialog(page).getByLabel('Note for the team (optional)');
 const sendButton = (page: Page): Locator =>
   dialog(page).getByRole('button', { name: /^(Looks good, send it|Send with my changes)$/ });
-const more = (page: Page): Locator => page.getByRole('button', { name: /^(More|Fewer) numbers$/ });
+const more = (page: Page): Locator => page.getByRole('button', { name: /^(More numbers and report|Fewer numbers)$/ });
 const generate = (page: Page): Locator => page.getByRole('button', { name: 'Generate report' });
 const report = (page: Page): Locator => page.locator('#report');
 const side = (page: Page): Locator => page.locator('aside.side');
@@ -297,8 +297,9 @@ test.describe('the bar on a wide screen', () => {
     await expect(link).toBeVisible();
     const box = await boxOf(link);
     expect(box.y + box.height).toBeLessThanOrEqual(WIDE.height);
-    await link.click();
-    await expect(page).toHaveURL(/\/model-history\.html$/);
+    // During a run it opens beside the desk, so the run is not lost.
+    const [opened] = await Promise.all([page.context().waitForEvent('page'), link.click()]);
+    await expect(opened).toHaveURL(/\/model-history\.html$/);
   });
 });
 
