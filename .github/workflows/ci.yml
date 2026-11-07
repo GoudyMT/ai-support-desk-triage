@@ -100,3 +100,47 @@ jobs:
       # --no: use the tsx that npm ci installed from the lockfile, never fetch one.
       - run: npm exec --no -- tsx scripts/measurePipeline.ts --folds "$RUNNER_TEMP/folds" --check
         working-directory: web
+
+  # Builds the site from main once both checks pass, so a red commit never goes
+  # live. Package install scripts run here, so this job has read access only.
+  site:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [gate, model]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.22.3
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      # The prototype and checkpoints have public links from before this deploy, so
+      # they stay at the same paths. cp fails the job if the folder ever moves.
+      - run: cp -r capstone web/dist/capstone
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: web/dist
+
+  # The only job with write access, and it runs no repository or package code.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: site
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
