@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SEED } from './helpers';
+import { DEMO_PATH, SEED } from './helpers';
 
 // Real time, no test clock: a card in flight is a real animation, and these rows ask what it does when the page
 // moves under it. Opening All numbers pushes the board down by the height of the panel.
@@ -10,7 +10,7 @@ test.use({ viewport: { width: 1280, height: 800 } });
 
 test.describe('a card in flight when All numbers opens', () => {
   test('does not land on the panel: no card is drawn over it', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     await page.getByRole('button', { name: 'See The Process' }).click();
     await page.getByRole('button', { name: 'Speed up', exact: true }).click();
     // The busy day is moving cards all the time; open the panel at the moment one is travelling.
@@ -37,7 +37,7 @@ test.describe('a card in flight', () => {
   const FLIGHT_MAX_MS = 400;
 
   async function busyDay(page: Page): Promise<void> {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     await page.getByRole('button', { name: 'See The Process' }).click();
     await page.getByRole('button', { name: 'Speed up', exact: true }).click();
   }

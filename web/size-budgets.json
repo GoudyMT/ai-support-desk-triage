@@ -1,4 +1,8 @@
 {
-  "pageGzipBytes": { "limit": 48500 },
-  "modelBytes": { "limit": 3600000 }
+  "pages": {
+    "demo": { "entry": "under-the-hood.html", "limit": 50000 },
+    "desk": { "entry": "index.html", "limit": 49000 },
+    "history": { "entry": "model-history.html", "limit": 8000 }
+  },
+  "modelBytes": { "limit": 3850000 }
 }

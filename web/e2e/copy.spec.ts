@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SEED, SLOW_STATUS, SLOW_TEST_MS, open, playToFirstOpen, reviewButton, runPlaying, seeAndPause } from './helpers';
+import { DEMO_PATH, SEED, SLOW_STATUS, SLOW_TEST_MS, open, playToFirstOpen, reviewButton, runPlaying, seeAndPause } from './helpers';
 
 test.describe.configure({ timeout: SLOW_TEST_MS });
 
@@ -120,7 +120,7 @@ test.describe('what the review form says', () => {
 
 test.describe('what the real speed result says', () => {
   test('explains the second pass in plain words and keeps the simulated reviews line', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     await seeAndPause(page);
     await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
     const result = page.locator('#ticket .result');

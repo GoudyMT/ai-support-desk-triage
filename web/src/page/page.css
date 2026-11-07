@@ -69,7 +69,8 @@ p {
   margin: 0 auto;
   padding: var(--space-4);
   /* The bar is fixed over the bottom of the screen; its height is kept clear under the content. */
-  padding-bottom: calc(var(--bar-h) + var(--block-h));
+  /* One pixel more, since a page height with a fraction would leave its last row under the bar by that fraction. */
+  padding-bottom: calc(var(--bar-h) + var(--block-h) + 1px);
 }
 
 .top {
@@ -84,6 +85,16 @@ p {
 
 .top-text {
   min-width: 0;
+}
+
+/* Under the title, not beside it: a wider header would push the numbers onto a row of their own. */
+.btn.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 var(--space-2);
+  font-size: var(--fs-sm);
+  text-decoration: none;
 }
 
 h1 {

@@ -127,9 +127,9 @@ describe('liveNumbers on the twelve-ticket fixture', () => {
       done: TRAILS,
       realSpeed: { tickets: 12, ms: 780 },
       viewerReviews: [
-        { id: 'T05', correct: true },
-        { id: 'T06', correct: false },
-        { id: 'T09', correct: true },
+        { id: 'T05', correct: true, quick: false },
+        { id: 'T06', correct: false, quick: false },
+        { id: 'T09', correct: true, quick: false },
       ],
     });
     const numbers = liveNumbers(state, truthOf);

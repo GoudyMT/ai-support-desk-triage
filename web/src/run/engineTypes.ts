@@ -34,7 +34,8 @@ export interface RunState {
   open: TicketTrail[];
   done: TicketTrail[];
   reviewing?: TicketTrail;
-  viewerReviews: { id: string; correct: boolean }[];
+  // `quick`: closed with Approve on the card, not through the review form.
+  viewerReviews: { id: string; correct: boolean; quick: boolean }[];
   realSpeed?: { tickets: number; ms: number };
 }
 
@@ -48,6 +49,9 @@ export interface Run {
   review(id: string): void;
   confirm(d: { category: Category; priority: Priority; route: string }): void;
   handBack(): void;
+  // Closes an open ticket to the suggestion its card shows. Does nothing for a card under the quick-approve
+  // cutoff, an id that is not open, or while a review form is open.
+  approve(id: string): void;
   finishNow(): void;
   hold(where: Hold): void;
   speedUp(): void;
@@ -66,6 +70,11 @@ export interface RunOptions {
   // False only for the throwaway run that times a pass: it times nothing itself, which is
   // what stops a timing run from starting a timing run of its own.
   timed?: boolean;
+  // How often the simulated reviewer closes a ticket; defaults to CLOSE_EVERY_MS.
+  closeEveryMs?: number;
+  // How many of the first tickets get the slow, narrated pace; defaults to DEEP_TICKETS. Zero means the run
+  // never slows itself or pauses to offer speed up.
+  deepTickets?: number;
 }
 
 // The first tickets stay in the center long enough to read the full narration of each stage;
@@ -77,3 +86,5 @@ export const QUICK_STAGE_MS = 250;
 export const TAG_DELAY_MS = 400;
 // The simulated reviewer closes one open ticket every 1.5 seconds of run time.
 export const CLOSE_EVERY_MS = 1500;
+// A card shows Approve from this share of sure, as the card prints it.
+export const QUICK_APPROVE_PERCENT = 70;

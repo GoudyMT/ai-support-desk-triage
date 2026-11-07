@@ -1,0 +1,1086 @@
+/* The operator desk. Colors and sizes come from the shared tokens, so the dark theme follows the demo's. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.site-header {
+  padding: var(--space-4) 2rem;
+  border-bottom: var(--border) solid var(--line);
+}
+
+.site-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: var(--w-strong);
+}
+
+/* Screen 1: the desk at rest. */
+/* The sentence and numbers stand beside Try a ticket on a wide screen; on a narrow one it wraps below them. */
+.rest {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 2rem;
+  width: 100%;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.intro {
+  flex: 999 1 35rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.rest h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: var(--w-strong);
+}
+
+.lead {
+  margin: 0;
+  max-width: 38rem;
+  font-size: 1.0625rem;
+  color: var(--muted);
+}
+
+.measured {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.measured li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.num {
+  font-size: 1.75rem;
+  font-weight: var(--w-strong);
+  line-height: var(--lh-tight);
+}
+
+.what,
+.note {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-meta);
+  color: var(--muted);
+}
+
+.note {
+  margin: 0;
+}
+
+/* Screen 2: a run. The columns wrap into one stack on a narrow screen, where the page scrolls. */
+.run {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.25rem 2rem;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.lists {
+  flex: 3 1 21rem;
+}
+
+.side {
+  flex: 2 1 15rem;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.col-head {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+}
+
+.count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.list,
+.misses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.625rem 0.875rem;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+
+/* A card that has just arrived: a thin accent outline and the word New, so it is not shown by color alone. */
+.card.fresh {
+  border-color: var(--accent);
+}
+
+.new {
+  font-weight: var(--w-strong);
+  color: var(--lit-text);
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.buttons .btn {
+  min-height: 2.125rem;
+  padding: 0 0.75rem;
+  font-size: var(--fs-sm);
+}
+
+.your-note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-card);
+  overflow-wrap: anywhere;
+}
+
+/* A copy of a card crossing from one list to the other, above the page and out of the way of the pointer. */
+.flights {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  pointer-events: none;
+}
+
+.flights .card {
+  position: fixed;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0.375rem;
+  border-bottom: var(--border) solid var(--line);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+/* A row that has just been sent carries the thin outline a new card does, on the inside so the list never grows for it. */
+.row.fresh {
+  outline: var(--border) solid var(--accent);
+  outline-offset: calc(-1 * var(--border));
+}
+
+/* How a ticket was closed, and the team its card showed when it went elsewhere, stand together at the right. */
+.row .how {
+  margin-left: auto;
+}
+
+.team {
+  font-weight: var(--w-strong);
+}
+
+.how,
+.was {
+  color: var(--muted);
+}
+
+.text,
+.lean {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.text {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-card);
+}
+
+.row .text {
+  color: var(--muted);
+}
+
+.lean {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.lean strong {
+  color: var(--text);
+  font-weight: var(--w-strong);
+}
+
+.tag {
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-weight: var(--w-strong);
+}
+
+.tag-critical {
+  background: var(--tag-critical-bg);
+  color: var(--tag-critical-text);
+}
+
+.tag-high {
+  background: var(--tag-high-bg);
+  color: var(--tag-high-text);
+}
+
+.tag-medium {
+  background: var(--tag-medium-bg);
+  color: var(--tag-medium-text);
+}
+
+.tag-low {
+  background: var(--tag-low-bg);
+  color: var(--tag-low-text);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.stats dt {
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-weight: var(--w-strong);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border) solid var(--line);
+}
+
+.assume {
+  display: grid;
+  grid-template-columns: 1fr 5rem;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.assume-name,
+.col-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.col-title {
+  gap: var(--space-1);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* An info icon: a thin circle about 13px across with an i, set on the text line. It takes no room in the line (its right
+   margin cancels its width and left margin), so a term that just fits does not wrap for it and a row never grows; its hit area
+   is larger than the circle and takes none either. The words are in the box that follows it, shown and placed by script. */
+.tip {
+  position: relative;
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+  width: 13px;
+  height: 13px;
+  margin: 0 -17px 0 4px;
+  padding: 0;
+  border: var(--border) solid var(--control-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: var(--w-strong) 9px / 11px var(--font);
+  text-align: center;
+  cursor: help;
+}
+
+.tip::before {
+  content: 'i';
+}
+
+.tip::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.col-title .tip {
+  margin: 0;
+}
+
+.assume-name .tip {
+  margin: 0 0 0 var(--space-1);
+}
+
+/* A tap on whatever a box covers still reaches it: the box must never block a control. */
+.tipbox {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10;
+  width: min(17rem, calc(100vw - 1rem));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: var(--lh-card);
+  text-align: left;
+  box-shadow: var(--lift);
+}
+
+/* The parts that show only on a phone. */
+.phone-head,
+.btn.side-back,
+.btn.side-history,
+.btn.bar-numbers,
+.btn svg {
+  display: none;
+}
+
+/* The report stands where the two lists were, and the panel stays beside it. */
+.run.reporting > .lists {
+  display: none;
+}
+
+.report {
+  flex: 6 1 21rem;
+}
+
+.report-head {
+  justify-content: space-between;
+}
+
+.report h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.report .lead {
+  color: var(--text);
+}
+
+.report-footer {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.report table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report th,
+.report td {
+  padding: var(--space-2) 0.75rem;
+  border-bottom: var(--border) solid var(--line);
+  text-align: right;
+}
+
+.report th:first-child {
+  text-align: left;
+}
+
+.report td:last-child {
+  font-weight: var(--w-strong);
+}
+
+.misses .text {
+  color: var(--text);
+}
+
+/* From 60rem the three columns share one screen and each list scrolls inside its own column. */
+@media (min-width: 60rem) {
+  body {
+    height: 100dvh;
+  }
+
+  .run {
+    flex-wrap: nowrap;
+    align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .lists {
+    flex: 3 1 0;
+  }
+
+  .report {
+    flex: 6 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* The panel is as tall as its rows and no taller than the screen, so more numbers scroll inside it. */
+  .side {
+    flex: 2 1 0;
+    align-self: flex-start;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* The bottom bar. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 2rem;
+  border-top: var(--border) solid var(--line);
+  background: var(--bg);
+}
+
+.status-wrap {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  padding: 0 0.875rem;
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: var(--w-strong);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--hover-bg);
+}
+
+#toggle {
+  min-width: 7.5rem;
+  font-size: var(--fs-body);
+}
+
+.btn-solid {
+  border-color: var(--solid-bg);
+  background: var(--solid-bg);
+  color: var(--solid-text);
+}
+
+.btn-solid:hover {
+  background: var(--solid-hover-bg);
+}
+
+.btn:disabled {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+/* The review card, a modal over the desk. */
+.review {
+  width: min(38.75rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--lift);
+}
+
+.review::backdrop {
+  background: var(--dim);
+}
+
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.review-head,
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.review-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: var(--w-strong);
+}
+
+.review-text {
+  margin: 0;
+  padding: var(--space-3) 0.875rem;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+
+.review-reason {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.review-reason h3,
+.more h3,
+.report h3 {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: var(--w-strong);
+}
+
+.review-why,
+.review-help {
+  margin: 0;
+  color: var(--muted);
+}
+
+.review-help {
+  font-size: var(--fs-sm);
+}
+
+.review-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.field label,
+.assume label {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.field select,
+.field textarea,
+.assume input {
+  min-width: 0;
+  padding: 0 var(--space-2);
+  border: var(--border) solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+}
+
+.field select,
+.assume input {
+  min-height: var(--target);
+}
+
+.field textarea {
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+}
+
+.review-actions,
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Try a ticket: beside the numbers at rest on a wide screen (it wraps below them on a narrow one), and the same panel in a modal
+   during a run. */
+.try {
+  flex: 1 1 22.5rem;
+  min-width: 0;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 1.25rem;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.try-title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+}
+
+.try-error,
+.assume-error {
+  margin: 0;
+  color: var(--alert);
+  font-weight: var(--w-strong);
+}
+
+.try-error:empty,
+.assume-error:empty {
+  display: none;
+}
+
+.try-privacy,
+.value-line {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.try-result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.375rem 1rem;
+  margin: 0;
+}
+
+.try-result dt {
+  color: var(--muted);
+}
+
+.try-result dd {
+  margin: 0;
+  font-weight: var(--w-strong);
+  overflow-wrap: anywhere;
+}
+
+.try-warning {
+  margin: 0;
+  padding: var(--space-2) 0.625rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  font-size: var(--fs-sm);
+}
+
+.try-dialog {
+  width: min(40rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--lift);
+}
+
+.try-dialog::backdrop {
+  background: var(--dim);
+}
+
+.try-dialog .try {
+  padding: 0;
+  border: 0;
+}
+
+.try-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+/* Print shows the report alone when one is open, and otherwise only the page's heading and numbers: never the tickets, the
+   viewer's notes or the box they typed a ticket in. */
+@media print {
+  .site-header,
+  .bar,
+  .report-actions,
+  .flights,
+  dialog,
+  .lists,
+  .try,
+  .run.reporting > .side,
+  .side .btn,
+  .side .more {
+    display: none !important;
+  }
+
+  body {
+    display: block;
+    height: auto;
+    background: #fff;
+    color: #000;
+  }
+
+  .run {
+    display: block;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .report {
+    overflow: visible;
+  }
+}
+
+/* Where the panel scrolls inside itself (a wide screen, and a phone, where it covers the lists), its heading stays put and
+   keeps the panel's top margin, so the heading and its button are never cut off by the edge. */
+@media (min-width: 60rem), (max-width: 40rem) {
+  .side {
+    padding-top: 0;
+  }
+
+  .side-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: var(--space-4) 0 0;
+    background: var(--panel);
+  }
+}
+
+/* A phone, under 40rem, where the lists no longer fit side by side: one list at a time under three numbers and two tabs,
+   the This run panel over them, and a bar of four buttons with the icon above the word. */
+@media (max-width: 40rem) {
+  .site-header,
+  .bar,
+  .run {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .rest {
+    padding: var(--space-4);
+  }
+
+  .rest h1 {
+    font-size: 1.5rem;
+  }
+
+  .run {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+  }
+
+  .run > * {
+    flex: none;
+  }
+
+  .run[data-view='sent'] > #open-col,
+  .run[data-view='open'] > #sent-col,
+  .run[data-view='numbers'] > .lists,
+  .run:not([data-view='numbers']) > .side,
+  .run.reporting > .side,
+  .run.reporting > .phone-head,
+  .run[data-view='numbers'] > .phone-head {
+    display: none;
+  }
+
+  .phone-head {
+    display: block;
+    margin: 0 calc(-1 * var(--space-4));
+  }
+
+  .phone-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--panel);
+  }
+
+  .phone-stats > div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .phone-stats dt {
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    color: var(--muted);
+  }
+
+  .phone-stats dd {
+    margin: 0;
+    font-size: var(--fs-h3);
+    font-weight: var(--w-strong);
+    line-height: var(--lh-tight);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-bottom: var(--border) solid var(--line);
+  }
+
+  .tab {
+    min-height: var(--target);
+    border: 0;
+    border-bottom: var(--stroke) solid transparent;
+    background: var(--bg);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+
+  .tab[aria-selected='true'] {
+    border-bottom-color: var(--text);
+    color: var(--text);
+    font-weight: var(--w-strong);
+  }
+
+  /* The lists' headings are the tabs, so they stay for a screen reader and no longer show; their icons go with them. */
+  .col-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .col-title .tip {
+    display: none;
+  }
+
+  .buttons .btn {
+    min-height: var(--target);
+  }
+
+  .btn.side-back,
+  .btn.side-history {
+    display: inline-flex;
+    align-self: flex-start;
+  }
+
+  .btn.side-back {
+    margin-top: var(--space-4);
+  }
+
+  .bar {
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .status-wrap {
+    order: -1;
+    flex: 1 0 100%;
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+  }
+
+  /* The three links and the two buttons share the bar's row with Start and Stop: each takes an equal share. */
+  .bar-links {
+    display: contents;
+  }
+
+  .bar .btn {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0 var(--space-1);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .bar .btn svg {
+    display: block;
+    flex: none;
+  }
+
+  #toggle {
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+
+  #toggle.btn-solid .icon-stop,
+  #toggle:not(.btn-solid) .icon-play {
+    display: none;
+  }
+
+  /* Numbers is a button of a run, and Model History moves into the Numbers panel for the length of one. */
+  .run:not([hidden]) ~ .bar .btn.bar-numbers {
+    display: flex;
+  }
+
+  .run:not([hidden]) ~ .bar a[href='model-history.html'] {
+    display: none;
+  }
+}
+
+/* A phone with room for it (about 34rem high) holds the desk to one screen: the list or the panel scrolls inside it,
+   between the header and the bar. A shorter screen, a phone on its side, has no room to share between header, tabs, list and
+   bar, so there the page scrolls as a page does and the list takes the height of its cards. */
+@media (max-width: 40rem) and (min-height: 34rem) {
+  body:has(> .run:not([hidden])) {
+    height: 100dvh;
+  }
+
+  .run {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .run > .lists,
+  .run > .side,
+  .run > .report {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .run > .side,
+  .run > .report {
+    overflow-y: auto;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* Wider than a phone and short of three columns, the two lists sit side by side and the page scrolls, so the panel takes
+   its own row. */
+@media (min-width: 40.0625rem) and (max-width: 59.9375rem) {
+  .side {
+    flex-basis: 100%;
+  }
+}
+
+/* With the height for it the panel goes first: below the lists it would be past every sent row. On a short screen, a phone
+   on its side, it would fill the view, so there the tickets come first. */
+@media (min-width: 40.0625rem) and (max-width: 59.9375rem) and (min-height: 40rem) {
+  .side {
+    order: -1;
+  }
+}
+
+/* Forced colors drop backgrounds and shadows, so the selected tab and each box that stood on a shadow get an edge. */
+@media (forced-colors: active) {
+  .tab[aria-selected='true'] {
+    outline: var(--stroke) solid Highlight;
+    outline-offset: calc(-1 * var(--space-1));
+  }
+
+  .tipbox,
+  .review {
+    border: var(--border) solid CanvasText;
+  }
+}

@@ -1,9 +1,9 @@
 import { PRIORITIES, ROUTES, type Category } from '../domain/labels';
 import type { TicketTrail } from '../pipeline/types';
-import { DEEP_STAGE_MS, QUICK_STAGE_MS, type Waiting } from './engineTypes';
+import { DEEP_STAGE_MS, QUICK_APPROVE_PERCENT, QUICK_STAGE_MS, type Waiting } from './engineTypes';
 import type { Tag } from './prescreen';
 
-// The shapes and small helpers the engine keeps to itself; the run's own state and calls are in engine.ts.
+// The shapes and small helpers the engine is built from, and the card numbers the desk reads too; the run's own state and calls are in engine.ts.
 
 export type EventKind = 'close' | 'stage' | 'tag' | 'arrive';
 
@@ -58,6 +58,17 @@ export function hideAnswer(trail: TicketTrail): TicketTrail {
   const category = shown.category.label as Category;
   shown.final = { category, priority: shown.guard.priority, route: ROUTES[category], by: 'model' };
   return shown;
+}
+
+const PERCENT = 100;
+
+// The number a card prints as "N% sure"; the quick-approve cutoff reads this same rounded number.
+export function surePercent(trail: TicketTrail): number {
+  return Math.round(trail.category.confidence * PERCENT);
+}
+
+export function canQuickApprove(trail: TicketTrail): boolean {
+  return surePercent(trail) >= QUICK_APPROVE_PERCENT;
 }
 
 export function stageMs(deep: boolean): number {

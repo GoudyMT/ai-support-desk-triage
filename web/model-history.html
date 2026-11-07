@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>Model History - AI Support Desk Triage</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <p class="site-name">Support Desk</p>
+    </header>
+    <main class="history">
+      <h1>Model History</h1>
+      <p class="lead">
+        Each time the model changes, it is tested the same way and compared with the baseline. The goal is more right answers and
+        fewer tickets that need a person, with no high-risk ticket missed.
+      </p>
+      <section class="current" aria-labelledby="current-title">
+        <h2 id="current-title">Current model against the baseline</h2>
+        <div class="blocks" id="blocks"></div>
+        <!-- The tips are written here and the script moves each to the block whose title it names. -->
+        <div hidden>
+          <button type="button" class="tip" aria-label="Why tickets it never saw" aria-describedby="tip-never" data-for="Right on tickets it never saw"></button>
+          <span id="tip-never" class="tipbox" role="tooltip" hidden>A model can look good on tickets it trained on. These are held back from training, so the score is a fair test.</span>
+          <button type="button" class="tip" aria-label="Why fewer is better" aria-describedby="tip-fewer" data-for="Sent to a person"></button>
+          <span id="tip-fewer" class="tipbox" role="tooltip" hidden>Fewer is better, as long as High-risk missed stays at zero. Each ticket a person does not need to check is time saved.</span>
+          <button type="button" class="tip" aria-label="What Cards with Approve means" aria-describedby="tip-approve" data-for="Cards with Approve per run"></button>
+          <span id="tip-approve" class="tipbox" role="tooltip" hidden>How many cards in a run reach 70% sure, so Approve shows. A surer model lights more of them.</span>
+        </div>
+      </section>
+      <h2 id="history-title">History, newest first</h2>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="history-title">
+        <table>
+          <thead>
+            <tr id="head"></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="note">
+        "Right" means the category. High-risk missed and Sent to a person use the 60-ticket test set, written blind and frozen
+        before any measurement. Cards with Approve is the average of 40 full desk runs. A live run uses different tickets, so
+        its numbers differ.
+      </p>
+    </main>
+    <div class="bar">
+      <a class="btn btn-solid" href="index.html">Back to the desk</a>
+      <div class="bar-links">
+        <a class="btn" href="under-the-hood.html">Learn The Process</a>
+        <a class="btn" href="under-the-hood.html">Under the Hood</a>
+      </div>
+    </div>
+    <script type="module" src="/src/history/main.ts"></script>
+  </body>
+</html>

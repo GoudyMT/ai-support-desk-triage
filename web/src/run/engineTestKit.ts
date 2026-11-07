@@ -4,7 +4,7 @@ import { PRIORITIES, ROUTES, type Category, type Priority, type TicketLabel } fr
 import { generateTicket } from '../generator/generate';
 import { loadModel } from '../model/scorer';
 import type { TicketTrail } from '../pipeline/types';
-import { createSchedule, type Schedule } from './clock';
+import { createDeskSchedule, createSchedule, type Schedule } from './clock';
 import { createRun, type Run, type RunState } from './engine';
 import { createPrescreener, type Tag } from './prescreen';
 
@@ -68,6 +68,8 @@ export function makeRun(
     schedule?: Schedule;
     wallClock?: () => number;
     prescreen?: (maskedText: string) => Tag;
+    closeEveryMs?: number;
+    deepTickets?: number;
   } = {},
 ): Run {
   return createRun({
@@ -76,6 +78,23 @@ export function makeRun(
     schedule: opts.schedule ?? fakeSchedule(TOTAL, 6),
     wallClock: opts.wallClock ?? (() => 0),
     prescreen: opts.prescreen ?? (() => STUB_TAG),
+    ...(opts.closeEveryMs === undefined ? {} : { closeEveryMs: opts.closeEveryMs }),
+    ...(opts.deepTickets === undefined ? {} : { deepTickets: opts.deepTickets }),
+  });
+}
+
+// The desk's own setup: its 130-ticket schedule, the real pre-screener, the reviewer's trickle and no slow start.
+export const DESK_CLOSE_EVERY_MS = 2000;
+
+export function makeDeskRun(seed: number = SEED): Run {
+  return createRun({
+    seed,
+    model: MODEL,
+    schedule: createDeskSchedule(seed),
+    wallClock: () => 0,
+    prescreen: createPrescreener(MODEL),
+    closeEveryMs: DESK_CLOSE_EVERY_MS,
+    deepTickets: 0,
   });
 }
 

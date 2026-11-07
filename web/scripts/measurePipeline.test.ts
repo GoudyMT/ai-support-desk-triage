@@ -3,9 +3,26 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { HistoryRow } from '../src/history/view';
 import { loadModel } from '../src/model/scorer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON } from '../src/pipeline/run';
-import { assertFreshUnseen, checkExitCode, gateFailures, loadSets, main, measureSet, parseRows } from './measurePipeline';
+import { createDeskSchedule } from '../src/run/clock';
+import { createRun } from '../src/run/engine';
+import { canQuickApprove } from '../src/run/engineParts';
+import { createPrescreener } from '../src/run/prescreen';
+import {
+  approveCardsPerRun,
+  assertFreshUnseen,
+  checkExitCode,
+  checkHistory,
+  evalNumbers,
+  gateFailures,
+  historyFailures,
+  loadSets,
+  main,
+  measureSet,
+  parseRows,
+} from './measurePipeline';
 
 const MODEL_TEXT = readFileSync(fileURLToPath(new URL('../src/model/model.json', import.meta.url)), 'utf8');
 const MODEL = loadModel(JSON.parse(MODEL_TEXT));
@@ -122,8 +139,143 @@ describe('the start-point gate', () => {
     const load = () => [{ name: 'probe', model: MODEL, rows }];
     const held = measureSet('probe', MODEL, rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON);
     const point = { tickets: held.tickets, missed: held.highRiskMissed, flagRate: held.flagRate, mustReview: held.mustReview };
-    expect(main(['--folds', 'unused', '--check'], load, { probe: point })).toBe(0);
-    expect(main(['--folds', 'unused', '--check'], load, { probe: { ...point, mustReview: 2 } })).toBe(1);
+    expect(main(['--folds', 'unused', '--check'], load, { probe: point }, HISTORY_HOLDS)).toBe(0);
+    expect(main(['--folds', 'unused', '--check'], load, { probe: { ...point, mustReview: 2 } }, HISTORY_HOLDS)).toBe(1);
+  });
+});
+
+const HISTORY_HOLDS = () => ({ approve: 0, failures: [] });
+const FRESH_POINT = { tickets: 60, missed: 0, flagRate: 47 / 60, mustReview: 24 };
+const CURRENT: HistoryRow = {
+  id: 'baseline',
+  name: 'Baseline model (current)',
+  kind: 'Word weights plus safety rules',
+  heldOutRight: 0.573,
+  handWrittenRight: { k: 39, n: 48 },
+  highRiskMissed: { k: 0, n: 24 },
+  sentToPerson: 0.78,
+  approveCardsPerRun: 12.3,
+};
+// The old keyword method: the desk's home page says "the old keyword method got 14" from this row.
+const PROTOTYPE: HistoryRow = {
+  id: 'prototype',
+  name: 'Course prototype',
+  kind: 'Keyword rules',
+  heldOutRight: 0.336,
+  handWrittenRight: { k: 14, n: 48 },
+  highRiskMissed: null,
+  sentToPerson: null,
+  approveCardsPerRun: null,
+};
+const EVALUATED = {
+  heldOutRight: 0.573,
+  handWrittenRight: { k: 39, n: 48 },
+  keywordHeldOutRight: 0.336,
+  keywordHandWrittenRight: { k: 14, n: 48 },
+};
+const EVAL_FILE = {
+  summary: { model_category: { mean: 0.573 }, v0_category: { mean: 0.336 } },
+  handwritten: { model_category: { k: 39, n: 48 }, v0_category: { k: 14, n: 48 } },
+};
+
+// The history page shows what the history file says, so a number there that nothing holds would be a made-up claim on
+// the page.
+describe('the history check', () => {
+  it('passes when both rows equal the evaluation and the current row the fresh-set start point and the Approve count', () => {
+    expect(historyFailures(CURRENT, PROTOTYPE, EVALUATED, FRESH_POINT, 12.3)).toEqual([]);
+    // The measured count is held to one decimal.
+    expect(historyFailures(CURRENT, PROTOTYPE, EVALUATED, FRESH_POINT, 12.34)).toEqual([]);
+  });
+
+  it.each([
+    ['held-out accuracy up', { heldOutRight: 0.574 }, 'E_HISTORY_HELD_OUT'],
+    ['held-out accuracy down', { heldOutRight: 0.572 }, 'E_HISTORY_HELD_OUT'],
+    ['hand-written right', { handWrittenRight: { k: 40, n: 48 } }, 'E_HISTORY_HAND'],
+    ['hand-written set size', { handWrittenRight: { k: 39, n: 49 } }, 'E_HISTORY_HAND'],
+    ['high-risk missed', { highRiskMissed: { k: 1, n: 24 } }, 'E_HISTORY_MISSED'],
+    ['high-risk missed, not measured', { highRiskMissed: null }, 'E_HISTORY_MISSED'],
+    ['sent to a person', { sentToPerson: 0.79 }, 'E_HISTORY_SENT'],
+    ['Approve cards per run', { approveCardsPerRun: 12.4 }, 'E_HISTORY_APPROVE'],
+  ])('fails with its code when the row changes %s', (_name, change, code) => {
+    expect(historyFailures({ ...CURRENT, ...change }, PROTOTYPE, EVALUATED, FRESH_POINT, 12.3)).toEqual([code]);
+  });
+
+  // The home page says how many the old keyword method got right, from the prototype row.
+  it.each([
+    ['keyword held-out accuracy up', { heldOutRight: 0.337 }, 'E_HISTORY_PROTOTYPE_HELD'],
+    ['keyword held-out accuracy down', { heldOutRight: 0.335 }, 'E_HISTORY_PROTOTYPE_HELD'],
+    ['keyword hand-written right', { handWrittenRight: { k: 15, n: 48 } }, 'E_HISTORY_PROTOTYPE_HAND'],
+    ['keyword hand-written set size', { handWrittenRight: { k: 14, n: 49 } }, 'E_HISTORY_PROTOTYPE_HAND'],
+  ])('fails with its code when the prototype row changes %s', (_name, change, code) => {
+    expect(historyFailures(CURRENT, { ...PROTOTYPE, ...change }, EVALUATED, FRESH_POINT, 12.3)).toEqual([code]);
+  });
+
+  it('reads the numbers it compares with from the evaluation report, and refuses a report without them', () => {
+    expect(evalNumbers(EVAL_FILE)).toEqual(EVALUATED);
+    expect(() => evalNumbers({ summary: {} })).toThrow('E_EVAL_SHAPE');
+    expect(() => evalNumbers({ ...EVAL_FILE, summary: { model_category: { mean: 0.573 } } })).toThrow('E_EVAL_SHAPE');
+  });
+
+  // CI reads the exit code: a failing history must fail the command the same way a broken set does.
+  it('exits 1 from --check, naming the code, when the history differs', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const rows = parseRows(JSON.stringify(ROW));
+    const held = measureSet('probe', MODEL, rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON);
+    const point = { tickets: held.tickets, missed: held.highRiskMissed, flagRate: held.flagRate, mustReview: held.mustReview };
+    const sets = () => [{ name: 'probe', model: MODEL, rows }];
+    const broken = () => ({ approve: 12.3, failures: ['E_HISTORY_SENT'] });
+    expect(main(['--folds', 'unused', '--check'], sets, { probe: point }, broken)).toBe(1);
+    expect(log.mock.calls.flat().join('\n')).toContain('E_HISTORY_SENT');
+  });
+
+  const served = (history: HistoryRow[]): Record<string, string> => ({
+    'history.json': JSON.stringify(history),
+    'eval.json': JSON.stringify(EVAL_FILE),
+    'fold_0.json': MODEL_TEXT,
+    'fold_1.json': MODEL_TEXT,
+    'fold_2.json': MODEL_TEXT,
+    'fold_3.json': MODEL_TEXT,
+  });
+  const readFrom = (files: Record<string, string>) => (path: string) => {
+    const text = files[basename(path)];
+    if (text === undefined) throw new Error('E_TEST_NO_FILE');
+    return text;
+  };
+
+  it('reads the first history row as the current one, the prototype row by its id, and the fresh set as the real start point', () => {
+    const approve = approveCardsPerRun(() => MODEL, 2000, 1);
+    const row = { ...CURRENT, approveCardsPerRun: Number(approve.toFixed(1)) };
+    expect(checkHistory('folds', readFrom(served([row, PROTOTYPE])), 1).failures).toEqual([]);
+    const moved = { ...row, sentToPerson: 0.5 };
+    expect(checkHistory('folds', readFrom(served([moved, PROTOTYPE])), 1).failures).toEqual(['E_HISTORY_SENT']);
+    const tampered = { ...PROTOTYPE, handWrittenRight: { k: 15, n: 48 } };
+    expect(checkHistory('folds', readFrom(served([row, tampered])), 1).failures).toEqual(['E_HISTORY_PROTOTYPE_HAND']);
+    expect(() => checkHistory('folds', readFrom(served([row])), 1)).toThrow('E_HISTORY_SHAPE');
+    expect(() => checkHistory('folds', readFrom(served([])), 1)).toThrow('E_HISTORY_SHAPE');
+  });
+});
+
+describe('Approve cards per run', () => {
+  // The desk offers Approve on a flagged card the model is at least 70% sure of. With no viewer, every ticket the
+  // pipeline flags ends in the done list with that same confidence, so a run's count is countable a second way.
+  it('counts each flagged ticket at the cutoff once, as the average over the seeds', () => {
+    const SEEDS = [2000, 2001];
+    const counts = SEEDS.map((seed) => {
+      const run = createRun({
+        seed,
+        model: MODEL,
+        schedule: createDeskSchedule(seed),
+        wallClock: () => 0,
+        prescreen: createPrescreener(MODEL),
+        closeEveryMs: 2500,
+        deepTickets: 0,
+        timed: false,
+      });
+      run.finishNow();
+      return run.state().done.filter((trail) => trail.guard.flagged && canQuickApprove(trail)).length;
+    });
+    expect(counts.every((count) => count > 0)).toBe(true);
+    expect(approveCardsPerRun(() => MODEL, 2000, 2)).toBe(counts.reduce((sum, count) => sum + count, 0) / SEEDS.length);
   });
 });
 

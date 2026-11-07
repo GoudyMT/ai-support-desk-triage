@@ -1,4 +1,4 @@
-import type { Category, Priority, TicketLabel } from '../domain/labels';
+import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import { generateTicket } from '../generator/generate';
 import { createSimulatedReviewer } from '../pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
@@ -6,6 +6,7 @@ import type { Reviewer, TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
 import {
   EVENT_ORDER,
+  canQuickApprove,
   compareOpen,
   hideAnswer,
   stageMs,
@@ -36,7 +37,16 @@ const MS_PER_SECOND = 1000;
 const CENTER_STAGES: readonly CenterStage[] = ['intake', 'privacy', 'classify', 'guardrails'];
 
 export function createRun(opts: RunOptions): Run {
-  const { seed, model, schedule, wallClock, prescreen, timed = true } = opts;
+  const {
+    seed,
+    model,
+    schedule,
+    wallClock,
+    prescreen,
+    timed = true,
+    closeEveryMs = CLOSE_EVERY_MS,
+    deepTickets = DEEP_TICKETS,
+  } = opts;
   const fold = foldOf(seed);
   const truths = new Map<string, TicketLabel>();
   const truthOf = (id: string): TicketLabel => {
@@ -53,7 +63,7 @@ export function createRun(opts: RunOptions): Run {
   let playing = false;
   let held: Hold = null;
   // Tickets still to enter the center at the slow pace.
-  let slowLeft = DEEP_TICKETS;
+  let slowLeft = deepTickets;
   // The count reached zero by tickets entering, not by the viewer: the end of the slow part is then offered.
   let slowRanOut = false;
   let offerSpeedUp = false;
@@ -70,7 +80,7 @@ export function createRun(opts: RunOptions): Run {
   const pendingTags: PendingTag[] = [];
   const open: Held[] = [];
   const done: TicketTrail[] = [];
-  const viewerReviews: { id: string; correct: boolean }[] = [];
+  const viewerReviews: { id: string; correct: boolean; quick: boolean }[] = [];
 
   const isComplete = (): boolean => done.length >= schedule.total;
 
@@ -101,7 +111,7 @@ export function createRun(opts: RunOptions): Run {
     if (open.length === 0) {
       closeAt = null;
     } else if (closeAt === null) {
-      closeAt = now + CLOSE_EVERY_MS;
+      closeAt = now + closeEveryMs;
     }
   }
 
@@ -272,7 +282,7 @@ export function createRun(opts: RunOptions): Run {
     busyDay = true;
   }
 
-  function confirm(d: { category: Category; priority: Priority; route: string }): void {
+  function settleReview(d: { category: Category; priority: Priority; route: string }, quick: boolean): void {
     if (reviewing === undefined) {
       return;
     }
@@ -282,12 +292,16 @@ export function createRun(opts: RunOptions): Run {
     const decision = { category: d.category, priority: d.priority, route: d.route };
     done.push(runWith(held, id, { decide: () => decision }));
     const truth = truthOf(id);
-    viewerReviews.push({ id, correct: d.category === truth.category && d.priority === truth.priority });
+    viewerReviews.push({ id, correct: d.category === truth.category && d.priority === truth.priority, quick });
     if (isComplete()) {
       playing = false;
     }
     settleBusyDay();
     notify();
+  }
+
+  function confirm(d: { category: Category; priority: Priority; route: string }): void {
+    settleReview(d, false);
   }
 
   function review(id: string): void {
@@ -300,6 +314,20 @@ export function createRun(opts: RunOptions): Run {
     reviewing = held;
     armClose();
     notify();
+  }
+
+  // The same close as a review that confirms the shown suggestion, so the viewer's choice is scored as any review is.
+  function approve(id: string): void {
+    const at = open.findIndex((held) => held.trail.id === id);
+    const held = open[at];
+    if (reviewing !== undefined || held === undefined || !canQuickApprove(held.trail)) {
+      return;
+    }
+    open.splice(at, 1);
+    reviewing = held;
+    armClose();
+    const category = held.trail.category.label as Category;
+    settleReview({ category, priority: held.trail.guard.priority, route: ROUTES[category] }, true);
   }
 
   function handBack(): void {
@@ -411,6 +439,7 @@ export function createRun(opts: RunOptions): Run {
     },
     review,
     confirm,
+    approve,
     handBack,
     finishNow,
     hold(where) {
@@ -432,7 +461,7 @@ export function createRun(opts: RunOptions): Run {
       notify();
     },
     slowDown() {
-      slowLeft = DEEP_TICKETS;
+      slowLeft = deepTickets;
       offerSpeedUp = false;
       // A busy day asked for under the review form is no longer wanted.
       busyDayDue = false;

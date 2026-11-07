@@ -106,7 +106,7 @@ describe('finishNow', () => {
     run.review(id);
     run.confirm(rightPick(run, id));
     run.finishNow();
-    expect(run.state().viewerReviews).toEqual([{ id, correct: true }]);
+    expect(run.state().viewerReviews).toEqual([{ id, correct: true, quick: false }]);
     expect(ids(run.state().done).filter((x) => x === id)).toHaveLength(1);
     expect(run.state().done).toHaveLength(TOTAL);
   });

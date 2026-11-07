@@ -108,7 +108,7 @@ const NEXT_WORDS: Partial<Record<Stage, string>> = {
 const stageIndex = (stage: Stage): number => STAGES.indexOf(stage);
 const percent = (share: number): string => `${Math.round(share * PERCENT)}%`;
 const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-const tagView = (priority: Priority): TagView => ({ ...TAG_VIEWS[priority] });
+export const tagView = (priority: Priority): TagView => ({ ...TAG_VIEWS[priority] });
 const centerTag = (priority: Priority): NonNullable<CenterView['tag']> => {
   const tag = tagView(priority);
   return { ...tag, text: `First guess: ${tag.word}` };
@@ -116,7 +116,7 @@ const centerTag = (priority: Priority): NonNullable<CenterView['tag']> => {
 
 // The team the model's category sends the ticket to. It reads the category only: the trail's
 // final answer or review may hold the simulated reviewer's, which must not show while a ticket is open.
-function teamOf(trail: TicketTrail): string {
+export function teamOf(trail: TicketTrail): string {
   return ROUTES[trail.category.label as Category];
 }
 
@@ -199,7 +199,7 @@ function reasonPhrase(reason: FlagReason): string {
   }
 }
 
-function whyFlagged(trail: TicketTrail): string {
+export function whyFlagged(trail: TicketTrail): string {
   return trail.guard.reasons.slice(0, MAX_REASONS_SHOWN).map(reasonPhrase).join(', and ');
 }
 

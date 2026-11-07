@@ -30,21 +30,50 @@ function act2Arrivals(seed: number): number[] {
   return times;
 }
 
-export function createSchedule(seed: number): Schedule {
-  const total = ACT1_TICKETS + ACT2_TICKETS_PER_DAY;
-  const act2 = act2Arrivals(seed);
-  const checked = (i: number): number => {
+function ticketChecker(total: number): (i: number) => number {
+  return (i) => {
     if (!Number.isInteger(i) || i < 0 || i >= total) {
       throw new Error('E_TICKET_RANGE');
     }
     return i;
   };
+}
+
+export function createSchedule(seed: number): Schedule {
+  const total = ACT1_TICKETS + ACT2_TICKETS_PER_DAY;
+  const act2 = act2Arrivals(seed);
+  const checked = ticketChecker(total);
   return {
     total,
     act: (i) => (checked(i) < ACT1_TICKETS ? 1 : 2),
     arrivesAt: (i) => {
       checked(i);
       const time = i < ACT1_TICKETS ? (i * ACT1_SECONDS) / ACT1_TICKETS : act2[i - ACT1_TICKETS];
+      if (time === undefined) {
+        throw new Error('E_TICKET_RANGE');
+      }
+      return time;
+    },
+  };
+}
+
+// The operator desk's day: the same number of tickets as the demo's, one steady trickle in one act. Each ticket
+// lands at a seeded point inside its own slot, so arrivals never bunch, never tie and keep the average pace.
+export const DESK_ARRIVAL_SECONDS = 1.8;
+
+export function createDeskSchedule(seed: number): Schedule {
+  const total = ACT1_TICKETS + ACT2_TICKETS_PER_DAY;
+  const rng = createRng(seed);
+  const times = Array.from({ length: total }, (_, i) => (i + rng.next()) * DESK_ARRIVAL_SECONDS);
+  const checked = ticketChecker(total);
+  return {
+    total,
+    act: (i) => {
+      checked(i);
+      return 2;
+    },
+    arrivesAt: (i) => {
+      const time = times[checked(i)];
       if (time === undefined) {
         throw new Error('E_TICKET_RANGE');
       }

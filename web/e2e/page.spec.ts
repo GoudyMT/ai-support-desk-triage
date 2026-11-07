@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  DEMO_PATH,
   FAST_STATUS,
   FIRST_OPEN_MS,
   SEED,
@@ -65,7 +66,7 @@ test.describe('the run, by keyboard alone', () => {
 
 test.describe('the measured real speed result', () => {
   test('shows how long the whole run took and the rate, on the real clock', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     // Learn opens first and keeps the board behind it; See The Process plays at once.
     await page.getByRole('button', { name: 'See The Process' }).click();
     await page.getByRole('button', { name: /^Run the last \d+ tickets at real speed$/ }).click();
@@ -449,7 +450,7 @@ test.describe('the content security policy', () => {
 test.describe('a model that does not load', () => {
   test('shows the error and Retry, and no ticket, when the file is missing; Retry then starts the run', async ({ page }) => {
     await page.route('**/models/*', (route) => route.fulfill({ status: 404, body: 'not found' }));
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     await expect(page.getByText('The model could not be loaded.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
     await expect(page.locator('#app')).toBeHidden();
@@ -462,7 +463,7 @@ test.describe('a model that does not load', () => {
 
   test('shows the same error when the file is not a model', async ({ page }) => {
     await page.route('**/models/*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`${DEMO_PATH}?seed=${SEED}`);
     await expect(page.getByText('The model could not be loaded.')).toBeVisible();
     await expect(page.locator('#app')).toBeHidden();
     expect(await page.locator('body').innerText()).not.toContain('T-1001-');

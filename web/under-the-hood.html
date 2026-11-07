@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>Under the Hood - AI Support Desk Triage</title>
+  </head>
+  <body>
+    <div class="page">
+      <header class="top">
+        <div class="top-text">
+          <h1>Under the Hood</h1>
+          <a class="btn back" href="index.html">Back to the desk</a>
+        </div>
+        <div class="views" id="views" role="group" aria-label="Choose a view" hidden>
+          <button class="btn btn-solid view" type="button" id="view-learn" aria-pressed="true">Learn The Process</button>
+          <button class="btn view" type="button" id="view-see" aria-pressed="false">See The Process</button>
+        </div>
+        <div class="purpose">
+          <p id="purpose">
+            A live demo. Made-up support tickets go through a trained model and safety rules, and a simulated reviewer checks the doubtful
+            ones. The model was trained on different messages.
+          </p>
+          <p class="purpose-notice off" id="top-notice"></p>
+        </div>
+        <div class="top-live" id="top-live" hidden>
+          <dl class="stats" id="stats"></dl>
+          <button class="btn btn-link" type="button" id="more-toggle" aria-expanded="false" aria-controls="numbers">All numbers</button>
+        </div>
+      </header>
+      <section class="numbers" id="numbers" aria-label="All numbers" hidden>
+        <p class="muted" id="seed-line"></p>
+      </section>
+      <p class="notice" id="notice" hidden></p>
+      <p class="muted" id="loading">Loading the model...</p>
+      <div class="notice error" id="load-error" hidden>
+        <p id="load-error-text">The model could not be loaded.</p>
+        <button class="btn" type="button" id="retry">Retry</button>
+      </div>
+      <main class="board show-in" id="app" hidden>
+        <section class="col col-center" id="center" aria-label="Current ticket">
+          <div class="stack" id="ticket"></div>
+          <form class="stack" id="review" aria-label="Review this ticket" hidden></form>
+        </section>
+        <div class="tabs" id="tabs" role="tablist" aria-label="Ticket lists"></div>
+        <section class="col col-in" id="incoming" aria-label="Coming in" tabindex="0"></section>
+        <section class="col col-out" id="outgoing" aria-label="Going out"></section>
+      </main>
+      <div class="sr-only" id="announcer" aria-live="polite"></div>
+    </div>
+    <div class="bar" id="bar" hidden>
+      <div class="bar-progress" id="bars" aria-hidden="true"></div>
+      <div class="bar-row" id="controls" role="group" aria-label="Run controls">
+        <p class="bar-status" id="status"></p>
+      </div>
+      <div class="bar-row" id="learn-controls" role="group" aria-label="Learn controls" hidden></div>
+    </div>
+    <script type="module" src="/src/page/main.ts"></script>
+  </body>
+</html>

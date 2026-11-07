@@ -12,8 +12,7 @@ fitted weights are exported to `web/src/model/model.json` and scored in TypeScri
 `web/src/model/scorer.ts`, which agrees with Python on every evaluation ticket (`npm --prefix web run parity`:
 16,048 rows, largest probability gap 1.22e-15 when measured on 2026-10-30).
 
-It is a suggestion for a human reviewer, not a decision. The live demo page, built next, will add rules and a
-review step around it.
+It is a suggestion for a human reviewer, not a decision. The live desk adds rules and a review step around it.
 
 ## Data
 
@@ -21,7 +20,7 @@ review step around it.
   tickets from sentence templates, with obviously fake personal data in some of them. No customer data is used.
 - **Masked before the model sees it.** Emails, phone numbers, order numbers and card numbers are replaced by
   `[EMAIL_ADDRESS]`, `[PHONE_NUMBER]`, `[ORDER_NUMBER]` and `[CARD_NUMBER]` (`web/src/privacy/mask.ts`). The
-  live demo page will run the same masker on what a visitor types.
+  live desk runs the same masker on what a visitor types.
 - **Hand-written set:** 48 tickets written outside the generator (`ml/data/handwritten.jsonl`): 8 from the
   project README and 40 drafted by Claude for this project, the same author as the generator templates. The set
   was frozen before the first training run and is never trained on. Because of the shared author it is a sanity
@@ -59,13 +58,23 @@ v0 is the original keyword-rule prototype, ported exactly (`web/src/baseline/v0.
 | Hand-written (shipped model) | 39 / 48 | 22 / 48 |
 
 v0's review flag matches the gold flag on 67.6% of held-out tickets (mean) and 32 of 48 hand-written ones. The
-model has no review flag of its own; the live page's review rules are built in a later step.
+model has no review flag of its own: the rules and confidence floor in the pipeline decide what goes to a person.
 
 **The bar.** The project's bar is that the model beats v0 on category accuracy on every fold and on the
 hand-written set: it does (`beats_v0_every_fold` and `beats_v0_handwritten` are true). The owner set this first
 run as the floor: later changes may not lower any fold's category accuracy by more than 1 point or drop the
 hand-written set below 39 of 48. Any later tuning should be judged on a separate tuning split, so the folds
 stay a fair test of it.
+
+## On the desk
+
+Counted over 40 full desk runs, seeds 2000 to 2039, with no one stepping in: the model alone gets the category right
+58.2% of the time, and 94.5% after review. That second figure rests on a simulated reviewer assumed right 95% of the
+time, not on people. 88.7% of tickets go to a person, and 30 high-risk tickets went out without one, in 17 of the runs.
+
+On the 60-ticket set written blind and frozen before measuring, 0 of 24 high-risk tickets are missed. Two of its tickets
+are near-matches, recorded rather than removed: F-19 shares an opening with a training template (word overlap 0.67), and
+F-48 rewords seen ticket H-07. The first 48-ticket hand-written set shaped the rules, so it counts as seen for them.
 
 ## Limits
 
@@ -77,9 +86,8 @@ stay a fair test of it.
   right against a 57.3% held-out mean. It has seen every template, the hand-written set shares an author with
   them, and 48 rows is a small sample; any of these could account for the gap, and none has been measured.
 - **Words, not meaning.** The model counts words and word pairs; it does not understand negation or context.
-- **Masking is pattern-based.** Some formats are still missed, for example an email typed with spaces around
-  "@" or spelled out ("jane at example dot com"), full-width digits or "@", card digits split by tabs, line
-  breaks or commas, a phone written with "/" or "_", or a phone that looks like a year-first date
-  ("2010-12-31"). Long digit runs, slash-written date ranges and 7+ digit ids are masked even when they are not
+- **Masking is pattern-based.** Some forms are still missed, for example an email spelled out
+  ("jane at example dot com"), a phone written with "_", a short order reference ("order 123"), or a phone that
+  looks like a year-first date ("2010-12-31"). Long digit runs, slash-written date ranges and 7+ digit ids are masked even when they are not
   personal data, and in text without spaces (Chinese, Japanese) the words joined to an email are masked with it.
 - **Size.** `model.json` is 3,825,908 bytes (about 1.4 MB gzipped).
