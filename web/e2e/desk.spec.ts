@@ -99,7 +99,7 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
   ).toBeVisible();
   await expect(
     page.getByText(
-      'Measured on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is sometimes missed.',
+      'These test results are checked on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is sometimes missed.',
     ),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
