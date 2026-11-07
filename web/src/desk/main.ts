@@ -24,6 +24,7 @@ const PAUSED_TRY = 'Paused while you try a ticket.';
 const PAUSED_REPORT = 'Paused while you read the report.';
 const PAUSED_READ = 'Paused while you read. Move away to carry on.';
 const RESULT_MS = 4000;
+const FOCUS_CLEAR_PX = 8;
 const STARTED = 'Run started.';
 // The width where the lists show one at a time, as the style sheet has it (40rem): there the card's flight does not show.
 const PHONE = window.matchMedia('(max-width: 40rem)');
@@ -220,9 +221,18 @@ document.addEventListener(
   true,
 );
 document.addEventListener('pointerdown', () => (lastInputWasKey = false), true);
+// WebKit leaves a focused control under the sticky bar, whatever the page's scroll padding says.
+function clearOfBar(target: HTMLElement): void {
+  const bar = document.querySelector('.bar');
+  if (bar === null || target.closest('dialog') !== null) return;
+  const under = target.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
+  if (under > 0) window.scrollBy(0, under + FOCUS_CLEAR_PX);
+}
+
 document.addEventListener('focusin', (event) => {
   keyboardIn = lastInputWasKey && openList().contains(event.target as Node);
   settleReading();
+  clearOfBar(event.target as HTMLElement);
 });
 document.addEventListener('focusout', (event) => {
   if (openList().contains(event.relatedTarget as Node | null)) return;
