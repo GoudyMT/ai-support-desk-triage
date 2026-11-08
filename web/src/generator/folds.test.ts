@@ -48,6 +48,11 @@ describe('the split argument', () => {
     { fold: Number.NaN, side: 'train' },
     { fold: '1', side: 'train' },
     { fold: 0, side: 'test' },
+    { fold: 0, side: 'train', alsoHeldOut: 0 },
+    { fold: 0, side: 'train', alsoHeldOut: 4 },
+    { fold: 0, side: 'train', alsoHeldOut: 1.5 },
+    { fold: 0, side: 'train', alsoHeldOut: '1' },
+    { fold: 0, side: 'heldout', alsoHeldOut: 1 },
   ];
 
   // Each split is wrapped so it.each does not spread the empty array as no argument.
@@ -91,6 +96,22 @@ describe('how items are assigned to folds', () => {
         const heldout = heldoutByFold[fold] ?? [];
         expect(train.length + heldout.length).toBe(list.length);
         expect(train.filter((item) => heldout.includes(item))).toEqual([]);
+      }
+    }
+  });
+
+  // A setting is tuned on fold j's held-out wording by a model that must never
+  // have seen fold j or the test fold k, so its training side drops both.
+  it('leaves both folds out of a training side that holds out a second fold', () => {
+    const lists: (readonly unknown[])[] = [MIXED, PRODUCTS, TEMPLATES.Billing];
+    for (const list of lists) {
+      const folds = foldsOf(list);
+      for (const fold of FOLD_IDS) {
+        for (const other of FOLD_IDS.filter((f) => f !== fold)) {
+          const expected = list.filter((_item, index) => folds[index] !== fold && folds[index] !== other);
+          expect(expected.length).toBeGreaterThan(0);
+          expect(poolOf(list, { fold, side: 'train', alsoHeldOut: other })).toEqual(expected);
+        }
       }
     }
   });

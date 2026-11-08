@@ -84,13 +84,16 @@ export function buildDatasets(): FoldDataset[] {
 // The frozen hand-written set is only ever read; the exporter writes a copy
 // with two more columns beside the generated files.
 const HANDWRITTEN_SOURCE = new URL('../../ml/data/handwritten.jsonl', import.meta.url);
+// The fresh set is the untouched test; a setting tuned on data that holds one of
+// its texts would be picked with the answer in view.
+export const FRESH_SOURCE = new URL('../../ml/data/handwritten_fresh.jsonl', import.meta.url);
 
 export interface HandwrittenRow extends Record<string, unknown> {
   text: string;
 }
 
-export function loadHandwritten(): HandwrittenRow[] {
-  return readFileSync(HANDWRITTEN_SOURCE, 'utf8')
+export function loadHandwritten(source: URL = HANDWRITTEN_SOURCE): HandwrittenRow[] {
+  return readFileSync(source, 'utf8')
     .trimEnd()
     .split(/\r?\n/)
     .map((line) => JSON.parse(line) as HandwrittenRow);
@@ -113,7 +116,8 @@ export function assertHandwrittenIsolated(
 
 // Every line carries all eleven keys, with null for what a ticket lacks, so the
 // reader on the Python side never has to guess whether a key is missing. `fold`
-// names the fold the file belongs to, or is null for the file of all wording.
+// names the fold the file belongs to, or is null for a file that belongs to no
+// single fold (train_all, and the tune_<a>_<b> sets, whose name gives the folds).
 // `maskedText` is what the model trains on; `v0` is the answer of the original
 // keyword page on the raw text, so both are scored on identical rows.
 export function toJsonl(tickets: Ticket[], fold: number | null): string {
@@ -171,9 +175,60 @@ export function writeDatasets(
   return written;
 }
 
-function main(): void {
-  const trainAll = exportTickets(TRAIN_SEED, TRAIN_COUNT);
-  for (const { target, rows } of writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), trainAll, loadHandwritten())) {
+// Settings (a confidence floor, a model's strength) are picked on these, never
+// on a test set. A model for test fold k is tuned by training on the wording of
+// the folds other than k and j and scoring on heldout_j. The pair (k, j) and
+// (j, k) train on the same wording, so one set per pair of left-out folds
+// serves both. Each has the shipped models' row count, so a picked setting
+// transfers to them.
+export interface TuningSet {
+  leftOut: [number, number];
+  train: Ticket[];
+}
+
+export function buildTuningSets(): TuningSet[] {
+  const sets: TuningSet[] = [];
+  for (let fold = 0; fold < FOLDS; fold += 1) {
+    for (let alsoHeldOut = fold + 1; alsoHeldOut < FOLDS; alsoHeldOut += 1) {
+      sets.push({ leftOut: [fold, alsoHeldOut], train: exportTickets(TRAIN_SEED, TRAIN_COUNT, { fold, side: 'train', alsoHeldOut }) });
+    }
+  }
+  return sets;
+}
+
+// One tune_<a>_<b>.jsonl per set. Its rows carry fold null: they belong to no
+// single fold, and the file name says which two they leave out. Every check
+// runs before the first write, so a leak leaves no file behind.
+export function writeTuningSets(
+  outputDir: string,
+  sets: TuningSet[],
+  folds: FoldDataset[],
+  handwritten: HandwrittenRow[],
+): { target: string; rows: number }[] {
+  assertHandwrittenIsolated(handwritten, sets.map(({ train }) => train));
+  for (const { leftOut, train } of sets) {
+    const trained = new Set(train.map((ticket) => normalizeText(ticket.text)));
+    for (const fold of leftOut) {
+      if ((folds[fold]?.heldout ?? []).some((ticket) => trained.has(normalizeText(ticket.text)))) {
+        throw new Error('E_TUNE_OVERLAP');
+      }
+    }
+  }
+  mkdirSync(outputDir, { recursive: true });
+  return sets.map(({ leftOut, train }) => {
+    const target = join(outputDir, `tune_${leftOut[0]}_${leftOut[1]}.jsonl`);
+    writeFileSync(target, toJsonl(train, null), 'utf8');
+    return { target, rows: train.length };
+  });
+}
+
+// With --tuning it writes only the tuning sets: CI never tunes, so the default
+// export leaves them out.
+function main(args: string[]): void {
+  const written = args.includes('--tuning')
+    ? writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)])
+    : writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), exportTickets(TRAIN_SEED, TRAIN_COUNT), loadHandwritten());
+  for (const { target, rows } of written) {
     console.log(`wrote ${target} (${rows} rows)`);
   }
 }
@@ -188,5 +243,5 @@ export function isRunAsCommand(entryPath: string | undefined, moduleUrl: string)
 
 // Run only as a command, never when a test imports the functions above.
 if (isRunAsCommand(process.argv[1], import.meta.url)) {
-  main();
+  main(process.argv.slice(2));
 }

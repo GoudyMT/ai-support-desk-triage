@@ -54,6 +54,8 @@ export interface SetResult {
   flagRate: number;
   highRiskMissed: number;
   mustReview: number;
+  silentCategory: number;
+  silentPriority: number;
 }
 
 export interface StartPoint {
@@ -61,6 +63,8 @@ export interface StartPoint {
   missed: number;
   flagRate: number;
   mustReview: number;
+  silentCategory: number;
+  silentPriority: number;
 }
 
 // A row is refused rather than guessed at: a missing mustReview read as false
@@ -100,13 +104,18 @@ export function measureSet(name: string, model: Model, rows: LabeledRow[], floor
     return label;
   };
   const deps = { model, reviewer: createSimulatedReviewer(REVIEWER_SEED, truthOf), floor, secondCheckOn, now: () => 0 };
-  const metrics = computeMetrics(runTickets(rows, deps), truthOf);
+  const trails = runTickets(rows, deps);
+  const metrics = computeMetrics(trails, truthOf);
+  // A silent error is a wrong answer no person checked: the customer gets it as is.
+  const unchecked = trails.filter((trail) => !trail.guard.flagged);
   return {
     name,
     tickets: rows.length,
     flagRate: metrics.flagRate,
     highRiskMissed: metrics.highRiskMissed,
     mustReview: rows.filter((row) => row.label.mustReview).length,
+    silentCategory: unchecked.filter((trail) => trail.final.category !== truthOf(trail.id).category).length,
+    silentPriority: unchecked.filter((trail) => trail.final.priority !== truthOf(trail.id).priority).length,
   };
 }
 
@@ -114,15 +123,17 @@ export function measureSet(name: string, model: Model, rows: LabeledRow[], floor
 // off. A set may not miss more high-risk tickets or flag a larger share than it
 // did then (flagging everything would miss nothing), and its ticket and
 // must-review counts must match (rows or labels lost on the way in would hide
-// misses). Lower a number when
+// misses). Nor may it give more unchecked wrong categories or priorities
+// (silent errors) than it did then, so a flag cut never buys itself with wrong
+// answers (the owner, 2026-11-07; measured that day). Lower a number when
 // an improvement lands; a rise is the owner's decision.
 export const START_POINT: Record<string, StartPoint> = {
-  'fold 0': { tickets: 4000, missed: 10, flagRate: 3587 / 4000, mustReview: 1461 },
-  'fold 1': { tickets: 4000, missed: 6, flagRate: 3536 / 4000, mustReview: 1461 },
-  'fold 2': { tickets: 4000, missed: 10, flagRate: 3509 / 4000, mustReview: 1461 },
-  'fold 3': { tickets: 4000, missed: 46, flagRate: 3570 / 4000, mustReview: 1473 },
-  'hand-written (seen)': { tickets: 48, missed: 0, flagRate: 32 / 48, mustReview: 22 },
-  'hand-written (fresh)': { tickets: 60, missed: 0, flagRate: 47 / 60, mustReview: 24 },
+  'fold 0': { tickets: 4000, missed: 10, flagRate: 3587 / 4000, mustReview: 1461, silentCategory: 77, silentPriority: 152 },
+  'fold 1': { tickets: 4000, missed: 6, flagRate: 3536 / 4000, mustReview: 1461, silentCategory: 10, silentPriority: 37 },
+  'fold 2': { tickets: 4000, missed: 10, flagRate: 3509 / 4000, mustReview: 1461, silentCategory: 24, silentPriority: 47 },
+  'fold 3': { tickets: 4000, missed: 46, flagRate: 3570 / 4000, mustReview: 1473, silentCategory: 19, silentPriority: 16 },
+  'hand-written (seen)': { tickets: 48, missed: 0, flagRate: 32 / 48, mustReview: 22, silentCategory: 2, silentPriority: 4 },
+  'hand-written (fresh)': { tickets: 60, missed: 0, flagRate: 47 / 60, mustReview: 24, silentCategory: 0, silentPriority: 3 },
 };
 
 // Names of the sets that break their start point; empty means the gate passes.
@@ -138,7 +149,9 @@ export function gateFailures(results: SetResult[], start: Record<string, StartPo
         result.tickets !== point.tickets ||
         result.highRiskMissed > point.missed ||
         result.flagRate > point.flagRate ||
-        result.mustReview !== point.mustReview
+        result.mustReview !== point.mustReview ||
+        result.silentCategory > point.silentCategory ||
+        result.silentPriority > point.silentPriority
       );
     })
     .map((result) => result.name);
@@ -337,8 +350,15 @@ export function main(args: string[], load = loadSets, start = START_POINT, histo
     const results = sets.map((set) => measureSet(set.name, set.model, set.rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON));
     for (const r of results) {
       const point = start[r.name];
-      const allowed = point === undefined ? 'no start point' : `allowed ${point.missed} missed, ${(point.flagRate * 100).toFixed(1)}% flagged, ${point.mustReview} must-review`;
-      console.log(`    ${r.name}: ${r.tickets} tickets, ${r.mustReview} must-review, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed} (${allowed})`);
+      const allowed =
+        point === undefined
+          ? 'no start point'
+          : `allowed ${point.missed} missed, ${(point.flagRate * 100).toFixed(1)}% flagged, ${point.mustReview} must-review, ` +
+            `${point.silentCategory}/${point.silentPriority} silent`;
+      console.log(
+        `    ${r.name}: ${r.tickets} tickets, ${r.mustReview} must-review, flagged ${(r.flagRate * 100).toFixed(1)}%, missed ${r.highRiskMissed}, ` +
+          `silent category/priority ${r.silentCategory}/${r.silentPriority} (${allowed})`,
+      );
     }
     const failed = gateFailures(results, start);
     console.log(failed.length === 0 ? 'PASS: every set at or under its start point' : `FAIL: start point broken in ${failed.join(', ')}`);

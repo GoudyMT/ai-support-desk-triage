@@ -65,15 +65,17 @@ describe('the start-point gate', () => {
   });
 
   const START = {
-    a: { tickets: 10, missed: 2, flagRate: 0.5, mustReview: 4 },
-    b: { tickets: 10, missed: 0, flagRate: 0.6, mustReview: 3 },
+    a: { tickets: 10, missed: 2, flagRate: 0.5, mustReview: 4, silentCategory: 1, silentPriority: 2 },
+    b: { tickets: 10, missed: 0, flagRate: 0.6, mustReview: 3, silentCategory: 0, silentPriority: 0 },
   };
-  const at = (name: string, missed: number, flagRate: number, mustReview: number, tickets = 10) => ({
+  const at = (name: string, missed: number, flagRate: number, mustReview: number, tickets = 10, silentCategory = 0, silentPriority = 0) => ({
     name,
     tickets,
     flagRate,
     highRiskMissed: missed,
     mustReview,
+    silentCategory,
+    silentPriority,
   });
   const B_HELD = at('b', 0, 0.6, 3);
 
@@ -96,6 +98,15 @@ describe('the start-point gate', () => {
   it('fails a set whose must-review count differs from its start point', () => {
     expect(gateFailures([at('a', 0, 0.5, 3), B_HELD], START)).toEqual(['a']);
     expect(gateFailures([at('a', 0, 0.5, 5), B_HELD], START)).toEqual(['a']);
+  });
+
+  // Sending fewer tickets to a person must not buy that by handing customers more
+  // wrong answers nobody checked; category and priority are held apart, so one
+  // cannot be traded for the other.
+  it('passes a set at its ceiling on unchecked wrong answers and fails one above it', () => {
+    expect(gateFailures([at('a', 2, 0.5, 4, 10, 1, 2), B_HELD], START)).toEqual([]);
+    expect(gateFailures([at('a', 2, 0.5, 4, 10, 2, 0), B_HELD], START)).toEqual(['a']);
+    expect(gateFailures([at('a', 2, 0.5, 4, 10, 0, 3), B_HELD], START)).toEqual(['a']);
   });
 
   // Dropping ordinary tickets raises nothing the other numbers would catch.
@@ -131,6 +142,35 @@ describe('the start-point gate', () => {
     expect(result.tickets).toBe(2);
   });
 
+  // The shipped model answers this text Technical Issue, Medium, with no rule word.
+  // At floor 0 nothing is flagged: that answer is wrong on both heads for T-4,
+  // on category only for T-6, and right for T-5. At floor 1 every ticket goes to a
+  // person, so nothing is silent.
+  it('counts a wrong answer only when no person checked the ticket', () => {
+    const text = 'Where can I find the export button?';
+    const rows = parseRows(
+      [
+        JSON.stringify({ id: 'T-4', text, category: 'Billing', priority: 'Urgent', mustReview: false }),
+        JSON.stringify({ id: 'T-5', text, category: 'Technical Issue', priority: 'Medium', mustReview: false }),
+        JSON.stringify({ id: 'T-6', text, category: 'Billing', priority: 'Medium', mustReview: false }),
+      ].join('\n'),
+    );
+    const unchecked = measureSet('probe', MODEL, rows, 0, false);
+    expect(unchecked.flagRate).toBe(0);
+    expect(unchecked.silentCategory).toBe(2);
+    expect(unchecked.silentPriority).toBe(1);
+    // The simulated reviewer picks a wrong category 1 time in 20 (it always keeps
+    // the true priority); across 60 checked tickets some of its categories are
+    // wrong, and those were still checked by a person.
+    const many = parseRows(
+      Array.from({ length: 60 }, (_, i) => JSON.stringify({ id: `R-${i}`, text, category: 'Billing', priority: 'Urgent', mustReview: false })).join('\n'),
+    );
+    const checked = measureSet('probe', MODEL, many, 1, false);
+    expect(checked.flagRate).toBe(1);
+    expect(checked.silentCategory).toBe(0);
+    expect(checked.silentPriority).toBe(0);
+  });
+
   // CI reads the command's exit code, so the --check path itself must fail on a
   // broken set, not only the helper it calls.
   it('exits 1 from --check when a set breaks its start point and 0 when it holds', () => {
@@ -138,14 +178,21 @@ describe('the start-point gate', () => {
     const rows = parseRows(JSON.stringify(ROW));
     const load = () => [{ name: 'probe', model: MODEL, rows }];
     const held = measureSet('probe', MODEL, rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON);
-    const point = { tickets: held.tickets, missed: held.highRiskMissed, flagRate: held.flagRate, mustReview: held.mustReview };
+    const point = {
+      tickets: held.tickets,
+      missed: held.highRiskMissed,
+      flagRate: held.flagRate,
+      mustReview: held.mustReview,
+      silentCategory: held.silentCategory,
+      silentPriority: held.silentPriority,
+    };
     expect(main(['--folds', 'unused', '--check'], load, { probe: point }, HISTORY_HOLDS)).toBe(0);
     expect(main(['--folds', 'unused', '--check'], load, { probe: { ...point, mustReview: 2 } }, HISTORY_HOLDS)).toBe(1);
   });
 });
 
 const HISTORY_HOLDS = () => ({ approve: 0, failures: [] });
-const FRESH_POINT = { tickets: 60, missed: 0, flagRate: 47 / 60, mustReview: 24 };
+const FRESH_POINT = { tickets: 60, missed: 0, flagRate: 47 / 60, mustReview: 24, silentCategory: 0, silentPriority: 3 };
 const CURRENT: HistoryRow = {
   id: 'baseline',
   name: 'Baseline model (current)',
@@ -221,7 +268,14 @@ describe('the history check', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const rows = parseRows(JSON.stringify(ROW));
     const held = measureSet('probe', MODEL, rows, CONFIDENCE_FLOOR, SECOND_CHECK_ON);
-    const point = { tickets: held.tickets, missed: held.highRiskMissed, flagRate: held.flagRate, mustReview: held.mustReview };
+    const point = {
+      tickets: held.tickets,
+      missed: held.highRiskMissed,
+      flagRate: held.flagRate,
+      mustReview: held.mustReview,
+      silentCategory: held.silentCategory,
+      silentPriority: held.silentPriority,
+    };
     const sets = () => [{ name: 'probe', model: MODEL, rows }];
     const broken = () => ({ approve: 12.3, failures: ['E_HISTORY_SENT'] });
     expect(main(['--folds', 'unused', '--check'], sets, { probe: point }, broken)).toBe(1);

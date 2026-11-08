@@ -14,13 +14,16 @@ import {
   TRAIN_SEED,
   assertHandwrittenIsolated,
   buildDatasets,
+  buildTuningSets,
   exportHeldout,
   exportTickets,
+  FRESH_SOURCE,
   isRunAsCommand,
   loadHandwritten,
   normalizeText,
   toJsonl,
   writeDatasets,
+  writeTuningSets,
   type FoldDataset,
 } from './exportDataset';
 
@@ -272,6 +275,77 @@ describe('the exported sets', () => {
     for (const ticket of (DATASETS[fold]?.heldout ?? []).slice(0, 50)) {
       expect(ticket.id).toBe(`T-${HELDOUT_SEED}-${ticket.index}`);
       expect(generateTicket(HELDOUT_SEED, ticket.index, { fold, side: 'heldout' })).toEqual(ticket);
+    }
+  });
+});
+
+describe('the tuning sets', () => {
+  const TUNING = buildTuningSets();
+  const FOLD_SETS = buildDatasets();
+  const HELDOUT_TEXTS = FOLD_SETS.map(({ heldout }) => new Set(heldout.map((ticket) => normalizeText(ticket.text))));
+
+  // One training set per pair of left-out folds: the pair (k, j) and (j, k)
+  // would train on the same wording, so six sets cover all twelve tuning splits.
+  it('builds one 20,000-row set per pair of left-out folds, from seed 1 and the other two folds', () => {
+    expect(TUNING.map(({ leftOut }) => leftOut)).toEqual([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]]);
+    for (const { leftOut, train } of TUNING) {
+      const [fold, alsoHeldOut] = leftOut;
+      expect(train).toHaveLength(20_000);
+      expect(train.slice(0, 200)).toEqual(generateTickets(TRAIN_SEED, 200, { fold, side: 'train', alsoHeldOut }));
+    }
+  });
+
+  // A tuned setting picked on a held-out text the tuning model trained on would
+  // look better than it is.
+  it('shares no text with the held-out set of either left-out fold', () => {
+    for (const { leftOut, train } of TUNING) {
+      for (const fold of leftOut) {
+        const repeated = train.filter((ticket) => HELDOUT_TEXTS[fold]?.has(normalizeText(ticket.text)));
+        expect(repeated.map((ticket) => ticket.text), `tune_${leftOut.join('_')} vs heldout_${fold}`).toEqual([]);
+      }
+    }
+  });
+
+  // Both hand-written sets: settings picked on tuning data are only honest if
+  // the fresh set, the untouched test, is no closer to it than to any other text.
+  it('keeps every hand-written text, seen and fresh, out of every tuning set', () => {
+    const both = [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)];
+    expect(both.length).toBeGreaterThan(HANDWRITTEN_ROWS);
+    expect(() => assertHandwrittenIsolated(both, TUNING.map(({ train }) => train))).not.toThrow();
+  });
+
+  // The guard for the day two template lists come to hold the same sentence.
+  // tune_0_1 leaves out folds 0 and 1, so neither fold's held-out wording may be
+  // in it; the clean set listed first must not be written before the leak is found.
+  it.each([0, 1])('throws E_TUNE_OVERLAP, writing no file, when tune_0_1 holds a held-out text of fold %i', (fold) => {
+    const dir = mkdtempSync(join(tmpdir(), 'tune-'));
+    try {
+      const [first, second] = TUNING;
+      const leak = FOLD_SETS[fold]?.heldout[0];
+      if (first === undefined || second === undefined || leak === undefined) throw new Error('fixture');
+      const leaky = { leftOut: first.leftOut, train: [...first.train, { ...leak, text: leak.text.toUpperCase() }] };
+      expect(() => writeTuningSets(dir, [second, leaky], FOLD_SETS, loadHandwritten())).toThrow('E_TUNE_OVERLAP');
+      expect(readdirSync(dir)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // A tuning row belongs to no single fold: a fold number on it would read as
+  // that fold's data.
+  it('writes tune_<a>_<b>.jsonl with every row and fold null', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tune-'));
+    try {
+      const [first] = TUNING;
+      if (first === undefined) throw new Error('fixture');
+      const written = writeTuningSets(dir, [first], FOLD_SETS, loadHandwritten());
+      expect(written.map(({ target }) => target.split(/[\\/]/).pop())).toEqual(['tune_0_1.jsonl']);
+      expect(written[0]?.rows).toBe(20_000);
+      const rows = parseJsonl(readFileSync(written[0]?.target ?? '', 'utf8'));
+      expect(rows).toHaveLength(20_000);
+      expect(rows.every((row) => row['fold'] === null)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });
