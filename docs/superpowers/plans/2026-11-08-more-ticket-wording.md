@@ -1,11 +1,11 @@
 # More Ticket Wording Plan
 
 ## Progress
-- Current task: 1
-- Done (with evidence): Task 0 - blast-radius scan, no commit (results below)
-- Next: Task 1, batch 1 written in the scratch copy and checked on the tuning sets
-- Branch: feature/more-ticket-wording (from main 85eddc4)
-- Open questions: the history row (design 10), asked at the plan hand-off; needed before Task 6
+- Current task: stopped for the owner after batch 2 (Task 2's stop rule allows batch 3)
+- Done (with evidence): Task 0 - blast-radius scan (below). Tasks 1-2 batch 1 - template check 0/28 fight, tuning PASS 3/4, test FAIL (13,757 vs 13,662 flags at 0.55; fold 3 and seen set). Tasks 1-2 batch 2 - 0/24 fight, tuning PASS 3/4, test FAIL (13,741 vs 13,683; fold 3 and seen set). Numbers: `.kit/reports/deciding-test-2026-11-08.md`, "Step 3 batches"
+- Next: the owner's call between batch 3, closing the version without a model change, or a changed bar
+- Branch: feature/more-ticket-wording (from main 85eddc4; c7a6d54 design and plan)
+- Open questions: the owner's call above; the history row (design 10) only if a batch lands
 
 **Goal:** the generator's wording gets wider in checked batches until a batch sends fewer tickets to a person with no rise in misses or unchecked wrong answers, then the repo moves to it.
 **Record:** `.kit/reports/step2-intent-2026-11-08.md` (the owner's words); goals 1-3 from the owner's step 3 approval (2026-11-08); the batch loop and stop rule are the planner's.
@@ -98,3 +98,6 @@ Measured 2026-11-08 on main 85eddc4:
 - A stale agent worktree sits at `.claude/worktrees/agent-a970fbf71b4c549e5` (seen in a search on 2026-11-08); list and clean with the owner's yes.
 
 ## Execution Notes & Deviations
+- Ruling (mechanics): the pipeline ships one floor, so the test score uses single floors (0.5, and the floor picked on all 12 tuning splits), not a floor per fold; per-fold floors cannot ship.
+- Ruling (mechanics): the tuning score's reference is today's model type trained on the OLD wording of the same tuning folds (`old_tune_<a>_<b>`), scored on the same new inner files.
+- Batch 2 dropped its new Product Question templates after four rewrite rounds on the tuning sets kept failing the template check (design 6 allows drop).
