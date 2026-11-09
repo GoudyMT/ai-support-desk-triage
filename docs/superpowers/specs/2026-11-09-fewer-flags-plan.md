@@ -1,6 +1,6 @@
 # Fewer Tickets to a Person, Without Losing Accuracy - The Plan
 
-**Date:** 2026-11-09. **Status:** for the owner's approval ("Once we have the plan recorded, I will approve").
+**Date:** 2026-11-09. **Status:** approved by the owner ("Approved", 2026-11-09), with checks 3-5 of Phase 2 added at their request.
 **Evidence:** `.kit/reports/deciding-test-2026-11-08.md` (36 candidates, batches 1-2, the High/Urgent check), `.kit/reports/fewer-flags-research-2026-11-09.md` (11 methods), `.kit/reports/fewer-flags-skeptic-2026-11-09.md` (attack on the best static idea). Probe scripts and outputs: the session scratchpad `dt\` folder (kept out of the repo by the owner's rule).
 
 ## 1. The goal and the rules it keeps
@@ -59,6 +59,9 @@
 Two deciding checks on the tuning sets, each bar written first:
 1. **Does it generalise, or only memorise?** Teach the model only from tickets of some templates; measure flags and safety on tickets of templates it has not been taught. Bar: a flag cut with no safety count worse, on most tuning splits.
 2. **How much checked work does it take?** Flags against the number of reviewed tickets (100, 250, 500, 1,000). This sets the retraining cycle.
+3. **Faster first week (active learning):** the desk sends a person the tickets it would learn most from, not only the unsure ones. Bar: the Week 1 flag share reached in fewer days, no safety count worse.
+4. **Self-learning from its own unchecked answers:** measured only to show the risk (it teaches the model its own mistakes). Not built unless it passes the section 1 rules, which it is not expected to.
+5. **A "new product launch" day:** new wording arrives mid-run; flags jump, then fall as the desk learns. Bar: recovery to the pre-launch share within a week, no safety count worse.
 - If check 1 fails, the plan stops here and goes back to the owner with what it found.
 - If it passes: one score on a fresh, never-read stream (a new seed for every fold), held to the section 1 rules.
 
