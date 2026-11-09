@@ -24,7 +24,19 @@
    | Tuning splits where any safety count got worse | - | 0 of 12 |
 
    Script: `dt\learning_desk.py`, output `learning_desk.txt`. Tuning sets only; no test set read.
-4. **A cheaper cousin, a memory of reviewed tickets** (no retraining; a near-identical reviewed ticket waives or forces the flag), cut flags 5.8% on top of batch 2 + guard, safe on all 12 splits (`memory_guard.txt`). It is dominated by item 3, so it is not in the plan.
+4. **Day by day (the owner asked for a day, week and month view, 2026-11-09).** A desk day is 100 tickets (`ACT2_TICKETS_PER_DAY`); the model retrains each night on the day's reviewed tickets. Four tuning splits, 400 tickets a day (`dt\daily.py`, `daily.txt`):
+
+   | Desk day | Sent to a person, model never learns | Model learns each night |
+   |---|---|---|
+   | 1 | 88.2% | 90.5% |
+   | 3 | 89.2% | 79.0% |
+   | 7 (one week) | 90.2% | 49.0% |
+   | 14 | 93.8% | 47.5% |
+   | 30 (one month) | 91.5% | 45.2% |
+
+   Over the 30 days: high-risk missed 5 -> 0, unchecked wrong category 106 -> 3, unchecked wrong priority 197 -> 12, High/Urgent sent out low 48 -> 0. The curve flattens near 37%, the share of tickets that must go to a person by design (security, accessibility, escalations, disputes), so most of what can be cut is cut within a week.
+   **Name:** this is learning from human feedback (retraining on the operator's answers), not reinforcement learning in the strict sense: the operator gives the right answer, not a reward score.
+5. **A cheaper cousin, a memory of reviewed tickets** (no retraining; a near-identical reviewed ticket waives or forces the flag), cut flags 5.8% on top of batch 2 + guard, safe on all 12 splits (`memory_guard.txt`). It is dominated by item 3, so it is not in the plan.
 
 **Shipped precedent:** support products retrain on their own ticket history and treat agent corrections as labels; learning to defer and active learning are the literature's names for it (research report, methods 1 and 4).
 
@@ -53,7 +65,7 @@ Two deciding checks on the tuning sets, each bar written first:
 ### Phase 3 - Build the learning loop (its own design, then a PR)
 - **Where the learning runs:** at training time, in Python, the way shipped desks do it. Each "cycle" adds the reviewed tickets of the last batch to the training data and retrains. No training code in the browser, so the scorer's exact match with Python (parity) holds.
 - **A third head, "needs a person":** a small yes/no model trained on what the reviewer confirmed. It flags tickets the floor misses. It is one weight row, so the shared vocabulary saving pays for it.
-- **The page shows growth:** each cycle is a Model History row. The flag share falls cycle by cycle, with every safety count shown beside it. That is the growth over time the owner asked for.
+- **The page shows growth:** each cycle is a Model History row, shown at Day 1, Week 1 and Month 1 (the owner, 2026-11-09). The flag share falls cycle by cycle, with every safety count shown beside it. That is the growth over time the owner asked for.
 - **CI:** retrains each cycle from the recorded reviewed tickets and checks the committed models, as today.
 
 ### Phase 4 (stretch, owner-gated) - Make the bar robust to one-ticket noise
