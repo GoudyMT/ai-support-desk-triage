@@ -1,6 +1,6 @@
 # Fewer Tickets to a Person, Without Losing Accuracy - The Plan
 
-**Date:** 2026-11-09. **Status:** approved by the owner ("Approved", 2026-11-09), with checks 3-5 of Phase 2 added at their request.
+**Date:** 2026-11-09. **Status:** approved by the owner ("Approved", 2026-11-09), with checks 3-5 of Phase 2 added at their request. **Closed at Phase 2, check 1 (2026-11-09):** on wording it was not taught, the loop cut no flags on any of 4 tuning streams and one stream sent one more High/Urgent ticket out low, so the -51% below is memory of checked wording, not learning. Phase 1 also failed the High/Urgent rule on the test folds. The owner chose to close the version with no model change ("Just go" on the recommendation). Results: `.kit/reports/learning-loop-phase2-2026-11-09.md`, `.kit/reports/deciding-test-2026-11-08.md`. Next lever: a model that reads new wording better (research method 10), a future version's decision.
 **Evidence:** `.kit/reports/deciding-test-2026-11-08.md` (36 candidates, batches 1-2, the High/Urgent check), `.kit/reports/fewer-flags-research-2026-11-09.md` (11 methods), `.kit/reports/fewer-flags-skeptic-2026-11-09.md` (attack on the best static idea). Probe scripts and outputs: the session scratchpad `dt\` folder (kept out of the repo by the owner's rule).
 
 ## 1. The goal and the rules it keeps
