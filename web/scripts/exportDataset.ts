@@ -222,12 +222,23 @@ export function writeTuningSets(
   });
 }
 
+export interface Exports {
+  tuning: () => { target: string; rows: number }[];
+  datasets: () => { target: string; rows: number }[];
+}
+
 // With --tuning it writes only the tuning sets: CI never tunes, so the default
 // export leaves them out.
+export function runExport(args: readonly string[], exports: Exports): { target: string; rows: number }[] {
+  return args.includes('--tuning') ? exports.tuning() : exports.datasets();
+}
+
 function main(args: string[]): void {
-  const written = args.includes('--tuning')
-    ? writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)])
-    : writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), exportTickets(TRAIN_SEED, TRAIN_COUNT), loadHandwritten());
+  const written = runExport(args, {
+    tuning: () =>
+      writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)]),
+    datasets: () => writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), exportTickets(TRAIN_SEED, TRAIN_COUNT), loadHandwritten()),
+  });
   for (const { target, rows } of written) {
     console.log(`wrote ${target} (${rows} rows)`);
   }

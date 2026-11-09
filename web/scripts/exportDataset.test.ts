@@ -21,6 +21,7 @@ import {
   isRunAsCommand,
   loadHandwritten,
   normalizeText,
+  runExport,
   toJsonl,
   writeDatasets,
   writeTuningSets,
@@ -276,6 +277,31 @@ describe('the exported sets', () => {
       expect(ticket.id).toBe(`T-${HELDOUT_SEED}-${ticket.index}`);
       expect(generateTicket(HELDOUT_SEED, ticket.index, { fold, side: 'heldout' })).toEqual(ticket);
     }
+  });
+});
+
+// `npm run export-tuning` must never rewrite the files CI scores, and the CI
+// export must never spend time writing the tuning sets.
+describe('runExport', () => {
+  const recorder = () => {
+    const ran: string[] = [];
+    const exports = {
+      tuning: () => (ran.push('tuning'), [{ target: 'tune_0_1.jsonl', rows: 1 }]),
+      datasets: () => (ran.push('datasets'), [{ target: 'train_0.jsonl', rows: 2 }]),
+    };
+    return { ran, exports };
+  };
+
+  it('with --tuning writes only the tuning sets', () => {
+    const { ran, exports } = recorder();
+    expect(runExport(['--tuning'], exports)).toEqual([{ target: 'tune_0_1.jsonl', rows: 1 }]);
+    expect(ran).toEqual(['tuning']);
+  });
+
+  it('without a switch writes only the datasets CI scores', () => {
+    const { ran, exports } = recorder();
+    expect(runExport([], exports)).toEqual([{ target: 'train_0.jsonl', rows: 2 }]);
+    expect(ran).toEqual(['datasets']);
   });
 });
 
