@@ -24,6 +24,7 @@ import {
   type Split,
   type Template,
 } from './templates';
+import type { Wording } from './wording';
 
 export { CATEGORY_SHARES, CATEGORY_TRIGGER_WORDS, FAKE_DATA_SHARE, HARD_CASE_SHARES, MAX_TICKETS };
 export type { HardCase, Split };
@@ -49,6 +50,19 @@ export interface TicketDetail {
   templates: Template[];
   plainText: string;
 }
+
+// The wording every recorded number of the first model was measured on.
+export const BUILT_IN_WORDING: Wording = {
+  templates: TEMPLATES,
+  trapTemplates: TRAP_TEMPLATES,
+  vagueTemplates: VAGUE_TEMPLATES,
+  politeSecurityTemplates: POLITE_SECURITY_TEMPLATES,
+  threatPhrases: THREAT_PHRASES,
+  twoIssueConnectors: TWO_ISSUE_CONNECTORS,
+  openers: OPENERS,
+  closers: CLOSERS,
+  requests: REQUESTS,
+};
 
 const MAX_UINT32 = 0xffffffff;
 // Far above the largest export (20,000). Measured: 100,000 tickets take about
@@ -97,14 +111,14 @@ function drawHardCase(rng: Rng): HardCase | undefined {
   return drawn === NO_HARD_CASE ? undefined : drawn;
 }
 
-function buildTwoIssues(rng: Rng, base: Category, split: Split): Body {
+function buildTwoIssues(rng: Rng, base: Category, split: Split, wording: Wording): Body {
   const others = CATEGORIES.filter((category) => category !== base && category !== 'Other');
   const second = rng.pick(others);
-  const first = rng.pick(poolOf(TEMPLATES[base], split));
-  const other = rng.pick(poolOf(TEMPLATES[second], split));
+  const first = rng.pick(poolOf(wording.templates[base], split));
+  const other = rng.pick(poolOf(wording.templates[second], split));
   const text = [
     fillSlots(first.text, rng, split),
-    rng.pick(poolOf(TWO_ISSUE_CONNECTORS, split)),
+    rng.pick(poolOf(wording.twoIssueConnectors, split)),
     fillSlots(other.text, rng, split),
   ].join(' ');
   const issues = [base, second];
@@ -116,23 +130,23 @@ function buildTwoIssues(rng: Rng, base: Category, split: Split): Body {
   return { text, facts, topic: base, templates: [first, other] };
 }
 
-function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, split: Split): Body {
+function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, split: Split, wording: Wording): Body {
   switch (hardCase) {
     case 'vague': {
-      const template = rng.pick(poolOf(VAGUE_TEMPLATES, split));
+      const template = rng.pick(poolOf(wording.vagueTemplates, split));
       const facts = { ...factsFor(['Other'], template), vague: true };
       return { text: fillSlots(template.text, rng, split), facts, topic: 'Other', templates: [template] };
     }
     case 'threatening': {
       // A threat only follows a message that already carries a grievance.
-      const template = rng.pick(poolOf(TEMPLATES[base], split).filter((candidate) => candidate.grievance === true));
-      const text = `${fillSlots(template.text, rng, split)} ${rng.pick(poolOf(THREAT_PHRASES, split))}`;
+      const template = rng.pick(poolOf(wording.templates[base], split).filter((candidate) => candidate.grievance === true));
+      const text = `${fillSlots(template.text, rng, split)} ${rng.pick(poolOf(wording.threatPhrases, split))}`;
       return { text, facts: { ...factsFor([base], template), threatening: true }, topic: base, templates: [template] };
     }
     case 'two-issues':
-      return buildTwoIssues(rng, base, split);
+      return buildTwoIssues(rng, base, split, wording);
     case 'keyword-trap': {
-      const template = rng.pick(poolOf(TRAP_TEMPLATES[base], split));
+      const template = rng.pick(poolOf(wording.trapTemplates[base], split));
       return {
         text: fillSlots(template.text, rng, split),
         facts: factsFor([base], template),
@@ -141,14 +155,14 @@ function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, spl
       };
     }
     case 'polite-security': {
-      const template = rng.pick(poolOf(POLITE_SECURITY_TEMPLATES, split));
+      const template = rng.pick(poolOf(wording.politeSecurityTemplates, split));
       const issues: Category[] = ['Security Concern'];
       const facts = factsFor(issues, template);
       return { text: fillSlots(template.text, rng, split), facts, topic: 'Security Concern', templates: [template] };
     }
     case 'typos':
     case undefined: {
-      const template = rng.pick(poolOf(TEMPLATES[base], split));
+      const template = rng.pick(poolOf(wording.templates[base], split));
       return {
         text: fillSlots(template.text, rng, split),
         facts: factsFor([base], template),
@@ -165,19 +179,24 @@ function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, spl
 // email. A template that already greets or thanks gets no second greeting or
 // thanks. A polite security report always greets and thanks, but only in the
 // shared wording every other category also uses.
-function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined): string {
+function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined, wording: Wording): string {
   const polite = hardCase === 'polite-security';
   const wantsOpener = rng.chance(polite ? POLITE_OPENER_CHANCE : OPENER_CHANCE);
-  const opener = wantsOpener && !GREETING_AT_START.test(body) ? rng.pick(OPENERS) : '';
+  const opener = wantsOpener && !GREETING_AT_START.test(body) ? rng.pick(wording.openers) : '';
   const wantsRequest = hardCase !== 'threatening' && rng.chance(REQUEST_CHANCE);
-  const request = wantsRequest ? rng.pick(REQUESTS) : '';
+  const request = wantsRequest ? rng.pick(wording.requests) : '';
   const wantsCloser = hardCase !== 'threatening' && rng.chance(polite ? POLITE_CLOSER_CHANCE : CLOSER_CHANCE);
-  const closer = wantsCloser && !SIGN_OFF_ANYWHERE.test(body) ? rng.pick(CLOSERS) : '';
+  const closer = wantsCloser && !SIGN_OFF_ANYWHERE.test(body) ? rng.pick(wording.closers) : '';
   const text = [rng.chance(CASUAL_CHANCE) ? body.toLowerCase() : body, request, closer].filter((part) => part !== '').join(' ');
   return opener === '' ? text : `${opener}\n${text}`;
 }
 
-export function generateTicketDetail(seed: number, index: number, split: Split = 'all'): TicketDetail {
+export function generateTicketDetail(
+  seed: number,
+  index: number,
+  split: Split = 'all',
+  wording: Wording = BUILT_IN_WORDING,
+): TicketDetail {
   // The seed mixing works on 32 bits, so a seed or index outside them would
   // wrap and repeat another ticket without any sign of it.
   if (!Number.isInteger(seed) || seed < 0 || seed > MAX_UINT32 || !Number.isInteger(index) || index < 0 || index > MAX_UINT32) {
@@ -193,8 +212,8 @@ export function generateTicketDetail(seed: number, index: number, split: Split =
   const baseCategory = rng.weighted(CATEGORY_SHARES);
   const hasFakeData = rng.chance(FAKE_DATA_SHARE);
 
-  const body = buildBody(rng, hardCase, baseCategory, split);
-  const plainText = addVoice(rng, body.text, hardCase);
+  const body = buildBody(rng, hardCase, baseCategory, split, wording);
+  const plainText = addVoice(rng, body.text, hardCase, wording);
   let text = hardCase === 'typos' ? introduceTypos(rng, plainText) : plainText;
   // Added last so a typo can never damage an email, number or card.
   if (hasFakeData) {
@@ -215,15 +234,15 @@ export function generateTicketDetail(seed: number, index: number, split: Split =
   return { ticket, facts: body.facts, baseCategory, templates: body.templates, plainText };
 }
 
-export function generateTicket(seed: number, index: number, split: Split = 'all'): Ticket {
-  return generateTicketDetail(seed, index, split).ticket;
+export function generateTicket(seed: number, index: number, split: Split = 'all', wording: Wording = BUILT_IN_WORDING): Ticket {
+  return generateTicketDetail(seed, index, split, wording).ticket;
 }
 
-export function generateTickets(seed: number, count: number, split: Split = 'all'): Ticket[] {
+export function generateTickets(seed: number, count: number, split: Split = 'all', wording: Wording = BUILT_IN_WORDING): Ticket[] {
   if (!Number.isInteger(count) || count < 0 || count > MAX_TICKETS) {
     throw new Error('E_COUNT_RANGE');
   }
   // Checked here too: a count of 0 builds no ticket to trip the check.
   checkSplit(split);
-  return Array.from({ length: count }, (_, index) => generateTicket(seed, index, split));
+  return Array.from({ length: count }, (_, index) => generateTicket(seed, index, split, wording));
 }
