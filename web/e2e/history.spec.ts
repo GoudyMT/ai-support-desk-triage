@@ -15,29 +15,42 @@ test('the page lists the newest model first with its numbers and an arrow a scre
   await expect(page.getByRole('heading', { level: 1, name: 'Model History' })).toBeVisible();
   const rows = page.locator('#rows > tr');
   await expect(rows).toHaveCount(VIEW.rows.length);
+  // Each change is looked for inside its own cell, so an arrow drawn beside the wrong number fails here.
   for (const [at, row] of VIEW.rows.entries()) {
-    await expect(rows.nth(at)).toContainText(row.name);
-    await expect(rows.nth(at)).toContainText(row.kind);
-    await expect(rows.nth(at).locator('td')).toContainText(row.cells.map((cell) => cell.value));
+    const line = rows.nth(at);
+    await expect(line.locator('th')).toContainText(row.name);
+    await expect(line.locator('th')).toContainText(row.kind);
+    await expect(line.getByRole('img')).toHaveCount(row.cells.filter((cell) => cell.change !== null).length);
+    for (const [column, cell] of row.cells.entries()) {
+      const td = line.locator('td').nth(column);
+      await expect(td.locator('.value')).toHaveText(cell.value);
+      if (cell.change !== null) {
+        await expect(td.getByRole('img', { name: cell.change.label, exact: true })).toHaveText(cell.change.text);
+      }
+    }
   }
-  const changes = VIEW.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.change === null ? [] : [cell.change])));
-  expect(changes.length).toBeGreaterThan(0);
-  for (const change of changes) {
-    await expect(page.getByRole('img', { name: change.label }).first()).toHaveText(change.text);
-  }
-  const up = changes.find((change) => change.direction === 'up');
-  if (up !== undefined) {
-    const arrow = page.getByRole('img', { name: up.label }).first();
-    await expect(arrow).toHaveCSS('font-size', '13px');
-    await expect(arrow).toHaveCSS('font-weight', '400');
-    await expect(arrow).toHaveCSS('color', 'rgb(22, 101, 52)');
-  }
+  // Every change shares one style, so the first one drawn stands for all; the view must hold at least one.
+  const firstChange = VIEW.rows.findIndex((row) => row.cells.some((cell) => cell.change !== null));
+  expect(firstChange).toBeGreaterThanOrEqual(0);
+  const arrow = rows.nth(firstChange).getByRole('img').first();
+  await expect(arrow).toHaveCSS('font-size', '13px');
+  await expect(arrow).toHaveCSS('font-weight', '400');
+  await expect(arrow).toHaveCSS('color', 'rgb(22, 101, 52)');
+  // Each block is found by the start of its title: the tip moved in after a title can name another block's words.
+  await expect(page.locator('.block')).toHaveCount(VIEW.blocks.length);
   for (const block of VIEW.blocks) {
-    await expect(page.getByText(block.baseline)).toBeVisible();
+    const startsWithTitle = new RegExp(`^${block.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+    const box = page.locator('.block').filter({ has: page.locator('.block-title', { hasText: startsWithTitle }) });
+    await expect(box).toHaveCount(1);
+    await expect(box.locator('.block-value')).toHaveText(block.value);
+    await expect(box.locator('.block-note')).toContainText(block.baseline);
+    await expect(box.getByRole('img')).toHaveCount(block.change === null ? 0 : 1);
+    if (block.change !== null) {
+      await expect(box.getByRole('img', { name: block.change.label, exact: true })).toHaveText(block.change.text);
+    }
   }
-  // The column and its block say what the tickets are: written for this project, not hand-written.
+  // The column says what the tickets are: written for this project, not hand-written.
   await expect(page.locator('#head th').nth(2)).toHaveText('Right on tickets written for this project');
-  await expect(page.locator('.block', { hasText: 'Right on tickets written for this project' })).toContainText(VIEW.blocks[1]?.value ?? '');
 });
 
 test('the bottom bar reaches the desk, Learn The Process and Under the Hood', async ({ page }) => {
