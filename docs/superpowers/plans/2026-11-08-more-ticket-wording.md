@@ -1,7 +1,7 @@
 # More Ticket Wording Plan
 
 ## Progress
-- Closed 2026-11-09 with no model change (the owner's pick after the fewer-flags plan's Phase 2 check 1 failed: `docs/superpowers/specs/2026-11-09-fewer-flags-plan.md`). Landed on the branch: Task 3 (`cc43ef5`, tuning switch rows, break-checked) and the history page test reading `history.json` (`e689488`, break-checked: survives a new row, fails when the page drops one). Not landed: Task 6 (batch 2 kept in a local stash, never shipped); Tasks 4-5 carried to the next feature.
+- Closed 2026-11-08 with no model change (the owner's pick after the fewer-flags plan's Phase 2 check 1 failed: `docs/superpowers/specs/2026-11-08-fewer-flags-plan.md`). Landed on the branch: Task 3 (`cc43ef5`, tuning switch rows, break-checked) and the history page test reading `history.json` (`e689488`, break-checked: survives a new row, fails when the page drops one). Not landed: Task 6 (batch 2 kept in a local stash, never shipped); Tasks 4-5 carried to the next feature.
 - Current task: stopped for the owner after batch 2 (Task 2's stop rule allows batch 3)
 - Done (with evidence): Task 0 - blast-radius scan (below). Tasks 1-2 batch 1 - template check 0/28 fight, tuning PASS 3/4, test FAIL (13,757 vs 13,662 flags at 0.55; fold 3 and seen set). Tasks 1-2 batch 2 - 0/24 fight, tuning PASS 3/4, test FAIL (13,741 vs 13,683; fold 3 and seen set). Numbers: `.kit/reports/deciding-test-2026-11-08.md`, "Step 3 batches"
 - Next: the owner's call between batch 3, closing the version without a model change, or a changed bar

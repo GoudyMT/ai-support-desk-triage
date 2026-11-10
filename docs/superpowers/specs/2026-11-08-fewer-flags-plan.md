@@ -1,13 +1,13 @@
 # Fewer Tickets to a Person, Without Losing Accuracy - The Plan
 
-**Date:** 2026-11-09. **Status:** approved by the owner ("Approved", 2026-11-09), with checks 3-5 of Phase 2 added at their request. **Closed at Phase 2, check 1 (2026-11-09):** on wording it was not taught, the loop cut no flags on any of 4 tuning streams and one stream sent one more High/Urgent ticket out low, so the -51% below is memory of checked wording, not learning. Phase 1 also failed the High/Urgent rule on the test folds. The owner chose to close the version with no model change ("Just go" on the recommendation). Results: `.kit/reports/learning-loop-phase2-2026-11-09.md`, `.kit/reports/deciding-test-2026-11-08.md`. Next lever: a model that reads new wording better (research method 10), a future version's decision.
-**Evidence:** `.kit/reports/deciding-test-2026-11-08.md` (36 candidates, batches 1-2, the High/Urgent check), `.kit/reports/fewer-flags-research-2026-11-09.md` (11 methods), `.kit/reports/fewer-flags-skeptic-2026-11-09.md` (attack on the best static idea). Probe scripts and outputs: the session scratchpad `dt\` folder (kept out of the repo by the owner's rule).
+**Date:** 2026-11-08. **Status:** approved by the owner ("Approved", 2026-11-08), with checks 3-5 of Phase 2 added at their request. **Closed at Phase 2, check 1 (2026-11-08):** on wording it was not taught, the loop passed on none of 4 tuning streams: 3 sent more tickets to a person, and the one that sent fewer (fold 3, 30 fewer) sent one more High/Urgent ticket out low, so the -51% below is memory of checked wording, not learning. Phase 1 also failed the High/Urgent rule on the test folds. The owner chose to close the version with no model change ("Just go" on the recommendation). Results: `.kit/reports/learning-loop-phase2-2026-11-08.md`, `.kit/reports/deciding-test-2026-11-08.md`. Next lever: a model that reads new wording better (research method 10), a future version's decision.
+**Evidence:** `.kit/reports/deciding-test-2026-11-08.md` (36 candidates, batches 1-2, the High/Urgent check), `.kit/reports/fewer-flags-research-2026-11-08.md` (11 methods), `.kit/reports/fewer-flags-skeptic-2026-11-08.md` (attack on the best static idea). Probe scripts and outputs: the session scratchpad `dt\` folder (kept out of the repo by the owner's rule); every section 2 learning number is copied into `.kit/reports/learning-loop-phase2-2026-11-08.md`.
 
 ## 1. The goal and the rules it keeps
 
 - **Goal:** send fewer tickets to a person.
-- **Never negotiated (the owner, 2026-11-09):** identifying High and Urgent tickets. Per set, never more High/Urgent tickets sent out unchecked as Low/Medium, and never more high-risk (must-review) tickets missed.
-- **Also held:** unchecked wrong categories and priorities at or under today, per set. The owner accepted two small accuracy dips (fold 3 priority, 3 tickets on the older hand-written set), because they are not High/Urgent tickets slipping through ("This is fine", 2026-11-09).
+- **Never negotiated (the owner, 2026-11-08):** identifying High and Urgent tickets. Per set, never more High/Urgent tickets sent out unchecked as Low/Medium, and never more high-risk (must-review) tickets missed.
+- **Also held:** unchecked wrong categories and priorities at or under today, per set. The owner accepted two small accuracy dips (fold 3 priority, 3 tickets on the older hand-written set), because they are not High/Urgent tickets slipping through ("This is fine", 2026-11-08).
 
 ## 2. What we know (measured)
 
@@ -24,7 +24,7 @@
    | Tuning splits where any safety count got worse | - | 0 of 12 |
 
    Script: `dt\learning_desk.py`, output `learning_desk.txt`. Tuning sets only; no test set read.
-4. **Day by day (the owner asked for a day, week and month view, 2026-11-09).** A desk day is 100 tickets (`ACT2_TICKETS_PER_DAY`); the model retrains each night on the day's reviewed tickets. Four tuning splits, 400 tickets a day (`dt\daily.py`, `daily.txt`):
+4. **Day by day (the owner asked for a day, week and month view, 2026-11-08).** A desk day is 100 tickets (`ACT2_TICKETS_PER_DAY`); the model retrains each night on the day's reviewed tickets. Four tuning splits, 400 tickets a day (`dt\daily.py`, `daily.txt`):
 
    | Desk day | Sent to a person, model never learns | Model learns each night |
    |---|---|---|
@@ -68,7 +68,7 @@ Two deciding checks on the tuning sets, each bar written first:
 ### Phase 3 - Build the learning loop (its own design, then a PR)
 - **Where the learning runs:** at training time, in Python, the way shipped desks do it. Each "cycle" adds the reviewed tickets of the last batch to the training data and retrains. No training code in the browser, so the scorer's exact match with Python (parity) holds.
 - **A third head, "needs a person":** a small yes/no model trained on what the reviewer confirmed. It flags tickets the floor misses. It is one weight row, so the shared vocabulary saving pays for it.
-- **The page shows growth:** each cycle is a Model History row, shown at Day 1, Week 1 and Month 1 (the owner, 2026-11-09). The flag share falls cycle by cycle, with every safety count shown beside it. That is the growth over time the owner asked for.
+- **The page shows growth:** each cycle is a Model History row, shown at Day 1, Week 1 and Month 1 (the owner, 2026-11-08). The flag share falls cycle by cycle, with every safety count shown beside it. That is the growth over time the owner asked for.
 - **CI:** retrains each cycle from the recorded reviewed tickets and checks the committed models, as today.
 
 ### Phase 4 (stretch, owner-gated) - Make the bar robust to one-ticket noise
