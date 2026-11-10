@@ -35,6 +35,8 @@ Then a clear ticket goes to its team, and a flagged one waits in Needs a person.
 
 There is no server. The site is static, makes no calls after loading its model file, and stores nothing.
 
+The [technical guide](docs/guide/README.md) explains each design choice with a diagram, what it was measured to do, and the model update that was tested and not released.
+
 ### Watch it think
 
 [![Under the Hood: a live ticket with the words that moved its decision](docs/images/under-the-hood.png)](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)
