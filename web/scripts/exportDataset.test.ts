@@ -283,25 +283,48 @@ describe('the exported sets', () => {
 // `npm run export-tuning` must never rewrite the files CI scores, and the CI
 // export must never spend time writing the tuning sets.
 describe('runExport', () => {
-  const recorder = () => {
-    const ran: string[] = [];
-    const exports = {
-      tuning: () => (ran.push('tuning'), [{ target: 'tune_0_1.jsonl', rows: 1 }]),
-      datasets: () => (ran.push('datasets'), [{ target: 'train_0.jsonl', rows: 2 }]),
-    };
-    return { ran, exports };
-  };
+  // Small real inputs and the real writers, so the files on disk show which
+  // writer each switch reached.
+  const SMALL: FoldDataset[] = FOLD_IDS.map((fold) => ({
+    fold,
+    train: generateTickets(TRAIN_SEED, 3, { fold, side: 'train' }),
+    heldout: generateTickets(HELDOUT_SEED, 2, { fold, side: 'heldout' }),
+  }));
+  const inputs = (ran: string[]) => ({
+    tuning: () => (
+      ran.push('tuning'),
+      {
+        sets: [{ leftOut: [0, 1] as [number, number], train: generateTickets(TRAIN_SEED, 3, { fold: 0, side: 'train', alsoHeldOut: 1 }) }],
+        folds: SMALL,
+        handwritten: loadHandwritten(),
+      }
+    ),
+    datasets: () => (ran.push('datasets'), { datasets: SMALL, trainAll: generateTickets(TRAIN_SEED, 4), handwritten: loadHandwritten() }),
+  });
 
   it('with --tuning writes only the tuning sets', () => {
-    const { ran, exports } = recorder();
-    expect(runExport(['--tuning'], exports)).toEqual([{ target: 'tune_0_1.jsonl', rows: 1 }]);
-    expect(ran).toEqual(['tuning']);
+    const scratch = mkdtempSync(join(tmpdir(), 'export-switch-tune-'));
+    try {
+      const ran: string[] = [];
+      runExport(['--tuning'], scratch, inputs(ran));
+      expect(readdirSync(scratch)).toEqual(['tune_0_1.jsonl']);
+      expect(ran).toEqual(['tuning']);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   it('without a switch writes only the datasets CI scores', () => {
-    const { ran, exports } = recorder();
-    expect(runExport([], exports)).toEqual([{ target: 'train_0.jsonl', rows: 2 }]);
-    expect(ran).toEqual(['datasets']);
+    const scratch = mkdtempSync(join(tmpdir(), 'export-switch-ci-'));
+    try {
+      const ran: string[] = [];
+      runExport([], scratch, inputs(ran));
+      const expected = [...FOLD_IDS.flatMap((fold) => [`train_${fold}.jsonl`, `heldout_${fold}.jsonl`]), 'train_all.jsonl', 'handwritten.jsonl'];
+      expect(readdirSync(scratch).sort()).toEqual([...expected].sort());
+      expect(ran).toEqual(['datasets']);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 });
 

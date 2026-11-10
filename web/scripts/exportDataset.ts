@@ -222,22 +222,29 @@ export function writeTuningSets(
   });
 }
 
-export interface Exports {
-  tuning: () => { target: string; rows: number }[];
-  datasets: () => { target: string; rows: number }[];
+// What each export writes from. Each is built only when its export runs, so the
+// default export never spends time on the tuning sets.
+export interface ExportInputs {
+  tuning: () => { sets: TuningSet[]; folds: FoldDataset[]; handwritten: HandwrittenRow[] };
+  datasets: () => { datasets: FoldDataset[]; trainAll: Ticket[]; handwritten: HandwrittenRow[] };
 }
 
 // With --tuning it writes only the tuning sets: CI never tunes, so the default
-// export leaves them out.
-export function runExport(args: readonly string[], exports: Exports): { target: string; rows: number }[] {
-  return args.includes('--tuning') ? exports.tuning() : exports.datasets();
+// export leaves them out. Each switch is tied to its writer here, not by the
+// caller, so `export-tuning` can never rewrite the files CI scores.
+export function runExport(args: readonly string[], outputDir: string, inputs: ExportInputs): { target: string; rows: number }[] {
+  if (args.includes('--tuning')) {
+    const { sets, folds, handwritten } = inputs.tuning();
+    return writeTuningSets(outputDir, sets, folds, handwritten);
+  }
+  const { datasets, trainAll, handwritten } = inputs.datasets();
+  return writeDatasets(outputDir, datasets, trainAll, handwritten);
 }
 
 function main(args: string[]): void {
-  const written = runExport(args, {
-    tuning: () =>
-      writeTuningSets(fileURLToPath(OUTPUT_DIR), buildTuningSets(), buildDatasets(), [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)]),
-    datasets: () => writeDatasets(fileURLToPath(OUTPUT_DIR), buildDatasets(), exportTickets(TRAIN_SEED, TRAIN_COUNT), loadHandwritten()),
+  const written = runExport(args, fileURLToPath(OUTPUT_DIR), {
+    tuning: () => ({ sets: buildTuningSets(), folds: buildDatasets(), handwritten: [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)] }),
+    datasets: () => ({ datasets: buildDatasets(), trainAll: exportTickets(TRAIN_SEED, TRAIN_COUNT), handwritten: loadHandwritten() }),
   });
   for (const { target, rows } of written) {
     console.log(`wrote ${target} (${rows} rows)`);
