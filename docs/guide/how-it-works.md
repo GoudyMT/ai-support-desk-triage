@@ -58,15 +58,15 @@ Six keyword rules look for tickets a person must always see. Each one can also r
 | Vague ticket | Medium |
 
 Two more checks flag a ticket: the model's answer is Security Concern, Accessibility Support or Urgent Complaint
-(these always get a person), or the model is less than 50% sure of the category
-([`run.ts`](../../web/src/pipeline/run.ts)).
+(these always get a person, [`guard.ts`](../../web/src/pipeline/guard.ts)), or the model is less than 50% sure of the
+category ([`run.ts`](../../web/src/pipeline/run.ts)).
 
 ### The person
 
 On the live desk a simulated reviewer checks flagged tickets. It knows each ticket's true answer and is wrong on
 purpose 5% of the time, so it acts like a person, not a perfect answer key
 ([`reviewer.ts`](../../web/src/pipeline/reviewer.ts)). You can take any ticket yourself. A one-press Approve shows
-only when the model is at least 70% sure ([`engineTypes.ts`](../../web/src/run/engineTypes.ts)).
+only when the ticket's card reads 70% sure or more ([`engineParts.ts`](../../web/src/run/engineParts.ts)).
 
 ## Where the model comes from
 
@@ -79,7 +79,7 @@ flowchart TD
     X --> TR["<b>Training</b><br/>Python and scikit-learn"]
     TR --> J["<b>Model file</b><br/>the weights, saved as JSON"]
     J --> B["<b>Scorer in the browser</b><br/>TypeScript"]
-    TR -. "same answer on every test ticket" .- B
+    TR -. "same answers, checked on 16,048 tickets" .- B
     G --> L["<b>Live desk</b><br/>new tickets every run"]
     L --> B
     classDef step fill:#ddf4ff,stroke:#0969da,color:#1f2328
@@ -89,7 +89,8 @@ flowchart TD
 ```
 
 Training happens once, in Python. The browser only reads the saved weights, and a check proves the browser scorer
-and Python give the same answer on every test ticket ([`MODEL_CARD.md`](../../ml/MODEL_CARD.md#what-it-is)).
+and Python give the same answers on 16,048 test tickets: the four test rounds and the hand-written set
+([`MODEL_CARD.md`](../../ml/MODEL_CARD.md#what-it-is)).
 
 ## Testing on wording the model never saw
 
@@ -124,5 +125,5 @@ learned it. More on what each number means: [Reading the numbers](reading-the-nu
 ## What it is not
 
 - Not connected to a real help desk. The tickets are made up and the reviewer is simulated.
-- No server. The site is static, makes no calls after loading its model file, and stores nothing.
+- No server. The site is static, makes no calls except to load its model files, and stores nothing.
 - Not a language model. It counts words and word pairs; it does not understand meaning or negation.

@@ -61,7 +61,7 @@ flowchart TD
     Q["<b>The question</b><br/>Should the model ever see<br/>emails, phones or card numbers?"]
     Q --> A["<b>Let it read the raw text</b><br/>Nothing to build."]
     Q --> B["<b>Mask first</b><br/>Pattern rules swap common forms<br/>for labels like [CARD_NUMBER]."]
-    B --> RB["<b>Result</b><br/>the model and its training data<br/>never hold those details"]
+    B --> RB["<b>Result</b><br/>the model and its training data<br/>never hold the forms it catches"]
     RB --> C["<b>Limit</b><br/>names and street addresses are not hidden;<br/>unusual forms slip through"]
     classDef q fill:#ddf4ff,stroke:#0969da,color:#1f2328
     classDef off fill:#f6f8fa,stroke:#8c959f,color:#57606a
@@ -97,8 +97,10 @@ flowchart TD
     class C cost
 ```
 
-**Outcome:** safety came first and it held on the blind test. Live runs are harder: across 40 full runs, 30 high-risk
-tickets went out without a person, in 17 of the runs ([`MODEL_CARD.md`](../../ml/MODEL_CARD.md#on-the-desk)). Cutting
+**Outcome:** safety came first, with a known gap. The blind set is small: 24 high-risk tickets. On the four larger test
+rounds, 72 of 5,856 high-risk tickets (1.2%) got past every check
+([design spec, section 6](../superpowers/specs/2026-10-29-v1-triage-demo-design.md#6-success-charter)), and across 40
+full live runs, 30 did, in 17 of the runs ([`MODEL_CARD.md`](../../ml/MODEL_CARD.md#on-the-desk)). Cutting
 the share sent to a person without losing safety became the next version's goal. That story is in
 [The version that did not ship](the-version-that-did-not-ship.md).
 
@@ -124,8 +126,8 @@ flowchart TD
 
 **Outcome:** the published numbers come from a file CI rebuilds on every push, and the check fails if anyone edits
 them by hand ([`ci.yml`](../../.github/workflows/ci.yml)). The limit matters: every time a test set guides a choice,
-it becomes a little less of a fair test. The last model version used its test folds six times, so the next one needs
-a new test stream.
+it becomes a little less of a fair test. The update that did not ship read the test rounds six times, so the next try
+needs a new test stream.
 
 ## 6. A perfect reviewer, or a realistic one?
 
@@ -134,7 +136,7 @@ flowchart TD
     Q["<b>The question</b><br/>How should the simulated<br/>person behave?"]
     Q --> A["<b>Always right</b><br/>Simple, and every flagged<br/>ticket ends up correct."]
     Q --> B["<b>Right 95% of the time</b><br/>Closer to a real person."]
-    A --> RA["<b>Would show</b><br/>100% after review,<br/>a number no real person gives"]
+    A --> RA["<b>Would show</b><br/>every flagged ticket fixed,<br/>which no desk can promise"]
     B --> RB["<b>Result</b><br/>94.5% right after review<br/>over 40 full runs"]
     RB --> C["<b>Limit</b><br/>the 95% is an assumption,<br/>not a measured person"]
     classDef q fill:#ddf4ff,stroke:#0969da,color:#1f2328
