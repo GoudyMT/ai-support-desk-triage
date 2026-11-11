@@ -62,14 +62,22 @@ jobs:
       - run: npm run export-data
         working-directory: web
       # The second model's tickets: the tests score its frozen bundle on the
-      # desk-only wording and compare the counts with the recorded ones.
+      # desk-only wording and both hand-written sets, and compare its answer for
+      # every ticket with the recorded one.
       - run: npm run export-v2
         working-directory: web
-      # Every package is pinned to the sha256 of its published wheels: an unlisted
-      # package, a changed file or a source build is refused. The file lists the
-      # whole set by hand, so pip installs exactly it and resolves nothing more.
+      # Every package is pinned to the sha256 of its published wheels: a changed
+      # file or a source build is refused. With --no-deps pip installs exactly the
+      # listed set and resolves nothing more, so it no longer refuses a package
+      # the list forgot: that package is simply absent, and the tests that import
+      # it fail.
       - run: "pip install --require-hashes --only-binary :all: --no-deps -r ml/requirements.txt"
       - run: pytest ml/tests
+      # The published two-model counts are worked out again from the bundle's
+      # recorded answers and the shipped word model. A count typed or edited by
+      # hand, or filed under another bundle's fingerprint, fails here.
+      - run: npm run measure-two-models -- --check-sets
+        working-directory: web
       # Written outside the checkout so the committed model stays what it is
       # compared with; the parity file goes to its usual place.
       # The fold models are written beside it for the pipeline check below.

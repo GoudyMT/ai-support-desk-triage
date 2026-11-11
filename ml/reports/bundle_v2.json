@@ -36,6 +36,13 @@
    "priority_right": 41,
    "high_urgent_called_low": 2,
    "must_review_wrong_category": 3
+  },
+  "fresh": {
+   "n": 60,
+   "category_right": 49,
+   "priority_right": 48,
+   "high_urgent_called_low": 4,
+   "must_review_wrong_category": 3
   }
  }
 }

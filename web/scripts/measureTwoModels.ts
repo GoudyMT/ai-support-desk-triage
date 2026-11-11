@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROUTES } from '../src/domain/labels';
+import { fileURLToPath } from 'node:url';
+import { CATEGORIES, PRIORITIES, ROUTES } from '../src/domain/labels';
 import { loadModel, score } from '../src/model/scorer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicketWith, type Predict } from '../src/pipeline/run';
 import { tablePredict, type SavedAnswer } from '../src/pipeline/tableScorer';
@@ -14,7 +15,11 @@ import { parseRows, type LabeledRow } from './measurePipeline';
 // the desk does today. The answer model gives the answer a person is shown. A
 // ticket leaves unchecked only when the gate lets it and both models give the
 // same department and priority, so an unchecked ticket always carries the gate
-// model's answer and no count below can be higher than the gate model's alone.
+// model's answer. The tickets that leave unchecked are then a part of the ones
+// the gate alone lets out, with the same answers, so none of the four error
+// counts (high-risk missed, High/Urgent out as low, wrong department, wrong
+// priority) can be higher than the gate model's alone. The count of tickets
+// sent to a person can only be the same or higher.
 
 const LOW_SIDE = new Set(['Low', 'Medium']);
 const HIGH_SIDE = new Set(['High', 'Urgent']);
@@ -74,6 +79,11 @@ export function measureTwoModels(
   floor: number = CONFIDENCE_FLOOR,
   secondCheckOn: boolean = SECOND_CHECK_ON,
 ): TwoModelResult {
+  // A table with more answers than tickets was made on another set of tickets.
+  // One with fewer, or with other ids, stops at the first ticket it lacks.
+  if (gateAnswers.length !== rows.length || answerAnswers.length !== rows.length) {
+    throw new Error('E_ANSWER_SET');
+  }
   return measureTwoPredictors(rows, tablePredict(gateAnswers), tablePredict(answerAnswers), floor, secondCheckOn);
 }
 
@@ -137,6 +147,101 @@ function argValue(args: readonly string[], name: string): string | undefined {
   return index === -1 ? undefined : args[index + 1];
 }
 
+/**
+ * Reads the gate's confidence floor from the command line.
+ *
+ * @param value The text after `--floor`, or undefined for the desk's own floor.
+ * @returns The floor.
+ * @throws Error('E_BAD_FLOOR') for anything but a number from 0 to 1: a mistyped
+ *   floor compares false with every confidence and would switch the floor off.
+ */
+export function parseFloor(value: string | undefined): number {
+  const floor = value === undefined ? CONFIDENCE_FLOOR : Number(value);
+  if (value === '' || !Number.isFinite(floor) || floor < 0 || floor > 1) {
+    throw new Error('E_BAD_FLOOR');
+  }
+  return floor;
+}
+
+// The bundle's recorded answers (`ml/reports/bundle_v2_answers.json`): for each
+// judged set its file and, per ticket, the id and the chosen department and priority.
+export interface AnswersRecord {
+  bundle_fingerprint: string;
+  sets: Record<string, { file: string; answers: readonly (readonly [string, string, string])[] }>;
+}
+
+export interface SetsReport {
+  gate: string;
+  answer: { bundle_fingerprint: string };
+  floor: number;
+  how: string;
+  sets: Record<string, TwoModelResult & { file: string }>;
+}
+
+const SET_LABELS: Record<string, string> = { desk: 'desk-only wording', handwritten: 'hand-written (seen)', fresh: 'hand-written (fresh)' };
+const SHIPPED_GATE = 'web/src/model/model.json (the shipped word model, unchanged)';
+const SETS_HOW = 'npm --prefix web run measure-two-models -- --write-sets (worked out again by CI with --check-sets)';
+
+// The answer model is compared with the gate by its choice alone, never by how
+// sure it is, so a recorded choice is a whole answer: all probability on it.
+function chosenOnly(classes: readonly string[], choice: string): Record<string, number> {
+  if (!classes.includes(choice)) {
+    throw new Error('E_ANSWER_SHAPE');
+  }
+  return Object.fromEntries(classes.map((name) => [name, name === choice ? 1 : 0]));
+}
+
+/**
+ * Works out the two-model counts of every judged set from the bundle's recorded answers.
+ *
+ * @param record The bundle's recorded answers.
+ * @param readRows Reads a set's tickets by file name.
+ * @param gatePredict The gate model's scorer.
+ * @param floor The gate's confidence floor.
+ * @returns The report, carrying the fingerprint of the bundle the answers came from.
+ * @throws Error('E_ANSWER_SET') when a set's answers are not one per ticket, in the tickets' order.
+ */
+export function measureSets(
+  record: AnswersRecord,
+  readRows: (file: string) => LabeledRow[],
+  gatePredict: Predict,
+  floor: number = CONFIDENCE_FLOOR,
+): SetsReport {
+  const sets: SetsReport['sets'] = {};
+  for (const [name, { file, answers }] of Object.entries(record.sets)) {
+    const rows = readRows(file);
+    if (answers.length !== rows.length || answers.some(([id], index) => id !== rows[index]?.id)) {
+      throw new Error('E_ANSWER_SET');
+    }
+    const saved = answers.map(([id, category, priority]) => ({
+      id,
+      category_probs: chosenOnly(CATEGORIES, category),
+      priority_probs: chosenOnly(PRIORITIES, priority),
+    }));
+    sets[SET_LABELS[name] ?? name] = { file, ...measureTwoPredictors(rows, gatePredict, tablePredict(saved), floor) };
+  }
+  return { gate: SHIPPED_GATE, answer: { bundle_fingerprint: record.bundle_fingerprint }, floor, how: SETS_HOW, sets };
+}
+
+/**
+ * Names the parts of a recorded report that differ from the one worked out now.
+ *
+ * @param recorded The report in the repo.
+ * @param built The report worked out from the recorded answers.
+ * @returns The names of the differing sets or fields; empty when the record is true.
+ */
+export function reportDifferences(recorded: SetsReport, built: SetsReport): string[] {
+  const names = new Set([...Object.keys(recorded.sets ?? {}), ...Object.keys(built.sets)]);
+  const differing = [...names].filter((name) => JSON.stringify(recorded.sets?.[name]) !== JSON.stringify(built.sets[name]));
+  if (recorded.answer?.bundle_fingerprint !== built.answer.bundle_fingerprint) {
+    differing.push('bundle_fingerprint');
+  }
+  if (recorded.floor !== built.floor) {
+    differing.push('floor');
+  }
+  return differing;
+}
+
 // The six tuning files: each leaves two folds out and is scored on both.
 const FOLD_PAIRS: readonly (readonly [number, number])[] = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
 
@@ -183,6 +288,32 @@ function modelPredict(path: string): Predict {
   return (head, maskedText) => score(model, head, maskedText);
 }
 
+// The practice answer files are not in the repo, so CI cannot work this report
+// out again. The practice rounds were also read many times while the design was
+// chosen; the judged sets and the blind set are the unbiased ones.
+const ROUNDS_NOTE =
+  'Recorded once on the owner\'s PC from practice answer files that are not in the repo. CI checks its shape and its promise (test_two_model_report.py) but does not work the counts out again. The practice rounds were read many times while the design was chosen.';
+const ANSWERS_RECORD = new URL('../../ml/reports/bundle_v2_answers.json', import.meta.url);
+const SETS_REPORT = new URL('../../ml/reports/two_model_sets.json', import.meta.url);
+const GENERATED_DIR = new URL('../../ml/data/generated/', import.meta.url);
+const SHIPPED_MODEL = new URL('../src/model/model.json', import.meta.url);
+
+// Works the judged sets' report out from the recorded answers, then writes it
+// or compares it with the one in the repo.
+function recordSets(write: boolean): number {
+  const record = JSON.parse(readFileSync(ANSWERS_RECORD, 'utf8')) as AnswersRecord;
+  const readRows = (file: string): LabeledRow[] => parseRows(readFileSync(new URL(file, GENERATED_DIR), 'utf8'));
+  const built = measureSets(record, readRows, modelPredict(fileURLToPath(SHIPPED_MODEL)));
+  if (write) {
+    writeFileSync(SETS_REPORT, `${JSON.stringify(built, null, 1)}\n`, 'utf8');
+    console.log(`wrote ${fileURLToPath(SETS_REPORT)} (${Object.keys(built.sets).length} sets)`);
+    return 0;
+  }
+  const differing = reportDifferences(JSON.parse(readFileSync(SETS_REPORT, 'utf8')) as SetsReport, built);
+  console.log(differing.length === 0 ? 'PASS two-model report matches the recorded answers' : `FAIL two-model report differs: ${differing.join(', ')}`);
+  return differing.length === 0 ? 0 : 1;
+}
+
 function recordRounds(args: readonly string[], out: string): number {
   const needed = ['--answers-dir', '--gate-key', '--answer-key', '--data-dir', '--heldout-prefix'].map((name) => argValue(args, name));
   const [answersDir, gateKey, answerKey, dataDir, heldoutPrefix] = needed;
@@ -190,14 +321,17 @@ function recordRounds(args: readonly string[], out: string): number {
     console.log('usage: measureTwoModels --out <report.json> --answers-dir <dir> --gate-key <run> --answer-key <run> --data-dir <dir> --heldout-prefix <name>');
     return 2;
   }
-  const floor = Number(argValue(args, '--floor') ?? CONFIDENCE_FLOOR);
+  const floor = parseFloor(argValue(args, '--floor'));
   const rounds = measureRounds({ answersDir, gateKey, answerKey, dataDir, heldoutPrefix }, floor);
-  writeFileSync(out, `${JSON.stringify({ gate: gateKey, answer: answerKey, heldout: heldoutPrefix, floor, rounds }, null, 1)}\n`, 'utf8');
+  writeFileSync(out, `${JSON.stringify({ gate: gateKey, answer: answerKey, heldout: heldoutPrefix, floor, note: ROUNDS_NOTE, rounds }, null, 1)}\n`, 'utf8');
   console.log(`wrote ${out} (${rounds.length} rounds)`);
   return 0;
 }
 
 function main(args: readonly string[]): number {
+  if (args.includes('--write-sets') || args.includes('--check-sets')) {
+    return recordSets(args.includes('--write-sets'));
+  }
   const out = argValue(args, '--out');
   if (out !== undefined) {
     return recordRounds(args, out);
@@ -210,7 +344,7 @@ function main(args: readonly string[]): number {
     console.log('usage: measureTwoModels --rows <tickets.jsonl> (--gate <answers.json> | --gate-model <model.json>) --answer <answers.json> [--floor <0..1>]');
     return 2;
   }
-  const floor = Number(argValue(args, '--floor') ?? CONFIDENCE_FLOOR);
+  const floor = parseFloor(argValue(args, '--floor'));
   const rows = parseRows(readFileSync(rowsPath, 'utf8'));
   const read = (path: string): SavedAnswer[] => JSON.parse(readFileSync(path, 'utf8')) as SavedAnswer[];
   const gatePredict = gateModelPath === undefined ? tablePredict(read(gatePath ?? '')) : modelPredict(gateModelPath);

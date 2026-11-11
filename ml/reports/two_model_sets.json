@@ -4,7 +4,7 @@
   "bundle_fingerprint": "7a4058a4510ce226d3df2deaded22adde8e0e7331eb5ec17d78fb08ba3331b26"
  },
  "floor": 0.5,
- "how": "npm --prefix web run measure-two-models -- --rows ml/data/generated/<file> --gate-model web/src/model/model.json --answer <the bundle's answers for that file>",
+ "how": "npm --prefix web run measure-two-models -- --write-sets (worked out again by CI with --check-sets)",
  "sets": {
   "desk-only wording": {
    "file": "v2_desk.jsonl",

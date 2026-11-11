@@ -3,6 +3,7 @@
  "answer": "sentence_v2",
  "heldout": "v2_heldout",
  "floor": 0.5,
+ "note": "Recorded once on the owner's PC from practice answer files that are not in the repo. CI checks its shape and its promise (test_two_model_report.py) but does not work the counts out again. The practice rounds were read many times while the design was chosen.",
  "rounds": [
   {
    "train": "0_1",
