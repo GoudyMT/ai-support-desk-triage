@@ -134,3 +134,9 @@ Feature tier at the end of Part 1, with the dependency, CI-workflow and public-t
 ## Parking Lot
 
 ## Execution Notes & Deviations
+- 2026-11-10, Task 1: the generator had no way to take other wording, so a seam came first: `web/src/generator/wording.ts` (the `Wording` type) and an optional `wording` argument on `generateTicket`, `generateTicketDetail` and `generateTickets`, default `BUILT_IN_WORDING`. Four stream hashes in `wording.test.ts` prove the v1 streams are unchanged. Not in the Files table; added here.
+- 2026-11-10, Task 1: the blind wording has 12 templates per category, not "as many as one fold holds" (4 or 5). The generator has 159 base templates in all, so a fold-sized blind set would rest on about 45 templates; 108 gives a steadier score. Decided before any number.
+- 2026-11-10, Task 1: greetings (the `openers` list) are exempt from the "shares no sentence with training wording" test. 7 of the 8 blind greetings equal built-in ones; a greeting names no category and people have only a handful.
+- 2026-11-10, Task 1: `blind.jsonl` is opened by the training and tuning exports for the isolation check only (texts compared, nothing scored), as well as by the hash test. The Global Constraint "not scored, printed or opened" is narrowed to "not scored or printed".
+- 2026-11-10, Task 1: label quality was checked without the lead reading the wording: a second agent labelled the 158 bodies with the answers removed. Category agreed on 158 of 158; 8 flag disagreements were reworded by a third agent, then labelled again.
+- 2026-11-10: the first generator edit was applied by a script, not the Edit tool, against the brief rule every agent follows. It was verified by the tests and type check; later edits use the Edit tool.

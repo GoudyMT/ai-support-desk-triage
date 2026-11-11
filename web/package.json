@@ -13,6 +13,7 @@
     "parity": "vitest run --config vitest.parity.config.ts",
     "export-data": "tsx scripts/exportDataset.ts",
     "export-tuning": "tsx scripts/exportDataset.ts --tuning",
+    "export-blind": "tsx scripts/exportBlind.ts",
     "build": "vite build",
     "preview": "vite preview",
     "e2e": "playwright test",

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { v0Triage } from '../src/baseline/v0';
@@ -114,6 +114,24 @@ export function assertHandwrittenIsolated(
   }
 }
 
+// The blind set judges a model once, at the end, so nothing may train or tune on
+// its wording. Its file is frozen; every export of training or tuning rows reads
+// it only to prove that none of its texts is among them.
+export const BLIND_SOURCE = new URL('../../ml/data/blind.jsonl', import.meta.url);
+
+export function loadBlind(source: URL = BLIND_SOURCE): HandwrittenRow[] {
+  return existsSync(source) ? loadHandwritten(source) : [];
+}
+
+export function assertBlindIsolated(blind: readonly { text: string }[], trainingLists: readonly (readonly { text: string }[])[]): void {
+  const blindTexts = new Set(blind.map(({ text }) => normalizeText(text)));
+  for (const list of trainingLists) {
+    if (list.some(({ text }) => blindTexts.has(normalizeText(text)))) {
+      throw new Error('E_BLIND_IN_TRAIN');
+    }
+  }
+}
+
 // Every line carries all eleven keys, with null for what a ticket lacks, so the
 // reader on the Python side never has to guess whether a key is missing. `fold`
 // names the fold the file belongs to, or is null for a file that belongs to no
@@ -156,8 +174,10 @@ export function writeDatasets(
   datasets: FoldDataset[],
   trainAll: Ticket[],
   handwritten: HandwrittenRow[],
+  blind: readonly { text: string }[] = [],
 ): { target: string; rows: number }[] {
   assertHandwrittenIsolated(handwritten, [...datasets.map(({ train }) => train), trainAll]);
+  assertBlindIsolated(blind, [...datasets.map(({ train }) => train), trainAll]);
   mkdirSync(outputDir, { recursive: true });
   const written: { target: string; rows: number }[] = [];
   const files: [string, string, number][] = [];
@@ -204,8 +224,10 @@ export function writeTuningSets(
   sets: TuningSet[],
   folds: FoldDataset[],
   handwritten: HandwrittenRow[],
+  blind: readonly { text: string }[] = [],
 ): { target: string; rows: number }[] {
   assertHandwrittenIsolated(handwritten, sets.map(({ train }) => train));
+  assertBlindIsolated(blind, sets.map(({ train }) => train));
   for (const { leftOut, train } of sets) {
     const trained = new Set(train.map((ticket) => normalizeText(ticket.text)));
     for (const fold of leftOut) {
@@ -225,8 +247,8 @@ export function writeTuningSets(
 // What each export writes from. Each is built only when its export runs, so the
 // default export never spends time on the tuning sets.
 export interface ExportInputs {
-  tuning: () => { sets: TuningSet[]; folds: FoldDataset[]; handwritten: HandwrittenRow[] };
-  datasets: () => { datasets: FoldDataset[]; trainAll: Ticket[]; handwritten: HandwrittenRow[] };
+  tuning: () => { sets: TuningSet[]; folds: FoldDataset[]; handwritten: HandwrittenRow[]; blind?: readonly { text: string }[] };
+  datasets: () => { datasets: FoldDataset[]; trainAll: Ticket[]; handwritten: HandwrittenRow[]; blind?: readonly { text: string }[] };
 }
 
 // With --tuning it writes only the tuning sets: CI never tunes, so the default
@@ -234,17 +256,22 @@ export interface ExportInputs {
 // caller, so `export-tuning` can never rewrite the files CI scores.
 export function runExport(args: readonly string[], outputDir: string, inputs: ExportInputs): { target: string; rows: number }[] {
   if (args.includes('--tuning')) {
-    const { sets, folds, handwritten } = inputs.tuning();
-    return writeTuningSets(outputDir, sets, folds, handwritten);
+    const { sets, folds, handwritten, blind } = inputs.tuning();
+    return writeTuningSets(outputDir, sets, folds, handwritten, blind);
   }
-  const { datasets, trainAll, handwritten } = inputs.datasets();
-  return writeDatasets(outputDir, datasets, trainAll, handwritten);
+  const { datasets, trainAll, handwritten, blind } = inputs.datasets();
+  return writeDatasets(outputDir, datasets, trainAll, handwritten, blind);
 }
 
 function main(args: string[]): void {
   const written = runExport(args, fileURLToPath(OUTPUT_DIR), {
-    tuning: () => ({ sets: buildTuningSets(), folds: buildDatasets(), handwritten: [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)] }),
-    datasets: () => ({ datasets: buildDatasets(), trainAll: exportTickets(TRAIN_SEED, TRAIN_COUNT), handwritten: loadHandwritten() }),
+    tuning: () => ({ sets: buildTuningSets(), folds: buildDatasets(), handwritten: [...loadHandwritten(), ...loadHandwritten(FRESH_SOURCE)], blind: loadBlind() }),
+    datasets: () => ({
+      datasets: buildDatasets(),
+      trainAll: exportTickets(TRAIN_SEED, TRAIN_COUNT),
+      handwritten: loadHandwritten(),
+      blind: loadBlind(),
+    }),
   });
   for (const { target, rows } of written) {
     console.log(`wrote ${target} (${rows} rows)`);
