@@ -164,7 +164,7 @@ export function toJsonl(tickets: Ticket[], fold: number | null): string {
 
 // The hand-written rows keep every frozen field as it was, in order, and gain
 // the same two columns the generated rows carry.
-function handwrittenToJsonl(rows: HandwrittenRow[]): string {
+export function handwrittenToJsonl(rows: readonly HandwrittenRow[]): string {
   return rows
     .map((row) => JSON.stringify({ ...row, maskedText: maskText(row.text).text, v0: v0Triage(row.text) }) + '\n')
     .join('');

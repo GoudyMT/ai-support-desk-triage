@@ -72,6 +72,27 @@ describe('the second model data', () => {
     });
   });
 
+  // The second model is scored on the fresh hand-written set by a scorer outside
+  // the page, which needs each ticket masked the way the page masks it.
+  it('writes the fresh hand-written tickets with their masked text when it is given them', () => {
+    scratchDir((dir) => {
+      const fresh = [{ id: 'F-x', text: 'Write to me at pat@mail.example.net please', category: 'Other', priority: 'Low', mustReview: false }];
+      writeV2(dir, DATA, [], fresh);
+      const line = JSON.parse(readFileSync(join(dir, 'v2_handwritten_fresh.jsonl'), 'utf8').trim()) as Record<string, unknown>;
+      expect(line).toMatchObject({ id: 'F-x', category: 'Other', maskedText: 'Write to me at [EMAIL_ADDRESS] please' });
+      expect(readdirSync(dir).sort()).toEqual([...EXPECTED_FILES, 'v2_handwritten_fresh.jsonl'].sort());
+    });
+  });
+
+  it('stops before any file is written when a training list holds a fresh hand-written text', () => {
+    scratchDir((dir) => {
+      const target = join(dir, 'out');
+      const fresh = [{ id: 'F-y', text: (DATA.train[0]?.text ?? '').toUpperCase() }];
+      expect(() => writeV2(target, DATA, [], fresh)).toThrow('E_HANDWRITTEN_IN_TRAIN');
+      expect(existsSync(target)).toBe(false);
+    });
+  });
+
   it('stops before any file is written when a training list holds a blind text', () => {
     scratchDir((dir) => {
       const target = join(dir, 'out');

@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROUTES } from '../src/domain/labels';
-import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicketWith } from '../src/pipeline/run';
+import { loadModel, score } from '../src/model/scorer';
+import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicketWith, type Predict } from '../src/pipeline/run';
 import { tablePredict, type SavedAnswer } from '../src/pipeline/tableScorer';
 import type { ReviewDecision, ReviewInput, TicketTrail } from '../src/pipeline/types';
 import { isRunAsCommand } from './exportDataset';
@@ -73,8 +74,26 @@ export function measureTwoModels(
   floor: number = CONFIDENCE_FLOOR,
   secondCheckOn: boolean = SECOND_CHECK_ON,
 ): TwoModelResult {
-  const gatePredict = tablePredict(gateAnswers);
-  const answerPredict = tablePredict(answerAnswers);
+  return measureTwoPredictors(rows, tablePredict(gateAnswers), tablePredict(answerAnswers), floor, secondCheckOn);
+}
+
+/**
+ * The same count with each model given as a scorer, so the gate can be a model that runs here.
+ *
+ * @param rows The tickets with their true labels.
+ * @param gatePredict The gate model's scorer.
+ * @param answerPredict The answer model's scorer.
+ * @param floor The gate's confidence floor.
+ * @param secondCheckOn Whether the gate's second check may clear a flag.
+ * @returns Both sets of counts and how often each model's own answer was right on the reviewed tickets.
+ */
+export function measureTwoPredictors(
+  rows: readonly LabeledRow[],
+  gatePredict: Predict,
+  answerPredict: Predict,
+  floor: number = CONFIDENCE_FLOOR,
+  secondCheckOn: boolean = SECOND_CHECK_ON,
+): TwoModelResult {
   const base = { reviewer: AGREEING_REVIEWER, secondCheckOn, now: () => 0 };
   const result: TwoModelResult = {
     today: emptyResult(rows.length),
@@ -158,6 +177,12 @@ export function measureRounds(input: RoundsInput, floor: number = CONFIDENCE_FLO
   return records;
 }
 
+// A scorer for a word model file as the page loads it.
+function modelPredict(path: string): Predict {
+  const model = loadModel(JSON.parse(readFileSync(path, 'utf8')));
+  return (head, maskedText) => score(model, head, maskedText);
+}
+
 function recordRounds(args: readonly string[], out: string): number {
   const needed = ['--answers-dir', '--gate-key', '--answer-key', '--data-dir', '--heldout-prefix'].map((name) => argValue(args, name));
   const [answersDir, gateKey, answerKey, dataDir, heldoutPrefix] = needed;
@@ -179,15 +204,17 @@ function main(args: readonly string[]): number {
   }
   const rowsPath = argValue(args, '--rows');
   const gatePath = argValue(args, '--gate');
+  const gateModelPath = argValue(args, '--gate-model');
   const answerPath = argValue(args, '--answer');
-  if (rowsPath === undefined || gatePath === undefined || answerPath === undefined) {
-    console.log('usage: measureTwoModels --rows <tickets.jsonl> --gate <answers.json> --answer <answers.json> [--floor <0..1>]');
+  if (rowsPath === undefined || answerPath === undefined || (gatePath === undefined) === (gateModelPath === undefined)) {
+    console.log('usage: measureTwoModels --rows <tickets.jsonl> (--gate <answers.json> | --gate-model <model.json>) --answer <answers.json> [--floor <0..1>]');
     return 2;
   }
   const floor = Number(argValue(args, '--floor') ?? CONFIDENCE_FLOOR);
   const rows = parseRows(readFileSync(rowsPath, 'utf8'));
   const read = (path: string): SavedAnswer[] => JSON.parse(readFileSync(path, 'utf8')) as SavedAnswer[];
-  console.log(JSON.stringify(measureTwoModels(rows, read(gatePath), read(answerPath), floor)));
+  const gatePredict = gateModelPath === undefined ? tablePredict(read(gatePath ?? '')) : modelPredict(gateModelPath);
+  console.log(JSON.stringify(measureTwoPredictors(rows, gatePredict, tablePredict(read(answerPath)), floor)));
   return 0;
 }
 

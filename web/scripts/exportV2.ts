@@ -6,7 +6,18 @@ import { EXTRA_WORDING } from '../src/generator/extraFrames';
 import { BUILT_IN_WORDING, MAX_TICKETS, generateTicket, generateTickets, type Split, type Ticket } from '../src/generator/generate';
 import { FOLDS } from '../src/generator/templates';
 import type { Wording } from '../src/generator/wording';
-import { assertBlindIsolated, isRunAsCommand, loadBlind, normalizeText, toJsonl } from './exportDataset';
+import {
+  FRESH_SOURCE,
+  assertBlindIsolated,
+  assertHandwrittenIsolated,
+  handwrittenToJsonl,
+  isRunAsCommand,
+  loadBlind,
+  loadHandwritten,
+  normalizeText,
+  toJsonl,
+  type HandwrittenRow,
+} from './exportDataset';
 
 // The second model's data. It trains on two wordings, the built-in one and the
 // extra one, half its tickets from each, and it is scored on wording it never
@@ -96,10 +107,18 @@ function assertDeskIsolated(desk: readonly Ticket[], trainingLists: readonly (re
   }
 }
 
-// Every check runs before the first write, so a leak leaves no file behind.
-export function writeV2(outputDir: string, data: V2Data, blind: readonly { text: string }[]): { target: string; rows: number }[] {
+// Every check runs before the first write, so a leak leaves no file behind. The
+// fresh hand-written tickets are written as they are, with their masked text,
+// for the second model to be scored on; like the blind set, none may be trained on.
+export function writeV2(
+  outputDir: string,
+  data: V2Data,
+  blind: readonly { text: string }[],
+  fresh: readonly HandwrittenRow[] = [],
+): { target: string; rows: number }[] {
   const trainingLists = [data.train, ...data.tuning.map(({ train }) => train)];
   assertBlindIsolated(blind, trainingLists);
+  assertHandwrittenIsolated(fresh, trainingLists);
   assertDeskIsolated(data.desk, trainingLists);
   for (const { leftOut, train } of data.tuning) {
     const trained = new Set(train.map((ticket) => normalizeText(ticket.text)));
@@ -116,15 +135,21 @@ export function writeV2(outputDir: string, data: V2Data, blind: readonly { text:
     ...data.tuning.map(({ leftOut, train }): [string, Ticket[], null] => [`v2_tune_${leftOut[0]}_${leftOut[1]}.jsonl`, train, null]),
     ...data.heldout.map(({ fold, tickets }): [string, Ticket[], number] => [`v2_heldout_${fold}.jsonl`, tickets, fold]),
   ];
-  return files.map(([name, tickets, fold]) => {
+  const written = files.map(([name, tickets, fold]) => {
     const target = join(outputDir, name);
     writeFileSync(target, toJsonl(tickets, fold), 'utf8');
     return { target, rows: tickets.length };
   });
+  if (fresh.length > 0) {
+    const target = join(outputDir, 'v2_handwritten_fresh.jsonl');
+    writeFileSync(target, handwrittenToJsonl(fresh), 'utf8');
+    written.push({ target, rows: fresh.length });
+  }
+  return written;
 }
 
 if (isRunAsCommand(process.argv[1], import.meta.url)) {
-  for (const { target, rows } of writeV2(fileURLToPath(OUTPUT_DIR), buildV2(), loadBlind())) {
+  for (const { target, rows } of writeV2(fileURLToPath(OUTPUT_DIR), buildV2(), loadBlind(), loadHandwritten(FRESH_SOURCE))) {
     console.log(`wrote ${target} (${rows} rows)`);
   }
 }

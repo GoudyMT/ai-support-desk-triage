@@ -5,6 +5,7 @@ A model folder (a "bundle") holds four files: `model_quantized.onnx` (the senten
 sentence vector into a category and a priority) and `manifest.json` (the token limit).
 """
 
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -16,6 +17,8 @@ from tokenizers import Tokenizer
 BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json")
 HASH_ERROR = "E_MODEL_HASH"
 BATCH_SIZE = 64
+# A run from the command line shares the machine with the owner's other work.
+DEFAULT_CLI_THREADS = 4
 # A ticket with no known word has a zero vector; dividing by this instead of by
 # zero leaves it a zero vector, so its answer comes from the bias alone.
 MIN_NORM = 1e-12
@@ -139,3 +142,23 @@ def score(model_dir, rows, expected_sha256, threads=None):
             answer[field] = head["classes"][int(row_probs.argmax())]
             answer[f"{field}_probs"] = {name: float(value) for name, value in zip(head["classes"], row_probs)}
     return answers
+
+
+def main():
+    """Scores a jsonl file of tickets with a bundle and writes the answers as JSON."""
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("--bundle", required=True, help="the model folder")
+    parser.add_argument("--fingerprint", required=True, help="the recorded bundle fingerprint")
+    parser.add_argument("--rows", required=True, help="tickets, one JSON object per line, each with id and maskedText")
+    parser.add_argument("--out", required=True, help="where to write the answers")
+    parser.add_argument("--threads", type=int, default=DEFAULT_CLI_THREADS, help="the most CPU threads to use")
+    args = parser.parse_args()
+    with open(args.rows, encoding="utf-8") as handle:
+        rows = [json.loads(line) for line in handle if line.strip()]
+    answers = score(args.bundle, rows, args.fingerprint, args.threads)
+    Path(args.out).write_text(json.dumps(answers), encoding="utf-8")
+    print(f"    Scored: {len(answers):,} tickets -> {args.out}")
+
+
+if __name__ == "__main__":
+    main()
