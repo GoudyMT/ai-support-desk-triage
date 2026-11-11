@@ -213,7 +213,7 @@ describe('the judged sets measured from the recorded answers', () => {
     }
     expect(reportDifferences(edited, built)).toEqual(['desk-only wording']);
     expect(reportDifferences({ ...built, answer: { bundle_fingerprint: 'other' } }, built)).toEqual(['bundle_fingerprint']);
-    const { 'hand-written (seen)': _dropped, ...fewer } = built.sets;
+    const fewer = Object.fromEntries(Object.entries(built.sets).filter(([name]) => name !== 'hand-written (seen)'));
     expect(reportDifferences({ ...built, sets: fewer }, built)).toEqual(['hand-written (seen)']);
   });
 });
