@@ -17,7 +17,7 @@ from threadpoolctl import threadpool_limits
 
 from triage.train import fit_pipeline
 from triage_v2.score_onnx import score
-from triage_v2.share_machine import GPU_MEMORY_SHARE, share_the_machine
+from triage_v2.share_machine import GPU_MEMORY_SHARE, GPU_REST_RATIO, share_the_machine
 
 ML_DIR = Path(__file__).resolve().parents[1]
 GENERATED = ML_DIR / "data" / "generated"
@@ -78,7 +78,7 @@ def run_control():
         raise SystemExit("E_CONTROL_FAILED")
 
 
-def run_rounds(data, model_kind, work_dir, settings, threads, key):
+def run_rounds(data, model_kind, work_dir, settings, threads, key, max_pairs=None):
     """
     Runs the twelve rounds for one kind of model on one data set.
 
@@ -92,9 +92,10 @@ def run_rounds(data, model_kind, work_dir, settings, threads, key):
         settings: Keyword arguments for train_sentence.fit; ignored for "word".
         threads: The most CPU threads scoring may use.
         key: The run's name in the report.
+        max_pairs: The most tuning files to train on in this run; all six when None.
 
     Returns:
-        A list of twelve round records.
+        The round records so far: twelve once every pair has run.
     """
     tune_name, heldout_name = DATA_NAMES[data]
     entry = {"model": model_kind, "data": data, "settings": settings, "rounds": []}
@@ -102,10 +103,15 @@ def run_rounds(data, model_kind, work_dir, settings, threads, key):
     if earlier is not None and {k: earlier.get(k) for k in ("model", "data", "settings")} == {k: entry[k] for k in ("model", "data", "settings")}:
         entry["rounds"] = earlier["rounds"]
     rounds = entry["rounds"]
+    trained = 0
     for a, b in FOLD_PAIRS:
         if any(record["train"] == f"{a}_{b}" for record in rounds):
             print(f"    tune {a}_{b}: already recorded, kept")
             continue
+        if max_pairs is not None and trained >= max_pairs:
+            print(f"    tune {a}_{b}: left for a later run")
+            continue
+        trained += 1
         train_rows = load(tune_name.format(a=a, b=b))
         heldout = {fold: load(heldout_name.format(fold=fold)) for fold in (a, b)}
         started = time.perf_counter()
@@ -114,7 +120,7 @@ def run_rounds(data, model_kind, work_dir, settings, threads, key):
             from triage_v2.train_sentence import fit
 
             bundle = Path(work_dir) / f"{data}_tune_{a}_{b}"
-            exported = export(fit(train_rows, **settings), bundle)
+            exported = export(fit(train_rows, rest_ratio=GPU_REST_RATIO, **settings), bundle)
             answers = {fold: score(bundle, rows, exported["fingerprint"], threads) for fold, rows in heldout.items()}
             for fold, fold_answers in answers.items():
                 target = Path(work_dir) / f"{data}_tune_{a}_{b}_answers_fold_{fold}.json"
@@ -151,6 +157,7 @@ def main():
     parser.add_argument("--key", help="name of this run in the report; default <model>_<data>")
     parser.add_argument("--epochs", type=int)
     parser.add_argument("--learning-rate", type=float)
+    parser.add_argument("--pairs", type=int, help="train on at most this many tuning files now; a later run carries on")
     parser.add_argument("--force", action="store_true", help="the owner's override: start even when the GPU is busy")
     args = parser.parse_args()
     settings = {name: value for name, value in (("epochs", args.epochs), ("learning_rate", args.learning_rate)) if value is not None}
@@ -162,17 +169,18 @@ def main():
     # Step 1: leave room for the owner's other work, or do not start
     print("\n[1/3] Checking the machine and capping this run...")
     threads = share_the_machine(force=args.force)
-    print(f"    CPU threads: {threads}, GPU memory share: {GPU_MEMORY_SHARE:.0%}, priority: below normal")
+    print(f"    CPU threads: {threads}, GPU memory share: {GPU_MEMORY_SHARE:.0%}, GPU rest after each step: {GPU_REST_RATIO:g}x the step, priority: below normal")
     with threadpool_limits(limits=threads):
         # Step 2: control
         print("\n[2/3] Control: the first model's recipe on fold 0...")
         run_control()
         # Step 3: the rounds, recorded as they finish
-        print("\n[3/3] Running 12 rounds...")
+        print("\n[3/3] Running the rounds...")
         Path(args.work_dir).mkdir(parents=True, exist_ok=True)
-        rounds = run_rounds(args.data, args.model, args.work_dir, settings, threads, key)
+        rounds = run_rounds(args.data, args.model, args.work_dir, settings, threads, key, args.pairs)
     mean = sum(r["category_right"] / r["n"] for r in rounds) / len(rounds)
-    print(f"    Mean category accuracy: {mean * 100:.2f}%")
+    print(f"    Rounds recorded: {len(rounds)} of {2 * len(FOLD_PAIRS)}")
+    print(f"    Mean category accuracy so far: {mean * 100:.2f}%")
     print(f"    Saved: {REPORT_PATH} under {key}")
 
 

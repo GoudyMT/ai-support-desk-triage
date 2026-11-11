@@ -4,6 +4,7 @@ Needs the training environment (`ml/requirements-train.txt`) and a GPU. Nothing 
 imported by the scorer or by CI.
 """
 
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -36,7 +37,7 @@ def _embed(encoder, texts, device):
     return encoder(features)["sentence_embedding"]
 
 
-def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE, max_length=MAX_LENGTH, device="cuda"):
+def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE, max_length=MAX_LENGTH, device="cuda", rest_ratio=0.0):
     """
     Trains the sentence model and both heads on the rows.
 
@@ -50,6 +51,10 @@ def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
         batch_size: Tickets per step.
         max_length: Tokens kept per ticket; longer tickets are cut.
         device: Where to train.
+        rest_ratio: How long to leave the GPU idle after each step, as a share of
+            the step's own time: 1.0 keeps the GPU busy about half the time, so
+            other programs that use it keep running. It changes the time a run
+            takes and nothing about the model it produces.
 
     Returns:
         The trained model, in evaluation mode.
@@ -70,12 +75,18 @@ def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
     for _ in range(epochs):
         order = order_rng.permutation(len(texts))
         for start in range(0, len(order), batch_size):
+            step_started = time.perf_counter()
             index = order[start:start + batch_size]
             vectors = _embed(encoder, [texts[i] for i in index], device)
             loss = sum(torch.nn.functional.cross_entropy(heads[field](vectors), targets[field][index].to(device)) for field in FIELDS)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            if rest_ratio > 0:
+                # The step's work is only finished once the GPU says so; without
+                # the wait the rest would be timed from a step still running.
+                torch.cuda.synchronize()
+                time.sleep((time.perf_counter() - step_started) * rest_ratio)
     encoder.eval()
     heads.eval()
     return TrainedModel(encoder=encoder, heads=heads, classes=classes, max_length=max_length)

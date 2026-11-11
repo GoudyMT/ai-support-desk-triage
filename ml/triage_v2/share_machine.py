@@ -12,6 +12,10 @@ import sys
 
 CPU_THREADS = 4
 GPU_MEMORY_SHARE = 0.4
+# A memory cap does not stop a run from taking all of the GPU's time. Resting
+# after each training step for as long as the step took leaves the GPU free
+# about half the time.
+GPU_REST_RATIO = 1.0
 GPU_BUSY_PERCENT = 50
 BUSY_ERROR = "E_MACHINE_BUSY"
 WINDOWS_BELOW_NORMAL = 0x00004000
