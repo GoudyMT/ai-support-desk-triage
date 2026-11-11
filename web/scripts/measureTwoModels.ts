@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ROUTES } from '../src/domain/labels';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicketWith } from '../src/pipeline/run';
 import { tablePredict, type SavedAnswer } from '../src/pipeline/tableScorer';
@@ -117,7 +118,65 @@ function argValue(args: readonly string[], name: string): string | undefined {
   return index === -1 ? undefined : args[index + 1];
 }
 
+// The six tuning files: each leaves two folds out and is scored on both.
+const FOLD_PAIRS: readonly (readonly [number, number])[] = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
+
+export interface RoundRecord extends TwoModelResult {
+  train: string;
+  fold: number;
+}
+
+export interface RoundsInput {
+  // Where the practice run left its answer files, named <key>_tune_<a>_<b>_answers_fold_<fold>.json.
+  answersDir: string;
+  gateKey: string;
+  answerKey: string;
+  // Where the held-out ticket files are, and their name before _<fold>.jsonl.
+  dataDir: string;
+  heldoutPrefix: string;
+}
+
+/**
+ * Measures the two-model rule on every practice round whose files are present.
+ *
+ * @param input Where the answer files and the held-out tickets are, and which two runs to pair.
+ * @param floor The gate's confidence floor.
+ * @returns One record per round, in the order of the tuning files.
+ * @throws Whatever reading a missing file throws: a round is never skipped silently.
+ */
+export function measureRounds(input: RoundsInput, floor: number = CONFIDENCE_FLOOR): RoundRecord[] {
+  const read = (key: string, a: number, b: number, fold: number): SavedAnswer[] =>
+    JSON.parse(readFileSync(join(input.answersDir, `${key}_tune_${a}_${b}_answers_fold_${fold}.json`), 'utf8')) as SavedAnswer[];
+  const records: RoundRecord[] = [];
+  for (const [a, b] of FOLD_PAIRS) {
+    for (const fold of [a, b]) {
+      const rows = parseRows(readFileSync(join(input.dataDir, `${input.heldoutPrefix}_${fold}.jsonl`), 'utf8'));
+      const result = measureTwoModels(rows, read(input.gateKey, a, b, fold), read(input.answerKey, a, b, fold), floor);
+      records.push({ train: `${a}_${b}`, fold, ...result });
+    }
+  }
+  return records;
+}
+
+function recordRounds(args: readonly string[], out: string): number {
+  const needed = ['--answers-dir', '--gate-key', '--answer-key', '--data-dir', '--heldout-prefix'].map((name) => argValue(args, name));
+  const [answersDir, gateKey, answerKey, dataDir, heldoutPrefix] = needed;
+  if (answersDir === undefined || gateKey === undefined || answerKey === undefined || dataDir === undefined || heldoutPrefix === undefined) {
+    console.log('usage: measureTwoModels --out <report.json> --answers-dir <dir> --gate-key <run> --answer-key <run> --data-dir <dir> --heldout-prefix <name>');
+    return 2;
+  }
+  const floor = Number(argValue(args, '--floor') ?? CONFIDENCE_FLOOR);
+  const rounds = measureRounds({ answersDir, gateKey, answerKey, dataDir, heldoutPrefix }, floor);
+  writeFileSync(out, `${JSON.stringify({ gate: gateKey, answer: answerKey, heldout: heldoutPrefix, floor, rounds }, null, 1)}\n`, 'utf8');
+  console.log(`wrote ${out} (${rounds.length} rounds)`);
+  return 0;
+}
+
 function main(args: readonly string[]): number {
+  const out = argValue(args, '--out');
+  if (out !== undefined) {
+    return recordRounds(args, out);
+  }
   const rowsPath = argValue(args, '--rows');
   const gatePath = argValue(args, '--gate');
   const answerPath = argValue(args, '--answer');

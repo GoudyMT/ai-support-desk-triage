@@ -1,0 +1,428 @@
+{
+ "gate": "word_v2",
+ "answer": "sentence_v2",
+ "heldout": "v2_heldout",
+ "floor": 0.5,
+ "rounds": [
+  {
+   "train": "0_1",
+   "fold": 0,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3680,
+    "mustReview": 1597,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 1,
+    "silentCategory": 39,
+    "silentPriority": 83
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3746,
+    "mustReview": 1597,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 0,
+    "silentCategory": 0,
+    "silentPriority": 44
+   },
+   "reviewed": 3746,
+   "suggestion": {
+    "gate": {
+     "category": 1983,
+     "priority": 2217,
+     "both": 1415
+    },
+    "answer": {
+     "category": 3087,
+     "priority": 2639,
+     "both": 2445
+    }
+   }
+  },
+  {
+   "train": "0_1",
+   "fold": 1,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3775,
+    "mustReview": 1574,
+    "highRiskMissed": 7,
+    "highUrgentOutLow": 0,
+    "silentCategory": 9,
+    "silentPriority": 13
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3812,
+    "mustReview": 1574,
+    "highRiskMissed": 7,
+    "highUrgentOutLow": 0,
+    "silentCategory": 6,
+    "silentPriority": 3
+   },
+   "reviewed": 3812,
+   "suggestion": {
+    "gate": {
+     "category": 1982,
+     "priority": 2289,
+     "both": 1555
+    },
+    "answer": {
+     "category": 2856,
+     "priority": 2783,
+     "both": 2381
+    }
+   }
+  },
+  {
+   "train": "0_2",
+   "fold": 0,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3580,
+    "mustReview": 1597,
+    "highRiskMissed": 3,
+    "highUrgentOutLow": 5,
+    "silentCategory": 60,
+    "silentPriority": 73
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3657,
+    "mustReview": 1597,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 0,
+    "silentCategory": 0,
+    "silentPriority": 46
+   },
+   "reviewed": 3657,
+   "suggestion": {
+    "gate": {
+     "category": 1904,
+     "priority": 2042,
+     "both": 1240
+    },
+    "answer": {
+     "category": 2896,
+     "priority": 2452,
+     "both": 2168
+    }
+   }
+  },
+  {
+   "train": "0_2",
+   "fold": 2,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3463,
+    "mustReview": 1556,
+    "highRiskMissed": 10,
+    "highUrgentOutLow": 4,
+    "silentCategory": 13,
+    "silentPriority": 50
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3611,
+    "mustReview": 1556,
+    "highRiskMissed": 3,
+    "highUrgentOutLow": 2,
+    "silentCategory": 4,
+    "silentPriority": 11
+   },
+   "reviewed": 3611,
+   "suggestion": {
+    "gate": {
+     "category": 2083,
+     "priority": 2093,
+     "both": 1361
+    },
+    "answer": {
+     "category": 2796,
+     "priority": 2407,
+     "both": 2098
+    }
+   }
+  },
+  {
+   "train": "0_3",
+   "fold": 0,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3625,
+    "mustReview": 1597,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 8,
+    "silentCategory": 15,
+    "silentPriority": 79
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3654,
+    "mustReview": 1597,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 2,
+    "silentCategory": 3,
+    "silentPriority": 70
+   },
+   "reviewed": 3654,
+   "suggestion": {
+    "gate": {
+     "category": 1959,
+     "priority": 1956,
+     "both": 1204
+    },
+    "answer": {
+     "category": 3147,
+     "priority": 2639,
+     "both": 2466
+    }
+   }
+  },
+  {
+   "train": "0_3",
+   "fold": 3,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3615,
+    "mustReview": 1617,
+    "highRiskMissed": 126,
+    "highUrgentOutLow": 7,
+    "silentCategory": 14,
+    "silentPriority": 61
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3707,
+    "mustReview": 1617,
+    "highRiskMissed": 88,
+    "highUrgentOutLow": 2,
+    "silentCategory": 4,
+    "silentPriority": 47
+   },
+   "reviewed": 3707,
+   "suggestion": {
+    "gate": {
+     "category": 1940,
+     "priority": 1902,
+     "both": 1285
+    },
+    "answer": {
+     "category": 2675,
+     "priority": 2226,
+     "both": 1935
+    }
+   }
+  },
+  {
+   "train": "1_2",
+   "fold": 1,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3634,
+    "mustReview": 1574,
+    "highRiskMissed": 50,
+    "highUrgentOutLow": 3,
+    "silentCategory": 11,
+    "silentPriority": 18
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3672,
+    "mustReview": 1574,
+    "highRiskMissed": 46,
+    "highUrgentOutLow": 0,
+    "silentCategory": 5,
+    "silentPriority": 9
+   },
+   "reviewed": 3672,
+   "suggestion": {
+    "gate": {
+     "category": 1962,
+     "priority": 2242,
+     "both": 1411
+    },
+    "answer": {
+     "category": 2774,
+     "priority": 2555,
+     "both": 2213
+    }
+   }
+  },
+  {
+   "train": "1_2",
+   "fold": 2,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3439,
+    "mustReview": 1556,
+    "highRiskMissed": 4,
+    "highUrgentOutLow": 12,
+    "silentCategory": 7,
+    "silentPriority": 20
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3557,
+    "mustReview": 1556,
+    "highRiskMissed": 2,
+    "highUrgentOutLow": 4,
+    "silentCategory": 1,
+    "silentPriority": 6
+   },
+   "reviewed": 3557,
+   "suggestion": {
+    "gate": {
+     "category": 2116,
+     "priority": 2275,
+     "both": 1435
+    },
+    "answer": {
+     "category": 2722,
+     "priority": 2418,
+     "both": 2095
+    }
+   }
+  },
+  {
+   "train": "1_3",
+   "fold": 1,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3754,
+    "mustReview": 1574,
+    "highRiskMissed": 42,
+    "highUrgentOutLow": 1,
+    "silentCategory": 20,
+    "silentPriority": 26
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3812,
+    "mustReview": 1574,
+    "highRiskMissed": 41,
+    "highUrgentOutLow": 1,
+    "silentCategory": 1,
+    "silentPriority": 5
+   },
+   "reviewed": 3812,
+   "suggestion": {
+    "gate": {
+     "category": 2156,
+     "priority": 2262,
+     "both": 1661
+    },
+    "answer": {
+     "category": 2913,
+     "priority": 2714,
+     "both": 2388
+    }
+   }
+  },
+  {
+   "train": "1_3",
+   "fold": 3,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3696,
+    "mustReview": 1617,
+    "highRiskMissed": 101,
+    "highUrgentOutLow": 2,
+    "silentCategory": 9,
+    "silentPriority": 10
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3718,
+    "mustReview": 1617,
+    "highRiskMissed": 101,
+    "highUrgentOutLow": 1,
+    "silentCategory": 4,
+    "silentPriority": 2
+   },
+   "reviewed": 3718,
+   "suggestion": {
+    "gate": {
+     "category": 2023,
+     "priority": 2051,
+     "both": 1373
+    },
+    "answer": {
+     "category": 2674,
+     "priority": 2450,
+     "both": 2139
+    }
+   }
+  },
+  {
+   "train": "2_3",
+   "fold": 2,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3436,
+    "mustReview": 1556,
+    "highRiskMissed": 46,
+    "highUrgentOutLow": 4,
+    "silentCategory": 13,
+    "silentPriority": 39
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3524,
+    "mustReview": 1556,
+    "highRiskMissed": 36,
+    "highUrgentOutLow": 2,
+    "silentCategory": 2,
+    "silentPriority": 18
+   },
+   "reviewed": 3524,
+   "suggestion": {
+    "gate": {
+     "category": 1905,
+     "priority": 2475,
+     "both": 1443
+    },
+    "answer": {
+     "category": 2607,
+     "priority": 2452,
+     "both": 2005
+    }
+   }
+  },
+  {
+   "train": "2_3",
+   "fold": 3,
+   "today": {
+    "tickets": 4000,
+    "flagged": 3568,
+    "mustReview": 1617,
+    "highRiskMissed": 89,
+    "highUrgentOutLow": 31,
+    "silentCategory": 38,
+    "silentPriority": 44
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3658,
+    "mustReview": 1617,
+    "highRiskMissed": 85,
+    "highUrgentOutLow": 3,
+    "silentCategory": 4,
+    "silentPriority": 12
+   },
+   "reviewed": 3658,
+   "suggestion": {
+    "gate": {
+     "category": 1919,
+     "priority": 2191,
+     "both": 1446
+    },
+    "answer": {
+     "category": 2703,
+     "priority": 2367,
+     "both": 2110
+    }
+   }
+  }
+ ]
+}
