@@ -1,7 +1,7 @@
 # Sentence Model, Part 1 Plan: The Test Set, the Tickets and the Offline Model
 
 ## Progress
-- Current task: 4 (plan approved by the owner, 2026-11-10: "Plan looks good, lets do it!"); waiting on the owner's yes for the package installs Task 4 needs
+- Current task: 4, PAUSED by the owner on 2026-11-11 ("we will pause here for now"). No GPU, export or bulk scoring run starts without the owner's word (lesson L-14)
 - Done (with evidence):
   - Task 0 - report `.kit/reports/real-ticket-sets-2026-11.md` (local); no usable real-ticket set found; posted to the owner 2026-11-10
   - Wording seam - 0ab40ec - 150 generator tests pass; the four v1 stream hashes hold and turn red when one draw is swapped
@@ -9,7 +9,8 @@
   - Task 1 checker - 727e6f2 - verdict FIX, 9 findings (2 medium), all fixed; 296 script and generator tests, 121 Python tests; the break the checker found uncaught (a built-in request in another wording's stream) now turns the stream test red
   - Task 2 - 7685c2c, 727e6f2 - `EXTRA_WORDING` (240 bodies) and `DESK_WORDING` (140 bodies) pass the wording rules; `npm run export-v2` writes 12 files; both v2 guard tests turn red with the guard off; web gate exit 0 (demo 49,966 of 50,000 bytes, desk 48,591 of 49,000); v1 export bytes unchanged
   - Task 3 - bar passed: word recipe 60.1% on v2 training against 52.4% on v1 training, same v1 held-out tickets, 12 rounds; details in the notes below
-- Next: Task 4 (needs pinned installs of onnxruntime, tokenizers and numpy into `ml/.venv`, and a pinned training requirements file)
+  - Task 4, in part - 6648bed, d5a37e7 - `onnxruntime`, `tokenizers`, `flatbuffers`, `protobuf` pinned with hashes and installed with `--no-deps` (CI install line changed the same way; `ci.yml` parses); scorer `triage_v2/score_onnx.py` with 10 tests on a tiny stand-in bundle, each planted bug turns one red; `train_sentence.py`, `export_onnx.py`, `practice_rounds.py`; 3 `local_gpu` tests passed in 25 s; `share_machine.py` caps every long run; 133 CI-side Python tests pass
+- Next, on the owner's word: (1) the reproduction, `python -m triage_v2.practice_rounds --data v1 --model sentence --work-dir <outside the repo>` in the training environment, bar: mean department accuracy within 1 point of 81.5%; an uncapped run on 2026-11-11 crashed the owner's PC after 3 of 6 pairs and saved no counts; (2) `ml/requirements-train.txt`: 11 of the 60 packages in the scratch training environment are younger than 14 days, so the pinned list takes older versions and the environment is rebuilt from it; (3) the same rounds on v2 data, then Tasks 5 to 7. Light work that needs no GPU: item (2) and Task 6's `predict` seam in `web/src/pipeline/run.ts`
 - Branch: `feat/sentence-model` (local, from `main` at b889642)
 - Open questions: none blocking; the two owner stops are listed under "Owner stops"
 
