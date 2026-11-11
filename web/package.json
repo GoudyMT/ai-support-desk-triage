@@ -16,6 +16,7 @@
     "export-blind": "tsx scripts/exportBlind.ts",
     "export-v2": "tsx scripts/exportV2.ts",
     "measure-answers": "tsx scripts/measureAnswers.ts",
+    "measure-two-models": "tsx scripts/measureTwoModels.ts",
     "build": "vite build",
     "preview": "vite preview",
     "e2e": "playwright test",

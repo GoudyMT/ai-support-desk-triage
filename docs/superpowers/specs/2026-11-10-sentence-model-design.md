@@ -2,6 +2,8 @@
 
 **Date:** 2026-11-10. **Status:** approved by the owner on 2026-11-10 ("Let's go through recommendations for all the things that we found ... We need accuracy above everything else"), read as a yes to the three proposals: desk-only wording, the allowance, and the 90-day pass mark.
 
+> **REVISED (2026-11-11): two models, not one - see "Revision 1" at the end.** The single-model approach of section 7, the allowance of section 9 and phases 2 to 4 are superseded where Revision 1 says so.
+
 **Intent record (the owner's words):** `docs/brainstorms/2026-11-10-next-model.brainstorm.md` (local). **Evidence:** four offline tests run 2026-11-10 on the 12 practice rounds; scripts and outputs live in the session scratchpad by the owner's rule (2026-11-08), and every number used here is copied into section 2.
 
 ## 1. Intent and why
@@ -165,3 +167,29 @@ Each step of the ladder becomes a Model History row, all scored in the single bl
 5. The wider privacy mask is a Should on this branch.
 6. "Today" in every comparison is the word recipe on the same tickets (section 9).
 7. H11 and H12 are treated as closed by the guide page, as recorded in the Active Plan.
+
+## Revision 1 (2026-11-11): two models, not one
+
+**Locked by the owner on 2026-11-11** ("Lets go with your recommendation, we will update our model history page to show the truth, as well as identifying a way to reduce the tickets to a person but also maintaining our accuracy like we have").
+
+**Why it changed.** Measured on the 12 practice rounds (`ml/reports/practice_v2.json`; the plan's Execution Notes of 2026-11-11 hold every count): the sentence model is far more accurate, but no rule built on its own outputs kept the two hard lines while sending fewer tickets to a person. A rescaled confidence floor, two probability checks and a trained "does a person need to see this?" answer each failed its bar; the last one on 12 of 12 rounds. Most misses were vague tickets and disputed charges that left unchecked with the department right, and high-risk tickets misread on unseen wording.
+
+**What it is now.** Both models run.
+- **The word model stays the gate, unchanged.** Its rules and its confidence floor decide, as today, which tickets may leave unchecked.
+- **The sentence model gives the answer a person sees.** Every ticket that goes to a person carries the sentence model's department and priority as the suggestion.
+- **A ticket leaves unchecked only when today's gate lets it and both models agree** on department and priority. Any disagreement sends it to a person.
+
+**Why it is better, and why that holds.** An unchecked ticket carries the answer today's model gives, and the unchecked tickets are a part of today's unchecked tickets. So on any set, no count of the safety rule can be higher than today's: this follows from the rule itself, not from a tuned threshold. Measured on 48,000 practice tickets: sent to a person 90.1% -> 91.9%; high-risk missed 478 -> 409; High/Urgent out as low 78 -> 17; unchecked wrong department 248 -> 34; unchecked wrong priority 516 -> 273; rounds with any line worse 0 of 12; the suggestion shown to the reviewer right on both fields 37.6% -> 60.3%.
+
+**What it costs.** About 2 points more tickets go to a person, not fewer. The site serves two models: the word model (3.8 MB, as today) and the sentence bundle (about 23 MB plus its runtime), the second loaded after the first so the desk works at once.
+
+**What it supersedes.**
+- Section 3: the goal "right department more often" is now measured on the suggestion a reviewer is shown and on the model alone; tickets sent to a person is reported and is expected to rise slightly.
+- Section 7: the single model of record. The bundle is still frozen, fingerprinted and scored by CI; the word model keeps its present checks. Phases 2 and 3 are replaced by: train the shipped sentence model on all training wording; measure the two-model rule with the real pipeline on the practice rounds, the desk-only wording and the hand-written sets. Phase 4 (the 90-day run) is re-scoped in Part 2: what grows over the days is how often the suggestion is right.
+- Section 9: the allowance is no longer needed, because no line can be worse. The release bar becomes: on the blind set, read once, the suggestion is right on department at least 10 points more often than today's model, and the two-model rule's four counts are at or under today's on every set (a check of the build, since the rule guarantees it).
+
+**What stays open, by the owner's word.**
+- **Fewer tickets to a person, with accuracy kept.** Not solved. It stays a named goal for the work after this release; the record of what was tried and why it failed goes on Model History and in the guide.
+- **Model History shows the truth:** the new row reports the suggestion's accuracy, the unchanged safety counts and the higher share sent to a person, and says plainly that the workload did not fall.
+
+**Not decided yet (Part 2 design).** Whether the four word fold models stay on the site once the desk draws desk-only wording; how the desk shows a suggestion that arrives after the gate's answer.
