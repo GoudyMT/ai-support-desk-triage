@@ -1,0 +1,8 @@
+{
+ "max_length": 6,
+ "files": {
+  "model_quantized.onnx": "c7de10110188dc7ff147bfb7859c148def1c05482c743e3dcf9e48d48d86a0e1",
+  "tokenizer.json": "b8dee696283bc2f0e5d78dfcca0c8f6495305361b914d8fc8f75d1e0dbdc7bc4",
+  "heads.json": "40dd2c2fb5a8bbee3929e9b81c7f8083a22a56b4c7aedcb0b95231825d849b89"
+ }
+}
