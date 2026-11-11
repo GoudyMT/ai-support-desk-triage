@@ -9,15 +9,11 @@ vector, so a test can work out by hand what the scorer must answer.
 """
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import onnx
 from onnx import TensorProto, helper, numpy_helper
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from triage_v2.score_onnx import BUNDLE_FILES, file_digest  # noqa: E402
 
 OUT_DIR = Path(__file__).resolve().parent / "tiny_model"
 MAX_LENGTH = 6
@@ -93,7 +89,7 @@ def main():
     (OUT_DIR / "model_quantized.onnx").write_bytes(build_graph().SerializeToString())
     (OUT_DIR / "tokenizer.json").write_text(json.dumps(build_tokenizer(), indent=1) + "\n", encoding="utf-8", newline="\n")
     (OUT_DIR / "heads.json").write_text(json.dumps(HEADS, indent=1) + "\n", encoding="utf-8", newline="\n")
-    manifest = {"max_length": MAX_LENGTH, "files": {name: file_digest(OUT_DIR / name) for name in BUNDLE_FILES}}
+    manifest = {"max_length": MAX_LENGTH}
     (OUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8", newline="\n")
     print(f"wrote {OUT_DIR}")
 

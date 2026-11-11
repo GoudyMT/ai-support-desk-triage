@@ -13,7 +13,7 @@ import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
 
-BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json")
+BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json")
 HASH_ERROR = "E_MODEL_HASH"
 FIELDS = ("category", "priority")
 BATCH_SIZE = 64
@@ -43,16 +43,36 @@ def file_digest(path):
 
 def bundle_fingerprint(model_dir):
     """
-    Returns one fingerprint for the three files that decide a model's answers.
+    Returns one fingerprint for the four files that decide a model's answers.
 
     Args:
         model_dir: The model folder.
 
     Returns:
-        The SHA-256, in hex, of the three files' digests joined in a fixed order.
+        The SHA-256, in hex, of the four files' digests joined in a fixed order.
     """
     digests = [file_digest(Path(model_dir) / name) for name in BUNDLE_FILES]
     return hashlib.sha256("\n".join(digests).encode("ascii")).hexdigest()
+
+
+def load_tokenizer(model_dir):
+    """
+    Returns the bundle's tokenizer, cutting a ticket at the bundle's token limit.
+
+    A ticket longer than the limit is cut, never refused, and cut at the same
+    token the model was trained with.
+
+    Args:
+        model_dir: The model folder.
+
+    Returns:
+        A tokenizer that pads each batch to its longest ticket.
+    """
+    manifest = json.loads((Path(model_dir) / "manifest.json").read_text(encoding="utf-8"))
+    tokenizer = Tokenizer.from_file(str(Path(model_dir) / "tokenizer.json"))
+    tokenizer.enable_truncation(max_length=manifest["max_length"])
+    tokenizer.enable_padding()
+    return tokenizer
 
 
 def _softmax(scores):
@@ -80,7 +100,7 @@ def _embed(session, tokenizer, texts):
     return np.concatenate(vectors) if vectors else np.zeros((0, 0), dtype=np.float32)
 
 
-def score(model_dir, rows, expected_sha256):
+def score(model_dir, rows, expected_sha256, threads=None):
     """
     Scores tickets with a model folder after proving it is the recorded one.
 
@@ -88,6 +108,8 @@ def score(model_dir, rows, expected_sha256):
         model_dir: The model folder.
         rows: Tickets, each with `id` and `maskedText`.
         expected_sha256: The recorded bundle fingerprint.
+        threads: The most CPU threads the model may use; every core when None.
+            A long run on a shared machine passes a small number.
 
     Returns:
         One answer per row, in order: `id`, `category`, `priority`, and under
@@ -99,12 +121,13 @@ def score(model_dir, rows, expected_sha256):
     model_dir = Path(model_dir)
     if bundle_fingerprint(model_dir) != expected_sha256:
         raise ValueError(HASH_ERROR)
-    manifest = json.loads((model_dir / "manifest.json").read_text(encoding="utf-8"))
     heads = json.loads((model_dir / "heads.json").read_text(encoding="utf-8"))
-    tokenizer = Tokenizer.from_file(str(model_dir / "tokenizer.json"))
-    tokenizer.enable_truncation(max_length=manifest["max_length"])
-    tokenizer.enable_padding()
-    session = ort.InferenceSession(str(model_dir / "model_quantized.onnx"), providers=["CPUExecutionProvider"])
+    tokenizer = load_tokenizer(model_dir)
+    options = ort.SessionOptions()
+    if threads is not None:
+        options.intra_op_num_threads = threads
+        options.inter_op_num_threads = 1
+    session = ort.InferenceSession(str(model_dir / "model_quantized.onnx"), options, providers=["CPUExecutionProvider"])
     vectors = _embed(session, tokenizer, [row["maskedText"] for row in rows])
 
     answers = [{"id": row["id"]} for row in rows]

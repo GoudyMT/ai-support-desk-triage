@@ -52,10 +52,11 @@ def test_a_long_ticket_is_cut_at_the_models_limit_not_refused():
     assert cut["category_probs"] == pytest.approx(short["category_probs"], abs=1e-6)
 
 
-@pytest.mark.parametrize("changed", ["model_quantized.onnx", "tokenizer.json", "heads.json"])
+@pytest.mark.parametrize("changed", ["model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json"])
 def test_a_changed_file_is_refused_before_any_ticket_is_scored(tmp_path, changed):
     # Every published number is the frozen bundle's. One changed byte in the
-    # model, its word list or its answer weights makes it a different model.
+    # model, its word list, its answer weights or its token limit makes it a
+    # different model.
     recorded = bundle_fingerprint(TINY)
     copy = tmp_path / "model"
     shutil.copytree(TINY, copy)
