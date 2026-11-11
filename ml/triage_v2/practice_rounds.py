@@ -16,7 +16,7 @@ from pathlib import Path
 from threadpoolctl import threadpool_limits
 
 from triage.train import fit_pipeline
-from triage_v2.score_onnx import score
+from triage_v2.score_onnx import FIELDS, score
 from triage_v2.share_machine import GPU_MEMORY_SHARE, GPU_REST_RATIO, share_the_machine
 
 ML_DIR = Path(__file__).resolve().parents[1]
@@ -60,19 +60,37 @@ def count(rows, answers):
     }
 
 
-def word_answers(train_rows, rows):
-    """Answers rows with the first model's recipe trained on train_rows."""
+def fit_word_models(train_rows):
+    """Fits the first model's recipe, one model per field, on train_rows."""
     texts = [row["maskedText"] for row in train_rows]
-    models = {field: fit_pipeline(texts, [row[field] for row in train_rows]) for field in ("category", "priority")}
+    return {field: fit_pipeline(texts, [row[field] for row in train_rows]) for field in FIELDS}
+
+
+def word_answers(models, rows):
+    """
+    Answers rows with fitted word models, in the same shape the bundle scorer returns.
+
+    Args:
+        models: The dict fit_word_models returns.
+        rows: Tickets with `id` and `maskedText`.
+
+    Returns:
+        One answer per row with `id`, `category`, `priority` and each field's probabilities.
+    """
     scored = [row["maskedText"] for row in rows]
-    predicted = {field: model.predict(scored) for field, model in models.items()}
-    return [{"id": row["id"], "category": predicted["category"][i], "priority": predicted["priority"][i]} for i, row in enumerate(rows)]
+    answers = [{"id": row["id"]} for row in rows]
+    for field, model in models.items():
+        classes = list(model.classes_)
+        for answer, probs in zip(answers, model.predict_proba(scored)):
+            answer[field] = classes[int(probs.argmax())]
+            answer[f"{field}_probs"] = {name: float(value) for name, value in zip(classes, probs)}
+    return answers
 
 
 def run_control():
     """Stops the run unless the first model's recipe reproduces its recorded fold 0 count."""
     train_rows, heldout = load(CONTROL_TRAIN), load(CONTROL_HELDOUT)
-    got = count(heldout, word_answers(train_rows, heldout))["category_right"]
+    got = count(heldout, word_answers(fit_word_models(train_rows), heldout))["category_right"]
     print(f"    Control: {got:,} of {len(heldout):,} (expected {CONTROL_EXPECTED:,})")
     if got != CONTROL_EXPECTED:
         raise SystemExit("E_CONTROL_FAILED")
@@ -119,14 +137,16 @@ def run_rounds(data, model_kind, work_dir, settings, threads, key, max_pairs=Non
             from triage_v2.export_onnx import export
             from triage_v2.train_sentence import fit
 
-            bundle = Path(work_dir) / f"{data}_tune_{a}_{b}"
+            bundle = Path(work_dir) / f"{key}_tune_{a}_{b}"
             exported = export(fit(train_rows, rest_ratio=GPU_REST_RATIO, **settings), bundle)
             answers = {fold: score(bundle, rows, exported["fingerprint"], threads) for fold, rows in heldout.items()}
-            for fold, fold_answers in answers.items():
-                target = Path(work_dir) / f"{data}_tune_{a}_{b}_answers_fold_{fold}.json"
-                target.write_text(json.dumps(fold_answers), encoding="utf-8")
         else:
-            answers = {fold: word_answers(train_rows, rows) for fold, rows in heldout.items()}
+            models = fit_word_models(train_rows)
+            answers = {fold: word_answers(models, rows) for fold, rows in heldout.items()}
+        # Kept beside the bundles so the rules and the review step can be measured on these answers.
+        for fold, fold_answers in answers.items():
+            target = Path(work_dir) / f"{key}_tune_{a}_{b}_answers_fold_{fold}.json"
+            target.write_text(json.dumps(fold_answers), encoding="utf-8")
         seconds = time.perf_counter() - started
         for fold, rows in heldout.items():
             record = {"train": f"{a}_{b}", "fold": fold, "seconds_for_the_pair": round(seconds, 1), **count(rows, answers[fold])}
