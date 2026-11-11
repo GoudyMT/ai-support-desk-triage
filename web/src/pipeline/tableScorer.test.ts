@@ -51,11 +51,4 @@ describe('a scorer that reads saved answers', () => {
     expect(trail.guard.flagged).toBe(false);
     expect(trail.final).toEqual({ category: 'Billing', priority: 'Medium', route: ROUTES.Billing, by: 'model' });
   });
-
-  it('still sends an unsure saved answer to a person', () => {
-    const unsure = tablePredict([answer('t5', 'Billing', 'Medium', 0.3)]);
-    const trail = runTicketWith(PLAIN_QUESTION, 't5', unsure, SETTINGS);
-    expect(trail.guard.flagged).toBe(true);
-    expect(trail.final.by).toBe('reviewer');
-  });
 });

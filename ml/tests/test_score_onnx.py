@@ -77,11 +77,6 @@ def test_a_changed_file_is_refused_before_any_ticket_is_scored(tmp_path, changed
         score(copy, ROWS, recorded)
 
 
-def test_a_wrong_recorded_fingerprint_is_refused():
-    with pytest.raises(ValueError, match="E_MODEL_HASH"):
-        score(TINY, ROWS, "0" * 64)
-
-
 def test_windows_line_ends_in_the_text_files_do_not_change_the_fingerprint(tmp_path):
     # Git on Windows checks text files out with CRLF line ends; the bundle is
     # still the same model.

@@ -26,6 +26,7 @@ FOLD_PAIRS = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
 # The file names of the first model's data and of the second's.
 DATA_NAMES = {"v1": ("tune_{a}_{b}.jsonl", "heldout_{fold}.jsonl"), "v2": ("v2_tune_{a}_{b}.jsonl", "v2_heldout_{fold}.jsonl")}
 CONTROL_TRAIN, CONTROL_HELDOUT, CONTROL_EXPECTED = "train_0.jsonl", "heldout_0.jsonl", 2325
+KEY_ERROR = "E_KEY_IN_USE"
 LOW_SIDE = {"Low", "Medium"}
 HIGH_SIDE = {"High", "Urgent"}
 
@@ -114,11 +115,19 @@ def run_rounds(data, model_kind, work_dir, settings, threads, key, max_pairs=Non
 
     Returns:
         The round records so far: twelve once every pair has run.
+
+    Raises:
+        SystemExit: The name is already used by a run with other settings (E_KEY_IN_USE).
     """
     tune_name, heldout_name = DATA_NAMES[data]
     entry = {"model": model_kind, "data": data, "settings": settings, "rounds": []}
     earlier = load_report()["runs"].get(key)
-    if earlier is not None and {k: earlier.get(k) for k in ("model", "data", "settings")} == {k: entry[k] for k in ("model", "data", "settings")}:
+    if earlier is not None:
+        # A run carries on only from a record made with the same model, data and
+        # settings. Any other record under this name would be written over.
+        if {k: earlier.get(k) for k in ("model", "data", "settings")} != {k: entry[k] for k in ("model", "data", "settings")}:
+            print(f"    The name {key} is already used by a run with other settings. Pick another --key.")
+            raise SystemExit(KEY_ERROR)
         entry["rounds"] = earlier["rounds"]
     rounds = entry["rounds"]
     trained = 0
@@ -201,9 +210,10 @@ def main():
         print("\n[3/3] Running the rounds...")
         Path(args.work_dir).mkdir(parents=True, exist_ok=True)
         rounds = run_rounds(args.data, args.model, args.work_dir, settings, threads, key, args.pairs)
-    mean = sum(r["category_right"] / r["n"] for r in rounds) / len(rounds)
     print(f"    Rounds recorded: {len(rounds)} of {2 * len(FOLD_PAIRS)}")
-    print(f"    Mean category accuracy so far: {mean * 100:.2f}%")
+    if rounds:
+        mean = sum(r["category_right"] / r["n"] for r in rounds) / len(rounds)
+        print(f"    Mean category accuracy so far: {mean * 100:.2f}%")
     print(f"    Saved: {REPORT_PATH} under {key}")
 
 
