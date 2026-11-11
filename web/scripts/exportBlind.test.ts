@@ -9,13 +9,16 @@ import {
   HELDOUT_SEED,
   TRAIN_SEED,
   assertBlindIsolated,
+  loadBlind,
   normalizeText,
+  runExport,
   writeDatasets,
   writeTuningSets,
   type FoldDataset,
 } from './exportDataset';
 
 const SMALL_BLIND = 300;
+const FROZEN_ROWS = 2000;
 const FOLDS_SMALL: FoldDataset[] = [0, 1, 2, 3].map((fold) => ({
   fold,
   train: generateTickets(TRAIN_SEED, 3, { fold, side: 'train' }),
@@ -76,6 +79,44 @@ describe('keeping the blind set out of training', () => {
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
+  });
+
+  // The fold models train on the fold lists and are tuned on the held-out
+  // lists, so a blind text in either would reach a model just the same.
+  it.each([
+    ['a fold training list', 'train'],
+    ['a fold held-out list', 'heldout'],
+  ] as const)('stops the training export for a blind text in %s', (_name, side) => {
+    const scratch = mkdtempSync(join(tmpdir(), 'blind-fold-'));
+    try {
+      const target = join(scratch, 'out');
+      const inFold = [{ text: disguised(FOLDS_SMALL[2]?.[side][0]?.text ?? '') }];
+      expect(() => writeDatasets(target, FOLDS_SMALL, TRAIN_ALL, [], inFold)).toThrow('E_BLIND_IN_TRAIN');
+      expect(existsSync(target)).toBe(false);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  it.each([[['--tuning']], [[]]])('reaches the guard through the export command with %o', (args) => {
+    const scratch = mkdtempSync(join(tmpdir(), 'blind-run-'));
+    try {
+      const inputs = {
+        tuning: () => ({ sets: [{ leftOut: [0, 1] as [number, number], train: TRAIN_ALL }], folds: FOLDS_SMALL, handwritten: [], blind }),
+        datasets: () => ({ datasets: FOLDS_SMALL, trainAll: TRAIN_ALL, handwritten: [], blind }),
+      };
+      expect(() => runExport(args, join(scratch, 'out'), inputs)).toThrow('E_BLIND_IN_TRAIN');
+      expect(existsSync(join(scratch, 'out'))).toBe(false);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // A guard fed an empty list passes everything, so a moved or renamed blind
+  // file must stop the export instead of reading as "no blind tickets".
+  it('reads the whole frozen set, and refuses to run without it', () => {
+    expect(loadBlind().length).toBe(FROZEN_ROWS);
+    expect(() => loadBlind(new URL('./no-such-blind-file.jsonl', import.meta.url))).toThrow('E_BLIND_MISSING');
   });
 
   it('stops the tuning export before any file is written', () => {

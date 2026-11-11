@@ -20,12 +20,12 @@ function perCategory(make: (category: Category) => readonly Template[]): Record<
 // carries a marker no built-in sentence has.
 const OTHER: Wording = {
   templates: perCategory((category) => [
-    { text: `zqx plain one about ${category}`, grievance: true },
-    { text: `zqx plain two about ${category}`, grievance: true },
+    { text: `zqx plain one about ${category}.`, grievance: true },
+    { text: `zqx plain two about ${category}.`, grievance: true },
   ]),
-  trapTemplates: perCategory((category) => [{ text: `zqx trap about ${category}` }]),
-  vagueTemplates: [{ text: 'zqx vague' }],
-  politeSecurityTemplates: [{ text: 'zqx polite report' }],
+  trapTemplates: perCategory((category) => [{ text: `zqx trap about ${category}.` }]),
+  vagueTemplates: [{ text: 'zqx vague.' }],
+  politeSecurityTemplates: [{ text: 'zqx polite report.' }],
   threatPhrases: ['Zqx threat.'],
   twoIssueConnectors: ['Zqx also.'],
   openers: ['Zqx opener,'],
@@ -34,7 +34,7 @@ const OTHER: Wording = {
 };
 
 describe('ticket streams and their wording', () => {
-  // pin: 4. The built-in streams feed every recorded number of the first model
+  // pin: 3. The built-in streams feed every recorded number of the first model
   // (its training files, its test folds and the live desk), so a refactor that
   // moves one random draw would silently change all of them.
   it.each([

@@ -297,9 +297,13 @@ describe('runExport', () => {
         sets: [{ leftOut: [0, 1] as [number, number], train: generateTickets(TRAIN_SEED, 3, { fold: 0, side: 'train', alsoHeldOut: 1 }) }],
         folds: SMALL,
         handwritten: loadHandwritten(),
+        blind: [],
       }
     ),
-    datasets: () => (ran.push('datasets'), { datasets: SMALL, trainAll: generateTickets(TRAIN_SEED, 4), handwritten: loadHandwritten() }),
+    datasets: () => (
+      ran.push('datasets'),
+      { datasets: SMALL, trainAll: generateTickets(TRAIN_SEED, 4), handwritten: loadHandwritten(), blind: [] }
+    ),
   });
 
   it('with --tuning writes only the tuning sets', () => {

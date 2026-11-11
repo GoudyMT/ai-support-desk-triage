@@ -171,7 +171,7 @@ export const DESK_WORDING: Wording = {
     ],
   },
   vagueTemplates: [
-    { text: "It is happening again and I do not know what else to say about it." },
+    { text: "Whatever it did last week, it is doing the opposite now and I am lost." },
     { text: "I need some help with the thing from before, you will know which one." },
     { text: "Not sure if this is the right place to write, but I have a question that is hard to put into words." },
     { text: "Something went sideways yesterday and now I am stuck. Hoping you can look into it." },

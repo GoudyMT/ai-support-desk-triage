@@ -116,11 +116,15 @@ export function assertHandwrittenIsolated(
 
 // The blind set judges a model once, at the end, so nothing may train or tune on
 // its wording. Its file is frozen; every export of training or tuning rows reads
-// it only to prove that none of its texts is among them.
+// it only to prove that none of its texts is among them. A missing file stops
+// the export: an empty list would pass every check and prove nothing.
 export const BLIND_SOURCE = new URL('../../ml/data/blind.jsonl', import.meta.url);
 
 export function loadBlind(source: URL = BLIND_SOURCE): HandwrittenRow[] {
-  return existsSync(source) ? loadHandwritten(source) : [];
+  if (!existsSync(source)) {
+    throw new Error('E_BLIND_MISSING');
+  }
+  return loadHandwritten(source);
 }
 
 export function assertBlindIsolated(blind: readonly { text: string }[], trainingLists: readonly (readonly { text: string }[])[]): void {
@@ -177,7 +181,7 @@ export function writeDatasets(
   blind: readonly { text: string }[] = [],
 ): { target: string; rows: number }[] {
   assertHandwrittenIsolated(handwritten, [...datasets.map(({ train }) => train), trainAll]);
-  assertBlindIsolated(blind, [...datasets.map(({ train }) => train), trainAll]);
+  assertBlindIsolated(blind, [...datasets.flatMap(({ train, heldout }) => [train, heldout]), trainAll]);
   mkdirSync(outputDir, { recursive: true });
   const written: { target: string; rows: number }[] = [];
   const files: [string, string, number][] = [];
@@ -247,8 +251,8 @@ export function writeTuningSets(
 // What each export writes from. Each is built only when its export runs, so the
 // default export never spends time on the tuning sets.
 export interface ExportInputs {
-  tuning: () => { sets: TuningSet[]; folds: FoldDataset[]; handwritten: HandwrittenRow[]; blind?: readonly { text: string }[] };
-  datasets: () => { datasets: FoldDataset[]; trainAll: Ticket[]; handwritten: HandwrittenRow[]; blind?: readonly { text: string }[] };
+  tuning: () => { sets: TuningSet[]; folds: FoldDataset[]; handwritten: HandwrittenRow[]; blind: readonly { text: string }[] };
+  datasets: () => { datasets: FoldDataset[]; trainAll: Ticket[]; handwritten: HandwrittenRow[]; blind: readonly { text: string }[] };
 }
 
 // With --tuning it writes only the tuning sets: CI never tunes, so the default
