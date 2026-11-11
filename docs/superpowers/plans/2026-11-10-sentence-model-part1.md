@@ -1,9 +1,12 @@
 # Sentence Model, Part 1 Plan: The Test Set, the Tickets and the Offline Model
 
 ## Progress
-- Current task: 0 and 1 (plan approved by the owner, 2026-11-10: "Plan looks good, lets do it!")
-- Done (with evidence): none
-- Next: Task 1
+- Current task: 2 (plan approved by the owner, 2026-11-10: "Plan looks good, lets do it!")
+- Done (with evidence):
+  - Task 0 - report `.kit/reports/real-ticket-sets-2026-11.md` (local); no usable real-ticket set found; posted to the owner 2026-11-10
+  - Wording seam - 0ab40ec - 150 generator tests pass; the four v1 stream hashes hold and turn red when one draw is swapped
+  - Task 1 - 3ad7454, 3a11291 - blind set frozen: 2,000 rows, SHA-256 bc140a24...4850415d; 11 structure tests and 6 export tests pass; both guard tests turn red with the guard commented out; `export-data` and `export-tuning` run with the guard live and write the same v1 bytes; 121 Python tests pass. Still open on Task 1: the checker pass
+- Next: the Task 1 checker pass, then Task 2
 - Branch: `feat/sentence-model` (local, from `main` at b889642)
 - Open questions: none blocking; the two owner stops are listed under "Owner stops"
 
@@ -139,4 +142,8 @@ Feature tier at the end of Part 1, with the dependency, CI-workflow and public-t
 - 2026-11-10, Task 1: greetings (the `openers` list) are exempt from the "shares no sentence with training wording" test. 7 of the 8 blind greetings equal built-in ones; a greeting names no category and people have only a handful.
 - 2026-11-10, Task 1: `blind.jsonl` is opened by the training and tuning exports for the isolation check only (texts compared, nothing scored), as well as by the hash test. The Global Constraint "not scored, printed or opened" is narrowed to "not scored or printed".
 - 2026-11-10, Task 1: label quality was checked without the lead reading the wording: a second agent labelled the 158 bodies with the answers removed. Category agreed on 158 of 158; 8 flag disagreements were reworded by a third agent, then labelled again.
+- 2026-11-10, Task 2: no new `Split` pools. The extra and desk wording are each a whole `Wording` value passed to the generator (`EXTRA_WORDING`, `DESK_WORDING`), and the v2 files come from a new `web/scripts/exportV2.ts` (`npm run export-v2`), so `templates.ts`, `poolOf` and `exportDataset.ts`'s v1 paths are untouched. A v2 training file is half built-in tickets and half extra tickets; a practice round leaves the same fold out of both. Files written: `v2_train`, `v2_desk`, six `v2_tune_<a>_<b>`, four `v2_heldout_<k>`. Not built: a ticket that joins a built-in issue to an extra one.
+- 2026-11-10, Task 2: sizes. Extra wording: 16 templates per category, 8 traps per category, 12 each of the other lists (240 bodies, 5 to 126 words). Desk wording: 10 per category, 4 traps per category (140 bodies), written from the label rules alone. An independent labeller disagreed on 13 of 240 extra and 4 of 140 desk bodies; 4 were the labeller marking `severe` on Account Access, where no label rule reads it, and 2 were the labeller missing a stated money loss; the lead reworded the other 11 (how-to questions filed as access problems, charge disputes without the flag, two complaints in other categories, one vague text that read as a complaint).
+- 2026-11-10, Task 2: `web/src/generator/wordingTestKit.ts` holds the wording rules as one check; the blind wording test still carries its own copy and moves to the kit after the Task 1 checker reports.
+- 2026-11-10: the demo page bundle is 49,966 of 50,000 bytes after the generator seam. Part 2 changes that page and must trim first (rule: size budgets).
 - 2026-11-10: the first generator edit was applied by a script, not the Edit tool, against the brief rule every agent follows. It was verified by the tests and type check; later edits use the Edit tool.
