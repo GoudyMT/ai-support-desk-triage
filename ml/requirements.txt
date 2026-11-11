@@ -1,5 +1,7 @@
-# Exact pins, each released at least 14 days before 2026-10-30, with the sha256 of every published wheel.
-# Install with --require-hashes --only-binary :all: so an unpinned package, a changed file or a source build is refused.
+# Exact pins with the sha256 of every published wheel. Each was released at least 14 days before the day it was
+# added: 2026-10-30 for the first block, 2026-11-11 for the scoring block at the end.
+# Install with --require-hashes --only-binary :all: --no-deps so a changed file or a source build is refused and
+# exactly the listed packages are installed.
 scikit-learn==1.9.1 \
     --hash=sha256:09f4d73049cd63575157f6b1060e06a8c83a4bd3488dbfaeedf35ccba7aad712 \
     --hash=sha256:0c0f8b5d09b44101cea2767f300680bada1ea27f976fe4b48b83950a4f55a49a \
@@ -190,7 +192,8 @@ pygments==2.21.0 \
     --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9
 colorama==0.4.6 ; sys_platform == "win32" \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
-# Scoring the frozen model file: onnxruntime, tokenizers and what they import. Each was released at least 14 days
+# Scoring the frozen model file: onnxruntime, tokenizers, and the two packages onnxruntime's own metadata requires
+# (flatbuffers, protobuf). Each was released at least 14 days
 # before 2026-11-11. tokenizers also names huggingface-hub, which it needs only to fetch a tokenizer by name; the
 # scorer loads one from a file, so that package and its own tree are left out and the install runs with --no-deps.
 onnxruntime==1.31.1 \

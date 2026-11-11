@@ -21,6 +21,7 @@ Twelve rounds: train on a tuning set built from two folds' wording, score on eac
 | 2. Step 1 voting with the word model | 68.9% | 64.3% | 4,480 | 5,057 |
 | 3. Sentence model trained on our tickets | 81.5% | 71.0% | 2,799 | 3,151 |
 
+- **Where these numbers are.** The table is the first measurement of 2026-11-10, made with a scratch script that is not in the repo. The repo's own code repeated steps 0 and 3 on 2026-11-11 (`ml/reports/practice_v2.json`): step 0 is run `word_v1` (52.35%, 56.00%, 5,276, 5,899) and step 3 is run `sentence_v1` (80.60%, 69.93%, 2,606, 3,401). Steps 1 and 2 have no record in the repo.
 - Control: the setup reproduced the model card's fold 0 count exactly (2,325 of 4,000) before any comparison.
 - Step 3 beat step 1 on 12 of 12 rounds. Its High/Urgent count was worse than today's on 1 of 12 rounds.
 - These are raw model answers, before the rules, the floor and the review step. One training run, one setting, one seed.
@@ -60,7 +61,7 @@ Tickets sent to a person is reported for every step and is the second priority, 
 | 2026-11-10 | More accurate with no safety line worse is enough to release (Q3). |
 | 2026-11-10 | Blind test set: new templates written blind and read once; a public real-ticket set is researched and reported (Q5). |
 | 2026-11-10 | The 90-day run is in this version as an offline measured simulation (option A). |
-| 2026-11-10 | Direction: the sentence model, after it passed its bar (12 of 12 rounds, +11.4 points). |
+| 2026-11-10 | Direction: the sentence model, after it passed its bar (12 of 12 rounds, +11.4 points: the sentence model as it comes against today's recipe in the first scratch test, which has no record in the repo). |
 | 2026-11-10 | Improve in increments, not one jump. |
 | 2026-11-10 | The 8-bit (small) format. |
 | 2026-11-10 | Download on GitHub and a Hugging Face page; the public post stays the owner's act (Q8). |
@@ -163,7 +164,7 @@ Each step of the ladder becomes a Model History row, all scored in the single bl
 1. CI scores a frozen model file by hash and no longer retrains the model on every push. Training happens on the owner's GPU. The current `check_model`, `check_eval` and `measurePipeline --folds` steps are replaced by the checks in section 7; practice-round numbers become recorded, not re-derived.
 2. The desk keeps working while the model loads. Whether it shows today's small model's answers first or waits is decided with a wireframe in phase 5.
 3. One branch and one release, with the ladder shown as Model History rows, not one release per rung.
-4. The functional goal of 10 points on the blind set. The practice gain was 29 points; 10 leaves room for the blind set to be harder.
+4. The functional goal of 10 points on the blind set. The practice gain was 29 points (28.3 by the run in the repo); 10 leaves room for the blind set to be harder.
 5. The wider privacy mask is a Should on this branch.
 6. "Today" in every comparison is the word recipe on the same tickets (section 9).
 7. H11 and H12 are treated as closed by the guide page, as recorded in the Active Plan.
@@ -179,17 +180,19 @@ Each step of the ladder becomes a Model History row, all scored in the single bl
 - **The sentence model gives the answer a person sees.** Every ticket that goes to a person carries the sentence model's department and priority as the suggestion.
 - **A ticket leaves unchecked only when today's gate lets it and both models agree** on department and priority. Any disagreement sends it to a person.
 
-**Why it is better, and why that holds.** An unchecked ticket carries the answer today's model gives, and the unchecked tickets are a part of today's unchecked tickets. So on any set, no count of the safety rule can be higher than today's: this follows from the rule itself, not from a tuned threshold. Measured on 48,000 practice tickets: sent to a person 90.1% -> 91.9%; high-risk missed 478 -> 409; High/Urgent out as low 78 -> 17; unchecked wrong department 248 -> 34; unchecked wrong priority 516 -> 273; rounds with any line worse 0 of 12; the suggestion shown to the reviewer right on both fields 37.6% -> 60.3%.
+**Why it is better, and why that holds.** An unchecked ticket carries the answer today's model gives, and the unchecked tickets are a part of today's unchecked tickets. So on any set, none of the four error counts (high-risk missed, High/Urgent out as low, unchecked wrong department, unchecked wrong priority) can be higher than today's: this follows from the rule itself, not from a tuned threshold. The share sent to a person can only stay the same or rise. Measured on 48,000 practice tickets: sent to a person 90.1% -> 91.9%; high-risk missed 478 -> 409; High/Urgent out as low 78 -> 17; unchecked wrong department 248 -> 34; unchecked wrong priority 516 -> 273; rounds with any line worse 0 of 12; the suggestion shown to the reviewer right on both fields 38.1% -> 59.9% (`ml/reports/two_model_practice.json`; an earlier draft of this line said 37.6% -> 60.3%, from a scratch count made before the real pipeline was used). These rounds were read many times while the design was chosen, so they are practice numbers; the blind set is the unbiased one.
 
 **What it costs.** About 2 points more tickets go to a person, not fewer. The site serves two models: the word model (3.8 MB, as today) and the sentence bundle (about 23 MB plus its runtime), the second loaded after the first so the desk works at once.
 
 **What it supersedes.**
 - Section 3: the goal "right department more often" is now measured on the suggestion a reviewer is shown and on the model alone; tickets sent to a person is reported and is expected to rise slightly.
 - Section 7: the single model of record. The bundle is still frozen, fingerprinted and scored by CI; the word model keeps its present checks. Phases 2 and 3 are replaced by: train the shipped sentence model on all training wording; measure the two-model rule with the real pipeline on the practice rounds, the desk-only wording and the hand-written sets. Phase 4 (the 90-day run) is re-scoped in Part 2: what grows over the days is how often the suggestion is right.
-- Section 9: the allowance is no longer needed, because no line can be worse. The release bar becomes: on the blind set, read once, the suggestion is right on department at least 10 points more often than today's model, and the two-model rule's four counts are at or under today's on every set (a check of the build, since the rule guarantees it).
+- Section 9: the allowance is no longer needed, because none of the four error counts can be higher than today's. "Today" in the sets report is the shipped word model, which is the gate itself. The release bar becomes: on the blind set, read once, the suggestion is right on department at least 10 points more often than today's model, and the two-model rule's four counts are at or under today's on every set (a check of the build, since the rule guarantees it).
 
 **What stays open, by the owner's word.**
 - **Fewer tickets to a person, with accuracy kept.** Not solved. It stays a named goal for the work after this release; the record of what was tried and why it failed goes on Model History and in the guide.
 - **Model History shows the truth:** the new row reports the suggestion's accuracy, the unchanged safety counts and the higher share sent to a person, and says plainly that the workload did not fall.
+
+**How the record is kept (added after the Part 1 review, 2026-11-11).** The bundle's answer for every ticket of the desk-only set and both hand-written sets is in the repo (`ml/reports/bundle_v2_answers.json`). CI scores the bundle and fails if one answer differs from the record (requirement M3, with no room), and works out `ml/reports/two_model_sets.json` again from those answers and the shipped word model. The practice reports cannot be worked out again by CI, because the practice answer files are not in the repo; each says so.
 
 **Not decided yet (Part 2 design).** Whether the four word fold models stay on the site once the desk draws desk-only wording; how the desk shows a suggestion that arrives after the gate's answer.

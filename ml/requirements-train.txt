@@ -5,6 +5,10 @@
 # The list is every package the training and export code imports, found by importing them; packages their
 # metadata names but the code never loads are left out, so install with --no-deps:
 #   python -m pip install --require-hashes --only-binary :all: --no-deps -r ml/requirements-train.txt
+# Built and tested on Windows only. The Linux torch wheel's hash is listed, but the CUDA runtime packages that
+# wheel needs on Linux are not, so a Linux install would not find its GPU.
+# torch is the only package meant to come from the extra index below. Every line carries hashes, so no index
+# can put another file in a package's place.
 --extra-index-url https://download.pytorch.org/whl/cu124
 torch==2.6.0+cu124 \
     --hash=sha256:3313061c1fec4c7310cf47944e84513dcd27b6173b72a349bb7ca68d0ee6e9c0 \
