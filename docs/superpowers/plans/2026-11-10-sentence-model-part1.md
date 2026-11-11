@@ -1,12 +1,15 @@
 # Sentence Model, Part 1 Plan: The Test Set, the Tickets and the Offline Model
 
 ## Progress
-- Current task: 2 (plan approved by the owner, 2026-11-10: "Plan looks good, lets do it!")
+- Current task: 4 (plan approved by the owner, 2026-11-10: "Plan looks good, lets do it!"); waiting on the owner's yes for the package installs Task 4 needs
 - Done (with evidence):
   - Task 0 - report `.kit/reports/real-ticket-sets-2026-11.md` (local); no usable real-ticket set found; posted to the owner 2026-11-10
   - Wording seam - 0ab40ec - 150 generator tests pass; the four v1 stream hashes hold and turn red when one draw is swapped
-  - Task 1 - 3ad7454, 3a11291 - blind set frozen: 2,000 rows, SHA-256 bc140a24...4850415d; 11 structure tests and 6 export tests pass; both guard tests turn red with the guard commented out; `export-data` and `export-tuning` run with the guard live and write the same v1 bytes; 121 Python tests pass. Still open on Task 1: the checker pass
-- Next: the Task 1 checker pass, then Task 2
+  - Task 1 - 3ad7454, 3a11291 - blind set frozen: 2,000 rows, SHA-256 bc140a24...4850415d; 11 structure tests and 6 export tests pass; both guard tests turn red with the guard commented out; `export-data` and `export-tuning` run with the guard live and write the same v1 bytes; 121 Python tests pass
+  - Task 1 checker - 727e6f2 - verdict FIX, 9 findings (2 medium), all fixed; 296 script and generator tests, 121 Python tests; the break the checker found uncaught (a built-in request in another wording's stream) now turns the stream test red
+  - Task 2 - 7685c2c, 727e6f2 - `EXTRA_WORDING` (240 bodies) and `DESK_WORDING` (140 bodies) pass the wording rules; `npm run export-v2` writes 12 files; both v2 guard tests turn red with the guard off; web gate exit 0 (demo 49,966 of 50,000 bytes, desk 48,591 of 49,000); v1 export bytes unchanged
+  - Task 3 - bar passed: word recipe 60.1% on v2 training against 52.4% on v1 training, same v1 held-out tickets, 12 rounds; details in the notes below
+- Next: Task 4 (needs pinned installs of onnxruntime, tokenizers and numpy into `ml/.venv`, and a pinned training requirements file)
 - Branch: `feat/sentence-model` (local, from `main` at b889642)
 - Open questions: none blocking; the two owner stops are listed under "Owner stops"
 
