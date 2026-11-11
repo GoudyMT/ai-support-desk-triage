@@ -58,12 +58,60 @@ def lower_priority():
         os.nice(UNIX_NICE_STEP)
 
 
+def core_mask(total_cores, wanted):
+    """
+    Returns the bit mask of the cores a limited process may run on.
+
+    The last cores are chosen, never more than the machine has, so the first
+    cores, which programs reach for by default, stay free.
+
+    Args:
+        total_cores: How many logical cores the machine has.
+        wanted: How many the process may use.
+
+    Returns:
+        An integer with one bit set per allowed core.
+    """
+    count = min(wanted, total_cores)
+    return ((1 << count) - 1) << (total_cores - count)
+
+
+def limit_cores(wanted=CPU_THREADS):
+    """
+    Binds this whole process, every library and thread pool in it, to a few cores.
+
+    Args:
+        wanted: How many logical cores the process may use.
+    """
+    total = os.cpu_count() or 1
+    mask = core_mask(total, wanted)
+    if sys.platform == "win32":
+        kernel = ctypes.windll.kernel32
+        kernel.SetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+        kernel.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel.SetProcessAffinityMask(kernel.GetCurrentProcess(), mask)
+    else:
+        os.sched_setaffinity(0, {core for core in range(total) if mask >> core & 1})
+
+
+def allowed_cores():
+    """Returns how many logical cores this process may run on."""
+    if sys.platform == "win32":
+        kernel = ctypes.windll.kernel32
+        kernel.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel.GetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+        process_mask, system_mask = ctypes.c_size_t(), ctypes.c_size_t()
+        kernel.GetProcessAffinityMask(kernel.GetCurrentProcess(), ctypes.byref(process_mask), ctypes.byref(system_mask))
+        return bin(process_mask.value).count("1")
+    return len(os.sched_getaffinity(0))
+
+
 def share_the_machine(force=False):
     """
     Caps this process before a long run, or stops it when the GPU is busy.
 
-    It lowers the process priority, limits PyTorch to a few CPU threads and to
-    part of the GPU's memory, and returns the CPU thread cap for the scorer.
+    It lowers the process priority, binds the process to a few CPU cores, limits
+    PyTorch to part of the GPU's memory, and returns the CPU thread cap.
 
     Args:
         force: The owner's override; start even when the GPU is busy.
@@ -79,6 +127,7 @@ def share_the_machine(force=False):
         print(f"    GPU in use: {used}% (limit {GPU_BUSY_PERCENT}%). Not starting; pass --force only on the owner's word.")
         raise SystemExit(BUSY_ERROR)
     lower_priority()
+    limit_cores()
     import torch
 
     torch.set_num_threads(CPU_THREADS)
