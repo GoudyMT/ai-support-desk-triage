@@ -18,7 +18,10 @@ GPU_MEMORY_SHARE = 0.4
 GPU_REST_RATIO = 1.0
 GPU_BUSY_PERCENT = 50
 BUSY_ERROR = "E_MACHINE_BUSY"
+LIMIT_ERROR = "E_LIMIT_NOT_SET"
 WINDOWS_BELOW_NORMAL = 0x00004000
+WINDOWS_IDLE = 0x00000040
+WINDOWS_LOWERED = (WINDOWS_BELOW_NORMAL, WINDOWS_IDLE)
 UNIX_NICE_STEP = 10
 
 
@@ -49,13 +52,49 @@ def read_gpu_percent():
         return None
 
 
-def lower_priority():
-    """Tells the operating system to serve every other program before this one."""
+def _kernel():
+    """Returns Windows' process functions with their real argument and return types."""
+    # Without these types ctypes reads the process handle as a 32-bit number,
+    # which is not a valid handle, and every call below fails without an error.
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.GetCurrentProcess.restype = ctypes.c_void_p
+    kernel.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    kernel.GetPriorityClass.argtypes = [ctypes.c_void_p]
+    kernel.GetPriorityClass.restype = ctypes.c_uint32
+    kernel.SetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+    kernel.GetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+    return kernel
+
+
+def _ask_for_lower_priority():
+    """Asks the operating system to serve every other program before this one."""
     if sys.platform == "win32":
-        kernel = ctypes.windll.kernel32
+        kernel = _kernel()
         kernel.SetPriorityClass(kernel.GetCurrentProcess(), WINDOWS_BELOW_NORMAL)
     else:
         os.nice(UNIX_NICE_STEP)
+
+
+def priority_is_lowered():
+    """Returns whether the operating system now serves other programs before this one."""
+    if sys.platform == "win32":
+        kernel = _kernel()
+        return kernel.GetPriorityClass(kernel.GetCurrentProcess()) in WINDOWS_LOWERED
+    return os.nice(0) >= UNIX_NICE_STEP
+
+
+def lower_priority():
+    """
+    Lowers this process's priority and proves that it took.
+
+    Raises:
+        SystemExit: The priority read back is not a lowered one (E_LIMIT_NOT_SET).
+            A run that only believes it is limited is how the owner was told
+            "below normal" about runs at normal priority.
+    """
+    _ask_for_lower_priority()
+    if not priority_is_lowered():
+        raise SystemExit(LIMIT_ERROR)
 
 
 def core_mask(total_cores, wanted):
@@ -76,19 +115,10 @@ def core_mask(total_cores, wanted):
     return ((1 << count) - 1) << (total_cores - count)
 
 
-def limit_cores(wanted=CPU_THREADS):
-    """
-    Binds this whole process, every library and thread pool in it, to a few cores.
-
-    Args:
-        wanted: How many logical cores the process may use.
-    """
-    total = os.cpu_count() or 1
-    mask = core_mask(total, wanted)
+def _ask_for_cores(mask, total):
+    """Asks the operating system to keep this process on the cores in the mask."""
     if sys.platform == "win32":
-        kernel = ctypes.windll.kernel32
-        kernel.SetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
-        kernel.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel = _kernel()
         kernel.SetProcessAffinityMask(kernel.GetCurrentProcess(), mask)
     else:
         os.sched_setaffinity(0, {core for core in range(total) if mask >> core & 1})
@@ -97,13 +127,33 @@ def limit_cores(wanted=CPU_THREADS):
 def allowed_cores():
     """Returns how many logical cores this process may run on."""
     if sys.platform == "win32":
-        kernel = ctypes.windll.kernel32
-        kernel.GetCurrentProcess.restype = ctypes.c_void_p
-        kernel.GetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+        kernel = _kernel()
         process_mask, system_mask = ctypes.c_size_t(), ctypes.c_size_t()
         kernel.GetProcessAffinityMask(kernel.GetCurrentProcess(), ctypes.byref(process_mask), ctypes.byref(system_mask))
         return bin(process_mask.value).count("1")
     return len(os.sched_getaffinity(0))
+
+
+def limit_cores(wanted=CPU_THREADS):
+    """
+    Binds this whole process, every library and thread pool in it, to a few cores.
+
+    Args:
+        wanted: How many logical cores the process may use.
+
+    Raises:
+        SystemExit: The process may still run on more cores than asked (E_LIMIT_NOT_SET).
+    """
+    total = os.cpu_count() or 1
+    _ask_for_cores(core_mask(total, wanted), total)
+    if not 0 < allowed_cores() <= min(wanted, total):
+        raise SystemExit(LIMIT_ERROR)
+
+
+def limit_cpu():
+    """Lowers the priority and binds the cores; for a run that uses no GPU."""
+    lower_priority()
+    limit_cores()
 
 
 def share_the_machine(force=False):
@@ -120,14 +170,14 @@ def share_the_machine(force=False):
         The number of CPU threads the caller may use.
 
     Raises:
-        SystemExit: The GPU is busy and `force` is not set (E_MACHINE_BUSY).
+        SystemExit: The GPU is busy and `force` is not set (E_MACHINE_BUSY), or
+            a limit did not take (E_LIMIT_NOT_SET).
     """
     used = read_gpu_percent()
     if gpu_too_busy(used) and not force:
         print(f"    GPU in use: {used}% (limit {GPU_BUSY_PERCENT}%). Not starting; pass --force only on the owner's word.")
         raise SystemExit(BUSY_ERROR)
-    lower_priority()
-    limit_cores()
+    limit_cpu()
     import torch
 
     torch.set_num_threads(CPU_THREADS)

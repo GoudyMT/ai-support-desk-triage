@@ -1,10 +1,13 @@
 """Tests of the scorer for a frozen model folder, on a tiny stand-in model."""
 
+import json
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
 
+from triage_v2 import score_onnx
 from triage_v2.score_onnx import bundle_fingerprint, score
 
 TINY = Path(__file__).resolve().parent / "fixtures" / "tiny_model"
@@ -88,3 +91,30 @@ def test_windows_line_ends_in_the_text_files_do_not_change_the_fingerprint(tmp_p
         path = copy / name
         path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
     assert bundle_fingerprint(copy) == bundle_fingerprint(TINY)
+
+
+def test_a_command_line_run_limits_itself_before_it_scores(tmp_path, monkeypatch):
+    # The scorer's own thread count does not bind the tokenizer's thread pool;
+    # only the process-wide limit does, so it must be set before any scoring.
+    order = []
+    rows = tmp_path / "rows.jsonl"
+    rows.write_text("\n".join(json.dumps(row) for row in ROWS), encoding="utf-8")
+    real_score = score_onnx.score
+    monkeypatch.setattr(score_onnx, "limit_cpu", lambda: order.append("limit"))
+    monkeypatch.setattr(score_onnx, "score", lambda *args: order.append("score") or real_score(*args))
+    monkeypatch.setattr(sys, "argv", ["score_onnx", "--bundle", str(TINY), "--fingerprint", bundle_fingerprint(TINY), "--rows", str(rows), "--out", str(tmp_path / "out.json")])
+    score_onnx.main()
+    assert order == ["limit", "score"]
+
+
+def test_a_command_line_run_writes_the_bundle_fingerprint_beside_its_answers(tmp_path, monkeypatch):
+    # A report built from an answers file copies this value, so its counts
+    # cannot be filed under a bundle that did not give them.
+    rows = tmp_path / "rows.jsonl"
+    rows.write_text("\n".join(json.dumps(row) for row in ROWS), encoding="utf-8")
+    monkeypatch.setattr(score_onnx, "limit_cpu", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["score_onnx", "--bundle", str(TINY), "--fingerprint", bundle_fingerprint(TINY), "--rows", str(rows), "--out", str(tmp_path / "out.json")])
+    score_onnx.main()
+    written = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
+    assert written["bundle_fingerprint"] == bundle_fingerprint(TINY)
+    assert [answer["id"] for answer in written["answers"]] == ["a", "b", "c"]

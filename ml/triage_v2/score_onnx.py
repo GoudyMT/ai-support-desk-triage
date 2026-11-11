@@ -14,6 +14,8 @@ import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
 
+from triage_v2.share_machine import limit_cpu
+
 BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json")
 HASH_ERROR = "E_MODEL_HASH"
 BATCH_SIZE = 64
@@ -145,7 +147,7 @@ def score(model_dir, rows, expected_sha256, threads=None):
 
 
 def main():
-    """Scores a jsonl file of tickets with a bundle and writes the answers as JSON."""
+    """Scores a jsonl file of tickets with a bundle; writes the answers and the bundle fingerprint as JSON."""
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("--bundle", required=True, help="the model folder")
     parser.add_argument("--fingerprint", required=True, help="the recorded bundle fingerprint")
@@ -153,10 +155,12 @@ def main():
     parser.add_argument("--out", required=True, help="where to write the answers")
     parser.add_argument("--threads", type=int, default=DEFAULT_CLI_THREADS, help="the most CPU threads to use")
     args = parser.parse_args()
+    limit_cpu()
     with open(args.rows, encoding="utf-8") as handle:
         rows = [json.loads(line) for line in handle if line.strip()]
     answers = score(args.bundle, rows, args.fingerprint, args.threads)
-    Path(args.out).write_text(json.dumps(answers), encoding="utf-8")
+    written = {"bundle_fingerprint": args.fingerprint, "answers": answers}
+    Path(args.out).write_text(json.dumps(written), encoding="utf-8")
     print(f"    Scored: {len(answers):,} tickets -> {args.out}")
 
 
