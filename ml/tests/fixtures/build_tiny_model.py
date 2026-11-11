@@ -29,6 +29,8 @@ EMBEDDINGS[VOCAB.index("[PAD]")] = [0.0, 5.0]
 HEADS = {
     "category": {"classes": ["Billing", "Technical Issue"], "weight": [[4.0, 0.0], [0.0, 4.0]], "bias": [0.0, 0.0]},
     "priority": {"classes": ["High", "Medium"], "weight": [[0.0, 4.0], [4.0, 0.0]], "bias": [0.0, 0.0]},
+    # A bundle may carry more answers than the two every model has; the scorer returns each one it finds.
+    "mustReview": {"classes": ["false", "true"], "weight": [[4.0, 0.0], [0.0, 4.0]], "bias": [0.0, 0.0]},
 }
 
 

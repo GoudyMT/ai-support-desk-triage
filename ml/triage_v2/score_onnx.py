@@ -15,7 +15,6 @@ from tokenizers import Tokenizer
 
 BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json")
 HASH_ERROR = "E_MODEL_HASH"
-FIELDS = ("category", "priority")
 BATCH_SIZE = 64
 # A ticket with no known word has a zero vector; dividing by this instead of by
 # zero leaves it a zero vector, so its answer comes from the bias alone.
@@ -112,8 +111,10 @@ def score(model_dir, rows, expected_sha256, threads=None):
             A long run on a shared machine passes a small number.
 
     Returns:
-        One answer per row, in order: `id`, `category`, `priority`, and under
-        `category_probs` and `priority_probs` a probability for every class.
+        One answer per row, in order: `id`, then for every answer head in the
+        bundle (`category`, `priority` and any other it was trained with) the
+        chosen class under the head's name and a probability for every class
+        under `<name>_probs`.
 
     Raises:
         ValueError: The folder's fingerprint is not the recorded one (E_MODEL_HASH).
@@ -131,8 +132,7 @@ def score(model_dir, rows, expected_sha256, threads=None):
     vectors = _embed(session, tokenizer, [row["maskedText"] for row in rows])
 
     answers = [{"id": row["id"]} for row in rows]
-    for field in FIELDS:
-        head = heads[field]
+    for field, head in heads.items():
         weight = np.array(head["weight"], dtype=np.float32)
         probs = _softmax(vectors @ weight.T + np.array(head["bias"], dtype=np.float32)) if rows else []
         for answer, row_probs in zip(answers, probs):

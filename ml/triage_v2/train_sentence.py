@@ -14,6 +14,8 @@ from sentence_transformers import SentenceTransformer
 RANDOM_STATE = 113
 BASE_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 FIELDS = ("category", "priority")
+# A third answer a model may be trained to give: whether a person must see the ticket.
+REVIEW_FIELD = "mustReview"
 EPOCHS = 2
 LEARNING_RATE = 2e-5
 BATCH_SIZE = 64
@@ -37,7 +39,13 @@ def _embed(encoder, texts, device):
     return encoder(features)["sentence_embedding"]
 
 
-def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE, max_length=MAX_LENGTH, device="cuda", rest_ratio=0.0):
+def label_of(row, field):
+    """Returns a row's label for a field as text; a yes/no field becomes "true" or "false"."""
+    value = row[field]
+    return str(value).lower() if isinstance(value, bool) else value
+
+
+def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE, max_length=MAX_LENGTH, device="cuda", rest_ratio=0.0, fields=FIELDS):
     """
     Trains the sentence model and both heads on the rows.
 
@@ -55,6 +63,7 @@ def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
             the step's own time: 1.0 keeps the GPU busy about half the time, so
             other programs that use it keep running. It changes the time a run
             takes and nothing about the model it produces.
+        fields: The answers to train a head for; each names a key of the rows.
 
     Returns:
         The trained model, in evaluation mode.
@@ -63,11 +72,11 @@ def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
     np.random.seed(RANDOM_STATE)
     encoder = SentenceTransformer(BASE_MODEL, device=device)
     encoder.max_seq_length = max_length
-    classes = {field: sorted({row[field] for row in rows}) for field in FIELDS}
+    classes = {field: sorted({label_of(row, field) for row in rows}) for field in fields}
     width = encoder.get_sentence_embedding_dimension()
-    heads = torch.nn.ModuleDict({field: torch.nn.Linear(width, len(classes[field])) for field in FIELDS}).to(device)
+    heads = torch.nn.ModuleDict({field: torch.nn.Linear(width, len(classes[field])) for field in fields}).to(device)
     optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(heads.parameters()), lr=learning_rate)
-    targets = {field: torch.tensor([classes[field].index(row[field]) for row in rows]) for field in FIELDS}
+    targets = {field: torch.tensor([classes[field].index(label_of(row, field)) for row in rows]) for field in fields}
     texts = [row["maskedText"] for row in rows]
     order_rng = np.random.default_rng(RANDOM_STATE)
 
@@ -78,7 +87,7 @@ def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
             step_started = time.perf_counter()
             index = order[start:start + batch_size]
             vectors = _embed(encoder, [texts[i] for i in index], device)
-            loss = sum(torch.nn.functional.cross_entropy(heads[field](vectors), targets[field][index].to(device)) for field in FIELDS)
+            loss = sum(torch.nn.functional.cross_entropy(heads[field](vectors), targets[field][index].to(device)) for field in fields)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -102,14 +111,14 @@ def predict(model, rows, device="cuda"):
         device: Where to run.
 
     Returns:
-        One dict per row, in order, with `id`, `category` and `priority`.
+        One dict per row, in order, with `id` and the chosen class of every head.
     """
     answers = [{"id": row["id"]} for row in rows]
     texts = [row["maskedText"] for row in rows]
     with torch.no_grad():
         for start in range(0, len(texts), PREDICT_BATCH_SIZE):
             vectors = _embed(model.encoder, texts[start:start + PREDICT_BATCH_SIZE], device)
-            for field in FIELDS:
+            for field in model.heads:
                 chosen = model.heads[field](vectors).argmax(dim=1).tolist()
                 for answer, choice in zip(answers[start:start + PREDICT_BATCH_SIZE], chosen):
                     answer[field] = model.classes[field][choice]

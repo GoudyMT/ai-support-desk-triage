@@ -15,8 +15,8 @@ from pathlib import Path
 
 from threadpoolctl import threadpool_limits
 
-from triage.train import fit_pipeline
-from triage_v2.score_onnx import FIELDS, score
+from triage.train import LABEL_FIELDS, fit_pipeline
+from triage_v2.score_onnx import score
 from triage_v2.share_machine import GPU_MEMORY_SHARE, GPU_REST_RATIO, share_the_machine
 
 ML_DIR = Path(__file__).resolve().parents[1]
@@ -63,7 +63,7 @@ def count(rows, answers):
 def fit_word_models(train_rows):
     """Fits the first model's recipe, one model per field, on train_rows."""
     texts = [row["maskedText"] for row in train_rows]
-    return {field: fit_pipeline(texts, [row[field] for row in train_rows]) for field in FIELDS}
+    return {field: fit_pipeline(texts, [row[field] for row in train_rows]) for field in LABEL_FIELDS}
 
 
 def word_answers(models, rows):
@@ -177,10 +177,13 @@ def main():
     parser.add_argument("--key", help="name of this run in the report; default <model>_<data>")
     parser.add_argument("--epochs", type=int)
     parser.add_argument("--learning-rate", type=float)
+    parser.add_argument("--fields", help="comma-separated answers to train a head for; default category,priority")
     parser.add_argument("--pairs", type=int, help="train on at most this many tuning files now; a later run carries on")
     parser.add_argument("--force", action="store_true", help="the owner's override: start even when the GPU is busy")
     args = parser.parse_args()
     settings = {name: value for name, value in (("epochs", args.epochs), ("learning_rate", args.learning_rate)) if value is not None}
+    if args.fields:
+        settings["fields"] = args.fields.split(",")
     key = args.key or f"{args.model}_{args.data}"
 
     print("=" * 60)

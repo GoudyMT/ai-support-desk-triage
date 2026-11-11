@@ -24,6 +24,14 @@ def test_answers_come_back_in_input_order_with_the_models_choice():
     assert [answer["priority"] for answer in answers] == ["Medium", "High", "Medium"]
 
 
+def test_every_answer_head_in_the_bundle_is_answered_not_only_category_and_priority():
+    # A model may also answer "does a person need to see this ticket?". The
+    # scorer must not drop an answer the bundle was trained to give.
+    answers = score(TINY, ROWS, bundle_fingerprint(TINY))
+    assert [answer["mustReview"] for answer in answers] == ["false", "true", "false"]
+    assert set(answers[0]["mustReview_probs"]) == {"false", "true"}
+
+
 def test_each_answer_carries_probabilities_that_sum_to_one_and_name_every_class():
     for answer in score(TINY, ROWS, bundle_fingerprint(TINY)):
         assert set(answer["category_probs"]) == {"Billing", "Technical Issue"}

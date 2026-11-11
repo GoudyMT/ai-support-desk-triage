@@ -13,7 +13,6 @@ from onnxruntime.quantization import QuantType, quantize_dynamic
 from optimum.onnxruntime import ORTModelForFeatureExtraction
 
 from triage_v2.score_onnx import bundle_fingerprint
-from triage_v2.train_sentence import FIELDS
 
 
 def export(model, out_dir):
@@ -38,7 +37,7 @@ def export(model, out_dir):
         shutil.copyfile(saved / "tokenizer.json", out_dir / "tokenizer.json")
 
     heads = {}
-    for field in FIELDS:
+    for field in model.heads:
         layer = model.heads[field]
         heads[field] = {
             "classes": model.classes[field],
