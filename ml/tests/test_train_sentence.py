@@ -29,14 +29,14 @@ def read_rows(name, count):
 def trained(tmp_path_factory):
     """One small trained model, its bundle and the tickets both are checked on."""
     from triage_v2.export_onnx import export
-    from triage_v2.share_machine import share_the_machine
+    from triage_v2.share_machine import GPU_REST_RATIO, share_the_machine
     from triage_v2.train_sentence import fit
 
     share_the_machine()
     # Every other row, so both training wordings are in: the file holds the
     # built-in tickets first and the extra ones after.
     rows = read_rows("v2_train.jsonl", 20000)[:: 20000 // TRAIN_ROWS]
-    model = fit(rows)
+    model = fit(rows, rest_ratio=GPU_REST_RATIO)
     bundle = tmp_path_factory.mktemp("bundle")
     return {"model": model, "bundle": bundle, "exported": export(model, bundle), "desk": read_rows("v2_desk.jsonl", SCORED_ROWS)}
 

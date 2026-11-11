@@ -61,6 +61,10 @@ jobs:
         working-directory: web
       - run: npm run export-data
         working-directory: web
+      # The second model's tickets: the tests score its frozen bundle on the
+      # desk-only wording and compare the counts with the recorded ones.
+      - run: npm run export-v2
+        working-directory: web
       # Every package is pinned to the sha256 of its published wheels: an unlisted
       # package, a changed file or a source build is refused. The file lists the
       # whole set by hand, so pip installs exactly it and resolves nothing more.
