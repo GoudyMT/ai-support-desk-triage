@@ -1,7 +1,7 @@
 # Sentence Model, Part 1 Plan: The Test Set, the Tickets and the Offline Model
 
 ## Progress
-- Current task: 4, PAUSED by the owner on 2026-11-11 ("we will pause here for now"). No GPU, export or bulk scoring run starts without the owner's word (lesson L-14)
+- Current task: R1 below. The design changed on 2026-11-11 (design doc, Revision 1: two models; locked by the owner). Tasks 5 and 6 as first written are closed by their results in the notes; the remaining work is the "Revised tasks" list. No GPU, export or bulk scoring run starts without the owner's word (lesson L-14)
 - Done (with evidence):
   - Task 0 - report `.kit/reports/real-ticket-sets-2026-11.md` (local); no usable real-ticket set found; posted to the owner 2026-11-10
   - Wording seam - 0ab40ec - 150 generator tests pass; the four v1 stream hashes hold and turn red when one draw is swapped
@@ -10,7 +10,17 @@
   - Task 2 - 7685c2c, 727e6f2 - `EXTRA_WORDING` (240 bodies) and `DESK_WORDING` (140 bodies) pass the wording rules; `npm run export-v2` writes 12 files; both v2 guard tests turn red with the guard off; web gate exit 0 (demo 49,966 of 50,000 bytes, desk 48,591 of 49,000); v1 export bytes unchanged
   - Task 3 - bar passed: word recipe 60.1% on v2 training against 52.4% on v1 training, same v1 held-out tickets, 12 rounds; details in the notes below
   - Task 4, in part - 6648bed, d5a37e7 - `onnxruntime`, `tokenizers`, `flatbuffers`, `protobuf` pinned with hashes and installed with `--no-deps` (CI install line changed the same way; `ci.yml` parses); scorer `triage_v2/score_onnx.py` with 10 tests on a tiny stand-in bundle, each planted bug turns one red; `train_sentence.py`, `export_onnx.py`, `practice_rounds.py`; 3 `local_gpu` tests passed in 25 s; `share_machine.py` caps every long run; 133 CI-side Python tests pass
-- Next, on the owner's word: (1) the reproduction, `python -m triage_v2.practice_rounds --data v1 --model sentence --work-dir <outside the repo>` in the training environment, bar: mean department accuracy within 1 point of 81.5%; an uncapped run on 2026-11-11 crashed the owner's PC after 3 of 6 pairs and saved no counts; (2) `ml/requirements-train.txt`: 11 of the 60 packages in the scratch training environment are younger than 14 days, so the pinned list takes older versions and the environment is rebuilt from it; (3) the same rounds on v2 data, then Tasks 5 to 7. Light work that needs no GPU: item (2) and Task 6's `predict` seam in `web/src/pipeline/run.ts`
+  - Task 4, rest - e201a34 to 3dbcb25 - reproduction passed (80.60% on v1 data); practice rounds recorded for `sentence_v1`, `sentence_v2`, `sentence3_v2`, `word_v1`, `word_v2` in `ml/reports/practice_v2.json`; every run capped and load-logged (CPU average 4 to 8% once bound to 4 cores)
+  - Task 6 as first written - closed by measurement: four ways to cut the workload safely failed their bars (notes of 2026-11-11)
+  - Two-model measurement - c6b512b, faacc52, fa3277d - `runTicketWith`, `tablePredict`, `measureAnswers`, `measureTwoModels` with tests (planted bugs turn them red); the real rules over the 12 v2 practice rounds: to a person 90.1% -> 91.9%, high-risk missed 478 -> 409, High/Urgent out low 78 -> 17, unchecked wrong department 248 -> 34, wrong priority 516 -> 273, rounds with any line worse 0 of 12, reviewer's suggestion right on both fields 38.1% -> 59.9%
+- Revised tasks (Revision 1):
+  - R1 (must): record the two-model practice counts in the repo by script (`ml/reports/two_model_practice.json`), not typed
+  - R2 (must, GPU, owner's go): train the shipped sentence model on `v2_train.jsonl` (one training, about 3 minutes capped); export the bundle; record its fingerprint
+  - R3 (must): with the shipped word model as gate and the new bundle as answer, measure the two-model rule on `v2_desk.jsonl` and both hand-written sets with the real pipeline; record the counts; a test proves no count is above the gate model's alone on any set
+  - R4 (must): `ml/requirements-train.txt` with pins at least 14 days old; rebuild the training environment from it
+  - R5 (must): where the 23 MB bundle lives (git, or a release file fetched by fingerprint) and the CI check of its fingerprint and recorded scores - a design call to put to the owner with sizes
+  - R6 (must): the Part 1 gate - full gate, parking-lot triage, sweep at the feature tier, Owner stop 2
+  - Held for after this release, by the owner's word: a way to send fewer tickets to a person with accuracy kept; the Task 5 settings screen belongs to that work
 - Branch: `feat/sentence-model` (local, from `main` at b889642)
 - Open questions: none blocking; the two owner stops are listed under "Owner stops"
 
