@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { V2_SEEDS } from './exportV2';
 import { generateTickets } from '../src/generator/generate';
 import { BLIND_SEED, buildBlind, writeBlind } from './exportBlind';
 import {
@@ -34,15 +35,18 @@ function disguised(text: string): string {
 
 describe('the blind test set', () => {
   it('is the same tickets every time it is built, with no text twice', () => {
+    // Compared by fingerprint and count: a failing comparison of the tickets
+    // themselves would print blind wording into the test log.
     const first = buildBlind(SMALL_BLIND);
-    expect(buildBlind(SMALL_BLIND)).toEqual(first);
-    expect(first).toHaveLength(SMALL_BLIND);
+    const print = (tickets: readonly unknown[]): string => createHash('sha256').update(JSON.stringify(tickets)).digest('hex');
+    expect(print(buildBlind(SMALL_BLIND))).toBe(print(first));
+    expect(first.length).toBe(SMALL_BLIND);
     expect(new Set(first.map((ticket) => normalizeText(ticket.text))).size).toBe(SMALL_BLIND);
     expect(first.every((ticket) => ticket.seed === BLIND_SEED)).toBe(true);
   });
 
   it('uses a seed no training or test export uses', () => {
-    expect([TRAIN_SEED, HELDOUT_SEED]).not.toContain(BLIND_SEED);
+    expect([TRAIN_SEED, HELDOUT_SEED, ...Object.values(V2_SEEDS)]).not.toContain(BLIND_SEED);
   });
 
   it('writes the file and a fingerprint that matches its bytes, and never writes over a frozen set', () => {

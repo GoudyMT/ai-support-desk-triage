@@ -2,11 +2,13 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { Ticket } from '../src/generator/generate';
 import { normalizeText } from './exportDataset';
-import { V2_SEEDS, buildV2, writeV2, type V2Data } from './exportV2';
+import { V2_SEEDS, buildV2, writeV2, type V2Data, type V2HeldOut } from './exportV2';
 
 const SMALL = { trainPerWording: 300, heldoutPerWording: 60, desk: 80 };
 const DATA = buildV2(SMALL);
+const NOTHING_HELD: V2HeldOut = { blind: [], handwritten: [], fresh: [] };
 const EXPECTED_FILES = [
   'v2_desk.jsonl',
   'v2_heldout_0.jsonl',
@@ -64,7 +66,7 @@ describe('the second model data', () => {
 
   it('writes one file per set with every row', () => {
     scratchDir((dir) => {
-      const written = writeV2(dir, DATA, []);
+      const written = writeV2(dir, DATA, NOTHING_HELD);
       expect(readdirSync(dir).sort()).toEqual(EXPECTED_FILES);
       expect(written.find(({ target }) => target.endsWith('v2_train.jsonl'))?.rows).toBe(2 * SMALL.trainPerWording);
       const firstRow = JSON.parse(readFileSync(join(dir, 'v2_heldout_2.jsonl'), 'utf8').split('\n')[0] ?? '{}') as { fold: number };
@@ -77,38 +79,74 @@ describe('the second model data', () => {
   it('writes the fresh hand-written tickets with their masked text when it is given them', () => {
     scratchDir((dir) => {
       const fresh = [{ id: 'F-x', text: 'Write to me at pat@mail.example.net please', category: 'Other', priority: 'Low', mustReview: false }];
-      writeV2(dir, DATA, [], fresh);
+      writeV2(dir, DATA, { ...NOTHING_HELD, fresh });
       const line = JSON.parse(readFileSync(join(dir, 'v2_handwritten_fresh.jsonl'), 'utf8').trim()) as Record<string, unknown>;
       expect(line).toMatchObject({ id: 'F-x', category: 'Other', maskedText: 'Write to me at [EMAIL_ADDRESS] please' });
       expect(readdirSync(dir).sort()).toEqual([...EXPECTED_FILES, 'v2_handwritten_fresh.jsonl'].sort());
     });
   });
 
-  it('stops before any file is written when a training list holds a fresh hand-written text', () => {
+  // One row per held-out set and per place its text could hide. Each planted
+  // text differs from the ticket it copies by case only. The bundle is scored
+  // on the first hand-written set too, and settings are picked on the practice
+  // held-out files, so both are covered, not only the training lists.
+  const trainText = (DATA.train[0]?.text ?? '').toUpperCase();
+  const tuneText = (DATA.tuning[0]?.train[0]?.text ?? '').toUpperCase();
+  const heldoutText = (DATA.heldout[1]?.tickets[0]?.text ?? '').toUpperCase();
+  it.each([
+    ['a fresh hand-written text is in the training file', { fresh: [{ id: 'F-y', text: trainText }] }, 'E_HANDWRITTEN_IN_TRAIN'],
+    ['a first-set hand-written text is in the training file', { handwritten: [{ id: 'H-y', text: trainText }] }, 'E_HANDWRITTEN_IN_TRAIN'],
+    ['a hand-written text is in a practice held-out file', { handwritten: [{ id: 'H-z', text: heldoutText }] }, 'E_HANDWRITTEN_IN_TRAIN'],
+    ['a blind text is in a tuning file', { blind: [{ text: tuneText }] }, 'E_BLIND_IN_TRAIN'],
+    ['a blind text is in a practice held-out file', { blind: [{ text: heldoutText }] }, 'E_BLIND_IN_TRAIN'],
+  ])('stops before any file is written when %s', (_name, held, code) => {
+    expect(trainText.length * tuneText.length * heldoutText.length).toBeGreaterThan(0);
     scratchDir((dir) => {
       const target = join(dir, 'out');
-      const fresh = [{ id: 'F-y', text: (DATA.train[0]?.text ?? '').toUpperCase() }];
-      expect(() => writeV2(target, DATA, [], fresh)).toThrow('E_HANDWRITTEN_IN_TRAIN');
+      expect(() => writeV2(target, DATA, { ...NOTHING_HELD, ...held })).toThrow(code);
       expect(existsSync(target)).toBe(false);
     });
   });
 
-  it('stops before any file is written when a training list holds a blind text', () => {
-    scratchDir((dir) => {
-      const target = join(dir, 'out');
-      const blind = [{ text: (DATA.tuning[0]?.train[0]?.text ?? '').toUpperCase() }];
-      expect(() => writeV2(target, DATA, blind)).toThrow('E_BLIND_IN_TRAIN');
-      expect(existsSync(target)).toBe(false);
-    });
-  });
-
-  it('stops before any file is written when a training list holds a desk text', () => {
+  it.each([
+    ['the training file', (leaked: Ticket): V2Data => ({ ...DATA, train: [...DATA.train, leaked] })],
+    [
+      'a practice held-out file',
+      (leaked: Ticket): V2Data => ({ ...DATA, heldout: DATA.heldout.map((set, index) => (index === 3 ? { ...set, tickets: [...set.tickets, leaked] } : set)) }),
+    ],
+  ])('stops before any file is written when a desk text is in %s', (_name, withLeak) => {
     scratchDir((dir) => {
       const target = join(dir, 'out');
       const leaked = DATA.desk[0];
       expect(leaked).toBeDefined();
-      const withLeak: V2Data = { ...DATA, train: leaked === undefined ? DATA.train : [...DATA.train, leaked] };
-      expect(() => writeV2(target, withLeak, [])).toThrow('E_DESK_IN_TRAIN');
+      expect(() => writeV2(target, withLeak(leaked as Ticket), NOTHING_HELD)).toThrow('E_DESK_IN_TRAIN');
+      expect(existsSync(target)).toBe(false);
+    });
+  });
+
+  // A model trains on the masked text, where every email address reads the
+  // same, so these two are one ticket to it.
+  it('counts a blind text as leaked when it differs from a training text only in a made-up email address', () => {
+    scratchDir((dir) => {
+      const target = join(dir, 'out');
+      const base = DATA.train[0];
+      expect(base).toBeDefined();
+      const trained = { ...(base as Ticket), text: 'Please send the invoice copy to pat@mail.example.net today' };
+      const blind = [{ text: 'Please send the invoice copy to sam@post.example.org today' }];
+      expect(() => writeV2(target, { ...DATA, train: [...DATA.train, trained] }, { ...NOTHING_HELD, blind })).toThrow('E_BLIND_IN_TRAIN');
+      expect(existsSync(target)).toBe(false);
+    });
+  });
+
+  it('stops before any file is written when a practice model would be scored on a ticket it trained on', () => {
+    scratchDir((dir) => {
+      const target = join(dir, 'out');
+      const first = DATA.tuning[0];
+      const scored = DATA.heldout[first?.leftOut[0] ?? 0]?.tickets[0];
+      expect(first).toBeDefined();
+      expect(scored).toBeDefined();
+      const tuning = DATA.tuning.map((set, index) => (index === 0 ? { ...set, train: [...set.train, scored as Ticket] } : set));
+      expect(() => writeV2(target, { ...DATA, tuning }, NOTHING_HELD)).toThrow('E_TUNE_OVERLAP');
       expect(existsSync(target)).toBe(false);
     });
   });

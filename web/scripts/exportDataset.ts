@@ -99,18 +99,27 @@ export function loadHandwritten(source: URL = HANDWRITTEN_SOURCE): HandwrittenRo
     .map((line) => JSON.parse(line) as HandwrittenRow);
 }
 
+// A model trains on a ticket's masked text, so two tickets that differ only in
+// their made-up personal details are the same ticket to it. A held-out text
+// counts as leaked when a list holds it as written or as the mask leaves it.
+function leakKeys(text: string): [string, string] {
+  return [normalizeText(text), normalizeText(maskText(text).text)];
+}
+
+export function holdsAnyOf(heldOut: readonly { text: string }[], lists: readonly (readonly { text: string }[])[]): boolean {
+  const held = new Set(heldOut.flatMap(({ text }) => leakKeys(text)));
+  return held.size > 0 && lists.some((list) => list.some(({ text }) => leakKeys(text).some((key) => held.has(key))));
+}
+
 // The hand-written set is the one score the model must never have seen, so a
-// hand-written text found in any training list (same normalised wording) stops
-// the export before a file is written.
+// hand-written text found in any training list stops the export before a file
+// is written.
 export function assertHandwrittenIsolated(
   handwritten: readonly { text: string }[],
   trainingLists: readonly (readonly { text: string }[])[],
 ): void {
-  const handwrittenTexts = new Set(handwritten.map(({ text }) => normalizeText(text)));
-  for (const list of trainingLists) {
-    if (list.some(({ text }) => handwrittenTexts.has(normalizeText(text)))) {
-      throw new Error('E_HANDWRITTEN_IN_TRAIN');
-    }
+  if (holdsAnyOf(handwritten, trainingLists)) {
+    throw new Error('E_HANDWRITTEN_IN_TRAIN');
   }
 }
 
@@ -128,11 +137,8 @@ export function loadBlind(source: URL = BLIND_SOURCE): HandwrittenRow[] {
 }
 
 export function assertBlindIsolated(blind: readonly { text: string }[], trainingLists: readonly (readonly { text: string }[])[]): void {
-  const blindTexts = new Set(blind.map(({ text }) => normalizeText(text)));
-  for (const list of trainingLists) {
-    if (list.some(({ text }) => blindTexts.has(normalizeText(text)))) {
-      throw new Error('E_BLIND_IN_TRAIN');
-    }
+  if (holdsAnyOf(blind, trainingLists)) {
+    throw new Error('E_BLIND_IN_TRAIN');
   }
 }
 
@@ -178,7 +184,7 @@ export function writeDatasets(
   datasets: FoldDataset[],
   trainAll: Ticket[],
   handwritten: HandwrittenRow[],
-  blind: readonly { text: string }[] = [],
+  blind: readonly { text: string }[],
 ): { target: string; rows: number }[] {
   assertHandwrittenIsolated(handwritten, [...datasets.map(({ train }) => train), trainAll]);
   assertBlindIsolated(blind, [...datasets.flatMap(({ train, heldout }) => [train, heldout]), trainAll]);
@@ -228,7 +234,7 @@ export function writeTuningSets(
   sets: TuningSet[],
   folds: FoldDataset[],
   handwritten: HandwrittenRow[],
-  blind: readonly { text: string }[] = [],
+  blind: readonly { text: string }[],
 ): { target: string; rows: number }[] {
   assertHandwrittenIsolated(handwritten, sets.map(({ train }) => train));
   assertBlindIsolated(blind, sets.map(({ train }) => train));

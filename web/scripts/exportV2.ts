@@ -11,6 +11,7 @@ import {
   assertBlindIsolated,
   assertHandwrittenIsolated,
   handwrittenToJsonl,
+  holdsAnyOf,
   isRunAsCommand,
   loadBlind,
   loadHandwritten,
@@ -98,28 +99,27 @@ export function buildV2(sizes: V2Sizes = V2_SIZES): V2Data {
   return { train: buildV2Train('all', sizes.trainPerWording), desk: buildV2Desk(sizes.desk), tuning, heldout };
 }
 
-function assertDeskIsolated(desk: readonly Ticket[], trainingLists: readonly (readonly Ticket[])[]): void {
-  const deskTexts = new Set(desk.map(({ text }) => normalizeText(text)));
-  for (const list of trainingLists) {
-    if (list.some(({ text }) => deskTexts.has(normalizeText(text)))) {
-      throw new Error('E_DESK_IN_TRAIN');
-    }
-  }
+// The sets no model may train or tune on. All three are required: a caller
+// that left one out would switch its check off without a word.
+export interface V2HeldOut {
+  blind: readonly { text: string }[];
+  handwritten: readonly HandwrittenRow[];
+  fresh: readonly HandwrittenRow[];
 }
 
 // Every check runs before the first write, so a leak leaves no file behind. The
-// fresh hand-written tickets are written as they are, with their masked text,
-// for the second model to be scored on; like the blind set, none may be trained on.
-export function writeV2(
-  outputDir: string,
-  data: V2Data,
-  blind: readonly { text: string }[],
-  fresh: readonly HandwrittenRow[] = [],
-): { target: string; rows: number }[] {
-  const trainingLists = [data.train, ...data.tuning.map(({ train }) => train)];
+// practice held-out files count as tuning data here: settings are picked on
+// them, so they may hold no blind, desk or hand-written text either. The fresh
+// hand-written tickets are written as they are, with their masked text, for the
+// second model to be scored on.
+export function writeV2(outputDir: string, data: V2Data, held: V2HeldOut): { target: string; rows: number }[] {
+  const { blind, handwritten, fresh } = held;
+  const trainingLists = [data.train, ...data.tuning.map(({ train }) => train), ...data.heldout.map(({ tickets }) => tickets)];
   assertBlindIsolated(blind, trainingLists);
-  assertHandwrittenIsolated(fresh, trainingLists);
-  assertDeskIsolated(data.desk, trainingLists);
+  assertHandwrittenIsolated([...handwritten, ...fresh], trainingLists);
+  if (holdsAnyOf(data.desk, trainingLists)) {
+    throw new Error('E_DESK_IN_TRAIN');
+  }
   for (const { leftOut, train } of data.tuning) {
     const trained = new Set(train.map((ticket) => normalizeText(ticket.text)));
     for (const fold of leftOut) {
@@ -149,7 +149,7 @@ export function writeV2(
 }
 
 if (isRunAsCommand(process.argv[1], import.meta.url)) {
-  for (const { target, rows } of writeV2(fileURLToPath(OUTPUT_DIR), buildV2(), loadBlind(), loadHandwritten(FRESH_SOURCE))) {
+  for (const { target, rows } of writeV2(fileURLToPath(OUTPUT_DIR), buildV2(), { blind: loadBlind(), handwritten: loadHandwritten(), fresh: loadHandwritten(FRESH_SOURCE) })) {
     console.log(`wrote ${target} (${rows} rows)`);
   }
 }
