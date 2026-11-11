@@ -1,6 +1,10 @@
 {
  "fingerprint": "7a4058a4510ce226d3df2deaded22adde8e0e7331eb5ec17d78fb08ba3331b26",
  "max_length": 256,
+ "base_model": {
+  "name": "sentence-transformers/all-MiniLM-L6-v2",
+  "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+ },
  "trained_on": {
   "file": "v2_train.jsonl",
   "tickets": 20000

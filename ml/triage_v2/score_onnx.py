@@ -16,6 +16,10 @@ from tokenizers import Tokenizer
 
 from triage_v2.share_machine import limit_cpu
 
+# The Windows builds of onnxruntime can report usage to their publisher. This
+# project sends nothing anywhere, so that is switched off before any model loads.
+ort.disable_telemetry_events()
+
 BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json")
 HASH_ERROR = "E_MODEL_HASH"
 BATCH_SIZE = 64
@@ -26,23 +30,31 @@ DEFAULT_CLI_THREADS = 4
 MIN_NORM = 1e-12
 
 
-def file_digest(path):
+def read_bundle(model_dir):
     """
-    Returns the SHA-256 of a bundle file as the repo stores it.
+    Reads the four bundle files once, as the repo stores them.
 
     Git on Windows checks a text file out with CRLF line ends. The JSON files are
-    hashed in their LF form so one bundle has one fingerprint on every machine.
+    taken in their LF form so one bundle has one fingerprint on every machine.
 
     Args:
-        path: The file to hash.
+        model_dir: The model folder.
 
     Returns:
-        The hex digest.
+        A dict of file name to bytes. The scorer hashes and loads these same
+        bytes, so a file swapped on disk after the check cannot be the one scored.
     """
-    data = Path(path).read_bytes()
-    if Path(path).suffix == ".json":
-        data = data.replace(b"\r\n", b"\n")
-    return hashlib.sha256(data).hexdigest()
+    files = {}
+    for name in BUNDLE_FILES:
+        data = (Path(model_dir) / name).read_bytes()
+        files[name] = data.replace(b"\r\n", b"\n") if name.endswith(".json") else data
+    return files
+
+
+def fingerprint_of(files):
+    """Returns the SHA-256, in hex, of the four files' digests joined in a fixed order."""
+    digests = [hashlib.sha256(files[name]).hexdigest() for name in BUNDLE_FILES]
+    return hashlib.sha256("\n".join(digests).encode("ascii")).hexdigest()
 
 
 def bundle_fingerprint(model_dir):
@@ -53,10 +65,18 @@ def bundle_fingerprint(model_dir):
         model_dir: The model folder.
 
     Returns:
-        The SHA-256, in hex, of the four files' digests joined in a fixed order.
+        The fingerprint, in hex.
     """
-    digests = [file_digest(Path(model_dir) / name) for name in BUNDLE_FILES]
-    return hashlib.sha256("\n".join(digests).encode("ascii")).hexdigest()
+    return fingerprint_of(read_bundle(model_dir))
+
+
+def _tokenizer_from(files):
+    """Builds the tokenizer from the bundle's bytes, cutting at the bundle's token limit."""
+    manifest = json.loads(files["manifest.json"])
+    tokenizer = Tokenizer.from_str(files["tokenizer.json"].decode("utf-8"))
+    tokenizer.enable_truncation(max_length=manifest["max_length"])
+    tokenizer.enable_padding()
+    return tokenizer
 
 
 def load_tokenizer(model_dir):
@@ -72,11 +92,7 @@ def load_tokenizer(model_dir):
     Returns:
         A tokenizer that pads each batch to its longest ticket.
     """
-    manifest = json.loads((Path(model_dir) / "manifest.json").read_text(encoding="utf-8"))
-    tokenizer = Tokenizer.from_file(str(Path(model_dir) / "tokenizer.json"))
-    tokenizer.enable_truncation(max_length=manifest["max_length"])
-    tokenizer.enable_padding()
-    return tokenizer
+    return _tokenizer_from(read_bundle(model_dir))
 
 
 def _softmax(scores):
@@ -124,16 +140,18 @@ def score(model_dir, rows, expected_sha256, threads=None):
     Raises:
         ValueError: The folder's fingerprint is not the recorded one (E_MODEL_HASH).
     """
-    model_dir = Path(model_dir)
-    if bundle_fingerprint(model_dir) != expected_sha256:
+    files = read_bundle(model_dir)
+    if fingerprint_of(files) != expected_sha256:
         raise ValueError(HASH_ERROR)
-    heads = json.loads((model_dir / "heads.json").read_text(encoding="utf-8"))
-    tokenizer = load_tokenizer(model_dir)
+    heads = json.loads(files["heads.json"])
+    tokenizer = _tokenizer_from(files)
     options = ort.SessionOptions()
     if threads is not None:
         options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1
-    session = ort.InferenceSession(str(model_dir / "model_quantized.onnx"), options, providers=["CPUExecutionProvider"])
+    # Loaded from the checked bytes, not by path: a model that kept weights in a
+    # side file, outside the fingerprint, cannot load this way.
+    session = ort.InferenceSession(files["model_quantized.onnx"], options, providers=["CPUExecutionProvider"])
     vectors = _embed(session, tokenizer, [row["maskedText"] for row in rows])
 
     answers = [{"id": row["id"]} for row in rows]

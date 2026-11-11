@@ -4,8 +4,13 @@ Needs the training environment (`ml/requirements-train.txt`) and a GPU. Nothing 
 imported by the scorer or by CI.
 """
 
+import os
 import time
 from dataclasses import dataclass
+
+# The model library can report usage to its publisher; this project sends nothing.
+# Set before the library is imported, which is when it reads the switch.
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
 import numpy as np
 import torch
@@ -13,6 +18,9 @@ from sentence_transformers import SentenceTransformer
 
 RANDOM_STATE = 113
 BASE_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# The exact published version the bundle was trained from. A bare name follows
+# whatever its publisher uploads next; a version id does not.
+BASE_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 FIELDS = ("category", "priority")
 # A third answer a model may be trained to give: whether a person must see the ticket.
 REVIEW_FIELD = "mustReview"
@@ -70,7 +78,7 @@ def fit(rows, epochs=EPOCHS, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
     """
     torch.manual_seed(RANDOM_STATE)
     np.random.seed(RANDOM_STATE)
-    encoder = SentenceTransformer(BASE_MODEL, device=device)
+    encoder = SentenceTransformer(BASE_MODEL, revision=BASE_REVISION, device=device)
     encoder.max_seq_length = max_length
     classes = {field: sorted({label_of(row, field) for row in rows}) for field in fields}
     width = encoder.get_sentence_embedding_dimension()

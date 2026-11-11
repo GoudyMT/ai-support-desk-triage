@@ -29,7 +29,8 @@ def export(model, out_dir):
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as work:
+    # The working copies stay inside the bundle folder, not the system temp folder.
+    with tempfile.TemporaryDirectory(dir=out_dir) as work:
         saved, full = Path(work) / "saved", Path(work) / "full"
         model.encoder.save(str(saved))
         ORTModelForFeatureExtraction.from_pretrained(str(saved), export=True).save_pretrained(str(full))

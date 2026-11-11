@@ -36,7 +36,7 @@ def main():
     print("\n[1/4] Checking the machine and capping this run...")
     threads = share_the_machine(force=args.force)
     from triage_v2.export_onnx import export
-    from triage_v2.train_sentence import BATCH_SIZE, EPOCHS, FIELDS, LEARNING_RATE, MAX_LENGTH, fit
+    from triage_v2.train_sentence import BASE_MODEL, BASE_REVISION, BATCH_SIZE, EPOCHS, FIELDS, LEARNING_RATE, MAX_LENGTH, fit
 
     with threadpool_limits(limits=threads):
         # Step 2: train on every training ticket
@@ -61,6 +61,7 @@ def main():
     report = {
         "fingerprint": exported["fingerprint"],
         "max_length": exported["max_length"],
+        "base_model": {"name": BASE_MODEL, "revision": BASE_REVISION},
         "trained_on": {"file": TRAIN_FILE, "tickets": len(train_rows)},
         "settings": {"fields": list(FIELDS), "epochs": EPOCHS, "learning_rate": LEARNING_RATE, "batch_size": BATCH_SIZE, "max_length": MAX_LENGTH},
         "bundle_bytes": {path.name: path.stat().st_size for path in sorted(Path(args.out).iterdir())},
