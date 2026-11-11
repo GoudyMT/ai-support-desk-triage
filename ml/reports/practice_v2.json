@@ -126,6 +126,133 @@
      "must_review_wrong_category": 382
     }
    ]
+  },
+  "sentence_v2": {
+   "model": "sentence",
+   "data": "v2",
+   "settings": {},
+   "rounds": [
+    {
+     "train": "0_1",
+     "fold": 0,
+     "seconds_for_the_pair": 161.7,
+     "n": 4000,
+     "category_right": 3341,
+     "priority_right": 2861,
+     "high_urgent_called_low": 414,
+     "must_review_wrong_category": 223
+    },
+    {
+     "train": "0_1",
+     "fold": 1,
+     "seconds_for_the_pair": 161.7,
+     "n": 4000,
+     "category_right": 3038,
+     "priority_right": 2865,
+     "high_urgent_called_low": 138,
+     "must_review_wrong_category": 361
+    },
+    {
+     "train": "0_2",
+     "fold": 0,
+     "seconds_for_the_pair": 172.7,
+     "n": 4000,
+     "category_right": 3239,
+     "priority_right": 2727,
+     "high_urgent_called_low": 363,
+     "must_review_wrong_category": 232
+    },
+    {
+     "train": "0_2",
+     "fold": 2,
+     "seconds_for_the_pair": 172.7,
+     "n": 4000,
+     "category_right": 3181,
+     "priority_right": 2812,
+     "high_urgent_called_low": 201,
+     "must_review_wrong_category": 212
+    },
+    {
+     "train": "0_3",
+     "fold": 0,
+     "seconds_for_the_pair": 181.2,
+     "n": 4000,
+     "category_right": 3490,
+     "priority_right": 2889,
+     "high_urgent_called_low": 420,
+     "must_review_wrong_category": 188
+    },
+    {
+     "train": "0_3",
+     "fold": 3,
+     "seconds_for_the_pair": 181.2,
+     "n": 4000,
+     "category_right": 2964,
+     "priority_right": 2455,
+     "high_urgent_called_low": 308,
+     "must_review_wrong_category": 439
+    },
+    {
+     "train": "1_2",
+     "fold": 1,
+     "seconds_for_the_pair": 193.0,
+     "n": 4000,
+     "category_right": 3097,
+     "priority_right": 2822,
+     "high_urgent_called_low": 252,
+     "must_review_wrong_category": 272
+    },
+    {
+     "train": "1_2",
+     "fold": 2,
+     "seconds_for_the_pair": 193.0,
+     "n": 4000,
+     "category_right": 3164,
+     "priority_right": 2902,
+     "high_urgent_called_low": 192,
+     "must_review_wrong_category": 219
+    },
+    {
+     "train": "1_3",
+     "fold": 1,
+     "seconds_for_the_pair": 194.2,
+     "n": 4000,
+     "category_right": 3100,
+     "priority_right": 2823,
+     "high_urgent_called_low": 148,
+     "must_review_wrong_category": 387
+    },
+    {
+     "train": "1_3",
+     "fold": 3,
+     "seconds_for_the_pair": 194.2,
+     "n": 4000,
+     "category_right": 2952,
+     "priority_right": 2666,
+     "high_urgent_called_low": 164,
+     "must_review_wrong_category": 510
+    },
+    {
+     "train": "2_3",
+     "fold": 2,
+     "seconds_for_the_pair": 206.9,
+     "n": 4000,
+     "category_right": 3081,
+     "priority_right": 2978,
+     "high_urgent_called_low": 165,
+     "must_review_wrong_category": 203
+    },
+    {
+     "train": "2_3",
+     "fold": 3,
+     "seconds_for_the_pair": 206.9,
+     "n": 4000,
+     "category_right": 3041,
+     "priority_right": 2650,
+     "high_urgent_called_low": 219,
+     "must_review_wrong_category": 337
+    }
+   ]
   }
  }
 }
