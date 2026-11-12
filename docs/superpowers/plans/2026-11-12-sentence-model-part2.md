@@ -1,11 +1,12 @@
 # Sentence Model, Part 2 Plan: The 90-Day Run, the Desk and the Release
 
 ## Progress
-- Current task: none; waiting for the owner's yes to this plan
+- Current task: 3 (plan approved by the owner 2026-11-12, "Let's begin")
 - Done (with evidence), 2026-11-12:
   - Part 1 plan's Progress block closed with the merge of #12 - 9d93c1f - `tracking-check.mjs progress` PASS
   - Design approved and committed - e1ae8fe
-- Next: Task 1
+  - Tasks 1-2 (merged, see notes) - `weeks.ts` 15 tests, `exportWeeks.ts` 5 tests; breaks of the week check and of each of the three export guards each turned one row red; `npm run export-weeks` in 4 s: streams hold 125, 124, 123, 123 templates, 9 or 10 per week, every week filled, 9,100 rows per stream
+- Next: Task 3
 - Branch: `feat/sentence-model-part2` (local, from `main` at 5287e12)
 - Open questions: see "Owner stops"; the wider privacy mask (Task 16) is marked stretch because it changes the text the bundle was trained on
 
@@ -167,3 +168,4 @@ Feature tier, with the modifiers for a new runtime package and a new served file
 ## Parking Lot
 
 ## Execution Notes & Deviations
+- 2026-11-12, Tasks 1-2 (mechanics, decided alone): the generator is NOT changed. A week of about 7 templates leaves most departments empty, and `buildBody` picks a department before a template, so a templates split would fail on an empty pool (`generate.ts:165`). Instead `web/src/generator/weeks.ts` deals each stream's held-out templates into 13 weeks and keeps a generated held-out ticket only when every template it used (`TicketDetail.templates`) falls in one week; tickets are drawn until each week is full. Same goal (every scored ticket uses only that week's untaught templates), no change to the v1 or v2 streams. Tasks 1 and 2 become one task. Stream 3 starts from `v2_tune_0_3` (pairs are written low fold first).
