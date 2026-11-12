@@ -10,15 +10,19 @@ import json
 
 import pytest
 
-from triage_v2.ninety_day import KEY_ERROR, WEEKS, run_stream
+from triage_v2.ninety_day import KEY_ERROR, MODEL_GONE, WEEKS, run_stream
 
 
 class Fakes:
-    def __init__(self, week_rows=3, checked_per_week=2):
+    def __init__(self, week_rows=3, checked_per_week=2, inputs=None):
         self.calls = []
         self.trained = []
         self.week_rows = week_rows
         self.checked_per_week = checked_per_week
+        self.input_prints = inputs or {"start": "s1", "weeks": "w1", "gate": "g1"}
+
+    def inputs(self, stream):
+        return dict(self.input_prints)
 
     def share(self, force):
         self.calls.append("share")
@@ -48,8 +52,8 @@ class Fakes:
         return result
 
 
-def run(tmp_path, fakes, settings=None, max_weeks=None):
-    return run_stream(1, fakes, tmp_path / "work", tmp_path / "report.json", settings or {"epochs": 1}, max_weeks=max_weeks)
+def run(tmp_path, fakes, settings=None, max_weeks=None, stream=1):
+    return run_stream(stream, fakes, tmp_path / "work", tmp_path / "report.json", settings or {"epochs": 1}, max_weeks=max_weeks)
 
 
 def test_checks_the_machine_before_any_work(tmp_path):
@@ -109,7 +113,7 @@ def test_a_carried_on_run_retrains_on_the_checked_tickets_of_the_earlier_weeks(t
     run(tmp_path, Fakes(), max_weeks=3)
     second = Fakes()
     run(tmp_path, second, max_weeks=1)
-    # Week 3's model already exists; the next retrain (after week 3) holds weeks 0-3.
+    # The second call trains the model after week 3; it must hold the checked tickets of weeks 0-3.
     run(tmp_path, second, max_weeks=1)
     assert any(f"w0-0" in rows and "w3-1" in rows for rows in second.trained)
 
@@ -119,3 +123,33 @@ def test_refuses_to_carry_on_with_other_settings(tmp_path):
     with pytest.raises(SystemExit) as stopped:
         run(tmp_path, Fakes(), settings={"epochs": 2})
     assert stopped.value.code == KEY_ERROR
+
+
+@pytest.mark.parametrize("stream, pair", [(1, "1_2"), (3, "0_3")])
+def test_trains_the_start_model_on_the_pair_that_leaves_the_stream_out(tmp_path, stream, pair):
+    fakes = Fakes()
+    run(tmp_path, fakes, max_weeks=1, stream=stream)
+    assert f"load v2_tune_{pair}.jsonl" in fakes.calls
+
+
+def test_refuses_to_carry_on_when_a_recorded_model_is_gone(tmp_path):
+    # Training again would give a different model under the same name, so earlier weeks
+    # and later weeks would be judged against two different frozen models.
+    run(tmp_path, Fakes(), max_weeks=2)
+    (tmp_path / "work" / "stream_1_start").rename(tmp_path / "moved")
+    second = Fakes()
+    with pytest.raises(SystemExit) as stopped:
+        run(tmp_path, second)
+    assert stopped.value.code == MODEL_GONE
+    assert not any(call.startswith("train") for call in second.calls)
+    report = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    assert report["streams"]["1"]["models"]["stream_1_start"] == "fp-1"
+
+
+def test_refuses_to_carry_on_when_the_week_tickets_or_the_gate_changed(tmp_path):
+    run(tmp_path, Fakes(), max_weeks=2)
+    second = Fakes(inputs={"start": "s1", "weeks": "w2", "gate": "g1"})
+    with pytest.raises(SystemExit) as stopped:
+        run(tmp_path, second)
+    assert stopped.value.code == KEY_ERROR
+    assert not any(call.startswith(("train", "score")) for call in second.calls)

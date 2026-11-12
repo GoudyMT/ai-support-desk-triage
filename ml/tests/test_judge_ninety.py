@@ -8,6 +8,8 @@ hard line, counted over days 1-90, is above the frozen model's on any stream.
 
 import copy
 
+import pytest
+
 from triage_v2.judge_ninety import judge
 
 WEEKS = 13
@@ -51,6 +53,46 @@ def test_fails_when_only_two_streams_grow():
     assert judge(report(GROWING, GROWING, FLAT, FLAT))["passed"] is False
 
 
+def test_fails_when_every_stream_grows_but_only_two_beat_the_frozen_model():
+    # Each stream beats its own start, so only the frozen-model part of the mark can fail it.
+    behind = stream(early=60, late=70, frozen=75)
+    verdict = judge(report(GROWING, GROWING, behind, behind))
+    assert [s["beats_own_start"] for s in verdict["streams"]] == [True] * 4
+    assert verdict["passed"] is False
+
+
+def test_a_tie_with_the_frozen_model_is_not_a_win():
+    tied = stream(early=60, late=72, frozen=72)
+    assert judge(report(tied, tied, tied, tied))["streams"][0]["beats_frozen"] is False
+
+
+def test_reads_days_1_to_30_as_the_start_and_days_61_to_90_as_the_end():
+    # Inside days score 100, the days just outside score 0, so a window off by one day moves a number.
+    edges = copy.deepcopy(stream(early=50, late=50, frozen=50))
+    for number, right in ((30, 100), (31, 0), (60, 0), (61, 100), (90, 100), (91, 0)):
+        week, day = divmod(number - 1, 7)
+        edges["weeks"][week]["days"][day]["retrained"]["categoryRight"] = right
+    verdict = judge(report(edges, GROWING, GROWING, GROWING))["streams"][0]
+    assert verdict["early_retrained"] == pytest.approx((29 * 50 + 100) / 3000)
+    assert verdict["late_retrained"] == pytest.approx((28 * 50 + 200) / 3000)
+
+
+def test_counts_a_hard_line_on_day_90():
+    last = copy.deepcopy(GROWING)
+    last["weeks"][12]["days"][5]["retrained"]["highUrgentOutLow"] = 1
+    assert judge(report(last, GROWING, GROWING, GROWING))["streams"][0]["hard_lines_held"] is False
+
+
+def test_shows_the_hard_line_totals_for_both_models():
+    # Equal totals hold the line; the page must still be able to say how many there were.
+    missed = copy.deepcopy(GROWING)
+    for side in ("retrained", "frozen"):
+        missed["weeks"][2]["days"][3][side]["highRiskMissed"] = 4
+    totals = judge(report(missed, GROWING, GROWING, GROWING))["streams"][0]["hard_line_totals"]
+    assert totals["highRiskMissed"] == {"retrained": 4, "frozen": 4}
+    assert totals["highUrgentOutLow"] == {"retrained": 0, "frozen": 0}
+
+
 def test_fails_when_late_days_beat_frozen_but_not_the_early_days():
     # Better than frozen late on, but no better than its own start: no growth.
     steady = stream(early=80, late=80, frozen=70)
@@ -88,3 +130,9 @@ def test_an_unfinished_run_never_passes():
     assert verdict["passed"] is False
     assert verdict["complete"] is False
     assert judge(report(GROWING, GROWING, GROWING))["passed"] is False
+
+
+def test_a_repeated_week_does_not_stand_in_for_a_missing_one():
+    repeated = copy.deepcopy(GROWING)
+    repeated["weeks"][12] = copy.deepcopy(repeated["weeks"][11])
+    assert judge(report(GROWING, GROWING, GROWING, repeated))["complete"] is False

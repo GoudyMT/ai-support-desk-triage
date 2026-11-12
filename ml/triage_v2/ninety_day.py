@@ -21,6 +21,7 @@ from pathlib import Path
 
 WEEKS = 13
 KEY_ERROR = "E_KEY_IN_USE"
+MODEL_GONE = "E_MODEL_GONE"
 FOLDS = 4
 ML_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = ML_DIR.parent
@@ -47,7 +48,12 @@ def _model(deps, entry, name, rows, work_dir):
     """Returns (folder, fingerprint) of a named model, training it only when it is not on disk yet."""
     folder = work_dir / name
     known = entry["models"].get(name)
-    if known is not None and folder.exists():
+    if known is not None:
+        if not folder.exists():
+            # Training again gives a different model under the same name; the weeks already
+            # recorded would then have been judged against another model than the ones to come.
+            print(f"    {name} is in the record but not in the work folder. Restore it, or start a new record.")
+            raise SystemExit(MODEL_GONE)
         return folder, known
     fingerprint = deps.train(rows, folder)
     entry["models"][name] = fingerprint
@@ -64,8 +70,9 @@ def run_stream(stream, deps, work_dir, report_path, settings, max_weeks=None, fo
 
     Args:
         stream: The practice fold (0 to 3).
-        deps: share(force), load(name), train(rows, folder), score(folder, rows, fingerprint, threads)
-            and run_week(stream, week, retrained_path, frozen_path, out_path).
+        deps: share(force), inputs(stream), load(name), train(rows, folder),
+            score(folder, rows, fingerprint, threads) and
+            run_week(stream, week, retrained_path, frozen_path, out_path).
         work_dir: Where models, answers and week results go; outside the repo.
         report_path: The run's record.
         settings: The training settings; a carried-on run must use the same.
@@ -76,7 +83,8 @@ def run_stream(stream, deps, work_dir, report_path, settings, max_weeks=None, fo
         The stream's record so far.
 
     Raises:
-        SystemExit: The stream was started with other settings (E_KEY_IN_USE).
+        SystemExit: The stream was started with other settings or inputs (E_KEY_IN_USE), or a
+            recorded model is missing from the work folder (E_MODEL_GONE).
     """
     threads = deps.share(force)
     work_dir = Path(work_dir)
@@ -87,6 +95,10 @@ def run_stream(stream, deps, work_dir, report_path, settings, max_weeks=None, fo
         raise SystemExit(KEY_ERROR)
     report["settings"] = settings
     entry = report["streams"].setdefault(str(stream), {"start_pair": list(start_pair(stream)), "models": {}, "weeks": []})
+    inputs = deps.inputs(stream)
+    if entry.setdefault("inputs", inputs) != inputs:
+        print("    The week tickets, the start set or the gate changed since this stream began. Use another report.")
+        raise SystemExit(KEY_ERROR)
 
     a, b = start_pair(stream)
     start_rows = deps.load(f"v2_tune_{a}_{b}.jsonl")
@@ -135,6 +147,17 @@ class LiveDeps:
 
         return share_the_machine(force=force)
 
+    def inputs(self, stream):
+        import hashlib
+
+        a, b = start_pair(stream)
+        files = {
+            "start": GENERATED / f"v2_tune_{a}_{b}.jsonl",
+            "weeks": GENERATED / f"v2_weeks_{stream}.jsonl",
+            "gate": REPO_DIR / "web" / "public" / "models" / f"fold_{stream}.json",
+        }
+        return {key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in files.items()}
+
     def load(self, name):
         with open(GENERATED / name, encoding="utf-8") as handle:
             return [json.loads(line) for line in handle if line.strip()]
@@ -144,7 +167,8 @@ class LiveDeps:
         from triage_v2.share_machine import GPU_REST_RATIO
         from triage_v2.train_sentence import fit
 
-        return export(fit(rows, rest_ratio=GPU_REST_RATIO, **self.settings), folder)["fingerprint"]
+        settings = {**self.settings, "fields": tuple(self.settings["fields"])}
+        return export(fit(rows, rest_ratio=GPU_REST_RATIO, **settings), folder)["fingerprint"]
 
     def score(self, folder, rows, fingerprint, threads):
         from triage_v2.score_onnx import score
@@ -170,7 +194,10 @@ def main():
     parser.add_argument("--weeks", type=int, help="run at most this many weeks now; a later run carries on")
     parser.add_argument("--force", action="store_true", help="the owner's override: start even when the GPU is busy")
     args = parser.parse_args()
-    settings = {}
+    from triage_v2 import train_sentence as ts
+
+    # The values that train every model of the run, recorded so a carried-on run cannot mix two.
+    settings = {"fields": list(ts.FIELDS), "epochs": ts.EPOCHS, "learning_rate": ts.LEARNING_RATE, "batch_size": ts.BATCH_SIZE, "max_length": ts.MAX_LENGTH}
 
     print("=" * 60)
     print(f"90-DAY RUN: STREAM {args.stream}")

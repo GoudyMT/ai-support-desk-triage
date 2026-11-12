@@ -47,6 +47,13 @@ describe('writeWeeks', () => {
     expect(readdirSync(dir)).toEqual([]);
   });
 
+  it.each(['handwritten', 'fresh'] as const)('stops before writing when a %s evaluation text is among the week tickets', (source) => {
+    const dir = mkdtempSync(join(tmpdir(), 'weeks-'));
+    const leaked = data.streams[1]?.weeks[7]?.[0]?.ticket.text ?? '';
+    expect(() => writeWeeks(dir, data, { ...none, [source]: [{ text: leaked }] })).toThrow('E_HANDWRITTEN_IN_TRAIN');
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
   it('stops before writing when a week text is in the start model training set', () => {
     const dir = mkdtempSync(join(tmpdir(), 'weeks-'));
     const stream = data.streams[3];

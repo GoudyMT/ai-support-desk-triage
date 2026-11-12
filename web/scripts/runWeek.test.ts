@@ -6,8 +6,8 @@ import { runWeek, type WeekLabeledRow } from './runWeek';
 // A plain shipping question: no rule flags it, so only the models decide.
 const PLAIN = 'My parcel has not arrived yet, can you check where it is?';
 
-function row(id: string, day: number, category: Category = 'Shipping/Order Issue', priority: Priority = 'Medium'): WeekLabeledRow {
-  return { id, text: PLAIN, day, label: { category, priority, mustReview: false } };
+function row(id: string, day: number, category: Category = 'Shipping/Order Issue', priority: Priority = 'Medium', mustReview = false): WeekLabeledRow {
+  return { id, text: PLAIN, day, label: { category, priority, mustReview } };
 }
 
 function sure(id: string, category: Category, priority: Priority): SavedAnswer {
@@ -65,6 +65,16 @@ describe('runWeek', () => {
     const low = [sure('a', 'Shipping/Order Issue', 'Medium')];
     const result = runWeek(rows, table(low), table(low), table(low));
     expect(result.days[0]?.retrained).toMatchObject({ toPerson: 0, highUrgentOutLow: 1, silentPriority: 1, silentCategory: 0 });
+  });
+
+  it('counts a ticket a person must see as missed only when it leaves unchecked', () => {
+    // No rule flags the plain wording, so the label alone says a person must see it.
+    const rows = [row('a', 1, 'Shipping/Order Issue', 'Medium', true), row('b', 1, 'Shipping/Order Issue', 'Medium', true)];
+    const gate = [sure('a', 'Shipping/Order Issue', 'Medium'), sure('b', 'Shipping/Order Issue', 'Medium')];
+    const differs = [sure('a', 'Shipping/Order Issue', 'Medium'), sure('b', 'Billing', 'Medium')];
+    const result = runWeek(rows, table(gate), table(differs), table(gate), 0);
+    expect(result.days[0]?.retrained).toMatchObject({ toPerson: 1, highRiskMissed: 1 });
+    expect(result.days[0]?.frozen).toMatchObject({ toPerson: 0, highRiskMissed: 2 });
   });
 
   it('refuses a row whose day is outside the week, and a repeated id', () => {

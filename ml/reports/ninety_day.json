@@ -8842,7 +8842,17 @@
     "late_frozen": 0.838,
     "beats_frozen": true,
     "beats_own_start": true,
-    "hard_lines_held": true
+    "hard_lines_held": true,
+    "hard_line_totals": {
+     "highUrgentOutLow": {
+      "retrained": 0,
+      "frozen": 0
+     },
+     "highRiskMissed": {
+      "retrained": 0,
+      "frozen": 0
+     }
+    }
    },
    {
     "complete": true,
@@ -8851,7 +8861,17 @@
     "late_frozen": 0.8076666666666666,
     "beats_frozen": true,
     "beats_own_start": false,
-    "hard_lines_held": true
+    "hard_lines_held": true,
+    "hard_line_totals": {
+     "highUrgentOutLow": {
+      "retrained": 0,
+      "frozen": 0
+     },
+     "highRiskMissed": {
+      "retrained": 1,
+      "frozen": 1
+     }
+    }
    },
    {
     "complete": true,
@@ -8860,7 +8880,17 @@
     "late_frozen": 0.7673333333333333,
     "beats_frozen": true,
     "beats_own_start": false,
-    "hard_lines_held": true
+    "hard_lines_held": true,
+    "hard_line_totals": {
+     "highUrgentOutLow": {
+      "retrained": 5,
+      "frozen": 5
+     },
+     "highRiskMissed": {
+      "retrained": 12,
+      "frozen": 12
+     }
+    }
    },
    {
     "complete": true,
@@ -8869,7 +8899,17 @@
     "late_frozen": 0.8273333333333334,
     "beats_frozen": true,
     "beats_own_start": true,
-    "hard_lines_held": true
+    "hard_lines_held": true,
+    "hard_line_totals": {
+     "highUrgentOutLow": {
+      "retrained": 0,
+      "frozen": 0
+     },
+     "highRiskMissed": {
+      "retrained": 122,
+      "frozen": 122
+     }
+    }
    }
   ]
  }

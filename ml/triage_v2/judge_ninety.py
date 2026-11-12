@@ -5,6 +5,9 @@ model is right on department more often than the frozen start model on the same 
 at least 3 of 4 streams; its own accuracy in days 61-90 is higher than in days 1-30 on at
 least 3 of 4 streams; and neither hard line (High/Urgent sent out as low, high-risk missed),
 counted over days 1-90, is above the frozen model's count on any stream.
+
+Thirteen weeks of seven days run 91 days; day 91 is scored and kept in the record, but the
+mark names days 1-90, so it counts in no window here.
 """
 
 STREAMS = 4
@@ -41,21 +44,23 @@ def judge_stream(stream):
         stream: The stream's record, with its weeks and each day's counts for both models.
 
     Returns:
-        A dict with the three accuracies, whether each part of the mark held, and whether
-        the stream ran all its weeks.
+        A dict with the three accuracies, whether each part of the mark held, each hard
+        line's total for both models, and whether the stream ran every week once.
     """
     late_retrained = _accuracy(stream, "retrained", LATE)
     late_frozen = _accuracy(stream, "frozen", LATE)
     early_retrained = _accuracy(stream, "retrained", EARLY)
-    held = all(_total(stream, "retrained", line, ALL_DAYS) <= _total(stream, "frozen", line, ALL_DAYS) for line in HARD_LINES)
+    totals = {line: {model: _total(stream, model, line, ALL_DAYS) for model in ("retrained", "frozen")} for line in HARD_LINES}
+    held = all(totals[line]["retrained"] <= totals[line]["frozen"] for line in HARD_LINES)
     return {
-        "complete": len(stream["weeks"]) == WEEKS,
+        "complete": sorted(week["week"] for week in stream["weeks"]) == list(range(WEEKS)),
         "early_retrained": early_retrained,
         "late_retrained": late_retrained,
         "late_frozen": late_frozen,
         "beats_frozen": late_retrained > late_frozen,
         "beats_own_start": late_retrained > early_retrained,
         "hard_lines_held": held,
+        "hard_line_totals": totals,
     }
 
 

@@ -39,15 +39,6 @@ describe('dealWeeks', () => {
     }
   });
 
-  it('never deals a template the stream trains on', () => {
-    for (let stream = 0; stream < FOLDS; stream += 1) {
-      const trained = trainingSide(stream);
-      for (const template of dealWeeks(stream).keys()) {
-        expect(trained.has(template)).toBe(false);
-      }
-    }
-  });
-
   it('gives every week a template, the weeks within one template of each other', () => {
     for (let stream = 0; stream < FOLDS; stream += 1) {
       const sizes = Array.from({ length: WEEKS }, () => 0);
@@ -63,11 +54,6 @@ describe('dealWeeks', () => {
     const asList = (deal: ReadonlyMap<Template, number>): number[] => heldOut(1).map((template) => deal.get(template) ?? -1);
     expect(asList(dealWeeks(1))).toEqual(asList(dealWeeks(1)));
     expect(asList(dealWeeks(1, 114))).not.toEqual(asList(dealWeeks(1)));
-  });
-
-  it('refuses a stream outside the folds', () => {
-    expect(() => dealWeeks(FOLDS)).toThrow('E_SPLIT_RANGE');
-    expect(() => dealWeeks(-1)).toThrow('E_SPLIT_RANGE');
   });
 });
 

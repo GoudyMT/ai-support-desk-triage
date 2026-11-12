@@ -23,5 +23,8 @@ def test_the_recorded_verdict_is_what_the_judge_finds_in_the_counts():
     assert RECORD["verdict"] == judge(RECORD)
 
 
-def test_the_hard_lines_held_against_the_frozen_model_on_every_stream():
-    assert all(stream["hard_lines_held"] for stream in RECORD["verdict"]["streams"])
+def test_every_recorded_day_scored_tickets_for_both_models():
+    # A day with no tickets reads as 0% right and would drag a window down with no cause.
+    for stream in RECORD["streams"].values():
+        for week in stream["weeks"]:
+            assert all(day[model]["tickets"] > 0 for day in week["days"] for model in ("retrained", "frozen"))
