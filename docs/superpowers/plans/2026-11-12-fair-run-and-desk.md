@@ -1,0 +1,133 @@
+# Fair 90-Day Run, Then the Desk and the Release - Plan
+
+## Progress
+- Current task: 0
+- Done (with evidence): design approved by the owner 2026-11-12 ("Plan looks good, lets continue")
+- Next: Task 0
+- Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
+- Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
+
+**Goal:** a 90-day verdict that measures learning, not the deal of weeks or repeated wording; then the desk's reviewer sees the sentence model's suggestion, and Model History tells the truth about both runs.
+**Record:** `docs/brainstorms/2026-11-10-next-model.brainstorm.md` (local): growth from understanding, not memory (Q1, option A); accuracy first (Q1); hard lines never worse (Q2). The fair run itself is the owner's pick of 2026-11-12 (option C, then approach A).
+**Design:** [`../specs/2026-11-12-fair-ninety-day-run-design.md`](../specs/2026-11-12-fair-ninety-day-run-design.md) (approved 2026-11-12); Tasks 8-19 argue from [`../specs/2026-11-12-sentence-model-part2-design.md`](../specs/2026-11-12-sentence-model-part2-design.md) and the locked wireframe [`../specs/2026-11-12-desk-two-models-wireframe.md`](../specs/2026-11-12-desk-two-models-wireframe.md).
+**Approach:** the generator records each ticket's held-out pieces and writes a teaching copy with them swapped; the start model scores a candidate pool, and templates are dealt into weeks by difficulty; a balance phase checks all four streams before any retrain; then the run, the judge, and Part 2's Tasks 7-18 unchanged except where noted.
+**Stack:** TypeScript, Vitest, tsx; Python 3.12, PyTorch (CUDA), sentence-transformers, ONNX Runtime; Playwright and `onnxruntime-web` from Task 9.
+
+## Global Constraints
+- The two hard lines (High/Urgent sent out as Low/Medium; high-risk missed) are never worse on any set or stream.
+- The pass mark (`ml/triage_v2/judge_ninety.py`) and the balance limit (2.0 points) are not changed after any number of this run exists.
+- The first run's files stay as they are: `ml/reports/ninety_day.json`, `ml/data/generated/v2_weeks_<k>.jsonl`.
+- The v1 and v2 stream hashes in `web/src/generator/wording.test.ts` hold: the teaching copy is an extra field, never a change to `text`.
+- The blind set is never opened, scored or printed before Task 13; its text is checked by script only.
+- Every training, export or bulk-scoring run: load check first (3 samples), `ml/triage_v2/share_machine.py`, the owner's yes, average and peak load reported after (L-14).
+- `RANDOM_STATE = 113` wherever a seed is taken.
+- New packages pinned exactly, at least 14 days old, with hashes for Python; each download needs the owner's yes.
+- Tests read expected values from their source files, never today's number (L-12).
+- Commits: one line, `type: subject`, no trailer. PR body: no attribution lines.
+- No `cd` into a subfolder; paths from the project root (graduated #7). Errors throw static codes.
+
+## Review Focus
+1. A typo ticket whose held-out piece is misspelled after the swap point: the teaching copy still holds no held-out piece. Test in Task 1 (checked on the swap map and on the final text).
+2. A month name that also appears in a template's fixed words: only slot values are swapped. Test in Task 1.
+3. A template that never appears in the candidate pool: it is still dealt (difficulty = its list's mean, count 0). Test in Task 3.
+4. The owner's repo path has spaces: the driver starts the week run without a shell, and a work folder inside the repo is refused. Test in Task 5.
+5. The driver stops between the balance phase and the weeks: a rerun carries on, and the weeks phase refuses to start while any stream's balance is missing or over the limit. Test in Task 5.
+
+## Execution approach
+- **Phase A (Tasks 0-7), inline by the lead.** Each task feeds the next one's file format, and Task 7 runs on the owner's machine under the owner's eye. Source: rule:patterns-and-dispatch (sequential, shared files). Expected: about a day of work; machine time measured on stream 0's balance phase first, then about 15-18 min per stream for the 12 retrains (first run).
+- **Phase B (Tasks 8-12), agent-team batch** as Part 2 planned it (builder Sonnet, checker Opus on Tasks 9 and 10): the desk tasks touch separate files with fixed interfaces.
+- **Phase C and D (Tasks 13-19), inline.** Pages that state numbers are written against their source files by the lead.
+- Linux CI is seen early: the branch is pushed once Phase A's code is in (L-08), on the owner's yes.
+
+## Sweep tier
+Feature tier, with the modifiers for a new runtime package and a new served file type (`onnxruntime-web`, the bundle).
+
+## Owner stops
+1. The balance phase and the retrains of Task 7 (each: load check, estimate in minutes and load, the owner's yes); the blind reading of Task 13.
+2. If the balance check fails: stop; the owner decides (no seed retry, design section 10).
+3. Task 8: the `onnxruntime-web` download, and the size budget line from its measurement.
+4. Task 12: the owner's phone test.
+5. Each push, the PR, the merge and the release; the Hugging Face post (the owner's own act).
+
+## Files
+| File | Job |
+|---|---|
+| `web/src/generator/pieces.ts` (new) | the swap map: for a stream, each held-out piece of each kind -> a seeded training-side piece of the same kind |
+| `web/src/generator/generate.ts`, `fakeData.ts` (modify) | an optional swap map; with it, `generateTicketDetail` also returns `teachText` and the pieces it drew |
+| `web/src/generator/weeks.ts` (modify) | `dealWeeksByDifficulty`; `buildWeeks` takes a deal; rows carry `teachText` and template refs |
+| `web/scripts/exportFairPool.ts` (new) | write each stream's candidate pool with template refs |
+| `web/scripts/exportWeeks.ts` (modify) | `--fair --difficulty <file>` writes `v2_fair_weeks_<k>.jsonl`; the week guard reads the files on disk |
+| `web/scripts/runWeek.ts` (modify) | the checked file masks `teachText` when a row has one |
+| `ml/triage_v2/ninety_day.py` (modify) | `--fair`: balance phase, weeks phase, new record; no shell; atomic writes; work folder outside the repo |
+| `ml/triage_v2/template_difficulty.py` (new) | per-template department-right share and count from pool answers |
+| `ml/triage_v2/share_machine.py` (modify) | busy check from 3 samples, GPU and CPU |
+| `ml/reports/ninety_day_fair.json` (new) | the fair run's record, judged in CI |
+| Part 2 files (Tasks 8-19) | as listed in `2026-11-12-sentence-model-part2.md` "Files" |
+
+## Tasks
+
+### Task 0 (must): Close the Part 2 plan
+- [ ] Close the Progress block of `docs/superpowers/plans/2026-11-12-sentence-model-part2.md` with the merge of #13 (24653e4); Tasks 7-18 point here -> verify: `node .claude/tracking-check.mjs progress` PASS
+- [ ] Commit `docs: close the part 2 plan and add the fair run design and plan`
+
+### Task 1 (must): Teaching copy with swapped pieces
+**Files:** Create `web/src/generator/pieces.ts` | Modify `generate.ts`, `fakeData.ts` | Test `web/src/generator/pieces.test.ts`
+**Interfaces:**
+- Produces: `type PieceKind = 'threat' | 'connector' | 'fakeFrame' | 'product' | 'plan' | 'feature' | 'month'`; `swapMapFor(stream: number, wording: Wording, seed = 113): SwapMap` (`ReadonlyMap<string, string>` per kind); `generateTicketDetail(seed, index, split, wording, swap?)` returns, with `swap`, `teachText: string` and `pieces: { kind: PieceKind; heldOut: string; taught: string }[]`.
+- [ ] Failing tests: for 2,000 held-out tickets per stream and wording, `teachText` contains no held-out piece of that stream (each kind, its list from `poolOf(..., { fold: k, side: 'heldout' })`), every `taught` piece is in the start model's training pool (`{ fold, side: 'train', alsoHeldOut }` of `startPair(k)`); same templates, hard case, category and priority as without the swap; no piece drawn -> `teachText === text`; `{plan}` and `{otherPlan}` differ in `teachText`; a template's fixed words keep any month name they hold; the ticket without `swap` is byte-identical to today's (v1 and v2 hashes hold) -> verify: red on assertions
+- [ ] Implement: the swap applies where the piece is picked, before typos and casing -> verify: `npm --prefix web run test` exit 0
+- [ ] Commit `feat: write a teaching copy of each ticket with its held-out pieces swapped`
+
+### Task 2 (must): The candidate pool
+**Files:** Create `web/scripts/exportFairPool.ts` (+ test) | Modify `web/src/generator/weeks.ts` (export `templateRefOf`)
+**Interfaces:** Produces `templateRefOf(template, wording): string` (`<wording>/<list>/<index>`); file `ml/data/generated/v2_fair_pool_<k>.jsonl`, rows `{ id, text, maskedText, category, priority, templates: string[] }`, the first 20,000 held-out draws of each wording from `WEEK_SEEDS`; `npm --prefix web run export-fair-pool`.
+- [ ] Failing tests: refs are unique and stable; every held-out template of the stream is a ref of the stream; pool rows pass the blind, hand-written, desk and start-set guards of `exportWeeks.ts`; same run, same bytes -> verify: red
+- [ ] Implement; print per stream the pool size and how many templates appear 0 times -> verify: suite exit 0; counts recorded here
+- [ ] Commit `feat: export a candidate pool for scoring template difficulty`
+
+### Task 3 (must): Deal by difficulty and the fair week files
+**Files:** Modify `web/src/generator/weeks.ts`, `web/scripts/exportWeeks.ts` (+ tests) | Create `ml/triage_v2/template_difficulty.py` (+ `ml/tests/test_template_difficulty.py`)
+**Interfaces:**
+- Consumes: Task 2's refs and pool; the start model's answers on the pool (`score_onnx.score` output).
+- Produces: `template_difficulty(rows, answers) -> {ref: {"right": float, "count": int}}` written to `<work>/fair_difficulty_<k>.json`; `dealWeeksByDifficulty(stream, difficulty, seed = 113): Map<Template, number>`; `buildWeeks(stream, perDay, deal?, swap?)`; `npm --prefix web run export-weeks -- --fair --difficulty <dir>` writes `v2_fair_weeks_<k>.jsonl` with `teachText` and `templates` per row.
+- [ ] Failing tests (Python): a ticket counts toward each template it used; a template with no ticket is left out of the file -> verify: red
+- [ ] Failing tests (TS): same inputs, same deal; every held-out template in exactly one week; a template missing from the file gets its list's mean and count 0; on a hand-made difficulty set where round-robin is lopsided, the spread of ticket-weighted week difficulty is smaller; the fair export leaves `v2_weeks_<k>.jsonl` untouched; the week guard reads the written files and uses the same normalized match as the other guards (sweep row D2) -> verify: red
+- [ ] Implement: hardest first, each template to the week with the lowest ticket-weighted mean so far among weeks still taking that list; ties by seeded shuffle -> verify: both suites exit 0
+- [ ] Commit `feat: deal templates into weeks by the start model's difficulty`
+
+### Task 4 (must): Teach from the teaching copy
+**Files:** Modify `web/scripts/runWeek.ts` (+ test)
+- [ ] Failing tests: a row with `teachText` puts `mask(teachText)` in the checked file and scores on `text`; a row without it is unchanged; a break that masks `text` instead turns the row red -> verify: red
+- [ ] Implement -> verify: suite exit 0
+- [ ] Commit `feat: train retrained models on the teaching copy`
+
+### Task 5 (must): The fair driver and its balance phase
+**Files:** Modify `ml/triage_v2/ninety_day.py`, `ml/tests/test_ninety_day.py`
+**Interfaces:** `python -m triage_v2.ninety_day --fair --phase balance|weeks --stream k --work-dir <outside repo>`; record `ml/reports/ninety_day_fair.json`, per stream `balance: {"early": float, "late": float, "gap": float}`; error `E_WEEKS_UNBALANCED`; `BALANCE_LIMIT = 2.0` (points).
+- [ ] Failing tests (stand-in deps, as today): balance phase trains the start model, scores the pool, writes difficulty, exports the fair weeks, scores all 13 weeks with the start model and records the gap on days 1-30 vs 61-90 (day 91 left out, as the judge does); the weeks phase exits `E_WEEKS_UNBALANCED` when any of the 4 streams has gap 2.1, or has no balance yet, and trains nothing; at 2.0 it goes on; the frozen week answers of the balance phase are reused, not rescored; a rerun carries on in either phase; the first run's record and default paths are untouched without `--fair`
+- [ ] Failing tests (carry-overs): the week run is started as an argument list with no shell (sweep P2); reports are written to a temp file and renamed (P3); a work folder inside the repo exits `E_WORK_IN_REPO` (P4) -> verify: red
+- [ ] Implement -> verify: `ml\.venv\Scripts\python.exe -m pytest ml/tests` exit 0
+- [ ] Commit `feat: check that the weeks are balanced before the fair run retrains`
+
+### Task 6 (should): A steadier busy check
+**Files:** Modify `ml/triage_v2/share_machine.py`, `ml/tests/test_share_machine.py`
+- [ ] Failing tests: 3 samples are read; the median decides; a CPU load at or over the GPU limit refuses too; an unreadable sample refuses (sweep B1) -> verify: red
+- [ ] Implement -> verify: pytest exit 0
+- [ ] Commit `fix: read the machine three times, GPU and CPU, before a run`
+
+### Task 7 (must): The fair run
+- [ ] Owner stop 1: load check; the balance phase on stream 0 first (minutes and load measured), then the other 3 -> verify: each stream's gap recorded; any gap over 2.0 -> owner stop 2
+- [ ] Owner stop 1: the weeks phase, 4 streams, load logged every 4 s -> verify: `ml/reports/ninety_day_fair.json` complete; start-model fingerprints compared with the first run's (reported, not required to match)
+- [ ] `judge_ninety` on the record; `ml/tests/test_ninety_day_fair_record.py` re-judges it and checks its fingerprints and balance -> verify: red before the verdict, green after; the verdict reported as measured
+- [ ] Commit `feat: record the fair 90-day run and its verdict`
+
+### Tasks 8-19: Part 2's Tasks 7-18
+Run as written in `docs/superpowers/plans/2026-11-12-sentence-model-part2.md` (Task N there = Task N+1 here), with these changes:
+- Part 2 Task 6 (wireframe) is done: locked 2026-11-12; its OPEN line (may Try a ticket's Sort start the bundle download) is asked before Task 10.
+- Part 2 Task 12 (blind reading, Task 13 here) reads the 90-day end models of the fair run, not the first run.
+- Part 2 Task 13 (Model History, Task 14 here) shows both runs as measured, the fair one named as such, unless the owner picks otherwise.
+- Part 2 Task 17 (carry-overs, Task 18 here) takes the Part 1, PR 5 and PR 4 rows; the 90-day sweep rows are in Tasks 3, 5 and 6 above.
+
+## Parking Lot
+
+## Execution Notes & Deviations

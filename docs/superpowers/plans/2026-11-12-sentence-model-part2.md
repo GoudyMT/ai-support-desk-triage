@@ -1,7 +1,7 @@
 # Sentence Model, Part 2 Plan: The 90-Day Run, the Desk and the Release
 
 ## Progress
-- Current task: the PR for Tasks 1-6 (review fixed; report, body and push next)
+- Current task: none - closed; Tasks 1-6 merged as #13 (24653e4); Tasks 7-18 continue in [`2026-11-12-fair-run-and-desk.md`](2026-11-12-fair-run-and-desk.md) (as Tasks 8-19)
 - Done (with evidence), 2026-11-12:
   - Part 1 plan's Progress block closed with the merge of #12 - 9d93c1f - `tracking-check.mjs progress` PASS
   - Design approved and committed - e1ae8fe
@@ -16,8 +16,9 @@
   - The owner (2026-11-12): "lets mark our current progress as this PR"; option C and other ways to improve growth go to the next build
   - Feature-tier review of 58e8907 (7 roles; `.kit/sweeps/2026-11-12-ninety-day-run.md`); fixes in 7b6535a, each new test red on a break of its code
   - Recount without the threat and two-topic tickets, whose wording repeats across weeks (saved answers, no model run; the full count matched the record first): days 1-30 -> 61-90 (frozen): 82.3 -> 92.0 (83.6); 83.5 -> 81.2 (81.2); 90.0 -> 79.6 (76.5); 76.5 -> 83.6 (82.7). Beats frozen 3 of 4 (stream 1 ties), beats own start 2 of 4: the verdict stands. Slot values repeat too and are not separable this way
-- Next: the review report, the PR body and the owner's yes to push; Tasks 7-18 move to the next build's plan
-- Branch: `feat/sentence-model-part2` (local, from `main` at 5287e12)
+  - PR #13 merged 2026-11-12 as 24653e4 on the owner's word
+- Next: none here; see the fair run and desk plan
+- Branch: `feat/sentence-model-part2` (merged as #13)
 - Open questions: see "Owner stops"; the wider privacy mask (Task 16) is marked stretch because it changes the text the bundle was trained on
 
 **Goal:** the desk's reviewer sees a far better suggestion, Model History shows real growth over a simulated 90 days and one honest blind-set reading, and anyone can download the model.
