@@ -19,6 +19,15 @@ def test_the_record_holds_every_week_of_every_stream():
         assert all(len(week["days"]) == 7 for week in stream["weeks"])
 
 
+def test_each_week_was_scored_by_the_model_trained_before_it():
+    # Week 0 by the start model, week w by the model trained after week w - 1, never a later one.
+    for key, stream in RECORD["streams"].items():
+        models = stream["models"]
+        for week in stream["weeks"]:
+            name = f"stream_{key}_start" if week["week"] == 0 else f"stream_{key}_after_{week['week'] - 1}"
+            assert week["model_fingerprint"] == models[name]
+
+
 def test_the_recorded_verdict_is_what_the_judge_finds_in_the_counts():
     assert RECORD["verdict"] == judge(RECORD)
 
