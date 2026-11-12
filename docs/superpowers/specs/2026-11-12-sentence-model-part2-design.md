@@ -22,6 +22,8 @@ The owner's words (2026-11-12): "I just want the model scores to go up, as well 
 - **A frozen control:** the same days' tickets are also scored by the stream's start model, never retrained. Weeks differ in difficulty, so growth is read as the gap between the retrained model and the frozen one on the same tickets.
 - Every run goes through `ml/triage_v2/share_machine.py`, after a load check, on the owner's yes; the average and peak load are reported after.
 
+> SUPERSEDED in part (2026-11-12): a run no longer starts on the word model while the bundle loads; Start opens a loading panel and the run begins once the bundle has loaded, with a "smaller model only" button and Retry - see [`2026-11-12-desk-two-models-wireframe.md`](2026-11-12-desk-two-models-wireframe.md) "What was locked".
+
 **3.2 Both models on the desk.** The word model loads first, so the desk works at once (as today). The sentence bundle (23 MB model, 27 MB runtime, 0.7 MB tokenizer, measured 2026-11-10) loads only when a visitor starts the desk or types a ticket. How a suggestion that arrives after the gate's answer is shown is decided from a wireframe on the real screen before it is built (lesson L-05). If the bundle fails to load, the desk keeps working on the word model alone and says so in plain words; nothing is sent anywhere. Pages that do not score tickets load no model file.
 
 **3.3 Close-match test.** The browser and Python score the same bundle on the same tickets; the browser's answers match the recorded ones within a limit written in the plan before the first run.
