@@ -11,6 +11,7 @@ import {
   introduceTypos,
   type HardCase,
 } from './hardCases';
+import { KEEP_PIECE, recordingSwap, type Piece, type Swap, type SwapMap } from './pieces';
 import { createRng, ticketSeed, type Rng } from './rng';
 import {
   CATEGORY_SHARES,
@@ -49,6 +50,8 @@ export interface TicketDetail {
   baseCategory: Category;
   templates: Template[];
   plainText: string;
+  teachText?: string;
+  pieces?: Piece[];
 }
 
 // The wording every recorded number of the first model was measured on.
@@ -111,15 +114,15 @@ function drawHardCase(rng: Rng): HardCase | undefined {
   return drawn === NO_HARD_CASE ? undefined : drawn;
 }
 
-function buildTwoIssues(rng: Rng, base: Category, split: Split, wording: Wording): Body {
+function buildTwoIssues(rng: Rng, base: Category, split: Split, wording: Wording, swap: Swap): Body {
   const others = CATEGORIES.filter((category) => category !== base && category !== 'Other');
   const second = rng.pick(others);
   const first = rng.pick(poolOf(wording.templates[base], split));
   const other = rng.pick(poolOf(wording.templates[second], split));
   const text = [
-    fillSlots(first.text, rng, split),
-    rng.pick(poolOf(wording.twoIssueConnectors, split)),
-    fillSlots(other.text, rng, split),
+    fillSlots(first.text, rng, split, swap),
+    swap('connector', rng.pick(poolOf(wording.twoIssueConnectors, split))),
+    fillSlots(other.text, rng, split, swap),
   ].join(' ');
   const issues = [base, second];
   // A dispute or a status question only matters to the issue that decides the
@@ -130,25 +133,25 @@ function buildTwoIssues(rng: Rng, base: Category, split: Split, wording: Wording
   return { text, facts, topic: base, templates: [first, other] };
 }
 
-function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, split: Split, wording: Wording): Body {
+function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, split: Split, wording: Wording, swap: Swap): Body {
   switch (hardCase) {
     case 'vague': {
       const template = rng.pick(poolOf(wording.vagueTemplates, split));
       const facts = { ...factsFor(['Other'], template), vague: true };
-      return { text: fillSlots(template.text, rng, split), facts, topic: 'Other', templates: [template] };
+      return { text: fillSlots(template.text, rng, split, swap), facts, topic: 'Other', templates: [template] };
     }
     case 'threatening': {
       // A threat only follows a message that already carries a grievance.
       const template = rng.pick(poolOf(wording.templates[base], split).filter((candidate) => candidate.grievance === true));
-      const text = `${fillSlots(template.text, rng, split)} ${rng.pick(poolOf(wording.threatPhrases, split))}`;
+      const text = `${fillSlots(template.text, rng, split, swap)} ${swap('threat', rng.pick(poolOf(wording.threatPhrases, split)))}`;
       return { text, facts: { ...factsFor([base], template), threatening: true }, topic: base, templates: [template] };
     }
     case 'two-issues':
-      return buildTwoIssues(rng, base, split, wording);
+      return buildTwoIssues(rng, base, split, wording, swap);
     case 'keyword-trap': {
       const template = rng.pick(poolOf(wording.trapTemplates[base], split));
       return {
-        text: fillSlots(template.text, rng, split),
+        text: fillSlots(template.text, rng, split, swap),
         facts: factsFor([base], template),
         topic: base,
         templates: [template],
@@ -158,13 +161,13 @@ function buildBody(rng: Rng, hardCase: HardCase | undefined, base: Category, spl
       const template = rng.pick(poolOf(wording.politeSecurityTemplates, split));
       const issues: Category[] = ['Security Concern'];
       const facts = factsFor(issues, template);
-      return { text: fillSlots(template.text, rng, split), facts, topic: 'Security Concern', templates: [template] };
+      return { text: fillSlots(template.text, rng, split, swap), facts, topic: 'Security Concern', templates: [template] };
     }
     case 'typos':
     case undefined: {
       const template = rng.pick(poolOf(wording.templates[base], split));
       return {
-        text: fillSlots(template.text, rng, split),
+        text: fillSlots(template.text, rng, split, swap),
         facts: factsFor([base], template),
         topic: base,
         templates: [template],
@@ -191,11 +194,32 @@ function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined, wordin
   return opener === '' ? text : `${opener}\n${text}`;
 }
 
+/**
+ * Builds one ticket from its seed and index.
+ *
+ * Args:
+ *   seed: the stream's seed.
+ *   index: the ticket's place in the stream.
+ *   split: the fold side its wording is drawn from.
+ *   wording: the lists its text is drawn from.
+ *   swap: with a stream's swap map, the detail also carries the teaching copy
+ *     (`teachText`): the same ticket built from the same draws with every
+ *     held-out piece swapped, and the pieces swapped (`pieces`). The ticket
+ *     itself is the same with or without it.
+ *
+ * Returns:
+ *   The ticket and what it was built from.
+ *
+ * Throws:
+ *   Error('E_SEED_RANGE'), Error('E_SPLIT_RANGE'); Error('E_PIECE_UNMAPPED')
+ *   for a piece the swap map does not hold.
+ */
 export function generateTicketDetail(
   seed: number,
   index: number,
   split: Split = 'all',
   wording: Wording = BUILT_IN_WORDING,
+  swap?: SwapMap,
 ): TicketDetail {
   // The seed mixing works on 32 bits, so a seed or index outside them would
   // wrap and repeat another ticket without any sign of it.
@@ -203,6 +227,19 @@ export function generateTicketDetail(
     throw new Error('E_SEED_RANGE');
   }
   checkSplit(split);
+  const detail = buildDetail(seed, index, split, wording, KEEP_PIECE);
+  if (swap === undefined) {
+    return detail;
+  }
+  // A second build from the same draws: a swap changes only what is written, so
+  // both builds pick the same templates and labels. Typos fall on the swapped
+  // text and may land elsewhere, since the text is a different length.
+  const pieces: Piece[] = [];
+  const taught = buildDetail(seed, index, split, wording, recordingSwap(swap, pieces));
+  return { ...detail, teachText: taught.ticket.text, pieces };
+}
+
+function buildDetail(seed: number, index: number, split: Split, wording: Wording, swap: Swap): TicketDetail {
   // Only (seed, index) feeds the generator, so ticket i never depends on the
   // tickets before it.
   const rng = createRng(ticketSeed(seed, index));
@@ -212,12 +249,12 @@ export function generateTicketDetail(
   const baseCategory = rng.weighted(CATEGORY_SHARES);
   const hasFakeData = rng.chance(FAKE_DATA_SHARE);
 
-  const body = buildBody(rng, hardCase, baseCategory, split, wording);
+  const body = buildBody(rng, hardCase, baseCategory, split, wording, swap);
   const plainText = addVoice(rng, body.text, hardCase, wording);
   let text = hardCase === 'typos' ? introduceTypos(rng, plainText) : plainText;
   // Added last so a typo can never damage an email, number or card.
   if (hasFakeData) {
-    text = `${text} ${fakeSnippet(rng, body.topic, split)}`;
+    text = `${text} ${fakeSnippet(rng, body.topic, split, swap)}`;
   }
 
   const ticket: Ticket = {

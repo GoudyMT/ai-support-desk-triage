@@ -1,4 +1,5 @@
 import type { Category } from '../domain/labels';
+import { KEEP_PIECE, type PieceKind, type Swap } from './pieces';
 import type { Rng } from './rng';
 import { poolOf, type Split } from './templates';
 
@@ -131,9 +132,10 @@ function fakeValue(rng: Rng, kind: Kind): string {
 }
 
 // One sentence of fake personal data to append to a ticket about `category`.
-export function fakeSnippet(rng: Rng, category: Category, split: Split = 'all'): string {
+export function fakeSnippet(rng: Rng, category: Category, split: Split = 'all', swap: Swap = KEEP_PIECE): string {
   const kind = rng.pick(KINDS_BY_CATEGORY[category] ?? DEFAULT_KINDS);
-  return rng.pick(poolOf(FAKE_SENTENCES[kind], split)).replace('{value}', fakeValue(rng, kind));
+  const frame = swap('fakeFrame', rng.pick(poolOf(FAKE_SENTENCES[kind], split)));
+  return frame.replace('{value}', fakeValue(rng, kind));
 }
 
 // The made-up values a template's {slots} are filled with. Like the frames above,
@@ -184,9 +186,14 @@ const SLOTS: Record<string, SlotFill> = {
   seconds: (rng) => String(rng.int(MIN_LOAD_SECONDS, MAX_LOAD_SECONDS)),
 };
 
+// The slots whose values are cut into folds, and so are swapped in a teaching copy.
+// A date's month is swapped on its own (below); its day is a plain number.
+const SWAPPED_SLOTS: Partial<Record<string, PieceKind>> = { product: 'product', plan: 'plan', otherPlan: 'plan', feature: 'feature' };
+
 // A slot named twice in one template gets the same value both times, so the
-// text never contradicts itself.
-export function fillSlots(text: string, rng: Rng, split: Split = 'all'): string {
+// text never contradicts itself. A swap changes only what is written: the values
+// drawn (and so every later draw) are the same with or without it.
+export function fillSlots(text: string, rng: Rng, split: Split = 'all', swap: Swap = KEEP_PIECE): string {
   const chosen = new Map<string, string>();
   const slot = (name: string): string => {
     const known = chosen.get(name);
@@ -203,5 +210,26 @@ export function fillSlots(text: string, rng: Rng, split: Split = 'all'): string 
     chosen.set(name, value);
     return value;
   };
-  return text.replace(/\{(\w+)\}/g, (_match, name: string) => slot(name));
+  const written = new Map<string, string>();
+  const write = (name: string): string => {
+    const value = slot(name);
+    const kind = SWAPPED_SLOTS[name];
+    if (kind !== undefined) {
+      return swap(kind, value);
+    }
+    if (name === 'date') {
+      const [month = '', day = ''] = value.split(' ');
+      return `${swap('month', month)} ${day}`;
+    }
+    return value;
+  };
+  return text.replace(/\{(\w+)\}/g, (_match, name: string) => {
+    const known = written.get(name);
+    if (known !== undefined) {
+      return known;
+    }
+    const value = write(name);
+    written.set(name, value);
+    return value;
+  });
 }

@@ -1,9 +1,12 @@
 # Fair 90-Day Run, Then the Desk and the Release - Plan
 
 ## Progress
-- Current task: 0
-- Done (with evidence): design approved by the owner 2026-11-12 ("Plan looks good, lets continue")
-- Next: Task 0
+- Current task: 2
+- Done (with evidence):
+  - design approved by the owner 2026-11-12 ("Plan looks good, lets continue"); plan approved 2026-11-12 ("And then let's begin")
+  - Task 0 - fd51002 - `tracking-check.mjs progress` PASS on both plans
+  - Task 1 - `pieces.test.ts` 12 tests red on the stub (11 failed), green after; 4 breaks (connector not swapped, one stand-in for all, month not swapped, unmapped piece kept) each turned rows red, files restored byte for byte; web suite 63 files, 1,425 tests, exit 0 (v1 and v2 hashes held); typecheck and lint exit 0
+- Next: Task 2
 - Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
 - Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
 
@@ -76,7 +79,7 @@ Feature tier, with the modifiers for a new runtime package and a new served file
 - Produces: `type PieceKind = 'threat' | 'connector' | 'fakeFrame' | 'product' | 'plan' | 'feature' | 'month'`; `swapMapFor(stream: number, wording: Wording, seed = 113): SwapMap` (`ReadonlyMap<string, string>` per kind); `generateTicketDetail(seed, index, split, wording, swap?)` returns, with `swap`, `teachText: string` and `pieces: { kind: PieceKind; heldOut: string; taught: string }[]`.
 - [ ] Failing tests: for 2,000 held-out tickets per stream and wording, `teachText` contains no held-out piece of that stream (each kind, its list from `poolOf(..., { fold: k, side: 'heldout' })`), every `taught` piece is in the start model's training pool (`{ fold, side: 'train', alsoHeldOut }` of `startPair(k)`); same templates, hard case, category and priority as without the swap; no piece drawn -> `teachText === text`; `{plan}` and `{otherPlan}` differ in `teachText`; a template's fixed words keep any month name they hold; the ticket without `swap` is byte-identical to today's (v1 and v2 hashes hold) -> verify: red on assertions
 - [ ] Implement: the swap applies where the piece is picked, before typos and casing -> verify: `npm --prefix web run test` exit 0
-- [ ] Commit `feat: write a teaching copy of each ticket with its held-out pieces swapped`
+- [x] Commit `feat: teach from a copy with each held-out piece swapped`
 
 ### Task 2 (must): The candidate pool
 **Files:** Create `web/scripts/exportFairPool.ts` (+ test) | Modify `web/src/generator/weeks.ts` (export `templateRefOf`)
@@ -131,3 +134,5 @@ Run as written in `docs/superpowers/plans/2026-11-12-sentence-model-part2.md` (T
 ## Parking Lot
 
 ## Execution Notes & Deviations
+- 2026-11-12, Task 1 (mechanics, decided alone): the teaching copy is a second build from the same seed with a recording swap, so the scored ticket is untouched by construction (a test compares it byte for byte). Slot values are drawn raw and swapped only when written, so `{otherPlan}` still avoids the drawn plan and every later draw matches. Pieces: `SwapMap` is one map per kind (`ReadonlyMap<PieceKind, ReadonlyMap<string, string>>`); `recordingSwap` throws `E_PIECE_UNMAPPED`. Only one fixed-word clash exists across 115 pieces and 567 fixed texts ("March" in one Billing template, by probe), so the held-out check allows a word only where the ticket's own template carries it.
+- 2026-11-12, crash log: two full web runs had worker access violations (0xC0000005) on different files each time (exportV2, exportDataset, folds, measureTwoModels) with 63 workers while the owner's machine was at 51% CPU; each file passed alone, and the suite passed whole on 8 workers. Not investigated (rule:test-and-review-cadence, crashes).
