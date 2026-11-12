@@ -9,7 +9,8 @@
   - Task 3 - `runWeek.ts` 6 tests red on the stub, green after; breaks of the department count and of the checked-ticket path each turned rows red; typecheck and lint exit 0
   - Task 4 - `judge_ninety.py` 7 tests and `ninety_day.py` 7 tests, red on stubs, green after; 3 breaks of the mark and 3 of the driver each turned rows red; `pytest ml/tests` 188 passed
   - Task 5 - run on the owner's yes (2026-11-12), 4 streams of 13 weeks, about 15-18 min each, load logged every 4 s (CPU avg 7.2-17.5%, peaks 47-97% with the owner's other work; GPU avg 27.5-34.6%, peaks 60-99%); `ml/reports/ninety_day.json` with its verdict by `python -m triage_v2.judge_ninety`; `test_ninety_day_record.py` red before the verdict, green after. VERDICT: NOT PASSED. Department right, days 1-30 -> days 61-90 (frozen in 61-90): 83.1 -> 92.1 (83.8); 84.1 -> 81.6 (80.8); 90.2 -> 80.3 (76.7); 77.4 -> 84.2 (82.7). Beats frozen 4 of 4, beats own start 2 of 4 (needs 3). Hard lines equal to frozen on every stream; stream 3's gate let 122 high-risk tickets out unchecked for both models
-- Next: the owner's call on the 90-day result (re-plan on failure), then Task 6
+  - The owner's call (2026-11-12, "show it as measured, then consider methods to continue"): Model History shows the 90-day result as measured, mark not met, with the frozen comparison (Task 13)
+- Next: methods to continue the growth goal, put to the owner; then Task 6
 - Branch: `feat/sentence-model-part2` (local, from `main` at 5287e12)
 - Open questions: see "Owner stops"; the wider privacy mask (Task 16) is marked stretch because it changes the text the bundle was trained on
 
