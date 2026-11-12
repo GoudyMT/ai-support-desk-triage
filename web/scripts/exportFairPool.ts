@@ -11,11 +11,10 @@ import {
   isRunAsCommand,
   loadBlind,
   loadHandwritten,
-  normalizeText,
   toJsonl,
 } from './exportDataset';
 import { V2_SIZES, buildV2Desk } from './exportV2';
-import { startTextsOf, type WeekHeldOut } from './exportWeeks';
+import { readStartRows, startRowsOf, type WeekHeldOut } from './exportWeeks';
 
 // The fair 90-day run deals templates into weeks by how hard the start model
 // finds them. This writes, per stream, the held-out tickets it scores to rate
@@ -25,8 +24,8 @@ const OUTPUT_DIR = new URL('../../ml/data/generated/', import.meta.url);
 export interface PoolStream {
   stream: number;
   rows: PoolRow[];
-  // Normalised texts of the start model's training set.
-  startTexts: ReadonlySet<string>;
+  // The start model's training set.
+  startRows: readonly { text: string }[];
 }
 
 export interface PoolData {
@@ -39,7 +38,7 @@ export function buildPoolData(
   const streams = Array.from({ length: FOLDS }, (_, stream) => ({
     stream,
     rows: buildPool(stream, sizes.perWording),
-    startTexts: startTextsOf(stream, sizes.trainPerWording),
+    startRows: startRowsOf(stream, sizes.trainPerWording),
   }));
   return { streams };
 }
@@ -53,8 +52,8 @@ export function writePool(outputDir: string, data: PoolData, held: WeekHeldOut):
   if (holdsAnyOf(held.desk, lists)) {
     throw new Error('E_DESK_IN_TRAIN');
   }
-  for (const { rows, startTexts } of data.streams) {
-    if (rows.some((row) => startTexts.has(normalizeText(row.ticket.text)))) {
+  for (const { rows, startRows } of data.streams) {
+    if (holdsAnyOf(startRows, [rows.map((row) => row.ticket)])) {
       throw new Error('E_WEEK_IN_TRAIN');
     }
   }
@@ -71,7 +70,8 @@ export function writePool(outputDir: string, data: PoolData, held: WeekHeldOut):
 }
 
 if (isRunAsCommand(process.argv[1], import.meta.url)) {
-  const data = buildPoolData();
+  const built = buildPoolData();
+  const data = { streams: built.streams.map((entry) => ({ ...entry, startRows: readStartRows(fileURLToPath(OUTPUT_DIR), entry.stream) })) };
   const held = { blind: loadBlind(), handwritten: loadHandwritten(), fresh: loadHandwritten(FRESH_SOURCE), desk: buildV2Desk(V2_SIZES.desk) };
   for (const { stream, rows } of data.streams) {
     const counts = new Map<string, number>();

@@ -1,6 +1,7 @@
 import { CATEGORIES } from '../domain/labels';
 import { EXTRA_WORDING } from './extraFrames';
 import { BUILT_IN_WORDING, generateTicketDetail, type Ticket } from './generate';
+import { swapMapFor } from './pieces';
 import { createRng } from './rng';
 import { checkSplit, poolOf, type Split, type Template } from './templates';
 import type { Wording } from './wording';
@@ -29,6 +30,117 @@ export interface WeekRow {
   day: number;
   wording: WeekWording;
   ticket: Ticket;
+  // With teaching copies: the copy a retrained model learns from, and the names of
+  // the templates the ticket used.
+  teachText?: string;
+  templates?: string[];
+}
+
+// The start model's rating of each template by name: share right, tickets rated.
+export type Difficulty = Record<string, { right: number; count: number }>;
+
+interface WeekLoad {
+  templates: number;
+  right: number;
+  count: number;
+}
+
+type Rating = Difficulty[string];
+
+// The week a template goes to: among the weeks holding the fewest of its list (so
+// each week keeps the same mix of departments and hard cases) and at most one
+// template above the emptiest week (so every week still fills), the one whose
+// ticket-weighted rating ends closest to the whole stream's. A hard template so
+// goes to an easy week and an easy one to a hard week. Requiring the very fewest
+// templates in all would leave one week to choose from: the round-robin deal again.
+function closestWeek(loads: readonly WeekLoad[], ofList: readonly number[], rating: Rating, target: number): number {
+  const fewestOfList = Math.min(...ofList);
+  const fewest = Math.min(...loads.map((load) => load.templates));
+  const open = loads
+    .map((_, week) => week)
+    .filter((week) => ofList[week] === fewestOfList && (loads[week]?.templates ?? 0) <= fewest + 1);
+  const gap = (week: number): number => {
+    const load = loads[week] ?? { templates: 0, right: 0, count: 0 };
+    const count = load.count + rating.count;
+    return count === 0 ? 0 : Math.abs((load.right + rating.right * rating.count) / count - target);
+  };
+  return open.reduce((best, week) => (gap(week) < gap(best) ? week : best));
+}
+
+// The ticket-weighted rating of all the stream's held-out templates together.
+function streamRating(stream: number, difficulty: Difficulty): number {
+  let right = 0;
+  let count = 0;
+  for (const name of Object.keys(WORDINGS) as WeekWording[]) {
+    const refs = templateRefsOf(name);
+    for (const template of dealWeeks(stream).keys()) {
+      const rating = difficulty[refs.get(template) ?? ''];
+      if (rating !== undefined) {
+        right += rating.right * rating.count;
+        count += rating.count;
+      }
+    }
+  }
+  return count === 0 ? 0 : right / count;
+}
+
+/**
+ * Deals one stream's held-out templates into weeks so each week is about as hard.
+ *
+ * Within each list, hardest first, each template goes to the week it brings
+ * closest to the stream's overall rating (closestWeek), weighed by how many
+ * tickets each template gives. Ties keep the seeded shuffle's order. A template
+ * the pool never rated takes its list's mean rating and no weight.
+ *
+ * Args:
+ *   stream: the practice fold whose held-out templates are dealt.
+ *   difficulty: the start model's rating of each template, by name.
+ *   seed: the shuffle's seed.
+ *
+ * Returns:
+ *   The week (0 to WEEKS - 1) of every held-out template, keyed by the template.
+ *
+ * Throws:
+ *   Error('E_SPLIT_RANGE') for a stream outside the folds.
+ */
+export function dealWeeksByDifficulty(stream: number, difficulty: Difficulty, seed: number = DEAL_SEED): Map<Template, number> {
+  const split: Split = { fold: stream, side: 'heldout' };
+  checkSplit(split);
+  const rng = createRng(seed);
+  const deal = new Map<Template, number>();
+  const loads: WeekLoad[] = Array.from({ length: WEEKS }, () => ({ templates: 0, right: 0, count: 0 }));
+  const target = streamRating(stream, difficulty);
+  for (const name of Object.keys(WORDINGS) as WeekWording[]) {
+    const refs = templateRefsOf(name);
+    for (const list of templateLists(WORDINGS[name])) {
+      const items = [...poolOf(list, split)];
+      for (let i = items.length - 1; i > 0; i -= 1) {
+        const j = rng.int(0, i);
+        [items[i], items[j]] = [items[j] as Template, items[i] as Template];
+      }
+      const rated = items.flatMap((template) => {
+        const rating = difficulty[refs.get(template) ?? ''];
+        return rating === undefined ? [] : [rating.right];
+      });
+      const listMean = rated.length === 0 ? 1 : rated.reduce((sum, right) => sum + right, 0) / rated.length;
+      const ratings = items.map((template) => difficulty[refs.get(template) ?? ''] ?? { right: listMean, count: 0 });
+      // Array.prototype.sort is stable, so equal ratings keep the shuffled order.
+      const order = items.map((_, at) => at).sort((a, b) => (ratings[a]?.right ?? 0) - (ratings[b]?.right ?? 0));
+      const ofList = Array.from({ length: WEEKS }, () => 0);
+      for (const at of order) {
+        const template = items[at] as Template;
+        const rating = ratings[at] ?? { right: listMean, count: 0 };
+        const week = closestWeek(loads, ofList, rating, target);
+        const load = loads[week] as WeekLoad;
+        deal.set(template, week);
+        ofList[week] = (ofList[week] ?? 0) + 1;
+        load.templates += 1;
+        load.right += rating.right * rating.count;
+        load.count += rating.count;
+      }
+    }
+  }
+  return deal;
 }
 
 const WORDINGS: Record<WeekWording, Wording> = { 'built-in': BUILT_IN_WORDING, extra: EXTRA_WORDING };
@@ -175,16 +287,24 @@ export function buildPool(stream: number, perWording: number = POOL_PER_WORDING)
  *   Error('E_WEEKS_COUNT') for a count per day that is not a positive even number;
  *   Error('E_WEEKS_SHORT') when a week cannot be filled.
  */
-export function buildWeeks(stream: number, perDay: number = TICKETS_PER_DAY): WeekRow[][] {
+export function buildWeeks(
+  stream: number,
+  perDay: number = TICKETS_PER_DAY,
+  dealt?: ReadonlyMap<Template, number>,
+  teach = false,
+): WeekRow[][] {
   if (!Number.isInteger(perDay) || perDay <= 0 || perDay % 2 !== 0) {
     throw new Error('E_WEEKS_COUNT');
   }
-  const deal = dealWeeks(stream);
+  const deal = dealt ?? dealWeeks(stream);
   const split: Split = { fold: stream, side: 'heldout' };
   const perWording = (DAYS_PER_WEEK * perDay) / 2;
   const weeks: WeekRow[][] = Array.from({ length: WEEKS }, () => []);
   const taken = new Set<string>();
   for (const name of Object.keys(WORDINGS) as WeekWording[]) {
+    // Only kept tickets are built a second time, for their teaching copy.
+    const swap = teach ? swapMapFor(stream, WORDINGS[name]) : undefined;
+    const refs = templateRefsOf(name);
     const filled = Array.from({ length: WEEKS }, () => 0);
     let open = WEEKS;
     for (let index = 0; index < MAX_DRAWS && open > 0; index += 1) {
@@ -194,7 +314,12 @@ export function buildWeeks(stream: number, perDay: number = TICKETS_PER_DAY): We
         continue;
       }
       taken.add(detail.ticket.text);
-      weeks[week]?.push({ week, day: 0, wording: name, ticket: detail.ticket });
+      const row: WeekRow = { week, day: 0, wording: name, ticket: detail.ticket };
+      if (swap !== undefined) {
+        row.teachText = generateTicketDetail(WEEK_SEEDS[name], index, split, WORDINGS[name], swap).teachText ?? '';
+        row.templates = detail.templates.map((template) => refs.get(template) ?? '');
+      }
+      weeks[week]?.push(row);
       filled[week] = (filled[week] ?? 0) + 1;
       if (filled[week] === perWording) {
         open -= 1;

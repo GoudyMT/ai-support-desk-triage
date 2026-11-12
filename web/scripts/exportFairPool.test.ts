@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FOLDS } from '../src/generator/templates';
 import { buildPool, dealWeeks, templateRefsOf, type WeekWording } from '../src/generator/weeks';
-import { normalizeText } from './exportDataset';
 import { buildPoolData, writePool } from './exportFairPool';
 
 // The candidate pool is what the start model scores to learn how hard each
@@ -98,7 +97,7 @@ describe('writePool', () => {
     const stream = data.streams[2];
     const leaked = stream?.rows[0]?.ticket;
     const tampered = {
-      streams: data.streams.map((s) => (s === stream && leaked ? { ...s, startTexts: new Set([...s.startTexts, normalizeText(leaked.text)]) } : s)),
+      streams: data.streams.map((s) => (s === stream && leaked ? { ...s, startRows: [...s.startRows, { text: leaked.text.toUpperCase() }] } : s)),
     };
     expect(() => writePool(dir, tampered, none)).toThrow('E_WEEK_IN_TRAIN');
     expect(readdirSync(dir)).toEqual([]);
