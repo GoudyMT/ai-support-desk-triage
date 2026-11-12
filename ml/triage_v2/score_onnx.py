@@ -1,0 +1,186 @@
+"""Scoring tickets with a frozen model folder, and refusing a folder that is not the frozen one.
+
+A model folder (a "bundle") holds four files: `model_quantized.onnx` (the sentence model),
+`tokenizer.json` (how text becomes token numbers), `heads.json` (the weights that turn a
+sentence vector into a category and a priority) and `manifest.json` (the token limit).
+"""
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+import numpy as np
+import onnxruntime as ort
+from tokenizers import Tokenizer
+
+from triage_v2.share_machine import limit_cpu
+
+# The Windows builds of onnxruntime can report usage to their publisher. This
+# project sends nothing anywhere, so that is switched off before any model loads.
+ort.disable_telemetry_events()
+
+BUNDLE_FILES = ("model_quantized.onnx", "tokenizer.json", "heads.json", "manifest.json")
+HASH_ERROR = "E_MODEL_HASH"
+BATCH_SIZE = 64
+# A run from the command line shares the machine with the owner's other work.
+DEFAULT_CLI_THREADS = 4
+# A ticket with no known word has a zero vector; dividing by this instead of by
+# zero leaves it a zero vector, so its answer comes from the bias alone.
+MIN_NORM = 1e-12
+
+
+def read_bundle(model_dir):
+    """
+    Reads the four bundle files once, as the repo stores them.
+
+    Git on Windows checks a text file out with CRLF line ends. The JSON files are
+    taken in their LF form so one bundle has one fingerprint on every machine.
+
+    Args:
+        model_dir: The model folder.
+
+    Returns:
+        A dict of file name to bytes. The scorer hashes and loads these same
+        bytes, so a file swapped on disk after the check cannot be the one scored.
+    """
+    files = {}
+    for name in BUNDLE_FILES:
+        data = (Path(model_dir) / name).read_bytes()
+        files[name] = data.replace(b"\r\n", b"\n") if name.endswith(".json") else data
+    return files
+
+
+def fingerprint_of(files):
+    """Returns the SHA-256, in hex, of the four files' digests joined in a fixed order."""
+    digests = [hashlib.sha256(files[name]).hexdigest() for name in BUNDLE_FILES]
+    return hashlib.sha256("\n".join(digests).encode("ascii")).hexdigest()
+
+
+def bundle_fingerprint(model_dir):
+    """
+    Returns one fingerprint for the four files that decide a model's answers.
+
+    Args:
+        model_dir: The model folder.
+
+    Returns:
+        The fingerprint, in hex.
+    """
+    return fingerprint_of(read_bundle(model_dir))
+
+
+def _tokenizer_from(files):
+    """Builds the tokenizer from the bundle's bytes, cutting at the bundle's token limit."""
+    manifest = json.loads(files["manifest.json"])
+    tokenizer = Tokenizer.from_str(files["tokenizer.json"].decode("utf-8"))
+    tokenizer.enable_truncation(max_length=manifest["max_length"])
+    tokenizer.enable_padding()
+    return tokenizer
+
+
+def load_tokenizer(model_dir):
+    """
+    Returns the bundle's tokenizer, cutting a ticket at the bundle's token limit.
+
+    A ticket longer than the limit is cut, never refused, and cut at the same
+    token the model was trained with.
+
+    Args:
+        model_dir: The model folder.
+
+    Returns:
+        A tokenizer that pads each batch to its longest ticket.
+    """
+    return _tokenizer_from(read_bundle(model_dir))
+
+
+def _softmax(scores):
+    """Turns each row of scores into probabilities."""
+    shifted = scores - scores.max(axis=1, keepdims=True)
+    exp = np.exp(shifted)
+    return exp / exp.sum(axis=1, keepdims=True)
+
+
+def _embed(session, tokenizer, texts):
+    """Returns one unit-length sentence vector per text: the mean of its real tokens' vectors."""
+    wanted = {item.name for item in session.get_inputs()}
+    vectors = []
+    for start in range(0, len(texts), BATCH_SIZE):
+        encoded = tokenizer.encode_batch(texts[start:start + BATCH_SIZE])
+        feeds = {
+            "input_ids": np.array([item.ids for item in encoded], dtype=np.int64),
+            "attention_mask": np.array([item.attention_mask for item in encoded], dtype=np.int64),
+            "token_type_ids": np.array([item.type_ids for item in encoded], dtype=np.int64),
+        }
+        hidden = session.run(None, {name: value for name, value in feeds.items() if name in wanted})[0]
+        mask = feeds["attention_mask"][..., None].astype(np.float32)
+        pooled = (hidden * mask).sum(axis=1) / mask.sum(axis=1)
+        vectors.append(pooled / np.maximum(np.linalg.norm(pooled, axis=1, keepdims=True), MIN_NORM))
+    return np.concatenate(vectors) if vectors else np.zeros((0, 0), dtype=np.float32)
+
+
+def score(model_dir, rows, expected_sha256, threads=None):
+    """
+    Scores tickets with a model folder after proving it is the recorded one.
+
+    Args:
+        model_dir: The model folder.
+        rows: Tickets, each with `id` and `maskedText`.
+        expected_sha256: The recorded bundle fingerprint.
+        threads: The most CPU threads the model may use; every core when None.
+            A long run on a shared machine passes a small number.
+
+    Returns:
+        One answer per row, in order: `id`, then for every answer head in the
+        bundle (`category`, `priority` and any other it was trained with) the
+        chosen class under the head's name and a probability for every class
+        under `<name>_probs`.
+
+    Raises:
+        ValueError: The folder's fingerprint is not the recorded one (E_MODEL_HASH).
+    """
+    files = read_bundle(model_dir)
+    if fingerprint_of(files) != expected_sha256:
+        raise ValueError(HASH_ERROR)
+    heads = json.loads(files["heads.json"])
+    tokenizer = _tokenizer_from(files)
+    options = ort.SessionOptions()
+    if threads is not None:
+        options.intra_op_num_threads = threads
+        options.inter_op_num_threads = 1
+    # Loaded from the checked bytes, not by path: a model that kept weights in a
+    # side file, outside the fingerprint, cannot load this way.
+    session = ort.InferenceSession(files["model_quantized.onnx"], options, providers=["CPUExecutionProvider"])
+    vectors = _embed(session, tokenizer, [row["maskedText"] for row in rows])
+
+    answers = [{"id": row["id"]} for row in rows]
+    for field, head in heads.items():
+        weight = np.array(head["weight"], dtype=np.float32)
+        probs = _softmax(vectors @ weight.T + np.array(head["bias"], dtype=np.float32)) if rows else []
+        for answer, row_probs in zip(answers, probs):
+            answer[field] = head["classes"][int(row_probs.argmax())]
+            answer[f"{field}_probs"] = {name: float(value) for name, value in zip(head["classes"], row_probs)}
+    return answers
+
+
+def main():
+    """Scores a jsonl file of tickets with a bundle; writes the answers and the bundle fingerprint as JSON."""
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("--bundle", required=True, help="the model folder")
+    parser.add_argument("--fingerprint", required=True, help="the recorded bundle fingerprint")
+    parser.add_argument("--rows", required=True, help="tickets, one JSON object per line, each with id and maskedText")
+    parser.add_argument("--out", required=True, help="where to write the answers")
+    parser.add_argument("--threads", type=int, default=DEFAULT_CLI_THREADS, help="the most CPU threads to use")
+    args = parser.parse_args()
+    limit_cpu()
+    with open(args.rows, encoding="utf-8") as handle:
+        rows = [json.loads(line) for line in handle if line.strip()]
+    answers = score(args.bundle, rows, args.fingerprint, args.threads)
+    written = {"bundle_fingerprint": args.fingerprint, "answers": answers}
+    Path(args.out).write_text(json.dumps(written), encoding="utf-8")
+    print(f"    Scored: {len(answers):,} tickets -> {args.out}")
+
+
+if __name__ == "__main__":
+    main()

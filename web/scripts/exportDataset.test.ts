@@ -137,7 +137,7 @@ describe('writeDatasets', () => {
   it('writes train_<k>, heldout_<k>, train_all and handwritten, no train.jsonl or heldout.jsonl, and reports each with its row count', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'export-folds-'));
     try {
-      const written = writeDatasets(join(scratch, 'nested'), SMALL, TRAIN_ALL, HANDWRITTEN);
+      const written = writeDatasets(join(scratch, 'nested'), SMALL, TRAIN_ALL, HANDWRITTEN, []);
       const expected = [...FOLD_IDS.flatMap((fold) => [`train_${fold}.jsonl`, `heldout_${fold}.jsonl`]), 'train_all.jsonl', 'handwritten.jsonl'];
       expect(readdirSync(join(scratch, 'nested')).sort()).toEqual([...expected].sort());
       expect(written.map(({ target }) => target.split(/[\\/]/).pop())).toEqual(expected);
@@ -167,7 +167,7 @@ describe('writeDatasets', () => {
   it('writes the 48 hand-written rows in order with every frozen field unchanged plus maskedText and v0', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'export-hand-'));
     try {
-      writeDatasets(scratch, SMALL, TRAIN_ALL, HANDWRITTEN);
+      writeDatasets(scratch, SMALL, TRAIN_ALL, HANDWRITTEN, []);
       const frozen = parseJsonl(readFileSync(FROZEN_URL, 'utf8'));
       const out = parseJsonl(readFileSync(join(scratch, 'handwritten.jsonl'), 'utf8'));
       expect(out).toHaveLength(HANDWRITTEN_ROWS);
@@ -192,7 +192,7 @@ describe('writeDatasets', () => {
     try {
       const text = 'You can reach me at ada@example.test about the invoice.';
       expect(v0Triage(maskText(text).text)).not.toEqual(v0Triage(text));
-      writeDatasets(scratch, SMALL, TRAIN_ALL, [{ id: 'H-fake', text }]);
+      writeDatasets(scratch, SMALL, TRAIN_ALL, [{ id: 'H-fake', text }], []);
       const [row] = parseJsonl(readFileSync(join(scratch, 'handwritten.jsonl'), 'utf8'));
       expect(row?.text).toBe(text);
       expect(row?.maskedText).toBe('You can reach me at [EMAIL_ADDRESS] about the invoice.');
@@ -214,10 +214,10 @@ describe('writeDatasets', () => {
       }
       const leaked = [{ ...sample, text: `${handwritten.toUpperCase()}!!` }];
       const target = join(scratch, 'nested');
-      expect(() => writeDatasets(target, SMALL, leaked, HANDWRITTEN)).toThrow('E_HANDWRITTEN_IN_TRAIN');
+      expect(() => writeDatasets(target, SMALL, leaked, HANDWRITTEN, [])).toThrow('E_HANDWRITTEN_IN_TRAIN');
       expect(existsSync(target)).toBe(false);
       const inFold = SMALL.map((dataset) => ({ ...dataset, train: leaked }));
-      expect(() => writeDatasets(target, inFold, TRAIN_ALL, HANDWRITTEN)).toThrow('E_HANDWRITTEN_IN_TRAIN');
+      expect(() => writeDatasets(target, inFold, TRAIN_ALL, HANDWRITTEN, [])).toThrow('E_HANDWRITTEN_IN_TRAIN');
       expect(existsSync(target)).toBe(false);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
@@ -297,9 +297,13 @@ describe('runExport', () => {
         sets: [{ leftOut: [0, 1] as [number, number], train: generateTickets(TRAIN_SEED, 3, { fold: 0, side: 'train', alsoHeldOut: 1 }) }],
         folds: SMALL,
         handwritten: loadHandwritten(),
+        blind: [],
       }
     ),
-    datasets: () => (ran.push('datasets'), { datasets: SMALL, trainAll: generateTickets(TRAIN_SEED, 4), handwritten: loadHandwritten() }),
+    datasets: () => (
+      ran.push('datasets'),
+      { datasets: SMALL, trainAll: generateTickets(TRAIN_SEED, 4), handwritten: loadHandwritten(), blind: [] }
+    ),
   });
 
   it('with --tuning writes only the tuning sets', () => {
@@ -373,7 +377,7 @@ describe('the tuning sets', () => {
       const leak = FOLD_SETS[fold]?.heldout[0];
       if (first === undefined || second === undefined || leak === undefined) throw new Error('fixture');
       const leaky = { leftOut: first.leftOut, train: [...first.train, { ...leak, text: leak.text.toUpperCase() }] };
-      expect(() => writeTuningSets(dir, [second, leaky], FOLD_SETS, loadHandwritten())).toThrow('E_TUNE_OVERLAP');
+      expect(() => writeTuningSets(dir, [second, leaky], FOLD_SETS, loadHandwritten(), [])).toThrow('E_TUNE_OVERLAP');
       expect(readdirSync(dir)).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -387,7 +391,7 @@ describe('the tuning sets', () => {
     try {
       const [first] = TUNING;
       if (first === undefined) throw new Error('fixture');
-      const written = writeTuningSets(dir, [first], FOLD_SETS, loadHandwritten());
+      const written = writeTuningSets(dir, [first], FOLD_SETS, loadHandwritten(), []);
       expect(written.map(({ target }) => target.split(/[\\/]/).pop())).toEqual(['tune_0_1.jsonl']);
       expect(written[0]?.rows).toBe(20_000);
       const rows = parseJsonl(readFileSync(written[0]?.target ?? '', 'utf8'));

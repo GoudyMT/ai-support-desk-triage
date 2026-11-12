@@ -1,0 +1,52 @@
+{
+ "fingerprint": "7a4058a4510ce226d3df2deaded22adde8e0e7331eb5ec17d78fb08ba3331b26",
+ "max_length": 256,
+ "base_model": {
+  "name": "sentence-transformers/all-MiniLM-L6-v2",
+  "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+ },
+ "trained_on": {
+  "file": "v2_train.jsonl",
+  "tickets": 20000
+ },
+ "settings": {
+  "fields": [
+   "category",
+   "priority"
+  ],
+  "epochs": 2,
+  "learning_rate": 2e-05,
+  "batch_size": 64,
+  "max_length": 256
+ },
+ "bundle_bytes": {
+  "heads.json": 110533,
+  "manifest.json": 23,
+  "model_quantized.onnx": 22843709,
+  "tokenizer.json": 711649
+ },
+ "train_seconds": 67.9,
+ "scored": {
+  "desk": {
+   "n": 4000,
+   "category_right": 3161,
+   "priority_right": 3232,
+   "high_urgent_called_low": 23,
+   "must_review_wrong_category": 217
+  },
+  "handwritten": {
+   "n": 48,
+   "category_right": 45,
+   "priority_right": 41,
+   "high_urgent_called_low": 2,
+   "must_review_wrong_category": 3
+  },
+  "fresh": {
+   "n": 60,
+   "category_right": 49,
+   "priority_right": 48,
+   "high_urgent_called_low": 4,
+   "must_review_wrong_category": 3
+  }
+ }
+}

@@ -1,0 +1,112 @@
+{
+ "gate": "web/src/model/model.json (the shipped word model, unchanged)",
+ "answer": {
+  "bundle_fingerprint": "7a4058a4510ce226d3df2deaded22adde8e0e7331eb5ec17d78fb08ba3331b26"
+ },
+ "floor": 0.5,
+ "how": "npm --prefix web run measure-two-models -- --write-sets (worked out again by CI with --check-sets)",
+ "sets": {
+  "desk-only wording": {
+   "file": "v2_desk.jsonl",
+   "today": {
+    "tickets": 4000,
+    "flagged": 3183,
+    "mustReview": 1493,
+    "highRiskMissed": 83,
+    "highUrgentOutLow": 3,
+    "silentCategory": 2,
+    "silentPriority": 135
+   },
+   "both": {
+    "tickets": 4000,
+    "flagged": 3333,
+    "mustReview": 1493,
+    "highRiskMissed": 73,
+    "highUrgentOutLow": 0,
+    "silentCategory": 0,
+    "silentPriority": 15
+   },
+   "reviewed": 3333,
+   "suggestion": {
+    "gate": {
+     "category": 1819,
+     "priority": 1817,
+     "both": 1117
+    },
+    "answer": {
+     "category": 2494,
+     "priority": 2367,
+     "both": 1957
+    }
+   }
+  },
+  "hand-written (seen)": {
+   "file": "handwritten.jsonl",
+   "today": {
+    "tickets": 48,
+    "flagged": 32,
+    "mustReview": 22,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 0,
+    "silentCategory": 2,
+    "silentPriority": 4
+   },
+   "both": {
+    "tickets": 48,
+    "flagged": 36,
+    "mustReview": 22,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 0,
+    "silentCategory": 0,
+    "silentPriority": 0
+   },
+   "reviewed": 36,
+   "suggestion": {
+    "gate": {
+     "category": 27,
+     "priority": 27,
+     "both": 24
+    },
+    "answer": {
+     "category": 33,
+     "priority": 29,
+     "both": 28
+    }
+   }
+  },
+  "hand-written (fresh)": {
+   "file": "v2_handwritten_fresh.jsonl",
+   "today": {
+    "tickets": 60,
+    "flagged": 47,
+    "mustReview": 24,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 0,
+    "silentCategory": 0,
+    "silentPriority": 3
+   },
+   "both": {
+    "tickets": 60,
+    "flagged": 50,
+    "mustReview": 24,
+    "highRiskMissed": 0,
+    "highUrgentOutLow": 0,
+    "silentCategory": 0,
+    "silentPriority": 1
+   },
+   "reviewed": 50,
+   "suggestion": {
+    "gate": {
+     "category": 39,
+     "priority": 35,
+     "both": 31
+    },
+    "answer": {
+     "category": 39,
+     "priority": 39,
+     "both": 33
+    }
+   }
+  }
+ }
+}

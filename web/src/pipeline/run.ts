@@ -1,6 +1,6 @@
 import { v0Triage } from '../baseline/v0';
 import { ROUTES, type Category, type Priority } from '../domain/labels';
-import { score, type Model } from '../model/scorer';
+import { score, type HeadName, type Model, type Prediction } from '../model/scorer';
 import { maskText } from '../privacy/mask';
 import { guard, secondCheck } from './guard';
 import { intake } from './intake';
@@ -14,12 +14,19 @@ export const CONFIDENCE_FLOOR = 0.5;
 // and one on the fresh hand-written set.
 export const SECOND_CHECK_ON = false;
 
-export interface RunDeps {
-  model: Model;
+// How a ticket gets its category and priority. The page scores with the model
+// it loaded; a measurement of a model that does not run here passes its own.
+export type Predict = (head: HeadName, maskedText: string, id: string) => Prediction;
+
+export interface RunSettings {
   reviewer: Reviewer;
   floor: number;
   secondCheckOn: boolean;
   now: () => number;
+}
+
+export interface RunDeps extends RunSettings {
+  model: Model;
 }
 
 /**
@@ -32,14 +39,28 @@ export interface RunDeps {
  * @throws Error('E_EMPTY_TICKET') or Error('E_TICKET_TOO_LONG') from intake.
  */
 export function runTicket(text: string, id: string, deps: RunDeps): TicketTrail {
+  return runTicketWith(text, id, (head, maskedText) => score(deps.model, head, maskedText), deps);
+}
+
+/**
+ * Runs one ticket through the same stages as `runTicket`, taking its category and priority from `predict`.
+ *
+ * @param text The ticket as typed.
+ * @param id The ticket's id.
+ * @param predict Where the ticket's category and priority come from.
+ * @param deps The reviewer, confidence floor, second-check switch and clock.
+ * @returns The ticket's trail.
+ * @throws Error('E_EMPTY_TICKET') or Error('E_TICKET_TOO_LONG') from intake, and whatever `predict` throws.
+ */
+export function runTicketWith(text: string, id: string, predict: Predict, deps: RunSettings): TicketTrail {
   const t0 = deps.now();
   const record = intake(text, id, t0);
   // v0 read the raw text on the original page, so the comparison feeds it the same;
   // only its answer is kept.
   const v0 = v0Triage(record.text);
   const { text: maskedText, found } = maskText(record.text);
-  const category = score(deps.model, 'category', maskedText);
-  const priority = score(deps.model, 'priority', maskedText);
+  const category = predict('category', maskedText, id);
+  const priority = predict('priority', maskedText, id);
   const checked = guard(category, priority.label as Priority, maskedText, deps.floor);
   const result = deps.secondCheckOn ? secondCheck(checked, category) : checked;
   const modelCategory = category.label as Category;

@@ -1,0 +1,62 @@
+{
+ "category": {
+  "classes": [
+   "Billing",
+   "Technical Issue"
+  ],
+  "weight": [
+   [
+    4.0,
+    0.0
+   ],
+   [
+    0.0,
+    4.0
+   ]
+  ],
+  "bias": [
+   0.0,
+   0.0
+  ]
+ },
+ "priority": {
+  "classes": [
+   "High",
+   "Medium"
+  ],
+  "weight": [
+   [
+    0.0,
+    4.0
+   ],
+   [
+    4.0,
+    0.0
+   ]
+  ],
+  "bias": [
+   0.0,
+   0.0
+  ]
+ },
+ "mustReview": {
+  "classes": [
+   "false",
+   "true"
+  ],
+  "weight": [
+   [
+    4.0,
+    0.0
+   ],
+   [
+    0.0,
+    4.0
+   ]
+  ],
+  "bias": [
+   0.0,
+   0.0
+  ]
+ }
+}
