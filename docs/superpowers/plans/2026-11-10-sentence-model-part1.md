@@ -1,8 +1,9 @@
 # Sentence Model, Part 1 Plan: The Test Set, the Tickets and the Offline Model
 
 ## Progress
-- Current task: R1 below. The design changed on 2026-11-11 (design doc, Revision 1: two models; locked by the owner). Tasks 5 and 6 as first written are closed by their results in the notes; the remaining work is the "Revised tasks" list. No GPU, export or bulk scoring run starts without the owner's word (lesson L-14)
-- Done (with evidence):
+- Current task: none; Part 1 is closed (next line). The design changed on 2026-11-11 (design doc, Revision 1: two models; locked by the owner). Tasks 5 and 6 as first written are closed by their results in the notes; the remaining work is the "Revised tasks" list. No GPU, export or bulk scoring run starts without the owner's word (lesson L-14)
+- Closed: Part 1 merged as PR #12, squash commit 5287e12 (2026-11-12 UTC); main CI and deploy green. Part 2: `2026-11-12-sentence-model-part2.md`
+- Done (with evidence), 2026-11-10 to 2026-11-11:
   - Task 0 - report `.kit/reports/real-ticket-sets-2026-11.md` (local); no usable real-ticket set found; posted to the owner 2026-11-10
   - Wording seam - 0ab40ec - 150 generator tests pass; the four v1 stream hashes hold and turn red when one draw is swapped
   - Task 1 - 3ad7454, 3a11291 - blind set frozen: 2,000 rows, SHA-256 bc140a24...4850415d; 11 structure tests and 6 export tests pass; both guard tests turn red with the guard commented out; `export-data` and `export-tuning` run with the guard live and write the same v1 bytes; 121 Python tests pass
