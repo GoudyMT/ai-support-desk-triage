@@ -15,6 +15,7 @@
     "export-tuning": "tsx scripts/exportDataset.ts --tuning",
     "export-blind": "tsx scripts/exportBlind.ts",
     "export-weeks": "tsx scripts/exportWeeks.ts",
+    "export-fair-pool": "tsx scripts/exportFairPool.ts",
     "export-v2": "tsx scripts/exportV2.ts",
     "measure-answers": "tsx scripts/measureAnswers.ts",
     "measure-two-models": "tsx scripts/measureTwoModels.ts",

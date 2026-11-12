@@ -19,6 +19,8 @@ const WEEK_SEEDS = { 'built-in': 41, extra: 51 } as const;
 // Weeks of rare templates fill slowly; past this many draws per wording the
 // stream cannot fill its weeks and the run stops instead of looping.
 const MAX_DRAWS = 2_000_000;
+// Held-out draws per wording that the start model scores to rate each template.
+export const POOL_PER_WORDING = 20_000;
 
 export type WeekWording = keyof typeof WEEK_SEEDS;
 
@@ -31,15 +33,20 @@ export interface WeekRow {
 
 const WORDINGS: Record<WeekWording, Wording> = { 'built-in': BUILT_IN_WORDING, extra: EXTRA_WORDING };
 
-// Every list a ticket's body is drawn from. Openers, requests, closers,
-// connectors and threat phrases are shared voice, not templates, and stay out.
-function templateLists(wording: Wording): (readonly Template[])[] {
+// Every list a ticket's body is drawn from, with a short name. Openers, requests,
+// closers, connectors and threat phrases are shared voice, not templates, and
+// stay out. Names use the category's place, since a category name holds a slash.
+function namedTemplateLists(wording: Wording): [string, readonly Template[]][] {
   return [
-    ...CATEGORIES.map((category) => wording.templates[category]),
-    ...CATEGORIES.map((category) => wording.trapTemplates[category]),
-    wording.vagueTemplates,
-    wording.politeSecurityTemplates,
+    ...CATEGORIES.map((category, at): [string, readonly Template[]] => [`plain${at}`, wording.templates[category]]),
+    ...CATEGORIES.map((category, at): [string, readonly Template[]] => [`trap${at}`, wording.trapTemplates[category]]),
+    ['vague', wording.vagueTemplates],
+    ['politeSecurity', wording.politeSecurityTemplates],
   ];
+}
+
+function templateLists(wording: Wording): (readonly Template[])[] {
+  return namedTemplateLists(wording).map(([, list]) => list);
 }
 
 /**
@@ -98,6 +105,56 @@ export function weekOfTicket(templates: readonly Template[], deal: ReadonlyMap<T
     return undefined;
   }
   return [...weeks][0];
+}
+
+export interface PoolRow {
+  wording: WeekWording;
+  ticket: Ticket;
+  templates: string[];
+}
+
+/**
+ * A stable name for every template of a wording: `<wording>|<list>|<index>`.
+ *
+ * Args:
+ *   wording: which wording's templates to name.
+ *
+ * Returns:
+ *   The name of each template.
+ */
+export function templateRefsOf(wording: WeekWording): Map<Template, string> {
+  const refs = new Map<Template, string>();
+  for (const [name, list] of namedTemplateLists(WORDINGS[wording])) {
+    list.forEach((template, index) => refs.set(template, `${wording}|${name}|${index}`));
+  }
+  return refs;
+}
+
+/**
+ * The tickets the start model scores to rate a stream's held-out templates.
+ *
+ * They are the first draws of each wording from the week seeds, the same draws
+ * the week builder picks its tickets from, so a template is rated on tickets
+ * like the ones it will be scored on.
+ *
+ * Args:
+ *   stream: the practice fold.
+ *   perWording: draws per wording.
+ *
+ * Returns:
+ *   The tickets, each with the names of the templates it used.
+ */
+export function buildPool(stream: number, perWording: number = POOL_PER_WORDING): PoolRow[] {
+  const split: Split = { fold: stream, side: 'heldout' };
+  checkSplit(split);
+  return (Object.keys(WORDINGS) as WeekWording[]).flatMap((name) => {
+    const refs = templateRefsOf(name);
+    return Array.from({ length: perWording }, (_, index) => {
+      const detail = generateTicketDetail(WEEK_SEEDS[name], index, split, WORDINGS[name]);
+      const templates = detail.templates.map((template) => refs.get(template) ?? '');
+      return { wording: name, ticket: detail.ticket, templates };
+    });
+  });
 }
 
 /**

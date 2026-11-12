@@ -43,12 +43,19 @@ export function startPair(stream: number): [number, number] {
   return stream < other ? [stream, other] : [other, stream];
 }
 
+/** Normalised texts of the start model's training set for a stream. */
+export function startTextsOf(stream: number, trainPerWording: number): Set<string> {
+  const [fold, alsoHeldOut] = startPair(stream);
+  const start = buildV2Train({ fold, side: 'train', alsoHeldOut }, trainPerWording);
+  return new Set(start.map((ticket) => normalizeText(ticket.text)));
+}
+
 export function buildWeekData(sizes: WeekSizes = { perDay: TICKETS_PER_DAY, trainPerWording: V2_SIZES.trainPerWording }): WeekData {
-  const streams = Array.from({ length: FOLDS }, (_, stream) => {
-    const [fold, alsoHeldOut] = startPair(stream);
-    const start = buildV2Train({ fold, side: 'train', alsoHeldOut }, sizes.trainPerWording);
-    return { stream, weeks: buildWeeks(stream, sizes.perDay), startTexts: new Set(start.map((ticket) => normalizeText(ticket.text))) };
-  });
+  const streams = Array.from({ length: FOLDS }, (_, stream) => ({
+    stream,
+    weeks: buildWeeks(stream, sizes.perDay),
+    startTexts: startTextsOf(stream, sizes.trainPerWording),
+  }));
   return { streams };
 }
 

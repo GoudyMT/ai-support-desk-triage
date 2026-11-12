@@ -6,7 +6,8 @@
   - design approved by the owner 2026-11-12 ("Plan looks good, lets continue"); plan approved 2026-11-12 ("And then let's begin")
   - Task 0 - fd51002 - `tracking-check.mjs progress` PASS on both plans
   - Task 1 - `pieces.test.ts` 12 tests red on the stub (11 failed), green after; 4 breaks (connector not swapped, one stand-in for all, month not swapped, unmapped piece kept) each turned rows red, files restored byte for byte; web suite 63 files, 1,425 tests, exit 0 (v1 and v2 hashes held); typecheck and lint exit 0
-- Next: Task 2
+  - Task 2 - `exportFairPool.test.ts` 10 tests, 8 red on stubs, green after; 4 breaks (start-set guard, desk guard, pool from another stream; one break pattern first missed and was redone) each turned a row red, files restored; `npm run export-fair-pool` in 13.9 s: 40,000 tickets per stream, held-out templates 125, 124, 123, 123, none never drawn, fewest tickets for one template 16; typecheck and lint exit 0
+- Next: Task 3
 - Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
 - Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
 
