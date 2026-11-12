@@ -79,3 +79,26 @@ def judge(report):
         and all(s["hard_lines_held"] for s in streams)
     )
     return {"passed": passed, "complete": complete, "streams": streams}
+
+
+RECORD_NOTE = (
+    "Recorded once on the owner's PC; the models trained in the run are not in the repo, so CI "
+    "judges these counts again (test_ninety_day_record.py) but does not retrain."
+)
+
+
+def main():
+    """Writes the verdict into the run's record, so the record and its judgement travel together."""
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "reports" / "ninety_day.json"
+    report = json.loads(path.read_text(encoding="utf-8"))
+    report["note"] = RECORD_NOTE
+    report["verdict"] = judge(report)
+    path.write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8", newline="\n")
+    print(f"    Passed: {report['verdict']['passed']} (complete: {report['verdict']['complete']})")
+
+
+if __name__ == "__main__":
+    main()
