@@ -80,6 +80,39 @@ def test_a_busy_gpu_stops_the_run_before_any_limit_is_set(monkeypatch):
     assert touched == []
 
 
+def test_one_spike_does_not_stop_a_run_but_a_busy_middle_sample_does():
+    # A single reading caught the GPU mid-spike or mid-pause; the middle of three does not.
+    assert share_machine.machine_too_busy([10, 20, 95], [5, 5, 5]) is False
+    assert share_machine.machine_too_busy([10, GPU_BUSY_PERCENT, 95], [5, 5, 5]) is True
+
+
+def test_a_busy_cpu_stops_a_run_too():
+    # The PC crashed when a run took every core while the GPU had room; the CPU counts as well.
+    limit = share_machine.CPU_BUSY_PERCENT
+    assert share_machine.machine_too_busy([5, 5, 5], [limit - 1, limit, limit + 3]) is True
+    assert share_machine.machine_too_busy([5, 5, 5], [limit - 1, limit - 1, limit + 3]) is False
+
+
+def test_an_unreadable_sample_stops_a_run():
+    assert share_machine.machine_too_busy([5, None, 5], [5, 5, 5]) is True
+    assert share_machine.machine_too_busy([5, 5, 5], [5, 5, None]) is True
+
+
+def test_the_check_reads_the_machine_three_times(monkeypatch):
+    reads = []
+    monkeypatch.setattr(share_machine, "read_gpu_percent", lambda: reads.append("gpu") or 90)
+    monkeypatch.setattr(share_machine, "read_cpu_percent", lambda: reads.append("cpu") or 5)
+    with pytest.raises(SystemExit) as stop:
+        share_machine.share_the_machine()
+    assert stop.value.code == BUSY_ERROR
+    assert reads.count("gpu") == 3 and reads.count("cpu") == 3
+
+
+def test_the_cpu_load_reads_as_a_share_of_the_machine():
+    used = share_machine.read_cpu_percent()
+    assert used is not None and 0 <= used <= 100
+
+
 def test_a_gpu_tool_that_fails_reads_as_unknown_not_as_idle(monkeypatch):
     def missing(*args, **kwargs):
         raise OSError("no such tool")

@@ -7,8 +7,10 @@ all of the GPU starves that work, and has crashed the machine. Every long run ca
 
 import ctypes
 import os
+import statistics
 import subprocess
 import sys
+import time
 
 CPU_THREADS = 4
 GPU_MEMORY_SHARE = 0.4
@@ -38,6 +40,62 @@ def gpu_too_busy(used_percent, limit=GPU_BUSY_PERCENT):
         that cannot see the machine's load does not get to assume it is idle.
     """
     return used_percent is None or used_percent >= limit
+
+
+# The PC crashed under a run that took every core while the GPU still had room, so the
+# CPU's use stops a run at the same mark.
+CPU_BUSY_PERCENT = GPU_BUSY_PERCENT
+# One reading can land on a spike or a pause; the middle of three is the machine's state.
+SAMPLES = 3
+CPU_SAMPLE_SECONDS = 1.0
+
+
+def machine_too_busy(gpu_samples, cpu_samples):
+    """
+    Says whether the machine is too busy for a long run, from a few readings of each.
+
+    Args:
+        gpu_samples: The GPU's use in percent per reading; None where it could not be read.
+        cpu_samples: The CPU's use in percent per reading; None where it could not be read.
+
+    Returns:
+        True when any reading is missing, or the middle GPU or CPU reading is at or
+        above its mark.
+    """
+    if any(sample is None for sample in [*gpu_samples, *cpu_samples]):
+        return True
+    return gpu_too_busy(statistics.median(gpu_samples)) or statistics.median(cpu_samples) >= CPU_BUSY_PERCENT
+
+
+def _windows_cpu_times():
+    idle, kernel_time, user_time = (ctypes.c_ulonglong(), ctypes.c_ulonglong(), ctypes.c_ulonglong())
+    if not ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kernel_time), ctypes.byref(user_time)):
+        return None
+    # Windows counts idle time inside kernel time.
+    return idle.value, kernel_time.value + user_time.value
+
+
+def _linux_cpu_times():
+    with open("/proc/stat", encoding="ascii") as handle:
+        fields = [int(value) for value in handle.readline().split()[1:]]
+    # idle and iowait are the 4th and 5th fields.
+    return fields[3] + fields[4], sum(fields)
+
+
+def read_cpu_percent(seconds=CPU_SAMPLE_SECONDS):
+    """Returns the whole machine's CPU use in percent over a short wait, or None when it cannot be read."""
+    read = _windows_cpu_times if sys.platform == "win32" else _linux_cpu_times
+    try:
+        first = read()
+        time.sleep(seconds)
+        second = read()
+    except (OSError, ValueError, IndexError, AttributeError):
+        return None
+    if first is None or second is None or second[1] <= first[1]:
+        return None
+    idle = second[0] - first[0]
+    total = second[1] - first[1]
+    return 100.0 * (total - idle) / total
 
 
 def read_gpu_percent():
@@ -158,7 +216,9 @@ def limit_cpu():
 
 def share_the_machine(force=False):
     """
-    Caps this process before a long run, or stops it when the GPU is busy.
+    Caps this process before a long run, or stops it when the machine is busy.
+
+    The GPU and the CPU are each read three times (machine_too_busy).
 
     It lowers the process priority, binds the process to a few CPU cores, limits
     PyTorch to part of the GPU's memory, and returns the CPU thread cap.
@@ -173,9 +233,13 @@ def share_the_machine(force=False):
         SystemExit: The GPU is busy and `force` is not set (E_MACHINE_BUSY), or
             a limit did not take (E_LIMIT_NOT_SET).
     """
-    used = read_gpu_percent()
-    if gpu_too_busy(used) and not force:
-        print(f"    GPU in use: {used}% (limit {GPU_BUSY_PERCENT}%). Not starting; pass --force only on the owner's word.")
+    gpu = []
+    cpu = []
+    for _ in range(SAMPLES):
+        gpu.append(read_gpu_percent())
+        cpu.append(read_cpu_percent())
+    if machine_too_busy(gpu, cpu) and not force:
+        print(f"    GPU in use: {gpu}%, CPU in use: {cpu}% (limit {GPU_BUSY_PERCENT}% on the middle reading). Not starting; pass --force only on the owner's word.")
         raise SystemExit(BUSY_ERROR)
     limit_cpu()
     import torch
