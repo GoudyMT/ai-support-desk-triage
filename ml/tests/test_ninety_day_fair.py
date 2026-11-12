@@ -148,9 +148,11 @@ def test_the_fair_run_keeps_to_its_own_record_and_files():
     assert ninety_day.weeks_name(2, fair=False) == "v2_weeks_2.jsonl"
 
 
-def test_refuses_a_work_folder_inside_the_repo(tmp_path):
+def test_refuses_a_work_folder_inside_the_repo(tmp_path, monkeypatch):
+    # A stand-in repo, so a broken check writes into the test's own folder, never the real repo.
+    monkeypatch.setattr(ninety_day, "REPO_DIR", tmp_path / "repo")
     fakes = FairFakes()
-    inside = ninety_day.REPO_DIR / "ml" / "work-that-must-not-exist"
+    inside = tmp_path / "repo" / "ml" / "work"
     with pytest.raises(SystemExit) as stopped:
         run_balance(1, fakes, inside, tmp_path / "report.json", {"epochs": 1})
     assert stopped.value.code == WORK_IN_REPO
