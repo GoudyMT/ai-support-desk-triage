@@ -1,13 +1,14 @@
 # Sentence Model, Part 2 Plan: The 90-Day Run, the Desk and the Release
 
 ## Progress
-- Current task: 4 (plan approved by the owner 2026-11-12, "Let's begin")
+- Current task: 5 (plan approved by the owner 2026-11-12, "Let's begin")
 - Done (with evidence), 2026-11-12:
   - Part 1 plan's Progress block closed with the merge of #12 - 9d93c1f - `tracking-check.mjs progress` PASS
   - Design approved and committed - e1ae8fe
   - Tasks 1-2 (merged, see notes) - `weeks.ts` 15 tests, `exportWeeks.ts` 5 tests; breaks of the week check and of each of the three export guards each turned one row red; `npm run export-weeks` in 4 s: streams hold 125, 124, 123, 123 templates, 9 or 10 per week, every week filled, 9,100 rows per stream
   - Task 3 - `runWeek.ts` 6 tests red on the stub, green after; breaks of the department count and of the checked-ticket path each turned rows red; typecheck and lint exit 0
-- Next: Task 4
+  - Task 4 - `judge_ninety.py` 7 tests and `ninety_day.py` 7 tests, red on stubs, green after; 3 breaks of the mark and 3 of the driver each turned rows red; `pytest ml/tests` 188 passed
+- Next: Task 5 (Owner stop 1: the GPU run)
 - Branch: `feat/sentence-model-part2` (local, from `main` at 5287e12)
 - Open questions: see "Owner stops"; the wider privacy mask (Task 16) is marked stretch because it changes the text the bundle was trained on
 
