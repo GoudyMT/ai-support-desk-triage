@@ -21,3 +21,7 @@ model above. A copy of the license is in `LICENSE` beside this file.
 
 The training tickets are generated and fictional; no customer data was used.
 `ml/reports/bundle_v2.json` records the bundle's fingerprint, its training settings and its scores.
+
+The recorded answers were made on one Windows PC. Because the weights are stored in 8 bits, another
+CPU can give a different answer where two classes are nearly tied: a Linux machine differed on 13 of
+4,000 desk-only tickets and on none of the 108 hand-written ones.

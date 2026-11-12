@@ -15,10 +15,14 @@ REPORT = json.loads((ML_DIR / "reports" / "bundle_v2.json").read_text(encoding="
 RECORD = json.loads((ML_DIR / "reports" / "bundle_v2_answers.json").read_text(encoding="utf-8"))
 GENERATED = ML_DIR / "data" / "generated"
 # How many tickets of a set another machine may answer differently from the
-# record. None: every published count is worked out from the recorded answers,
-# so a scorer, a package version or a CPU that changes one answer must show up
-# here and be decided on, with the measured difference written down.
-ANSWERS_MAY_DIFFER = 0
+# record, which was made on the owner's PC. The model file holds 8-bit weights,
+# and CPUs round them differently: CI's Linux machine gave another answer on 13
+# of the 4,000 desk-only tickets, all of them close calls between two classes,
+# and on none of either hand-written set (measured 2026-11-11). The owner set
+# the limit at 0.5% of the desk-only set and one ticket on each small set. Every
+# published count is worked out from the recorded answers, never from the
+# machine that runs this test, so this room moves no published number.
+ANSWERS_MAY_DIFFER = {"desk": 20, "handwritten": 1, "fresh": 1}
 THREADS = 4
 
 
@@ -53,7 +57,7 @@ def test_the_bundle_still_gives_its_recorded_answer_for_every_ticket(name):
     recorded = RECORD["sets"][name]["answers"]
     assert len(got) == len(recorded)
     differing = [new[0] for new, old in zip(got, recorded) if new != old]
-    assert len(differing) <= ANSWERS_MAY_DIFFER, f"{len(differing)} tickets answered differently, first ids: {differing[:10]}"
+    assert len(differing) <= ANSWERS_MAY_DIFFER[name], f"{len(differing)} tickets answered differently: {differing}"
 
 
 @pytest.mark.parametrize("name", sorted(SCORED_FILES))
