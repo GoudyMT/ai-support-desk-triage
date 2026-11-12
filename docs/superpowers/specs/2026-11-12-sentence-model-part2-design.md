@@ -48,7 +48,7 @@ The demo page's model; fewer tickets to a person (held for later work by the own
 
 | Risk or question | Who settles it |
 |---|---|
-| Each stream has 93 to 95 held-out department templates (39 to 41 built-in, `templates.ts`; 54 extra, `extraFrames.ts`) plus the hard-case lists, so a weekly batch holds about 7, and not every department appears every week | The control comparison removes the difficulty gap; the plan's first check counts the templates per stream by script |
+| Each stream has 93 to 95 held-out department templates (39 to 41 built-in, `templates.ts`; 54 extra, `extraFrames.ts`) plus the hard-case lists, so a weekly batch holds about 7, and not every department appears every week (SUPERSEDED 2026-11-12: the script counted 123 to 125 held-out templates per stream with the hard-case lists, 9 or 10 a week - see the plan's Progress) | The control comparison removes the difficulty gap; the plan's first check counts the templates per stream by script |
 | The simulated reviewer picks a wrong department on 5% of the tickets it checks, on purpose (`web/src/pipeline/reviewer.ts:6`), so the retrains learn from slightly noisy labels | Kept: a real desk learns from human answers, mistakes included. Scoring is always against the true label |
 | The gain over the frozen model may be small: the model may already generalize well | The pass mark, written first; Model History shows whatever comes out |
 | Phone speed and memory with a 50 MB download | The owner's phone test, before release |
@@ -59,6 +59,7 @@ The demo page's model; fewer tickets to a person (held for later work by the own
 1. Streams are the four practice folds, each starting from a model trained on its round's training side, not the shipped bundle, which has seen every stream's wording.
 2. The 90-day end model is reported on the blind set as a ladder row; the shipped bundle on the site stays the Part 1 bundle, because the 90-day models each lack one fold's wording.
 3. 100 tickets per simulated day per stream (9,000 per stream); by week 13 the training set holds the round's training side plus up to 9,000 checked tickets.
+   > SUPERSEDED (2026-11-12): 13 weeks of 7 days are 91 days, so 9,100 tickets per stream; day 91 is recorded but the pass mark counts days 1-90. The last model trains after week 11 (12 retrains), since no week follows week 12 to score one more - see the plan's Execution Notes.
 4. The label a retrain learns from is the simulated reviewer's answer (5% wrong department on purpose, priority always true); only tickets that went to a person are added, because an unchecked ticket has no person's answer. Every score in the run is against the true label.
 5. Stream k starts from the practice round trained on `v2_tune_<k>_<k+1 mod 4>`; the other left-out fold's wording is not used in that stream.
 6. Each weekly retrain starts again from the base model with the same Part 1 settings and `RANDOM_STATE = 113`, on the round's training side plus every checked ticket so far. Not carrying last week's model on keeps each week's model reproducible from its files.

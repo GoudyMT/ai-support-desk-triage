@@ -25,6 +25,8 @@ The desk is a place to **operate**: a reviewer clears tickets. The new model cha
 ```
 The run starts at once on the word model, as today.
 
+> SUPERSEDED (2026-11-12): the run waits behind the loading panel, so the "loading" line never shows during a run; the "word model only" line shows after "Start now with the smaller model only" or a failed load - see "What was locked".
+
 ## 2. The review card (a ticket sent to you)
 ```
 +--------------------------------------------------------------+
@@ -48,6 +50,7 @@ The run starts at once on the word model, as today.
 +--------------------------------------------------------------+
 ```
 - "(model's pick)" is the sentence model's answer once it has loaded; before that, the word model's, as today.
+  > SUPERSEDED (2026-11-12): with the loading panel, every card of a two-model run shows the sentence model's pick; the word model's shows only in a "smaller model only" run - see "What was locked".
 - An open card never changes under the reviewer.
 
 ## 3. Try a ticket
@@ -58,6 +61,8 @@ The run starts at once on the word model, as today.
  Person needed   Yes (the two models gave different answers)
 ```
 The Sort button reads "Loading..." the first time, while the larger model loads, as it does today for the word model.
+
+> OPEN (2026-11-12): the lock says the larger model downloads only when Start is pressed, never on page open; whether Sort here may start that download is not decided. Settle it with the owner before the desk is built.
 
 ## The choice: what happens to tickets that arrive while the larger model loads
 > SUPERSEDED (2026-11-12): the owner's loading panel replaces A, B and C - see "What was locked" at the top.
