@@ -9,7 +9,8 @@
   - Task 2 - `exportFairPool.test.ts` 10 tests, 8 red on stubs, green after; 4 breaks (start-set guard, desk guard, pool from another stream; one break pattern first missed and was redone) each turned a row red, files restored; `npm run export-fair-pool` in 13.9 s: 40,000 tickets per stream, held-out templates 125, 124, 123, 123, none never drawn, fewest tickets for one template 16; typecheck and lint exit 0
   - Task 3 - `test_template_difficulty.py` 3 tests (2 red on the stub), `fairWeeks.test.ts` 7 tests (3 red on stubs), green after; the new `exportWeeks.test.ts` rows were written after the code, so each was shown red by a break instead; 7 breaks (plain start match, teaching copies outside the guards, fair rows without copies, missing start file read as empty, deal ignoring ratings, weeks without copies, pool start guard) each turned rows red, files restored; web suite 65 files, 1,447 tests; pytest 205 passed; typecheck and lint exit 0
   - Task 4 - `runWeek.test.ts` 2 new rows red on the stub, green after; 3 breaks (scored text masked instead, copy left unmasked, copy dropped on reading) each turned a row red, file restored
-- Next: Task 5
+  - Task 5 - `test_ninety_day_fair.py` 9 tests, 8 red on stubs; two expected values in my own tests were wrong (a pool rating of 0.5, not 0; week 0's retrained arm is the start model) and were corrected against the stand-ins' arithmetic; green after; 8 breaks (limit +1, missing balance let through, frozen rescored, report written in place, work folder in repo, week run through npm.cmd, gap unrounded, pool rating skipped) each turned a row red, file restored; pytest 214 passed
+- Next: Task 6
 - Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
 - Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
 
