@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES, PRIORITIES, type Category, type Priority } from '../src/domain/labels';
 import { tablePredict, type SavedAnswer } from '../src/pipeline/tableScorer';
-import { runWeek, type WeekLabeledRow } from './runWeek';
+import { maskText } from '../src/privacy/mask';
+import { runWeek, weekRowsFrom, type WeekLabeledRow } from './runWeek';
+
+describe('weekRowsFrom', () => {
+  const line = (id: string, week: number, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ id, text: 'Where is my parcel?', category: 'Shipping/Order Issue', secondary: null, priority: 'Medium', mustReview: false, reviewReason: null, week, day: 3, ...extra });
+
+  it('reads the week asked for, each row with its day and any teaching copy', () => {
+    const rows = weekRowsFrom([line('a', 0), line('b', 1, { teachText: 'Where is my order?' }), line('c', 1)], 1);
+    expect(rows.map((row) => [row.id, row.day, row.teachText])).toEqual([
+      ['b', 3, 'Where is my order?'],
+      ['c', 3, undefined],
+    ]);
+  });
+});
 
 // A plain shipping question: no rule flags it, so only the models decide.
 const PLAIN = 'My parcel has not arrived yet, can you check where it is?';
@@ -35,6 +49,18 @@ describe('runWeek', () => {
     expect(result.days[0]?.retrained.toPerson).toBe(1);
     expect(result.days[0]?.frozen.toPerson).toBe(0);
     expect(result.checked).toEqual([{ id: 'a', maskedText: PLAIN, category: 'Shipping/Order Issue', priority: 'Medium', day: 1 }]);
+  });
+
+  // The fair run teaches from a copy with the held-out pieces swapped; the
+  // ticket is still scored and checked on its own text.
+  it('teaches from the teaching copy, masked, when the row has one', () => {
+    const teach = 'My parcel to Lantern Deck has not arrived yet. Write to me at sam.rivera12@example.org.';
+    const rows = [{ ...row('a', 1), teachText: teach }];
+    const gate = [sure('a', 'Shipping/Order Issue', 'Medium')];
+    const other = [sure('a', 'Billing', 'Medium')];
+    const result = runWeek(rows, table(gate), table(other), table(gate), 0);
+    expect(result.checked).toEqual([{ id: 'a', maskedText: maskText(teach).text, category: 'Shipping/Order Issue', priority: 'Medium', day: 1 }]);
+    expect(result.checked[0]?.maskedText).not.toContain('sam.rivera12');
   });
 
   it('takes the label from the reviewer, mistakes included, and never from a frozen-only disagreement', () => {

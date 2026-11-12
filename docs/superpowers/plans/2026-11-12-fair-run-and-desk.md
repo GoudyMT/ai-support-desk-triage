@@ -8,7 +8,8 @@
   - Task 1 - `pieces.test.ts` 12 tests red on the stub (11 failed), green after; 4 breaks (connector not swapped, one stand-in for all, month not swapped, unmapped piece kept) each turned rows red, files restored byte for byte; web suite 63 files, 1,425 tests, exit 0 (v1 and v2 hashes held); typecheck and lint exit 0
   - Task 2 - `exportFairPool.test.ts` 10 tests, 8 red on stubs, green after; 4 breaks (start-set guard, desk guard, pool from another stream; one break pattern first missed and was redone) each turned a row red, files restored; `npm run export-fair-pool` in 13.9 s: 40,000 tickets per stream, held-out templates 125, 124, 123, 123, none never drawn, fewest tickets for one template 16; typecheck and lint exit 0
   - Task 3 - `test_template_difficulty.py` 3 tests (2 red on the stub), `fairWeeks.test.ts` 7 tests (3 red on stubs), green after; the new `exportWeeks.test.ts` rows were written after the code, so each was shown red by a break instead; 7 breaks (plain start match, teaching copies outside the guards, fair rows without copies, missing start file read as empty, deal ignoring ratings, weeks without copies, pool start guard) each turned rows red, files restored; web suite 65 files, 1,447 tests; pytest 205 passed; typecheck and lint exit 0
-- Next: Task 4
+  - Task 4 - `runWeek.test.ts` 2 new rows red on the stub, green after; 3 breaks (scored text masked instead, copy left unmasked, copy dropped on reading) each turned a row red, file restored
+- Next: Task 5
 - Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
 - Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
 
