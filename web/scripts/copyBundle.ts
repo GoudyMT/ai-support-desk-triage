@@ -12,9 +12,40 @@ export const BUNDLE_FILES = ['model_quantized.onnx', 'tokenizer.json', 'heads.js
 // The base model's license and notice travel with it (Apache 2.0).
 export const SERVED_FILES: readonly string[] = [...BUNDLE_FILES, 'LICENSE', 'NOTICE.md'];
 
+// The runtime's WebAssembly build for the CPU: its loader, the worker script it starts and
+// the engine. Served from the site, so the page calls no outside host.
+export const RUNTIME_FILES: readonly string[] = ['ort.wasm.min.mjs', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm'];
+
+/**
+ * Copies the runtime files the browser loads to where the site serves them.
+ *
+ * Args:
+ *   from: the runtime package's dist folder (the version pinned in package.json).
+ *   to: the served folder; replaced whole.
+ *
+ * Throws:
+ *   Error('E_RUNTIME_MISSING') when a file is not there; nothing is written then.
+ */
+export function copyRuntime(from: string, to: string): void {
+  const files = RUNTIME_FILES.map((name): [string, Buffer] => {
+    const path = join(from, name);
+    if (!existsSync(path)) {
+      throw new Error('E_RUNTIME_MISSING');
+    }
+    return [name, readFileSync(path)];
+  });
+  rmSync(to, { recursive: true, force: true });
+  mkdirSync(to, { recursive: true });
+  for (const [name, bytes] of files) {
+    writeFileSync(join(to, name), bytes);
+  }
+}
+
 const SOURCE = new URL('../../ml/models/bundle_v2/', import.meta.url);
 const RECORD = new URL('../../ml/reports/bundle_v2.json', import.meta.url);
 const TARGET = new URL('../public/models/bundle_v2/', import.meta.url);
+const RUNTIME_SOURCE = new URL('../node_modules/onnxruntime-web/dist/', import.meta.url);
+const RUNTIME_TARGET = new URL('../public/models/ort/', import.meta.url);
 
 /**
  * Reads the four files that decide the model's answers, as the repo stores them.
@@ -85,4 +116,6 @@ if (isRunAsCommand(process.argv[1], import.meta.url)) {
   const expected = (JSON.parse(readFileSync(RECORD, 'utf8')) as { fingerprint: string }).fingerprint;
   copyBundle(fileURLToPath(SOURCE), fileURLToPath(TARGET), expected);
   console.log(`copied the bundle (${expected.slice(0, 12)}...) to ${fileURLToPath(TARGET)}`);
+  copyRuntime(fileURLToPath(RUNTIME_SOURCE), fileURLToPath(RUNTIME_TARGET));
+  console.log(`copied the runtime to ${fileURLToPath(RUNTIME_TARGET)}`);
 }

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { BUNDLE_FILES, SERVED_FILES, bundleFingerprint, copyBundle, readBundle } from './copyBundle';
+import { BUNDLE_FILES, RUNTIME_FILES, SERVED_FILES, bundleFingerprint, copyBundle, copyRuntime, readBundle } from './copyBundle';
 
 // The site serves the sentence model the desk runs. It must be the very bundle the
 // records measured, so the copy is refused unless its fingerprint is the recorded one.
@@ -47,6 +47,20 @@ describe('copyBundle', () => {
     const out = join(mkdtempSync(join(tmpdir(), 'served-')), 'bundle_v2');
     expect(() => copyBundle(copy, out, RECORDED)).toThrow('E_BUNDLE_FINGERPRINT');
     expect(existsSync(out)).toBe(false);
+  });
+
+  it('copies the runtime files the browser needs, byte for byte, and refuses when one is missing', () => {
+    const from = fileURLToPath(new URL('../node_modules/onnxruntime-web/dist/', import.meta.url));
+    const out = join(mkdtempSync(join(tmpdir(), 'served-')), 'ort');
+    copyRuntime(from, out);
+    expect(readdirSync(out).sort()).toEqual([...RUNTIME_FILES].sort());
+    for (const name of RUNTIME_FILES) {
+      expect(readFileSync(join(out, name)).equals(readFileSync(join(from, name)))).toBe(true);
+    }
+    const empty = mkdtempSync(join(tmpdir(), 'ort-'));
+    const none = join(mkdtempSync(join(tmpdir(), 'served-')), 'ort');
+    expect(() => copyRuntime(empty, none)).toThrow('E_RUNTIME_MISSING');
+    expect(existsSync(none)).toBe(false);
   });
 
   it('refuses a bundle with a file missing', () => {

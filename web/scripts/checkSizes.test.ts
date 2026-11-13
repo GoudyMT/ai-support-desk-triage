@@ -9,13 +9,15 @@ const MEASURED: Measured = {
   pages: { demo: 30_000, desk: 5_000 },
   modelRawBytes: 3_300_000,
   modelGzipBytes: 900_000,
+  sentenceRawBytes: 36_000_000,
 };
-const limits = (demo: number | null, desk: number | null, model: number | null): Budgets => ({
+const limits = (demo: number | null, desk: number | null, model: number | null, sentence: number | null = 40_000_000): Budgets => ({
   pages: {
     demo: { entry: 'under-the-hood.html', limit: demo },
     desk: { entry: 'index.html', limit: desk },
   },
   modelBytes: { limit: model },
+  sentenceBytes: { limit: sentence },
 });
 
 describe('comparing measured sizes with the budgets', () => {
@@ -27,6 +29,16 @@ describe('comparing measured sizes with the budgets', () => {
     expect(text).toMatch(/^page desk.*: 5000 bytes/m);
     expect(text).toContain('3300000');
     expect(text).toContain('900000');
+    expect(text).toMatch(/^sentence model and its runtime, raw: 36000000 bytes/m);
+  });
+
+  // The desk's sentence model and the runtime that runs it load on demand, outside every
+  // page's code, so they get a line of their own.
+  it('holds the sentence model and its runtime to their own limit', () => {
+    expect(compareSizes(MEASURED, limits(30_000, 5_000, 3_300_000, 36_000_000)).failures).toEqual([]);
+    expect(compareSizes(MEASURED, limits(30_000, 5_000, 3_300_000, 35_999_999)).failures).toEqual([
+      { code: 'E_OVER_BUDGET', budget: 'sentenceBytes' },
+    ]);
   });
 
   it('accepts a size exactly at its limit and refuses one byte over, page by page', () => {
@@ -43,11 +55,12 @@ describe('comparing measured sizes with the budgets', () => {
   });
 
   it('fails a budget whose limit the owner has not set, however small the size', () => {
-    const tiny: Measured = { pages: { demo: 1, desk: 1 }, modelRawBytes: 1, modelGzipBytes: 1 };
-    expect(compareSizes(tiny, limits(null, null, null)).failures).toEqual([
+    const tiny: Measured = { pages: { demo: 1, desk: 1 }, modelRawBytes: 1, modelGzipBytes: 1, sentenceRawBytes: 1 };
+    expect(compareSizes(tiny, limits(null, null, null, null)).failures).toEqual([
       { code: 'E_NO_LIMIT', budget: 'pages.demo' },
       { code: 'E_NO_LIMIT', budget: 'pages.desk' },
       { code: 'E_NO_LIMIT', budget: 'modelBytes' },
+      { code: 'E_NO_LIMIT', budget: 'sentenceBytes' },
     ]);
   });
 
@@ -62,13 +75,19 @@ describe('reading the budget file', () => {
   const GOOD = {
     pages: { demo: { entry: 'under-the-hood.html', limit: 5 }, desk: { entry: 'index.html', limit: null } },
     modelBytes: { limit: 7 },
+    sentenceBytes: { limit: 9 },
   };
 
   it('reads a limit that is a number or null, with the page it belongs to', () => {
     expect(parseBudgets(GOOD)).toEqual({
       pages: { demo: { entry: 'under-the-hood.html', limit: 5 }, desk: { entry: 'index.html', limit: null } },
       modelBytes: { limit: 7 },
+      sentenceBytes: { limit: 9 },
     });
+  });
+
+  it('reads a missing sentence model line as a limit not yet set, which the gate then fails', () => {
+    expect(parseBudgets({ pages: GOOD.pages, modelBytes: { limit: 7 } }).sentenceBytes).toEqual({ limit: null });
   });
 
   it.each([
@@ -115,6 +134,11 @@ describe('measuring a built site', () => {
   const STYLE = 'body { margin: 0 }\n'.repeat(60);
   const ORPHAN = 'export const orphan = 5;\n'.repeat(500);
   const MODEL = { 'models/fold_0.json': 'x'.repeat(1000), 'models/fold_1.json': 'y'.repeat(5000) };
+  const SENTENCE = {
+    'models/bundle_v2/model_quantized.onnx': 'm'.repeat(3000),
+    'models/bundle_v2/tokenizer.json': 't'.repeat(200),
+    'models/ort/ort-wasm-simd-threaded.wasm': 'w'.repeat(4000),
+  };
 
   // The shape of Vite's manifest: one chunk per key, each naming the chunks and styles it loads.
   const MANIFEST = JSON.stringify({
@@ -142,7 +166,19 @@ describe('measuring a built site', () => {
     'assets/orphan.js': ORPHAN,
     'assets/logo.png': 'not code'.repeat(1000),
     ...MODEL,
+    ...SENTENCE,
   };
+
+  it('adds up every served file of the sentence model and its runtime, raw', () => {
+    expect(measureDist(build(SITE), PAGES).sentenceRawBytes).toBe(7200);
+  });
+
+  it('says so when the build serves no sentence model or no runtime', () => {
+    const noBundle = Object.fromEntries(Object.entries(SITE).filter(([path]) => !path.startsWith('models/bundle_v2/')));
+    const noRuntime = Object.fromEntries(Object.entries(SITE).filter(([path]) => !path.startsWith('models/ort/')));
+    expect(() => measureDist(build(noBundle), PAGES)).toThrow('E_NO_BUILD');
+    expect(() => measureDist(build(noRuntime), PAGES)).toThrow('E_NO_BUILD');
+  });
 
   it('counts each page by what it loads: the shared chunk for both, on-demand parts and styles for their own page', () => {
     const measured = measureDist(build(SITE), PAGES);

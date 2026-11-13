@@ -15,18 +15,24 @@ export interface PageBudget {
 export interface Budgets {
   pages: Record<string, PageBudget>;
   modelBytes: { limit: number | null };
+  sentenceBytes: { limit: number | null };
 }
 
 export interface Measured {
   pages: Record<string, number>;
   modelRawBytes: number;
   modelGzipBytes: number;
+  sentenceRawBytes: number;
 }
 
 export interface SizeResult {
   report: string[];
   failures: { code: 'E_NO_LIMIT' | 'E_OVER_BUDGET'; budget: string }[];
 }
+
+// The desk's sentence model and the runtime that runs it are served as files and loaded on
+// demand, outside every page's code; each folder must be in the build.
+const SENTENCE_FOLDERS = [join('models', 'bundle_v2'), join('models', 'ort')];
 
 interface ManifestChunk {
   file: string;
@@ -84,7 +90,19 @@ export function parseBudgets(json: unknown): Budgets {
       }),
     ),
     modelBytes: { limit: parseLimit(json['modelBytes']) },
+    // A file from before the sentence model has no line yet: a limit not set.
+    sentenceBytes: { limit: json['sentenceBytes'] === undefined ? null : parseLimit(json['sentenceBytes']) },
   };
+}
+
+function sentenceBytes(dir: string): number {
+  return SENTENCE_FOLDERS.reduce((sum, folder) => {
+    const path = join(dir, folder);
+    if (!existsSync(path)) {
+      throw new Error('E_NO_BUILD');
+    }
+    return sum + filesUnder(path).reduce((total, file) => total + statSync(file).size, 0);
+  }, 0);
 }
 
 function filesUnder(dir: string): string[] {
@@ -185,6 +203,7 @@ export function measureDist(dir: string, pages: Record<string, { entry: string }
     pages: Object.fromEntries(sizes),
     modelRawBytes: largest.size,
     modelGzipBytes: gzipSync(readFileSync(largest.path)).length,
+    sentenceRawBytes: sentenceBytes(dir),
   };
 }
 
@@ -216,10 +235,12 @@ export function compareSizes(measured: Measured, budgets: Budgets): SizeResult {
       `page ${name}, code and styles loaded, gzipped: ${size} bytes - ${judge(`pages.${name}`, size, budgets.pages[name]?.limit ?? null, failures)}`,
   );
   const model = judge('modelBytes', measured.modelRawBytes, budgets.modelBytes.limit, failures);
+  const sentence = judge('sentenceBytes', measured.sentenceRawBytes, budgets.sentenceBytes.limit, failures);
   const report = [
     ...pages,
     `largest model file, raw: ${measured.modelRawBytes} bytes - ${model}`,
     `largest model file, gzipped: ${measured.modelGzipBytes} bytes (for information)`,
+    `sentence model and its runtime, raw: ${measured.sentenceRawBytes} bytes - ${sentence}`,
     ...failures.map((failure) => `${failure.code}: ${failure.budget}`),
   ];
   return { report, failures };
