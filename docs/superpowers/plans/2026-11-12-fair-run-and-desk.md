@@ -19,7 +19,10 @@
   - The owner picked A (2026-11-13, "A"): reorder the weeks of all four streams by the start model's measured day shares; limit unchanged. `test_ninety_day_fair.py` 4 new rows and 1 changed row; the order and refusal rows red on stubs (the order unit row passed vacuously on the stub and is proven by the breaks); 5 breaks (no search, windows off by a week, answers left in place, file mapped backwards, balance redone after retrains) each turned a row red, file restored; pytest 223 passed. The record keeps the dealt gap (`dealt_balance`), the order (`week_order`) and the ordered gap (`balance`)
   - Balance rerun, all four streams, on the owner's yes ("Yes rerun the balance for all four", 2026-11-13): 2.0, 1.9, 2.3, 2.7 min; load 136 samples GPU avg 11.2% peak 13%, CPU avg 15.2% peak 26.4%. Dealt gaps reproduced exactly (1.93, 0.57, 2.53, 1.20); ordered gaps 0.00, 0.00, 0.00, 0.03 points; orders recorded in `ml/reports/ninety_day_fair.json` and equal to the scratch measurement's
   - Weeks phase on the owner's yes ("Yes, run the weeks phase", 2026-11-13): 4 streams, 13 weeks, 48 retrains, about 83 min; load 1,246 samples GPU avg 25.9% peak 100%, CPU avg 5.1% peak 41.9%. `test_ninety_day_fair_record.py` red on the verdict before it was written, green after; `python -m triage_v2.judge_ninety --fair` wrote it; the first run's record hash unchanged. VERDICT: NOT PASSED. Department right, days 1-30 -> days 61-90 (frozen in 61-90): 86.2 -> 86.2 (84.2); 76.1 -> 86.1 (76.9); 76.7 -> 71.0 (75.5); 78.0 -> 75.0 (75.5). Beats frozen 2 of 4, beats own start 1 of 4 (needs 3 each). Hard lines never above frozen on any stream
-- Next: report to the owner; then Tasks 8-19, or the owner's call on the result
+  - The owner chose to move on (2026-11-13, "Lets go with your recommendation"), then approved the trimmed scope and the `onnxruntime-web` 1.31.1 download (published 2026-10-26; "yes to both"): Tasks 8-19 inline by the lead, no agent team; one sweep, one PR
+  - Task 8, part 1 - `copyBundle.test.ts` 5 tests red on the stub, green after; the TS fingerprint equals the one the Python scorer recorded (7a4058a4...); 3 breaks (line ends kept, check off, digest order) each turned rows red, file restored. The served copy goes to a git-ignored folder (decided alone: the 23 MB file is stored once)
+  - Task 8, part 2 blocked: this machine has Node 20.11; `web/.npmrc` sets engine-strict and the project needs Node 22 or 24 (CI 22.22.3). Asked the owner to install Node 22.22.3 (2026-11-13)
+- Next: Task 8 part 2 once Node 22 is in
 - Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
 - Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
 
@@ -145,6 +148,8 @@ Run as written in `docs/superpowers/plans/2026-11-12-sentence-model-part2.md` (T
 - Part 2 Task 17 (carry-overs, Task 18 here) takes the Part 1, PR 5 and PR 4 rows; the 90-day sweep rows are in Tasks 3, 5 and 6 above.
 
 ## Parking Lot
+- Close-out item, after this PR (the owner, 2026-11-13): updated README visuals on how the process works and how the model improved over time, for technical and non-technical readers (future employers). Not in this PR.
+- Cut for budget (the owner, 2026-11-13, "yes to both"): Task 17 (wider privacy mask, stretch); carry-over rows of Task 18 outside files this PR already changes.
 
 ## Execution Notes & Deviations
 - 2026-11-12, Task 1 (mechanics, decided alone): the teaching copy is a second build from the same seed with a recording swap, so the scored ticket is untouched by construction (a test compares it byte for byte). Slot values are drawn raw and swapped only when written, so `{otherPlan}` still avoids the drawn plan and every later draw matches. Pieces: `SwapMap` is one map per kind (`ReadonlyMap<PieceKind, ReadonlyMap<string, string>>`); `recordingSwap` throws `E_PIECE_UNMAPPED`. Only one fixed-word clash exists across 115 pieces and 567 fixed texts ("March" in one Billing template, by probe), so the held-out check allows a word only where the ticket's own template carries it.

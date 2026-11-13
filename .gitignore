@@ -1,5 +1,7 @@
 node_modules/
 web/dist/
+# Copied from ml/models/bundle_v2 at build time, after its fingerprint check.
+web/public/models/bundle_v2/
 web/test-results/
 web/playwright-report/
 ml/data/generated/
