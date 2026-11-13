@@ -1,0 +1,438 @@
+{
+ "blind_sha256": "bc140a2421fba1426f8eefaf80ceaa5bad6381283e39bf25938776ae4850415d",
+ "near_match_templates": 6,
+ "near_match_tickets": 53,
+ "word": {
+  "all": {
+   "category": 1391,
+   "priority": 1294
+  },
+  "without": {
+   "category": 1338,
+   "priority": 1241
+  }
+ },
+ "models": {
+  "sentence": {
+   "fingerprint": "7a4058a4510ce226d3df2deaded22adde8e0e7331eb5ec17d78fb08ba3331b26",
+   "all": {
+    "tickets": 2000,
+    "alone": {
+     "category": 1816,
+     "priority": 1778
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 2000,
+      "flagged": 1556,
+      "mustReview": 746,
+      "highRiskMissed": 61,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 2000,
+      "flagged": 1640,
+      "mustReview": 746,
+      "highRiskMissed": 38,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 3
+     },
+     "reviewed": 1640,
+     "suggestion": {
+      "gate": {
+       "category": 1031,
+       "priority": 861,
+       "both": 662
+      },
+      "answer": {
+       "category": 1456,
+       "priority": 1232,
+       "both": 1147
+      }
+     }
+    }
+   },
+   "without": {
+    "tickets": 1947,
+    "alone": {
+     "category": 1763,
+     "priority": 1725
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 1947,
+      "flagged": 1522,
+      "mustReview": 699,
+      "highRiskMissed": 48,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 1947,
+      "flagged": 1606,
+      "mustReview": 699,
+      "highRiskMissed": 25,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 3
+     },
+     "reviewed": 1606,
+     "suggestion": {
+      "gate": {
+       "category": 997,
+       "priority": 827,
+       "both": 628
+      },
+      "answer": {
+       "category": 1422,
+       "priority": 1198,
+       "both": 1113
+      }
+     }
+    }
+   }
+  },
+  "ninety_day_end_0": {
+   "fingerprint": "33bf7b161e3c3dac8548a7eef3ce92871a444e098f9c54388c6dcd34c0ddb834",
+   "all": {
+    "tickets": 2000,
+    "alone": {
+     "category": 1803,
+     "priority": 1700
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 2000,
+      "flagged": 1556,
+      "mustReview": 746,
+      "highRiskMissed": 61,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 2000,
+      "flagged": 1638,
+      "mustReview": 746,
+      "highRiskMissed": 38,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 5
+     },
+     "reviewed": 1638,
+     "suggestion": {
+      "gate": {
+       "category": 1029,
+       "priority": 861,
+       "both": 662
+      },
+      "answer": {
+       "category": 1441,
+       "priority": 1184,
+       "both": 1096
+      }
+     }
+    }
+   },
+   "without": {
+    "tickets": 1947,
+    "alone": {
+     "category": 1750,
+     "priority": 1647
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 1947,
+      "flagged": 1522,
+      "mustReview": 699,
+      "highRiskMissed": 48,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 1947,
+      "flagged": 1604,
+      "mustReview": 699,
+      "highRiskMissed": 25,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 5
+     },
+     "reviewed": 1604,
+     "suggestion": {
+      "gate": {
+       "category": 995,
+       "priority": 827,
+       "both": 628
+      },
+      "answer": {
+       "category": 1407,
+       "priority": 1150,
+       "both": 1062
+      }
+     }
+    }
+   }
+  },
+  "ninety_day_end_1": {
+   "fingerprint": "8a00541915c7f4f233e132a4f49cc2c2a92506eccca690168cf820cdd542ee84",
+   "all": {
+    "tickets": 2000,
+    "alone": {
+     "category": 1771,
+     "priority": 1713
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 2000,
+      "flagged": 1556,
+      "mustReview": 746,
+      "highRiskMissed": 61,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 2000,
+      "flagged": 1627,
+      "mustReview": 746,
+      "highRiskMissed": 57,
+      "highUrgentOutLow": 19,
+      "silentCategory": 0,
+      "silentPriority": 21
+     },
+     "reviewed": 1627,
+     "suggestion": {
+      "gate": {
+       "category": 1018,
+       "priority": 866,
+       "both": 667
+      },
+      "answer": {
+       "category": 1398,
+       "priority": 1177,
+       "both": 1058
+      }
+     }
+    }
+   },
+   "without": {
+    "tickets": 1947,
+    "alone": {
+     "category": 1718,
+     "priority": 1660
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 1947,
+      "flagged": 1522,
+      "mustReview": 699,
+      "highRiskMissed": 48,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 1947,
+      "flagged": 1593,
+      "mustReview": 699,
+      "highRiskMissed": 44,
+      "highUrgentOutLow": 19,
+      "silentCategory": 0,
+      "silentPriority": 21
+     },
+     "reviewed": 1593,
+     "suggestion": {
+      "gate": {
+       "category": 984,
+       "priority": 832,
+       "both": 633
+      },
+      "answer": {
+       "category": 1364,
+       "priority": 1143,
+       "both": 1024
+      }
+     }
+    }
+   }
+  },
+  "ninety_day_end_2": {
+   "fingerprint": "0a50b5a8a5973dd284db173b68f579e122311f80ac5a8473cf070f1bd861885b",
+   "all": {
+    "tickets": 2000,
+    "alone": {
+     "category": 1735,
+     "priority": 1696
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 2000,
+      "flagged": 1556,
+      "mustReview": 746,
+      "highRiskMissed": 61,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 2000,
+      "flagged": 1657,
+      "mustReview": 746,
+      "highRiskMissed": 38,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 3
+     },
+     "reviewed": 1657,
+     "suggestion": {
+      "gate": {
+       "category": 1048,
+       "priority": 878,
+       "both": 679
+      },
+      "answer": {
+       "category": 1392,
+       "priority": 1205,
+       "both": 1102
+      }
+     }
+    }
+   },
+   "without": {
+    "tickets": 1947,
+    "alone": {
+     "category": 1685,
+     "priority": 1646
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 1947,
+      "flagged": 1522,
+      "mustReview": 699,
+      "highRiskMissed": 48,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 1947,
+      "flagged": 1623,
+      "mustReview": 699,
+      "highRiskMissed": 25,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 3
+     },
+     "reviewed": 1623,
+     "suggestion": {
+      "gate": {
+       "category": 1014,
+       "priority": 844,
+       "both": 645
+      },
+      "answer": {
+       "category": 1361,
+       "priority": 1174,
+       "both": 1071
+      }
+     }
+    }
+   }
+  },
+  "ninety_day_end_3": {
+   "fingerprint": "478b5bde7b984fb338869cb0d7daa68262e371e0addc29fb9a81c44f089d0331",
+   "all": {
+    "tickets": 2000,
+    "alone": {
+     "category": 1814,
+     "priority": 1746
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 2000,
+      "flagged": 1556,
+      "mustReview": 746,
+      "highRiskMissed": 61,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 2000,
+      "flagged": 1637,
+      "mustReview": 746,
+      "highRiskMissed": 38,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 21
+     },
+     "reviewed": 1637,
+     "suggestion": {
+      "gate": {
+       "category": 1028,
+       "priority": 876,
+       "both": 677
+      },
+      "answer": {
+       "category": 1451,
+       "priority": 1222,
+       "both": 1141
+      }
+     }
+    }
+   },
+   "without": {
+    "tickets": 1947,
+    "alone": {
+     "category": 1761,
+     "priority": 1693
+    },
+    "twoModel": {
+     "today": {
+      "tickets": 1947,
+      "flagged": 1522,
+      "mustReview": 699,
+      "highRiskMissed": 48,
+      "highUrgentOutLow": 36,
+      "silentCategory": 2,
+      "silentPriority": 83
+     },
+     "both": {
+      "tickets": 1947,
+      "flagged": 1603,
+      "mustReview": 699,
+      "highRiskMissed": 25,
+      "highUrgentOutLow": 0,
+      "silentCategory": 0,
+      "silentPriority": 21
+     },
+     "reviewed": 1603,
+     "suggestion": {
+      "gate": {
+       "category": 994,
+       "priority": 842,
+       "both": 643
+      },
+      "answer": {
+       "category": 1417,
+       "priority": 1188,
+       "both": 1107
+      }
+     }
+    }
+   }
+  }
+ },
+ "bar": {
+  "points": 10,
+  "gain_points": 25.91,
+  "counts_held": true,
+  "met": true
+ }
+}

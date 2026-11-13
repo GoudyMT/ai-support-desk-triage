@@ -42,7 +42,8 @@ def models(work):
 
 def read_blind():
     """Returns the blind rows and the file's SHA-256, refusing a file that is not the frozen one."""
-    content = BLIND.read_bytes()
+    # Git on Windows checks the file out with CRLF line ends; its fingerprint is of the LF form it was written in.
+    content = BLIND.read_bytes().replace(b"\r\n", b"\n")
     digest = hashlib.sha256(content).hexdigest()
     if digest != BLIND_SHA.read_text(encoding="utf-8").strip():
         raise SystemExit(CHANGED_ERROR)

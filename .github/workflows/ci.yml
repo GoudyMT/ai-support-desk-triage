@@ -78,6 +78,10 @@ jobs:
       # hand, or filed under another bundle's fingerprint, fails here.
       - run: npm run measure-two-models -- --check-sets
         working-directory: web
+      # The one blind reading is worked out again from its recorded answers, the
+      # frozen blind set and the shipped word model.
+      - run: npm run blind-reading
+        working-directory: web
       # Written outside the checkout so the committed model stays what it is
       # compared with; the parity file goes to its usual place.
       # The fold models are written beside it for the pipeline check below.

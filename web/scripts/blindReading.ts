@@ -180,7 +180,8 @@ export function readBlind(rows: readonly LabeledRow[], blindSha: string, answers
 }
 
 function build(): BlindReading {
-  const content = readFileSync(BLIND_FILE, 'utf8');
+  // Git on Windows checks the file out with CRLF line ends; its fingerprint is of the LF form it was written in.
+  const content = readFileSync(BLIND_FILE, 'utf8').replace(/\r\n/g, '\n');
   const sha = createHash('sha256').update(Buffer.from(content, 'utf8')).digest('hex');
   if (sha !== readFileSync(BLIND_SHA, 'utf8').trim()) {
     throw new Error('E_BLIND_CHANGED');
