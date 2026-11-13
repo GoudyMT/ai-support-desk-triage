@@ -82,3 +82,21 @@ describe('refusal', () => {
     expect(refusal('a'.repeat(MAX_TICKET_CHARS + 1))).toBe('long');
   });
 });
+
+describe('tryTicket with both models', () => {
+  // The word model lets PLAIN out; the sentence model's answer decides whether a person is needed.
+  it('needs no person when the sentence model gives the same answer, and a person when it does not', () => {
+    const word = tryTicket(PLAIN, MODEL);
+    expect(word.person).toBe('No');
+    const same = tryTicket(PLAIN, MODEL, { category: word.category as Category, priority: plainPriority() });
+    expect(same.person).toBe('No');
+    const other = tryTicket(PLAIN, MODEL, { category: 'Billing', priority: plainPriority() });
+    expect(other.person).toBe('Yes: The two models gave different answers.');
+    // The answer shown is the suggestion: the sentence model's.
+    expect([other.category, other.team]).toEqual(['Billing', ROUTES.Billing]);
+  });
+});
+
+function plainPriority(): 'Low' | 'Medium' | 'High' | 'Urgent' {
+  return score(MODEL, 'priority', maskText(PLAIN).text).label as 'Low' | 'Medium' | 'High' | 'Urgent';
+}

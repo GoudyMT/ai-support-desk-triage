@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <title>Support Desk - AI Support Desk Triage</title>
   </head>
@@ -38,6 +38,20 @@
           sometimes missed.
         </p>
       </div>
+      <section id="loading" class="loading" aria-labelledby="loading-title" hidden>
+        <h2 id="loading-title">Loading the larger model</h2>
+        <p>
+          A second model reads whole sentences and gives the suggestion on each ticket sent to a person. It downloads once, from this
+          site. The run starts when it is ready.
+        </p>
+        <progress id="loading-bar" max="1" value="0" aria-labelledby="loading-title"></progress>
+        <p id="loading-count" class="loading-count"></p>
+        <p id="loading-failed" hidden>The larger model did not load. Check your connection and press Retry, or start with the smaller model.</p>
+        <div class="loading-actions">
+          <button id="loading-retry" type="button" class="btn btn-solid" hidden>Retry</button>
+          <button id="loading-small" type="button" class="btn">Start now with the smaller model only</button>
+        </div>
+      </section>
     </main>
     <main id="run" class="run" data-view="open" hidden>
       <div class="phone-head">
@@ -205,7 +219,7 @@
         <span id="toggle-word">Start</span>
       </button>
       <p id="status-wrap" class="status-wrap">
-        <span id="status">130 made-up tickets, about 5 minutes</span><span id="notice" role="status"></span>
+        <span id="status">130 made-up tickets, about 5 minutes</span><span id="notice" role="status"></span><span id="suggests" class="suggests"></span>
       </p>
       <div id="bar-links" class="bar-links">
         <button id="try-open" type="button" class="btn" hidden>

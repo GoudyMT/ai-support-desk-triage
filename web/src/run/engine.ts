@@ -46,6 +46,7 @@ export function createRun(opts: RunOptions): Run {
     timed = true,
     closeEveryMs = CLOSE_EVERY_MS,
     deepTickets = DEEP_TICKETS,
+    runOne = runTicket,
   } = opts;
   const fold = foldOf(seed);
   const truths = new Map<string, TicketLabel>();
@@ -95,7 +96,7 @@ export function createRun(opts: RunOptions): Run {
   // the order tickets reach the center in can shift with the viewer's timing, because a Critical tag may land
   // before or after a ticket enters.
   function runWith(held: { index: number; text: string }, id: string, reviewer: Reviewer): TicketTrail {
-    const trail = runTicket(held.text, id, {
+    const trail = runOne(held.text, id, {
       model,
       reviewer,
       floor: CONFIDENCE_FLOOR,
@@ -145,7 +146,7 @@ export function createRun(opts: RunOptions): Run {
   function arrive(): void {
     const index = nextArrival;
     nextArrival += 1;
-    const ticket = generateTicket(seed, index, { fold, side: 'heldout' });
+    const ticket = opts.ticketAt?.(index) ?? generateTicket(seed, index, { fold, side: 'heldout' });
     truths.set(ticket.id, ticket.label);
     const maskedText = maskText(ticket.text).text;
     line.push({ index, text: ticket.text, waiting: { id: ticket.id, maskedText } });

@@ -44,20 +44,37 @@ export function sentence(phrase: string): string {
   return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}.`;
 }
 
-// The open list is already ordered by severity and then oldest first.
+const MODELS_DIFFER = 'The two models gave different answers.';
+
+// On a two-model run, whether the sentence model's suggestion differs from the word model's answer.
+export function modelsDiffer(trail: TicketTrail): boolean {
+  const models = trail.models;
+  return models !== undefined && (models.word.category !== models.sentence.category || models.word.priority !== models.sentence.priority);
+}
+
+// Why the ticket came to a person: the gate's reasons, then the models' disagreement, which may be the only reason.
+export function deskWhy(trail: TicketTrail): string {
+  const reasons = whyFlagged(trail);
+  const differ = modelsDiffer(trail) ? MODELS_DIFFER : '';
+  return [reasons === '' ? '' : sentence(reasons), differ].filter((part) => part !== '').join(' ');
+}
+
+// The open list is already ordered by severity and then oldest first. A suggestion the models disagree on carries no
+// "sure" percent and no quick approve: a person reads it.
 export function deskCards(state: RunState): DeskCard[] {
   return state.open.map((trail) => {
     const team = teamOf(trail);
     const percent = surePercent(trail);
+    const differ = modelsDiffer(trail);
     return {
       id: trail.id,
       team,
       tag: tagView(trail.guard.priority),
       text: trail.maskedText,
-      why: sentence(whyFlagged(trail)),
+      why: deskWhy(trail),
       percent,
-      leaning: `Leaning ${team}, ${percent}% sure.`,
-      showApprove: canQuickApprove(trail),
+      leaning: differ ? `Leaning ${team}.` : `Leaning ${team}, ${percent}% sure.`,
+      showApprove: !differ && canQuickApprove(trail),
     };
   });
 }
@@ -92,21 +109,29 @@ export interface DeskReview {
   category: Category;
   priority: Priority;
   route: string;
+  // On a two-model run, each model's own answer, as "Show both models' answers" lists them.
+  models?: { word: string; sentence: string };
 }
+
+const answerText = (answer: { category: Category; priority: Priority }): string => `${answer.category}, ${tagView(answer.priority).word}`;
 
 // The ticket the viewer has open, with the model's picks the card starts from.
 export function deskReview(state: RunState): DeskReview | undefined {
   const trail = state.reviewing;
   if (trail === undefined) return undefined;
-  return {
+  const review: DeskReview = {
     id: trail.id,
     text: trail.maskedText,
-    why: sentence(whyFlagged(trail)),
+    why: deskWhy(trail),
     tag: tagView(trail.guard.priority),
     category: trail.category.label as Category,
     priority: trail.guard.priority,
     route: teamOf(trail),
   };
+  if (trail.models !== undefined) {
+    review.models = { word: answerText(trail.models.word), sentence: answerText(trail.models.sentence) };
+  }
+  return review;
 }
 
 // What the viewer is told right after sending: the call is scored on category and priority, as the report is.

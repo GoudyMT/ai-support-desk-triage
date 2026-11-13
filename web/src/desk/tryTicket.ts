@@ -2,11 +2,12 @@
 // masked text, never what was typed.
 import { ROUTES } from '../domain/labels';
 import type { Model } from '../model/scorer';
-import { tagView, whyFlagged } from '../page/view';
+import { tagView } from '../page/view';
 import { intake } from '../pipeline/intake';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { Reviewer } from '../pipeline/types';
-import { sentence } from './view';
+import { runTwoModels, type ModelAnswer } from '../run/twoModels';
+import { deskWhy } from './view';
 
 export interface TryView {
   text: string;
@@ -38,21 +39,19 @@ export function refusal(text: string): Refusal | undefined {
 }
 
 /**
- * Sorts one typed ticket on the shipped model.
+ * Sorts one typed ticket on the shipped model, and with the sentence model's answer when it has one (the desk's
+ * two-model rule).
  *
  * @param text The ticket as typed; it must have passed `refusal`.
  * @param model The shipped model.
+ * @param sentenceAnswer The sentence model's answer on the masked ticket, or undefined when it did not load.
  * @returns What the visitor sees: the masked text and the final category, priority, team and whether a person is needed,
  *   and the same result as one sentence.
  */
-export function tryTicket(text: string, model: Model): TryView {
-  const trail = runTicket(text, TRY_ID, {
-    model,
-    reviewer: ACCEPTS,
-    floor: CONFIDENCE_FLOOR,
-    secondCheckOn: SECOND_CHECK_ON,
-    now: Date.now,
-  });
+export function tryTicket(text: string, model: Model, sentenceAnswer?: ModelAnswer): TryView {
+  const deps = { model, reviewer: ACCEPTS, floor: CONFIDENCE_FLOOR, secondCheckOn: SECOND_CHECK_ON, now: Date.now };
+  const trail =
+    sentenceAnswer === undefined ? runTicket(text, TRY_ID, deps) : runTwoModels(text, TRY_ID, { ...deps, suggest: () => sentenceAnswer });
   const { category, route: team } = trail.final;
   const priority = tagView(trail.final.priority).word;
   return {
@@ -60,7 +59,7 @@ export function tryTicket(text: string, model: Model): TryView {
     category,
     priority,
     team,
-    person: trail.guard.flagged ? `Yes: ${sentence(whyFlagged(trail))}` : 'No',
+    person: trail.guard.flagged ? `Yes: ${deskWhy(trail)}` : 'No',
     spoken: `Sorted: ${category}, ${priority}, ${team}. Person needed: ${trail.guard.flagged ? 'yes' : 'no'}.`,
   };
 }

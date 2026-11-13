@@ -2,6 +2,9 @@
 // are data. What was typed is read once into a local variable and the box is then replaced by a new one holding the
 // masked text, so the typed words are not left on screen, in the page or in the old box's undo history.
 import type { Model } from '../model/scorer';
+import type { SentenceModel } from '../model/sentenceScorer';
+import { intake } from '../pipeline/intake';
+import { maskText } from '../privacy/mask';
 import { button, el } from '../page/dom';
 import { fetchShipped } from '../page/fetchModel';
 import {
@@ -17,6 +20,7 @@ import {
   TRY_SORT,
   TRY_TOO_LONG,
   TRY_WARNING,
+  TRY_WORD_ONLY,
 } from './copy';
 import { refusal, tryTicket } from './tryTicket';
 
@@ -40,7 +44,11 @@ const VISUALLY_HIDDEN = {
 // Loaded the first time a valid ticket is sorted and kept for the page; a failed load leaves it unset so Retry asks again.
 let shipped: Model | undefined;
 
-export function createTryPanel(): HTMLElement {
+// The larger model for Try a ticket: loaded on the first Sort (the owner, 2026-11-13), shared with the run. Undefined when it
+// did not load, so the ticket is sorted on the word model alone and the panel says so.
+export type SentenceSource = () => Promise<SentenceModel | undefined>;
+
+export function createTryPanel(sentenceSource: SentenceSource): HTMLElement {
   const title = el('h2', 'try-title', TRY_HEADING);
   title.id = 'try-title';
   const label = el('label', undefined, TRY_LABEL);
@@ -67,6 +75,8 @@ export function createTryPanel(): HTMLElement {
     result.append(el('dt', undefined, name), value);
     return value;
   });
+  const wordOnly = el('p', 'try-word-only', TRY_WORD_ONLY);
+  wordOnly.hidden = true;
   const warning = el('p', 'try-warning', TRY_WARNING);
   warning.hidden = true;
   // The result as one sentence for a screen reader. It lives in the panel, which moves into the dialog, because the
@@ -77,12 +87,13 @@ export function createTryPanel(): HTMLElement {
   Object.assign(spoken.style, VISUALLY_HIDDEN);
   const section = el('section', 'try');
   section.setAttribute('aria-labelledby', title.id);
-  section.append(title, field, error, sort, privacy, result, warning, spoken);
+  section.append(title, field, error, sort, privacy, result, wordOnly, warning, spoken);
 
   // An old answer is never left beside a message about the new ticket.
   function refuse(message: string): void {
     error.textContent = message;
     result.hidden = true;
+    wordOnly.hidden = true;
     warning.hidden = true;
     spoken.textContent = '';
     sort.textContent = TRY_SORT;
@@ -114,7 +125,14 @@ export function createTryPanel(): HTMLElement {
       }
       if (shipped === undefined) return;
     }
-    const view = tryTicket(typed, shipped);
+    sort.disabled = true;
+    sort.textContent = TRY_LOADING;
+    const sentence = await sentenceSource();
+    const answer = sentence === undefined ? undefined : await sentence.predict(maskText(intake(typed, 'try', 0).text).text);
+    sort.disabled = false;
+    sort.textContent = TRY_SORT;
+    const view = tryTicket(typed, shipped, answer);
+    wordOnly.hidden = sentence !== undefined;
     // A box that is only given new text keeps its edit history, and undo and redo would bring the typed words back.
     const masked = box.cloneNode(false) as HTMLTextAreaElement;
     masked.value = view.text;

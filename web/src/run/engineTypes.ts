@@ -1,5 +1,7 @@
 import type { Category, Priority, TicketLabel } from '../domain/labels';
+import type { Ticket } from '../generator/generate';
 import type { Model } from '../model/scorer';
+import type { RunDeps } from '../pipeline/run';
 import type { TicketTrail } from '../pipeline/types';
 import type { Schedule } from './clock';
 import type { Tag } from './prescreen';
@@ -75,6 +77,9 @@ export interface RunOptions {
   // How many of the first tickets get the slow, narrated pace; defaults to DEEP_TICKETS. Zero means the run
   // never slows itself or pauses to offer speed up.
   deepTickets?: number;
+  // The desk's own tickets and pipeline (its wording, both models); unset, a run draws the seed's fold and scores with `model`.
+  ticketAt?: (index: number) => Ticket;
+  runOne?: (text: string, id: string, deps: RunDeps) => TicketTrail;
 }
 
 // The first tickets stay in the center long enough to read the full narration of each stage;

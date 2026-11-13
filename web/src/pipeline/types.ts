@@ -49,6 +49,8 @@ export interface TicketTrail {
   guard: GuardResult;
   review?: ReviewDecision;
   final: { category: Category; priority: Priority; route: string; by: 'model' | 'reviewer' };
+  // On the desk, each model's own answer; the sentence model's is the suggestion a person sees.
+  models?: { word: { category: Category; priority: Priority }; sentence: { category: Category; priority: Priority } };
   v0: V0Result;
   ms: number;
 }

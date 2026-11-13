@@ -17,4 +17,5 @@ export const TRY_EMPTY = 'Type a support message first, then press Sort this tic
 export const TRY_TOO_LONG =
   `That message is over the ${MAX_TICKET_CHARS.toLocaleString('en-US')} character limit. ` +
   'Shorten it, then press Sort this ticket.';
+export const TRY_WORD_ONLY = 'Sorted by the word model only: the larger model did not load.';
 export const TRY_LOAD_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';

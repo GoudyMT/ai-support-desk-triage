@@ -2,11 +2,15 @@ import '../page/tokens.css';
 import './desk.css';
 import { scrollToClear } from '../page/clearOfBar';
 import { byId, setText } from '../page/dom';
-import { fetchModel } from '../page/fetchModel';
+import type { Model } from '../model/scorer';
+import type { SentenceModel } from '../model/sentenceScorer';
+import { fetchShipped } from '../page/fetchModel';
 import { createDeskSchedule } from '../run/clock';
-import { createRun, type Run } from '../run/engine';
-import { createPrescreener } from '../run/prescreen';
-import { foldOf, parseSeed, randomSeed } from '../run/seed';
+import type { Run } from '../run/engine';
+import { parseSeed, randomSeed } from '../run/seed';
+import { CATEGORIES, PRIORITIES } from '../domain/labels';
+import { createDeskRun, deskTickets, scoreDesk, suggestFrom, type Suggest } from './deskRun';
+import { createLoadingPanel } from './loadingPanel';
 import { createArrivals, drawCards, drawMeasured, drawNumbers, drawSent, type CardActions } from './draw';
 import { createCardMotion, fadeNumber } from './motion';
 import { createPanel } from './panel';
@@ -17,6 +21,7 @@ import { createTryModal, createTryPanel } from './tryPanel';
 import { deskCards, deskNumbers, deskReview, moreNumbers, resultLine, sentRows, type DeskNumbers } from './view';
 
 const MODEL_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';
+const LARGER_FAILED = 'The larger model did not load.';
 // How often the simulated reviewer closes the top card: one every two and a half seconds, a slow trickle a viewer can follow.
 const REVIEWER_PACE_MS = 2500;
 const SLOW_NOTE = 'Slowed down so you can follow.';
@@ -50,7 +55,7 @@ let nextSeed = addressSeed.seed;
 let seedIgnored = addressSeed.ignored;
 // Whether a model is on its way or failed to come, which the bar shows over everything else: a hold that ends (Try a
 // ticket closed, a report closed) redraws the bar and must not turn Loading or Retry back into Start.
-let loadState: 'idle' | 'loading' | 'failed' = 'idle';
+let loadState: 'idle' | 'loading' | 'failed' | 'larger failed' = 'idle';
 // The viewer's notes by ticket id, for this run only: never stored, sent, put in the address or in a report.
 const notes = new Map<string, string>();
 // Where in the open list the viewer last acted, so focus goes to the card that took its place.
@@ -95,6 +100,9 @@ function drawLoad(): boolean {
   } else if (loadState === 'failed') {
     setButton('Retry', true);
     say('', MODEL_FAILED);
+  } else if (loadState === 'larger failed') {
+    setButton('Retry', true);
+    say('', LARGER_FAILED);
   }
   return loadState !== 'idle';
 }
@@ -272,7 +280,7 @@ document.addEventListener('focusout', (event) => {
 // the desk and the run holds while it is open, then goes on only if it was going when the panel opened, or if a new run
 // arrived under it.
 const tryOpen = byId('try-open');
-const tryPanel = createTryPanel();
+const tryPanel = createTryPanel(trySentence);
 byId('rest').append(tryPanel);
 let resumeAfterTry = false;
 // The line a run that started under the form has yet to say.
@@ -542,32 +550,102 @@ function mount(seed: number, run: Run, total: number, announce: string): void {
   }
 }
 
-function load(): void {
+type DeskKit = typeof import('./deskKit');
+
+const SUGGESTS_SENTENCE = 'Suggestions: sentence model';
+const SUGGESTS_WORD = 'Suggestions: word model only';
+const SUGGESTS_WORD_FAILED = 'Suggestions: word model only (the larger model did not load)';
+
+const SENTENCE_CLASSES = { category: CATEGORIES, priority: PRIORITIES };
+
+const deskTotal = (seed: number): number => createDeskSchedule(seed).total;
+
+// One download of the larger model for the page, shared by Start and Try a ticket; a failed one is tried again next time.
+let sentenceLoad: Promise<SentenceModel> | undefined;
+let sentenceProgress: (share: number) => void = () => undefined;
+function sentenceModel(kit: DeskKit, onProgress?: (share: number) => void): Promise<SentenceModel> {
+  if (onProgress !== undefined) sentenceProgress = onProgress;
+  sentenceLoad ??= kit.loadDeskSentence(SENTENCE_CLASSES, (share) => sentenceProgress(share)).catch((error: unknown) => {
+    sentenceLoad = undefined;
+    throw error;
+  });
+  return sentenceLoad;
+}
+
+// Try a ticket's larger model: the same download, without the loading panel; undefined when it does not load.
+async function trySentence(): Promise<SentenceModel | undefined> {
+  try {
+    return await sentenceModel(await import('./deskKit'));
+  } catch {
+    return undefined;
+  }
+}
+
+const loadingPanel = createLoadingPanel({ retry: () => void load(), smallerOnly: () => void smallerOnly() });
+
+// Each Start, Retry or "smaller model only" press counts up, so a load an earlier press began cannot start a run late.
+let loadTurn = 0;
+
+// The word model and the desk's own code: both runs need them.
+function deskParts(): Promise<[Model, DeskKit]> {
+  return Promise.all([fetchShipped(), import('./deskKit')]);
+}
+
+function begin(seed: number, model: Model, kit: DeskKit, suggest: Suggest | undefined, suggests: string): void {
+  loadState = 'idle';
+  loadingPanel.hide();
+  setText(byId('suggests'), suggests);
+  const run = createDeskRun({ seed, wording: kit.DESK_WORDING, model, suggest, wallClock: () => performance.now(), closeEveryMs: REVIEWER_PACE_MS });
+  mount(seed, run, deskTotal(seed), startLine(seed));
+  toggle().focus();
+}
+
+// Start opens the loading panel; the run begins once the larger model has answered every ticket of the run, so every
+// ticket of it uses both models.
+async function load(): Promise<void> {
   const seed = nextSeed;
+  const turn = ++loadTurn;
   loadState = 'loading';
   drawLoad();
-  fetchModel(foldOf(seed)).then(
-    (model) => {
-      loadState = 'idle';
-      const schedule = createDeskSchedule(seed);
-      const run = createRun({
-        seed,
-        model,
-        schedule,
-        wallClock: () => performance.now(),
-        prescreen: createPrescreener(model),
-        closeEveryMs: REVIEWER_PACE_MS,
-        deepTickets: 0,
-      });
-      mount(seed, run, schedule.total, startLine(seed));
-      toggle().focus();
-    },
-    () => {
-      loadState = 'failed';
-      drawLoad();
-      toggle().focus();
-    },
-  );
+  loadingPanel.show();
+  let parts: [Model, DeskKit];
+  try {
+    parts = await deskParts();
+  } catch {
+    if (turn !== loadTurn) return;
+    loadingPanel.hide();
+    loadState = 'failed';
+    drawLoad();
+    toggle().focus();
+    return;
+  }
+  const [model, kit] = parts;
+  try {
+    const sentence = await sentenceModel(kit, (share) => turn === loadTurn && loadingPanel.progress(share, kit.TOTAL_BYTES));
+    const answers = await scoreDesk(sentence, deskTickets(seed, kit.DESK_WORDING));
+    if (turn !== loadTurn) return;
+    begin(seed, model, kit, suggestFrom(answers), SUGGESTS_SENTENCE);
+  } catch {
+    if (turn !== loadTurn) return;
+    loadState = 'larger failed';
+    drawLoad();
+    loadingPanel.failed();
+  }
+}
+
+async function smallerOnly(): Promise<void> {
+  const seed = nextSeed;
+  const turn = ++loadTurn;
+  const failed = loadingPanel.isFailed();
+  try {
+    const [model, kit] = await deskParts();
+    if (turn === loadTurn) begin(seed, model, kit, undefined, failed ? SUGGESTS_WORD_FAILED : SUGGESTS_WORD);
+  } catch {
+    if (turn !== loadTurn) return;
+    loadingPanel.hide();
+    loadState = 'failed';
+    drawLoad();
+  }
 }
 
 // What the first run says when it starts: the same line Under the Hood gives when the address's seed was refused.
@@ -587,7 +665,7 @@ toggle().addEventListener('click', () => {
   goingAtPress = undefined;
   closeReport(false);
   if (current === undefined || current.ended) {
-    load();
+    void load();
   } else if (going) {
     current.run.pause();
   } else {
