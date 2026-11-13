@@ -3,17 +3,21 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATEGORIES, PRIORITIES, type Category, type Priority, type TicketLabel } from '../src/domain/labels';
+import type { Suggest } from '../src/desk/deskRun';
+import { generateTicket } from '../src/generator/generate';
 import { FOLDS } from '../src/generator/templates';
 import type { HistoryRow } from '../src/history/view';
 import { loadModel, type Model } from '../src/model/scorer';
 import { computeMetrics } from '../src/pipeline/metrics';
 import { createSimulatedReviewer } from '../src/pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTickets } from '../src/pipeline/run';
+import { maskText } from '../src/privacy/mask';
 import { createDeskSchedule } from '../src/run/clock';
 import { createRun } from '../src/run/engine';
 import { canQuickApprove } from '../src/run/engineParts';
 import { createPrescreener } from '../src/run/prescreen';
 import { foldOf } from '../src/run/seed';
+import { runTwoModels } from '../src/run/twoModels';
 import { isRunAsCommand, normalizeText } from './exportDataset';
 
 // Runs the real pipeline over every held-out fold (each scored by its own fold
@@ -271,9 +275,10 @@ export function historyFailures(
 }
 
 // How many cards offer Approve in one full desk run with no viewer: each ticket the pipeline flags counts once, when
-// it enters the open list, if its card shows the button.
-function approveCardsInRun(seed: number, model: Model): number {
-  const run = createRun({
+// it enters the open list, if its card shows the button. With a second model the run takes the two-model rule, as
+// the desk does.
+function approveCardsInRun(seed: number, model: Model, suggest?: Suggest): number {
+  const options = {
     seed,
     model,
     schedule: createDeskSchedule(seed),
@@ -281,7 +286,8 @@ function approveCardsInRun(seed: number, model: Model): number {
     prescreen: createPrescreener(model),
     closeEveryMs: DESK_REVIEWER_PACE_MS,
     deepTickets: 0,
-  });
+  };
+  const run = createRun(suggest === undefined ? options : { ...options, runOne: (text, id, deps) => runTwoModels(text, id, { ...deps, suggest }) });
   const entered = new Set<string>();
   let cards = 0;
   run.play();
@@ -297,13 +303,43 @@ function approveCardsInRun(seed: number, model: Model): number {
   return cards;
 }
 
-// The average over the runs, each scored by the model of the fold its seed holds out.
-export function approveCardsPerRun(modelOf: (fold: number) => Model, firstSeed = APPROVE_FIRST_SEED, runs = APPROVE_RUNS): number {
+// The average over the runs, each scored by the model of the fold its seed holds out; a second model, when given, is
+// that fold's too.
+export function approveCardsPerRun(
+  modelOf: (fold: number) => Model,
+  firstSeed = APPROVE_FIRST_SEED,
+  runs = APPROVE_RUNS,
+  suggestOf?: (fold: number) => Suggest,
+): number {
   let total = 0;
   for (let seed = firstSeed; seed < firstSeed + runs; seed += 1) {
-    total += approveCardsInRun(seed, modelOf(foldOf(seed)));
+    total += approveCardsInRun(seed, modelOf(foldOf(seed)), suggestOf?.(foldOf(seed)));
   }
   return total / runs;
+}
+
+export interface RunTicket {
+  id: string;
+  fold: number;
+  maskedText: string;
+}
+
+/**
+ * Every ticket of the Approve runs, in run order, as a second model must answer it before the runs.
+ *
+ * Returns:
+ *   Each ticket's id, the fold its seed holds out (the fold model that may answer it) and its masked text.
+ */
+export function approveRunTickets(firstSeed = APPROVE_FIRST_SEED, runs = APPROVE_RUNS): RunTicket[] {
+  const tickets: RunTicket[] = [];
+  for (let seed = firstSeed; seed < firstSeed + runs; seed += 1) {
+    const fold = foldOf(seed);
+    for (let index = 0; index < createDeskSchedule(seed).total; index += 1) {
+      const ticket = generateTicket(seed, index, { fold, side: 'heldout' });
+      tickets.push({ id: ticket.id, fold, maskedText: maskText(ticket.text).text });
+    }
+  }
+  return tickets;
 }
 
 export interface HistoryCheck {
