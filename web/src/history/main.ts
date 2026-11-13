@@ -30,7 +30,7 @@ function mark(direction: Direction): SVGElement {
 
 // The words are the label, so a screen reader hears "up 23.7 points" and not the bare shape and number.
 function change(value: Change): HTMLElement {
-  const node = el('span', 'change');
+  const node = el('span', value.tone === 'better' ? 'change' : `change ${value.tone}`);
   node.setAttribute('role', 'img');
   node.setAttribute('aria-label', value.label);
   node.append(mark(value.direction), document.createTextNode(value.text));
