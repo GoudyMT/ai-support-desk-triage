@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { TIME_SAVED_SOURCE, VALUE_SAVED_SOURCE } from '../src/page/copy';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const PHONE = { width: 375, height: 812 };
 const WIDE = { width: 1280, height: 800 };
@@ -50,7 +50,7 @@ async function openDesk(page: Page): Promise<void> {
 async function startRun(page: Page, ms = 60_000): Promise<void> {
   await openDesk(page);
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
   await page.clock.runFor(ms);
 }
 

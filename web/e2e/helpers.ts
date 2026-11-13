@@ -3,6 +3,9 @@ import { expect, type Page } from '@playwright/test';
 // Seed 1001 runs on fold 1. At learn pace its first ticket (T-1001-0) leaves the center for the
 // open list 20 s into the run; the model's picks for it are Billing, Medium and the Billing Team.
 export const SEED = 1001;
+// The desk's first Start downloads the larger model (about 39 MB, from the test server) and scores the run's tickets
+// before the run begins; with several test workers on one machine that can take longer than a plain wait.
+export const LOAD_MS = 30_000;
 // The demo lives beside the desk, which is the site root.
 export const DEMO_PATH = '/under-the-hood.html';
 export const START = new Date('2026-01-01T09:00:00');

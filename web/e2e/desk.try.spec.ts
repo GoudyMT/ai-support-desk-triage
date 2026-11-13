@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { MAX_TICKET_CHARS } from '../src/pipeline/intake';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const LABEL = 'Type any support message. It stays in this page and is never sent or kept.';
 const EMPTY = 'Type a support message first, then press Sort this ticket.';
@@ -17,6 +17,16 @@ const CARD = '4111-1111-1111-1111';
 const PERSONAL = `Please write to ${EMAIL} about the charge on card ${CARD}.`;
 const SAFETY = 'Someone accessed my account without permission.';
 const SHIPPED = '/models/shipped.json';
+// The larger model: the runtime's loader and engine, then the four bundle files.
+const LARGER_MODEL_FILES = [
+  '/models/ort/ort.wasm.min.mjs',
+  '/models/ort/ort-wasm-simd-threaded.mjs',
+  '/models/ort/ort-wasm-simd-threaded.wasm',
+  '/models/bundle_v2/model_quantized.onnx',
+  '/models/bundle_v2/tokenizer.json',
+  '/models/bundle_v2/heads.json',
+  '/models/bundle_v2/manifest.json',
+];
 
 // Opens the desk with the clock under the test's control: nothing moves until `runFor`.
 async function openDesk(page: Page): Promise<void> {
@@ -27,7 +37,7 @@ async function openDesk(page: Page): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 const box = (page: Page): Locator => page.getByRole('textbox', { name: LABEL });
@@ -122,7 +132,9 @@ test.describe('Try a ticket at rest', () => {
     expect(left.stored).toEqual([0, 0]);
   });
 
-  test('the model file is asked for once across two sorts, and nothing else is asked for after the page loads', async ({
+  // Sort may start the larger model's download (the owner, 2026-11-13): each model file once, from this site, and the
+  // second sort asks for nothing.
+  test('each model file is asked for once across two sorts, and nothing else is asked for after the page loads', async ({
     page,
   }) => {
     await openDesk(page);
@@ -130,9 +142,11 @@ test.describe('Try a ticket at rest', () => {
     const asked = watchRequests(page);
     await sort(page, SAFETY);
     await expect(result(page)).toBeVisible();
+    const afterFirst = asked.length;
     await sort(page, 'Where is my package? The tracking number shows no update for a week.');
     await expect(result(page).locator('dd').nth(0)).toHaveText('Shipping/Order Issue');
-    expect(asked).toEqual([SHIPPED]);
+    expect(asked.length).toBe(afterFirst);
+    expect(asked.filter((path) => !/^\/assets\/[\w.-]+\.js$/.test(path)).sort(), asked.join(' ')).toEqual([...LARGER_MODEL_FILES, SHIPPED].sort());
   });
 
   test('the answer for a safety ticket reads in the desk words, with the reason', async ({ page }) => {
@@ -289,7 +303,7 @@ test.describe('Try a ticket during a run', () => {
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toBeHidden();
     await expect(tryButton(page)).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(30_000);
     expect(await page.locator('#run').innerText()).not.toBe(held);
   });

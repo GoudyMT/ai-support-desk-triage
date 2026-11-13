@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { foldOf } from '../src/run/seed';
-import { generateTicket } from '../src/generator/generate';
+import { deskTickets } from '../src/desk/deskRun';
+import { DESK_WORDING } from '../src/generator/deskFrames';
 import { maskText } from '../src/privacy/mask';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const TICKETS_IN_A_RUN = 130;
 const RUN_STEP_MS = 10_000;
@@ -21,17 +21,14 @@ async function openDesk(page: Page, query = `?seed=${SEED}`): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 // Every ticket a run of this seed can show, as the page masks it: a row outside this set is not from the seed's run.
 function realTexts(seed: number): Set<string> {
-  const fold = foldOf(seed);
-  return new Set(
-    Array.from({ length: TICKETS_IN_A_RUN }, (_, index) =>
-      maskText(generateTicket(seed, index, { fold, side: 'heldout' }).text).text,
-    ),
-  );
+  const tickets = deskTickets(seed, DESK_WORDING);
+  expect(tickets.length).toBe(TICKETS_IN_A_RUN);
+  return new Set(tickets.map((ticket) => maskText(ticket.text).text));
 }
 
 // A changed number fades out and then in on the browser's own clock, not the test's, so its text is final only once the
@@ -214,7 +211,7 @@ test('a model that fails to load shows a plain message and Retry, and Retry star
   await expect(page.locator('#rest')).toBeVisible();
   await page.unroute('**/models/*');
   await page.getByRole('button', { name: 'Retry' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
   await expect(page.getByText(MODEL_FAILED)).toBeHidden();
   await page.clock.runFor(30_000);
   expect(await sentRows(page).count()).toBeGreaterThan(0);

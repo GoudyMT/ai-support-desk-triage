@@ -8,11 +8,10 @@ import { ROUTES, type Category } from '../src/domain/labels';
 import { percent } from '../src/desk/view';
 import { loadModel } from '../src/model/scorer';
 import { computeMetrics } from '../src/pipeline/metrics';
-import { createDeskSchedule } from '../src/run/clock';
-import { createRun } from '../src/run/engine';
-import { createPrescreener } from '../src/run/prescreen';
-import { foldOf } from '../src/run/seed';
-import { SEED, START } from './helpers';
+import { createDeskRun, deskTickets, scoreDesk, suggestFrom } from '../src/desk/deskRun';
+import { DESK_WORDING } from '../src/generator/deskFrames';
+import { webModel } from '../scripts/recordWebAnswers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const WIDE = { width: 1280, height: 800 };
 const SHORT = { width: 1280, height: 520 };
@@ -25,6 +24,8 @@ const RUN_STEP_MS = 10_000;
 const MAX_RUN_STEPS = 60;
 // A seed whose finished run has a high-risk ticket that got past review, so that number is not zero.
 const MISSED_SEED = 1003;
+// A seed whose finished run has six different shares in the report table, so a swap of two cells shows (found by search).
+const REPORT_SEED = 1002;
 // The card ignores a press for a moment after it opens; a person takes longer than that to read it.
 const A_PERSONS_PAUSE_MS = 450;
 const NOTE = 'Zephyr9 call them first';
@@ -40,7 +41,7 @@ async function openDesk(page: Page, seed = SEED): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 async function runDesk(page: Page, ms = RUN_MS, seed = SEED): Promise<void> {
@@ -122,21 +123,13 @@ async function openReview(page: Page, card: Locator): Promise<void> {
   await aPersonsPause(page);
 }
 
-// The same run in Node: the page's run with no viewer ends on the same closed tickets, so these are the numbers its
-// report must show.
-function ownRun(seed = SEED) {
-  const file = fileURLToPath(new URL(`../public/models/fold_${foldOf(seed)}.json`, import.meta.url));
+// The same run in Node: the page's run with no viewer, on the shipped word model and the sentence model's answers from
+// the web engine, ends on the same closed tickets, so these are the numbers its report must show.
+async function ownRun(seed = SEED) {
+  const file = fileURLToPath(new URL('../src/model/model.json', import.meta.url));
   const model = loadModel(JSON.parse(readFileSync(file, 'utf8')));
-  const run = createRun({
-    seed,
-    model,
-    schedule: createDeskSchedule(seed),
-    wallClock: () => 0,
-    prescreen: createPrescreener(model),
-    closeEveryMs: 2500,
-    deepTickets: 0,
-    timed: false,
-  });
+  const answers = await scoreDesk(await webModel(), deskTickets(seed, DESK_WORDING));
+  const run = createDeskRun({ seed, wording: DESK_WORDING, model, suggest: suggestFrom(answers), wallClock: () => 0, closeEveryMs: 2500 });
   run.finishNow();
   return run;
 }
@@ -146,7 +139,7 @@ test.describe('the report of a finished run', () => {
 
   async function finishedReport(page: Page): Promise<void> {
     test.setTimeout(120_000);
-    await openDesk(page);
+    await openDesk(page, REPORT_SEED);
     await start(page);
     await finishRun(page);
     await fadesDone(page);
@@ -157,7 +150,7 @@ test.describe('the report of a finished run', () => {
 
   test('the table shows each right-answer share under its own row and column', async ({ page }) => {
     await finishedReport(page);
-    const run = ownRun();
+    const run = await ownRun(REPORT_SEED);
     const m = computeMetrics(run.state().done, run.truthOf);
     const expected = {
       Category: [percent(m.v0.category), percent(m.categoryAccuracy.model), percent(m.categoryAccuracy.system)],
@@ -175,7 +168,7 @@ test.describe('the report of a finished run', () => {
     page,
   }) => {
     await finishedReport(page);
-    const run = ownRun();
+    const run = await ownRun(REPORT_SEED);
     const { done } = run.state();
     const misses = computeMetrics(done, run.truthOf).instructiveMisses;
     expect(misses.length).toBeGreaterThan(0);

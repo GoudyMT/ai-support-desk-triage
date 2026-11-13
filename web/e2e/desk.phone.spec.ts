@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const PHONE = { width: 375, height: 812 };
 const TARGET = 44;
@@ -19,7 +19,7 @@ async function openDesk(page: Page): Promise<void> {
 async function runDesk(page: Page, ms = RUN_MS): Promise<void> {
   await openDesk(page);
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
   await page.clock.runFor(ms);
 }
 
@@ -139,7 +139,7 @@ test.describe('on a phone', () => {
     await expect(page.getByRole('heading', { name: 'Try a ticket yourself' })).toBeVisible();
     await expect(numbersButton(page)).toHaveCount(0);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(RUN_MS);
     await expectRunBar(page);
   });
@@ -244,7 +244,7 @@ test.describe('on a phone', () => {
     await openDesk(page);
     expect(await sideways(page), 'at rest').toBe(false);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(RUN_MS * 2);
     expect(await sideways(page), 'in a run').toBe(false);
     await tab(page, 'Sent to teams').tap();
@@ -276,7 +276,7 @@ test.describe('on a phone with a wider font', () => {
     expect(await sideways(page), 'at rest').toBe(false);
     expect((await boxOf(page.getByRole('button', { name: 'Start' }))).height).toBeGreaterThanOrEqual(TARGET);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(RUN_MS);
     expect(await sideways(page), 'in a run').toBe(false);
     await expectRunBar(page);

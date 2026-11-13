@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ROUTES, type Category } from '../src/domain/labels';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const STEP_MS = 1000;
 const MAX_STEPS = 80;
@@ -26,7 +26,7 @@ async function openDesk(page: Page): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 // A changed number fades out and then in on the browser's own clock, not the test's, so its text is final only once the
@@ -598,12 +598,19 @@ test.describe('numbers and cards moving', () => {
   test('a card that arrives says New for about two seconds, and the word goes while the card stays', async ({ page }) => {
     await openDesk(page);
     await start(page);
-    const lastCard = (): Locator => cards(page).last();
-    for (let step = 0; step < MAX_STEPS && ((await cards(page).count()) < 3 || (await lastCard().locator('.new').count()) === 0); step += 1) {
+    const openIds = (): Promise<string[]> =>
+      page.locator('#open-list > li').evaluateAll((items) => items.map((item) => item.getAttribute('data-ticket') ?? ''));
+    // A card that arrived during the last step with two cards above it, so the reviewer (one close every 2.5 s) cannot
+    // close it within the 3 s watched: its New has just begun.
+    let before = await openIds();
+    let id: string | undefined;
+    for (let step = 0; step < MAX_STEPS * 4 && id === undefined; step += 1) {
       await page.clock.runFor(250);
+      const now = await openIds();
+      id = now.slice(2).find((ticket) => !before.includes(ticket));
+      before = now;
     }
-    const id = await idOf(lastCard());
-    const same = page.locator(`#open-list > li[data-ticket="${id}"]`);
+    const same = page.locator(`#open-list > li[data-ticket="${id ?? 'none arrived'}"]`);
     await expect(same.locator('.new')).toHaveText(/^New/);
     await page.clock.runFor(NEW_MS / 2);
     await expect(same.locator('.new')).toHaveCount(1);
