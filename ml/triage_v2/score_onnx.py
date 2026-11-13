@@ -102,12 +102,12 @@ def _softmax(scores):
     return exp / exp.sum(axis=1, keepdims=True)
 
 
-def _embed(session, tokenizer, texts):
+def _embed(session, tokenizer, texts, batch_size=BATCH_SIZE):
     """Returns one unit-length sentence vector per text: the mean of its real tokens' vectors."""
     wanted = {item.name for item in session.get_inputs()}
     vectors = []
-    for start in range(0, len(texts), BATCH_SIZE):
-        encoded = tokenizer.encode_batch(texts[start:start + BATCH_SIZE])
+    for start in range(0, len(texts), batch_size):
+        encoded = tokenizer.encode_batch(texts[start:start + batch_size])
         feeds = {
             "input_ids": np.array([item.ids for item in encoded], dtype=np.int64),
             "attention_mask": np.array([item.attention_mask for item in encoded], dtype=np.int64),
@@ -120,7 +120,7 @@ def _embed(session, tokenizer, texts):
     return np.concatenate(vectors) if vectors else np.zeros((0, 0), dtype=np.float32)
 
 
-def score(model_dir, rows, expected_sha256, threads=None):
+def score(model_dir, rows, expected_sha256, threads=None, batch_size=BATCH_SIZE):
     """
     Scores tickets with a model folder after proving it is the recorded one.
 
@@ -130,6 +130,9 @@ def score(model_dir, rows, expected_sha256, threads=None):
         expected_sha256: The recorded bundle fingerprint.
         threads: The most CPU threads the model may use; every core when None.
             A long run on a shared machine passes a small number.
+        batch_size: Tickets scored together. The 8-bit model's rounding depends on
+            the padded batch, so the answers can differ by batch size; the desk
+            scores one ticket at a time (1).
 
     Returns:
         One answer per row, in order: `id`, then for every answer head in the
@@ -152,7 +155,7 @@ def score(model_dir, rows, expected_sha256, threads=None):
     # Loaded from the checked bytes, not by path: a model that kept weights in a
     # side file, outside the fingerprint, cannot load this way.
     session = ort.InferenceSession(files["model_quantized.onnx"], options, providers=["CPUExecutionProvider"])
-    vectors = _embed(session, tokenizer, [row["maskedText"] for row in rows])
+    vectors = _embed(session, tokenizer, [row["maskedText"] for row in rows], batch_size)
 
     answers = [{"id": row["id"]} for row in rows]
     for field, head in heads.items():

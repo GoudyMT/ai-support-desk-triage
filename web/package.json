@@ -21,6 +21,7 @@
     "measure-two-models": "tsx scripts/measureTwoModels.ts",
     "run-week": "tsx scripts/runWeek.ts",
     "copy-bundle": "tsx scripts/copyBundle.ts",
+    "record-web-answers": "tsx scripts/recordWebAnswers.ts",
     "build": "tsx scripts/copyBundle.ts && vite build",
     "preview": "vite preview",
     "e2e": "playwright test",
