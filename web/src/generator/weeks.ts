@@ -1,7 +1,7 @@
 import { CATEGORIES } from '../domain/labels';
 import { EXTRA_WORDING } from './extraFrames';
 import { BUILT_IN_WORDING, generateTicketDetail, type Ticket } from './generate';
-import { swapMapFor } from './pieces';
+import { swapMapFor, teachingDetail } from './pieces';
 import { createRng } from './rng';
 import { checkSplit, poolOf, type Split, type Template } from './templates';
 import type { Wording } from './wording';
@@ -452,7 +452,7 @@ export function buildWeeks(
       taken.add(detail.ticket.text);
       const row: WeekRow = { week, day: 0, wording: name, ticket: detail.ticket };
       if (swap !== undefined) {
-        row.teachText = generateTicketDetail(WEEK_SEEDS[name], index, split, WORDINGS[name], swap).teachText ?? '';
+        row.teachText = teachingDetail(WEEK_SEEDS[name], index, split, WORDINGS[name], swap).teachText;
         row.templates = detail.templates.map((template) => refs.get(template) ?? '');
       }
       weeks[week]?.push(row);

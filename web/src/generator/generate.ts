@@ -11,7 +11,7 @@ import {
   introduceTypos,
   type HardCase,
 } from './hardCases';
-import { KEEP_PIECE, recordingSwap, type Piece, type Swap, type SwapMap } from './pieces';
+import type { Swap } from './pieces';
 import { createRng, ticketSeed, type Rng } from './rng';
 import {
   CATEGORY_SHARES,
@@ -50,9 +50,9 @@ export interface TicketDetail {
   baseCategory: Category;
   templates: Template[];
   plainText: string;
-  teachText?: string;
-  pieces?: Piece[];
 }
+
+const keepPiece: Swap = (_kind, value) => value;
 
 // The wording every recorded number of the first model was measured on.
 export const BUILT_IN_WORDING: Wording = {
@@ -194,52 +194,37 @@ function addVoice(rng: Rng, body: string, hardCase: HardCase | undefined, wordin
   return opener === '' ? text : `${opener}\n${text}`;
 }
 
+export function generateTicketDetail(seed: number, index: number, split: Split = 'all', wording: Wording = BUILT_IN_WORDING): TicketDetail {
+  return buildTicketDetail(seed, index, split, wording, keepPiece);
+}
+
 /**
- * Builds one ticket from its seed and index.
+ * Builds one ticket from its seed and index, writing each held-out piece through `swap`.
+ *
+ * A swap changes only what is written, never what is drawn, so the same seed and
+ * index pick the same templates and labels whatever the swap. The teaching copies
+ * of the 90-day run are built this way (pieces.ts); the site never swaps.
  *
  * Args:
  *   seed: the stream's seed.
  *   index: the ticket's place in the stream.
  *   split: the fold side its wording is drawn from.
  *   wording: the lists its text is drawn from.
- *   swap: with a stream's swap map, the detail also carries the teaching copy
- *     (`teachText`): the same ticket built from the same draws with every
- *     held-out piece swapped, and the pieces swapped (`pieces`). The ticket
- *     itself is the same with or without it.
+ *   swap: what to write for each piece drawn.
  *
  * Returns:
  *   The ticket and what it was built from.
  *
  * Throws:
- *   Error('E_SEED_RANGE'), Error('E_SPLIT_RANGE'); Error('E_PIECE_UNMAPPED')
- *   for a piece the swap map does not hold.
+ *   Error('E_SEED_RANGE'), Error('E_SPLIT_RANGE').
  */
-export function generateTicketDetail(
-  seed: number,
-  index: number,
-  split: Split = 'all',
-  wording: Wording = BUILT_IN_WORDING,
-  swap?: SwapMap,
-): TicketDetail {
+export function buildTicketDetail(seed: number, index: number, split: Split, wording: Wording, swap: Swap): TicketDetail {
   // The seed mixing works on 32 bits, so a seed or index outside them would
   // wrap and repeat another ticket without any sign of it.
   if (!Number.isInteger(seed) || seed < 0 || seed > MAX_UINT32 || !Number.isInteger(index) || index < 0 || index > MAX_UINT32) {
     throw new Error('E_SEED_RANGE');
   }
   checkSplit(split);
-  const detail = buildDetail(seed, index, split, wording, KEEP_PIECE);
-  if (swap === undefined) {
-    return detail;
-  }
-  // A second build from the same draws: a swap changes only what is written, so
-  // both builds pick the same templates and labels. Typos fall on the swapped
-  // text and may land elsewhere, since the text is a different length.
-  const pieces: Piece[] = [];
-  const taught = buildDetail(seed, index, split, wording, recordingSwap(swap, pieces));
-  return { ...detail, teachText: taught.ticket.text, pieces };
-}
-
-function buildDetail(seed: number, index: number, split: Split, wording: Wording, swap: Swap): TicketDetail {
   // Only (seed, index) feeds the generator, so ticket i never depends on the
   // tickets before it.
   const rng = createRng(ticketSeed(seed, index));

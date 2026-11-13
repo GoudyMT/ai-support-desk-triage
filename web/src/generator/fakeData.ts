@@ -1,5 +1,5 @@
 import type { Category } from '../domain/labels';
-import { KEEP_PIECE, type PieceKind, type Swap } from './pieces';
+import type { PieceKind, Swap } from './pieces';
 import type { Rng } from './rng';
 import { poolOf, type Split } from './templates';
 
@@ -132,10 +132,10 @@ function fakeValue(rng: Rng, kind: Kind): string {
 }
 
 // One sentence of fake personal data to append to a ticket about `category`.
-export function fakeSnippet(rng: Rng, category: Category, split: Split = 'all', swap: Swap = KEEP_PIECE): string {
+export function fakeSnippet(rng: Rng, category: Category, split: Split = 'all', swap?: Swap): string {
   const kind = rng.pick(KINDS_BY_CATEGORY[category] ?? DEFAULT_KINDS);
-  const frame = swap('fakeFrame', rng.pick(poolOf(FAKE_SENTENCES[kind], split)));
-  return frame.replace('{value}', fakeValue(rng, kind));
+  const frame = rng.pick(poolOf(FAKE_SENTENCES[kind], split));
+  return (swap ? swap('fakeFrame', frame) : frame).replace('{value}', fakeValue(rng, kind));
 }
 
 // The made-up values a template's {slots} are filled with. Like the frames above,
@@ -193,7 +193,7 @@ const SWAPPED_SLOTS: Partial<Record<string, PieceKind>> = { product: 'product', 
 // A slot named twice in one template gets the same value both times, so the
 // text never contradicts itself. A swap changes only what is written: the values
 // drawn (and so every later draw) are the same with or without it.
-export function fillSlots(text: string, rng: Rng, split: Split = 'all', swap: Swap = KEEP_PIECE): string {
+export function fillSlots(text: string, rng: Rng, split: Split = 'all', swap: Swap = (_kind, value) => value): string {
   const chosen = new Map<string, string>();
   const slot = (name: string): string => {
     const known = chosen.get(name);
@@ -210,26 +210,13 @@ export function fillSlots(text: string, rng: Rng, split: Split = 'all', swap: Sw
     chosen.set(name, value);
     return value;
   };
-  const written = new Map<string, string>();
-  const write = (name: string): string => {
+  // A swap is a fixed lookup, so a slot named twice is written the same both times.
+  return text.replace(/\{(\w+)\}/g, (_match, name: string) => {
     const value = slot(name);
     const kind = SWAPPED_SLOTS[name];
     if (kind !== undefined) {
       return swap(kind, value);
     }
-    if (name === 'date') {
-      const [month = '', day = ''] = value.split(' ');
-      return `${swap('month', month)} ${day}`;
-    }
-    return value;
-  };
-  return text.replace(/\{(\w+)\}/g, (_match, name: string) => {
-    const known = written.get(name);
-    if (known !== undefined) {
-      return known;
-    }
-    const value = write(name);
-    written.set(name, value);
-    return value;
+    return name === 'date' ? value.replace(/^\w+/, (month) => swap('month', month)) : value;
   });
 }

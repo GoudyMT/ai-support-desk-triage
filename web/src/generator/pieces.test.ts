@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EXTRA_WORDING } from './extraFrames';
 import { FAKE_SENTENCES, FEATURES, MONTHS, PLANS, PRODUCTS } from './fakeData';
 import { BUILT_IN_WORDING, generateTicketDetail, type TicketDetail } from './generate';
-import { PIECE_KINDS, swapMapFor, type PieceKind } from './pieces';
+import { PIECE_KINDS, swapMapFor, teachingDetail, type PieceKind, type TeachingDetail } from './pieces';
 import { FOLDS, poolOf, type Split } from './templates';
 import type { Wording } from './wording';
 
@@ -62,12 +62,12 @@ function stem(kind: PieceKind, piece: string): string {
   return kind === 'fakeFrame' ? piece.replace('{value}', '').trim() : piece;
 }
 
-function teachRun(stream: number, wording: Wording): { plain: TicketDetail; taught: TicketDetail }[] {
+function teachRun(stream: number, wording: Wording): { plain: TicketDetail; taught: TeachingDetail }[] {
   const swap = swapMapFor(stream, wording);
   const split: Split = { fold: stream, side: 'heldout' };
   return Array.from({ length: TICKETS }, (_, index) => ({
     plain: generateTicketDetail(SEED, index, split, wording),
-    taught: generateTicketDetail(SEED, index, split, wording, swap),
+    taught: teachingDetail(SEED, index, split, wording, swap),
   }));
 }
 
@@ -107,8 +107,7 @@ describe('the teaching copy', () => {
         // The scored ticket is byte for byte the one built without a swap map.
         expect(taught.ticket).toEqual(plain.ticket);
         expect(taught.templates).toEqual(plain.templates);
-        const teachText = taught.teachText ?? '';
-        const pieces = taught.pieces ?? [];
+        const { teachText, pieces } = taught;
         const fixedWords = taught.templates.map((template) => template.text.toLowerCase()).join('\n');
         for (const kind of PIECE_KINDS) {
           for (const piece of heldOutOf(kind, wording, stream)) {
@@ -146,7 +145,7 @@ describe('the teaching copy', () => {
           }
           // Two plans that differ in the ticket differ in its teaching copy. (A
           // two-issue ticket may name one plan in both of its templates.)
-          const plans = (taught.pieces ?? []).filter((piece) => piece.kind === 'plan');
+          const plans = taught.pieces.filter((piece) => piece.kind === 'plan');
           const heldOut = new Set(plans.map((piece) => piece.heldOut));
           expect(heldOut.size).toBeGreaterThan(1);
           expect(new Set(plans.map((piece) => piece.taught)).size).toBe(heldOut.size);
@@ -172,7 +171,7 @@ describe('the teaching copy', () => {
               continue;
             }
             if (inTemplate) {
-              expect((taught.teachText ?? '').toLowerCase()).toContain(month.toLowerCase());
+              expect(taught.teachText.toLowerCase()).toContain(month.toLowerCase());
               kept += 1;
             }
           }
@@ -186,7 +185,7 @@ describe('the teaching copy', () => {
     const otherStream = swapMapFor(0, BUILT_IN_WORDING);
     const run = (): void => {
       for (let index = 0; index < TICKETS; index += 1) {
-        generateTicketDetail(SEED, index, { fold: 1, side: 'heldout' }, BUILT_IN_WORDING, otherStream);
+        teachingDetail(SEED, index, { fold: 1, side: 'heldout' }, BUILT_IN_WORDING, otherStream);
       }
     };
     expect(run).toThrow('E_PIECE_UNMAPPED');

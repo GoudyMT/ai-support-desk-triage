@@ -1,4 +1,5 @@
 import { FAKE_SENTENCES, FEATURES, MONTHS, PLANS, PRODUCTS } from './fakeData';
+import { buildTicketDetail, generateTicketDetail, type TicketDetail } from './generate';
 import { createRng } from './rng';
 import { FOLDS, checkSplit, poolOf, type Split } from './templates';
 import type { Wording } from './wording';
@@ -24,9 +25,37 @@ export type SwapMap = ReadonlyMap<PieceKind, ReadonlyMap<string, string>>;
 // Called wherever the generator puts a piece into a ticket; returns the text to use.
 export type Swap = (kind: PieceKind, value: string) => string;
 
-export const KEEP_PIECE: Swap = (_kind, value) => value;
+export interface TeachingDetail extends TicketDetail {
+  // The copy a retrained model learns from, and the pieces swapped to make it.
+  teachText: string;
+  pieces: Piece[];
+}
 
 const SWAP_SEED = 113;
+
+/**
+ * Builds a ticket and its teaching copy from the same draws.
+ *
+ * A swap changes only what is written, so both builds pick the same templates and
+ * labels, and the ticket is the one generateTicketDetail gives. Typos fall on the
+ * swapped text and may land elsewhere, since the text is a different length.
+ *
+ * Args:
+ *   seed, index, split, wording: as for generateTicketDetail.
+ *   map: the stream's swap map.
+ *
+ * Returns:
+ *   The ticket's detail, with `teachText` and the swapped `pieces`.
+ *
+ * Throws:
+ *   Error('E_PIECE_UNMAPPED') for a piece the map does not hold.
+ */
+export function teachingDetail(seed: number, index: number, split: Split, wording: Wording, map: SwapMap): TeachingDetail {
+  const detail = generateTicketDetail(seed, index, split, wording);
+  const pieces: Piece[] = [];
+  const taught = buildTicketDetail(seed, index, split, wording, recordingSwap(map, pieces));
+  return { ...detail, teachText: taught.ticket.text, pieces };
+}
 
 // The lists a piece is drawn from. Fake-data frames are split per kind of data, so
 // each frame list is cut into folds on its own.
