@@ -67,6 +67,137 @@ function closestWeek(loads: readonly WeekLoad[], ofList: readonly number[], rati
   return open.reduce((best, week) => (gap(week) < gap(best) ? week : best));
 }
 
+// A held-out template with its wording, its list (by place) and its rating.
+interface Placed {
+  template: Template;
+  wording: WeekWording;
+  list: number;
+  rating: Rating;
+}
+
+// Every held-out template of a stream, rated; one the pool never met takes its
+// list's mean rating and no weight.
+function placedTemplates(stream: number, difficulty: Difficulty): Placed[] {
+  const split: Split = { fold: stream, side: 'heldout' };
+  return (Object.keys(WORDINGS) as WeekWording[]).flatMap((wording) => {
+    const refs = templateRefsOf(wording);
+    return templateLists(WORDINGS[wording]).flatMap((list, at) => {
+      const items = poolOf(list, split);
+      const rated = items.flatMap((template) => {
+        const rating = difficulty[refs.get(template) ?? ''];
+        return rating === undefined ? [] : [rating.right];
+      });
+      const listMean = rated.length === 0 ? 1 : rated.reduce((sum, right) => sum + right, 0) / rated.length;
+      return items.map((template) => ({ template, wording, list: at, rating: difficulty[refs.get(template) ?? ''] ?? { right: listMean, count: 0 } }));
+    });
+  });
+}
+
+// A week's tickets are half from each wording, and within a wording each template
+// gives tickets in proportion to how often the pool met it.
+function weekShares(placed: readonly Placed[], deal: ReadonlyMap<Template, number>): number[] {
+  const sums = Array.from({ length: WEEKS }, () => ({ 'built-in': { right: 0, count: 0 }, extra: { right: 0, count: 0 } }));
+  for (const { template, wording, rating } of placed) {
+    const sum = sums[deal.get(template) ?? 0]?.[wording];
+    if (sum !== undefined) {
+      sum.right += rating.right * rating.count;
+      sum.count += rating.count;
+    }
+  }
+  return sums.map((week) => {
+    const parts = Object.values(week).filter((part) => part.count > 0);
+    return parts.length === 0 ? 0 : parts.reduce((total, part) => total + part.right / part.count, 0) / parts.length;
+  });
+}
+
+/**
+ * The start model's predicted share right in each week of a deal, from the pool ratings.
+ *
+ * Args:
+ *   stream: the practice fold.
+ *   deal: the week of every held-out template.
+ *   difficulty: the start model's rating of each template, by name.
+ *
+ * Returns:
+ *   One share (0 to 1) per week.
+ */
+export function predictedWeekShares(stream: number, deal: ReadonlyMap<Template, number>, difficulty: Difficulty): number[] {
+  return weekShares(placedTemplates(stream, difficulty), deal);
+}
+
+// Days are 1-based and the same size; day d falls in week floor((d - 1) / 7).
+function meanOverDays(shares: readonly number[], first: number, last: number): number {
+  let total = 0;
+  for (let day = first; day <= last; day += 1) {
+    total += shares[Math.floor((day - 1) / DAYS_PER_WEEK)] ?? 0;
+  }
+  return total / (last - first + 1);
+}
+
+/**
+ * The predicted gap between days 1-30 and days 61-90, in points, as the balance check measures it.
+ *
+ * Args:
+ *   shares: one predicted share per week.
+ *
+ * Returns:
+ *   The absolute difference of the two windows' mean daily share, times 100.
+ */
+export function predictedGap(shares: readonly number[]): number {
+  return Math.abs(meanOverDays(shares, 1, 30) - meanOverDays(shares, 61, 90)) * 100;
+}
+
+// How uneven a deal is: the weeks' spread around their mean, plus the gap the
+// balance check measures, weighed as much as all the weeks together, since a week
+// outside days 1-30 and 61-90 cannot move that check.
+function unevenness(shares: readonly number[]): number {
+  const mean = shares.reduce((sum, share) => sum + share, 0) / shares.length;
+  const spread = shares.reduce((sum, share) => sum + (share - mean) ** 2, 0);
+  return spread + WEEKS * (meanOverDays(shares, 1, 30) - meanOverDays(shares, 61, 90)) ** 2;
+}
+
+// One pass can leave a week holding mostly hard templates: whatever comes first
+// fills it. This swaps two templates of the same list between weeks (so every week
+// keeps its mix of departments, hard cases and template count) whenever the swap
+// makes the predicted weeks more even, until no swap helps.
+const MAX_SWAP_PASSES = 100;
+
+function evenOut(placed: readonly Placed[], deal: Map<Template, number>): void {
+  const groups = new Map<string, Placed[]>();
+  for (const item of placed) {
+    const key = `${item.wording}|${item.list}`;
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  let current = unevenness(weekShares(placed, deal));
+  for (let pass = 0; pass < MAX_SWAP_PASSES; pass += 1) {
+    let improved = false;
+    for (const group of groups.values()) {
+      for (let i = 0; i < group.length; i += 1) {
+        for (let j = i + 1; j < group.length; j += 1) {
+          const a = (group[i] as Placed).template;
+          const b = (group[j] as Placed).template;
+          const weekA = deal.get(a) ?? 0;
+          const weekB = deal.get(b) ?? 0;
+          if (weekA === weekB) {
+            continue;
+          }
+          deal.set(a, weekB).set(b, weekA);
+          const swapped = unevenness(weekShares(placed, deal));
+          if (swapped < current - 1e-12) {
+            current = swapped;
+            improved = true;
+          } else {
+            deal.set(a, weekA).set(b, weekB);
+          }
+        }
+      }
+    }
+    if (!improved) {
+      return;
+    }
+  }
+}
+
 // The ticket-weighted rating of all the stream's held-out templates together.
 function streamRating(stream: number, difficulty: Difficulty): number {
   let right = 0;
@@ -90,12 +221,14 @@ function streamRating(stream: number, difficulty: Difficulty): number {
  * Within each list, hardest first, each template goes to the week it brings
  * closest to the stream's overall rating (closestWeek), weighed by how many
  * tickets each template gives. Ties keep the seeded shuffle's order. A template
- * the pool never rated takes its list's mean rating and no weight.
+ * the pool never rated takes its list's mean rating and no weight. Then swaps
+ * within each list even out the predicted weeks (evenOut).
  *
  * Args:
  *   stream: the practice fold whose held-out templates are dealt.
  *   difficulty: the start model's rating of each template, by name.
  *   seed: the shuffle's seed.
+ *   swaps: false leaves the one-pass deal, for comparison.
  *
  * Returns:
  *   The week (0 to WEEKS - 1) of every held-out template, keyed by the template.
@@ -103,7 +236,7 @@ function streamRating(stream: number, difficulty: Difficulty): number {
  * Throws:
  *   Error('E_SPLIT_RANGE') for a stream outside the folds.
  */
-export function dealWeeksByDifficulty(stream: number, difficulty: Difficulty, seed: number = DEAL_SEED): Map<Template, number> {
+export function dealWeeksByDifficulty(stream: number, difficulty: Difficulty, seed: number = DEAL_SEED, swaps = true): Map<Template, number> {
   const split: Split = { fold: stream, side: 'heldout' };
   checkSplit(split);
   const rng = createRng(seed);
@@ -139,6 +272,9 @@ export function dealWeeksByDifficulty(stream: number, difficulty: Difficulty, se
         load.count += rating.count;
       }
     }
+  }
+  if (swaps) {
+    evenOut(placedTemplates(stream, difficulty), deal);
   }
   return deal;
 }

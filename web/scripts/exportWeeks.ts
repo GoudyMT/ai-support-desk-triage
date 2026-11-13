@@ -3,7 +3,16 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { FOLDS } from '../src/generator/templates';
-import { TICKETS_PER_DAY, buildWeeks, dealWeeks, dealWeeksByDifficulty, type Difficulty, type WeekRow } from '../src/generator/weeks';
+import {
+  TICKETS_PER_DAY,
+  buildWeeks,
+  dealWeeks,
+  dealWeeksByDifficulty,
+  predictedGap,
+  predictedWeekShares,
+  type Difficulty,
+  type WeekRow,
+} from '../src/generator/weeks';
 import {
   FRESH_SOURCE,
   assertBlindIsolated,
@@ -152,7 +161,11 @@ if (isRunAsCommand(process.argv[1], import.meta.url)) {
       throw new Error('E_FAIR_ARGS');
     }
     const difficulty = JSON.parse(readFileSync(values.difficulty, 'utf8')) as Difficulty;
-    printDeal(stream, dealWeeksByDifficulty(stream, difficulty));
+    const deal = dealWeeksByDifficulty(stream, difficulty);
+    printDeal(stream, deal);
+    const shares = predictedWeekShares(stream, deal, difficulty);
+    console.log(`predicted start-model share per week: ${shares.map((share) => share.toFixed(3)).join(' ')}`);
+    console.log(`predicted gap, days 1-30 vs 61-90: ${predictedGap(shares).toFixed(2)} points`);
     const data = { streams: [buildFairWeekStream(stream, difficulty, readStartRows(outputDir, stream))] };
     for (const { target, rows } of writeWeeks(outputDir, data, held, FAIR_NAME)) {
       console.log(`wrote ${target} (${rows} rows)`);

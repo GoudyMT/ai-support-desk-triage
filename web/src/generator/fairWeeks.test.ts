@@ -3,7 +3,7 @@ import { swapMapFor } from './pieces';
 import { EXTRA_WORDING } from './extraFrames';
 import { BUILT_IN_WORDING } from './generate';
 import type { Template } from './templates';
-import { WEEKS, buildWeeks, dealWeeks, dealWeeksByDifficulty, templateRefsOf, type Difficulty } from './weeks';
+import { WEEKS, buildWeeks, dealWeeks, dealWeeksByDifficulty, predictedGap, predictedWeekShares, templateRefsOf, type Difficulty } from './weeks';
 
 // The fair 90-day run deals templates into weeks by how hard the start model finds
 // them, so each week is about as hard as the others for a model that never learns.
@@ -77,6 +77,49 @@ describe('dealWeeksByDifficulty', () => {
     const [missing] = [...dealWeeks(0).keys()];
     delete difficulty[ref(missing as Template)];
     expect(dealWeeksByDifficulty(0, difficulty).has(missing as Template)).toBe(true);
+  });
+});
+
+// Ratings spread like the real ones (start model right on 0.5 to 1.0 of a
+// template's tickets, templates met 10 to 60 times), fixed so the test replays.
+function spreadRatings(stream: number): Difficulty {
+  const ratings: Difficulty = {};
+  [...dealWeeks(stream).keys()].forEach((template, at) => {
+    ratings[ref(template)] = { right: 0.5 + (0.5 * ((at * 37) % 100)) / 100, count: 10 + ((at * 13) % 50) };
+  });
+  return ratings;
+}
+
+function listWeekCounts(deal: ReadonlyMap<Template, number>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const [template, week] of deal) {
+    const key = `${ref(template).split('|').slice(0, 2).join('|')}@${week}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+describe('evening out the deal with swaps', () => {
+  it.each([0, 1, 2, 3])('brings every predicted week of stream %i within 2 points of the others', (stream) => {
+    const ratings = spreadRatings(stream);
+    const once = predictedWeekShares(stream, dealWeeksByDifficulty(stream, ratings, undefined, false), ratings);
+    const swapped = predictedWeekShares(stream, dealWeeksByDifficulty(stream, ratings), ratings);
+    expect(spread(swapped)).toBeLessThan(spread(once));
+    expect(spread(swapped)).toBeLessThanOrEqual(0.02);
+    // The balance check reads only days 1-30 against 61-90, so the swaps aim at that gap first.
+    expect(predictedGap(swapped)).toBeLessThanOrEqual(0.25);
+  });
+
+  it('swaps only within a list, so each week keeps its mix of departments and hard cases', () => {
+    const ratings = spreadRatings(2);
+    expect(listWeekCounts(dealWeeksByDifficulty(2, ratings))).toEqual(listWeekCounts(dealWeeksByDifficulty(2, ratings, undefined, false)));
+  });
+
+  it('predicts the days 1-30 and 61-90 gap in points from the week shares', () => {
+    const shares = [0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0.9, 0.9, 0.9, 0.9, 0.9];
+    // Days 1-30 are weeks 0-3 and two days of week 4; days 61-90 are three days of
+    // week 8, weeks 9-11 and six days of week 12.
+    expect(predictedGap(shares)).toBeCloseTo(30, 6);
   });
 });
 
