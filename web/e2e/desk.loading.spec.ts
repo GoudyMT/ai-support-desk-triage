@@ -50,6 +50,9 @@ test.describe('the larger model loads when Start is pressed', () => {
   test('on a slow link, the smaller model only starts the run at once and says so', async ({ page }) => {
     // The larger model's files never arrive.
     await page.route(LARGER, () => undefined);
+    // A second fetch of the word model would wait behind the larger model's open downloads on a real slow link
+    // (a browser opens only a few at a time to one site), so the run must reuse the first.
+    const asked = watch(page);
     await openDesk(page);
     await page.getByRole('button', { name: 'Start' }).click();
     await expect(panel(page)).toBeVisible();
@@ -57,6 +60,7 @@ test.describe('the larger model loads when Start is pressed', () => {
     await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
     await expect(panel(page)).toBeHidden();
     await expect(suggests(page)).toHaveText(WORD_ONLY);
+    expect(asked.filter((request) => request.url().endsWith('/models/shipped.json'))).toHaveLength(1);
   });
 });
 

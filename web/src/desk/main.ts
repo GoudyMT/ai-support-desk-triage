@@ -586,9 +586,15 @@ const loadingPanel = createLoadingPanel({ retry: () => void load(), smallerOnly:
 // Each Start, Retry or "smaller model only" press counts up, so a load an earlier press began cannot start a run late.
 let loadTurn = 0;
 
-// The word model and the desk's own code: both runs need them.
+// The word model and the desk's own code: both runs need them. The word model is fetched once and shared, so
+// "smaller model only" never waits behind the larger model's downloads for a second copy; a failed fetch is tried again.
+let shippedLoad: Promise<Model> | undefined;
 function deskParts(): Promise<[Model, DeskKit]> {
-  return Promise.all([fetchShipped(), import('./deskKit')]);
+  shippedLoad ??= fetchShipped().catch((error: unknown) => {
+    shippedLoad = undefined;
+    throw error;
+  });
+  return Promise.all([shippedLoad, import('./deskKit')]);
 }
 
 function begin(seed: number, model: Model, kit: DeskKit, suggest: Suggest | undefined, suggests: string): void {

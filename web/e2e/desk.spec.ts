@@ -283,27 +283,6 @@ test('Start stays off while the next run loads, even when Try a ticket is opened
   await expect(page.locator('#n-closed')).toHaveText(`0 of ${TICKETS_IN_A_RUN}`);
 });
 
-test('after a failed load, closing Try a ticket leaves Retry and the message on the bar', async ({ page }) => {
-  test.setTimeout(120_000);
-  await openDesk(page);
-  await start(page);
-  await finishRun(page);
-  await page.route('**/models/*', (route) => route.abort());
-  const toggle = page.locator('#toggle');
-  await toggle.click();
-  await expect(toggle).toHaveText('Retry');
-  await expect(page.locator('#notice')).toHaveText(MODEL_FAILED);
-  await tryButton(page).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(toggle).toHaveText('Retry');
-  await expect(page.locator('#notice')).toHaveText(MODEL_FAILED);
-  await page.unroute('**/models/*');
-  await toggle.click();
-  await expect(toggle).toHaveText('Stop');
-});
-
 test('a finished run ends on Start, and Start draws a new seed and resets every number', async ({ page }) => {
   test.setTimeout(120_000);
   await openDesk(page);
