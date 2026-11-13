@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { approveCardsPerRun, approveRunTickets } from '../../scripts/measurePipeline';
+import { suggestFrom } from '../desk/deskRun';
+import type { Category, Priority } from '../domain/labels';
+import { loadModel } from '../model/scorer';
 import type { HistoryRow } from './view';
 
 // The sentence model's row, the blind-set column and the page's words about the 90-day runs are typed into the
@@ -29,7 +33,13 @@ interface NinetyReport {
   verdict: { passed: boolean; streams: { beats_own_start: boolean }[] };
 }
 
+interface FoldsReport {
+  folds: { fold: number; n: number; category_right: number }[];
+  approve_answers: [string, Category, Priority][];
+}
+
 const ROWS = json<HistoryRow[]>('./history.json');
+const FOLDS_REPORT = json<FoldsReport>('../../../ml/reports/sentence_folds.json');
 const SETS = json<SetsReport>('../../../ml/reports/two_model_sets.json');
 const BLIND = json<BlindReport>('../../../ml/reports/blind_reading.json');
 const BUNDLE = json<BundleReport>('../../../ml/reports/bundle_v2.json');
@@ -58,10 +68,26 @@ describe('the sentence model row', () => {
     expect(sentence.sentToPerson).toBe(share(FRESH.flagged, FRESH.tickets, 2));
     // Four places: 2,000 tickets give shares in steps of 0.0005, so three places would round a reading away.
     expect(sentence.blindRight).toBe(share(SENTENCE_BLIND.alone.category, SENTENCE_BLIND.tickets, 4));
-    // Never scored on the word model's held-out folds or its desk runs: a number from another set would be made up.
-    expect(sentence.heldOutRight).toBeNull();
-    expect(sentence.approveCardsPerRun).toBeNull();
   });
+
+  // The word model's own two tests, repeated for the sentence model by ml/triage_v2/sentence_folds.py.
+  it('is right on held-out folds as often as its fold rounds recorded, as the word model is measured', () => {
+    const folds = FOLDS_REPORT.folds;
+    expect(folds.map((fold) => fold.fold).sort()).toEqual([0, 1, 2, 3]);
+    const mean = folds.reduce((sum, fold) => sum + fold.category_right / fold.n, 0) / folds.length;
+    expect(ROWS[0]?.heldOutRight).toBe(Number(mean.toFixed(3)));
+  });
+
+  // Each run is replayed with the word model and the sentence model that never saw its wording, under the desk's
+  // two-model rule, and every ticket of the runs has its answer.
+  it('offers Approve on as many cards per run as the replayed runs give', () => {
+    const tickets = approveRunTickets();
+    const answers = new Map(FOLDS_REPORT.approve_answers.map(([id, category, priority]) => [id, { category, priority }]));
+    expect(tickets.every((ticket) => answers.has(ticket.id))).toBe(true);
+    const words = [0, 1, 2, 3].map((fold) => loadModel(json(`../../public/models/fold_${fold}.json`)));
+    const approve = approveCardsPerRun((fold) => words[fold]!, undefined, undefined, () => suggestFrom(answers));
+    expect(ROWS[0]?.approveCardsPerRun).toBe(Number(approve.toFixed(1)));
+  }, 120_000);
 
   it('gives the word model its blind-set reading, and the keyword prototype none', () => {
     if (SENTENCE_BLIND === undefined) throw new Error('E_REPORT_SHAPE');

@@ -3,11 +3,11 @@
     "id": "sentence",
     "name": "Sentence model (current)",
     "kind": "Suggests on tickets sent to a person; the word model and safety rules decide what goes out",
-    "heldOutRight": null,
+    "heldOutRight": 0.839,
     "handWrittenRight": { "k": 45, "n": 48 },
     "highRiskMissed": { "k": 0, "n": 24 },
     "sentToPerson": 0.83,
-    "approveCardsPerRun": null,
+    "approveCardsPerRun": 5.2,
     "blindRight": 0.908
   },
   {
