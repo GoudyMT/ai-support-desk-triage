@@ -219,7 +219,9 @@ export async function loadSentenceModel(
   classes: SentenceClasses,
   fetcher: typeof fetch = fetch,
 ): Promise<SentenceModel> {
-  const fetched = await Promise.all(
+  // Every download is let finish before a failure is reported, so a Retry never fetches a file that is still coming in
+  // (the browser can fail the second copy of a file it is still writing to its cache).
+  const settled = await Promise.allSettled(
     SENTENCE_FILES.map(async (name): Promise<[string, Uint8Array]> => {
       let response: Response;
       try {
@@ -230,8 +232,18 @@ export async function loadSentenceModel(
       if (!response.ok) {
         throw new Error(LOAD_ERROR);
       }
-      return [name, new Uint8Array(await response.arrayBuffer())];
+      try {
+        return [name, new Uint8Array(await response.arrayBuffer())];
+      } catch {
+        throw new Error(LOAD_ERROR);
+      }
     }),
   );
+  const fetched = settled.map((result) => {
+    if (result.status === 'rejected') {
+      throw new Error(LOAD_ERROR);
+    }
+    return result.value;
+  });
   return sentenceModelFrom(Object.fromEntries(fetched) as SentenceFiles, expectedFingerprint, runtime, classes);
 }
