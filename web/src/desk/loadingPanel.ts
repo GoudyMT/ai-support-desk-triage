@@ -26,7 +26,8 @@ export function createLoadingPanel(actions: { retry: () => void; smallerOnly: ()
       retry.hidden = true;
       bar.hidden = false;
       bar.value = 0;
-      setText(byId('loading-count'), '');
+      // Until the first bytes arrive, which on a slow link takes a few seconds.
+      setText(byId('loading-count'), 'Starting the download...');
     },
     progress(share, totalBytes) {
       // A download still finishing after another file failed changes nothing shown.
