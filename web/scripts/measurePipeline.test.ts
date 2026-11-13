@@ -202,6 +202,7 @@ const CURRENT: HistoryRow = {
   highRiskMissed: { k: 0, n: 24 },
   sentToPerson: 0.78,
   approveCardsPerRun: 12.3,
+  blindRight: 0.6955,
 };
 // The old keyword method: the desk's home page says "the old keyword method got 14" from this row.
 const PROTOTYPE: HistoryRow = {
@@ -213,6 +214,7 @@ const PROTOTYPE: HistoryRow = {
   highRiskMissed: null,
   sentToPerson: null,
   approveCardsPerRun: null,
+  blindRight: null,
 };
 const EVALUATED = {
   heldOutRight: 0.573,
@@ -296,10 +298,13 @@ describe('the history check', () => {
     return text;
   };
 
-  it('reads the first history row as the current one, the prototype row by its id, and the fresh set as the real start point', () => {
+  // A newer model's row sits on top with numbers from other sets; the word model's row is still the one checked here.
+  it('reads the word model and prototype rows by their ids, and the fresh set as the real start point', () => {
     const approve = approveCardsPerRun(() => MODEL, 2000, 1);
     const row = { ...CURRENT, approveCardsPerRun: Number(approve.toFixed(1)) };
     expect(checkHistory('folds', readFrom(served([row, PROTOTYPE])), 1).failures).toEqual([]);
+    const newer = { ...row, id: 'sentence', heldOutRight: null, sentToPerson: 0.83, approveCardsPerRun: null };
+    expect(checkHistory('folds', readFrom(served([newer, row, PROTOTYPE])), 1).failures).toEqual([]);
     const moved = { ...row, sentToPerson: 0.5 };
     expect(checkHistory('folds', readFrom(served([moved, PROTOTYPE])), 1).failures).toEqual(['E_HISTORY_SENT']);
     const tampered = { ...PROTOTYPE, handWrittenRight: { k: 15, n: 48 } };

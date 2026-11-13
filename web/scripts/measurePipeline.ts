@@ -245,7 +245,7 @@ export function evalNumbers(report: unknown): EvalNumbers {
   return { heldOutRight, handWrittenRight: { k, n }, keywordHeldOutRight, keywordHandWrittenRight: { k: keywordK, n: keywordN } };
 }
 
-// Static codes, one per number of the history's current and prototype rows that differs from the figure it repeats. Held-out
+// Static codes, one per number of the history's word-model and prototype rows that differs from the figure it repeats. Held-out
 // and hand-written right are the evaluation report's recorded numbers, for both rows. High-risk missed and Sent to a person
 // are the fresh set's recorded start point, which the gate holds the measured set to. Only Approve cards per run is measured
 // by this command, and it is held to one decimal.
@@ -313,7 +313,8 @@ export interface HistoryCheck {
 
 export function checkHistory(foldsDir: string, read: (path: string) => string = readText, runs = APPROVE_RUNS): HistoryCheck {
   const rows: unknown = JSON.parse(read(HISTORY));
-  const current = Array.isArray(rows) ? (rows[0] as HistoryRow | undefined) : undefined;
+  // The word model's row is found by id: a newer model's row sits above it, held to its own reports elsewhere.
+  const current = Array.isArray(rows) ? (rows as HistoryRow[]).find((row) => row.id === 'baseline') : undefined;
   const prototype = Array.isArray(rows) ? (rows as HistoryRow[]).find((row) => row.id === 'prototype') : undefined;
   const fresh = START_POINT[FRESH_SET_NAME];
   if (current === undefined || prototype === undefined || fresh === undefined) throw new Error('E_HISTORY_SHAPE');

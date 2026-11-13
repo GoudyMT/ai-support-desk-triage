@@ -10,11 +10,12 @@ export interface HistoryRow {
   id: string;
   name: string;
   kind: string;
-  heldOutRight: number;
+  heldOutRight: number | null;
   handWrittenRight: Count;
   highRiskMissed: Count | null;
   sentToPerson: number | null;
   approveCardsPerRun: number | null;
+  blindRight: number | null;
 }
 
 export type Direction = 'up' | 'down' | 'same';
@@ -120,6 +121,12 @@ const COLUMNS: readonly Column[] = [
     figure: (row) => (row.approveCardsPerRun === null ? null : { amount: row.approveCardsPerRun, basis: 0 }),
     size: tickets('card', 'cards'),
   },
+  {
+    title: 'Right on the blind set',
+    show: (row) => formatPercent(row.blindRight, 1),
+    figure: (row) => shareFigure(row.blindRight),
+    size: points,
+  },
 ];
 
 function changeOf(column: Column, now: HistoryRow, before: HistoryRow): Change | null {
@@ -146,7 +153,8 @@ export function historyView(rows: readonly HistoryRow[]): HistoryView {
   const atBaseline = current === baseline;
   return {
     columns: COLUMNS.map((column) => column.title),
-    blocks: COLUMNS.map((column) => ({
+    // A box for a number the current model was never measured on would only say so; its table cell does that.
+    blocks: COLUMNS.filter((column) => column.figure(current) !== null).map((column) => ({
       title: column.title,
       value: column.show(current),
       baseline: `Baseline ${column.show(baseline)}${atBaseline ? '. No change yet' : ''}`,

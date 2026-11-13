@@ -10,6 +10,7 @@ const BASELINE: HistoryRow = {
   highRiskMissed: { k: 0, n: 24 },
   sentToPerson: 0.78,
   approveCardsPerRun: 50,
+  blindRight: 0.695,
 };
 const PROTOTYPE: HistoryRow = {
   id: 'prototype',
@@ -20,6 +21,7 @@ const PROTOTYPE: HistoryRow = {
   highRiskMissed: null,
   sentToPerson: null,
   approveCardsPerRun: null,
+  blindRight: null,
 };
 const NEWER: HistoryRow = {
   id: 'newer',
@@ -30,7 +32,10 @@ const NEWER: HistoryRow = {
   highRiskMissed: { k: 0, n: 24 },
   sentToPerson: 0.7,
   approveCardsPerRun: 60,
+  blindRight: 0.9,
 };
+// A model measured on the blind set but not on the held-out folds or the desk runs, as the sentence model is.
+const PARTLY: HistoryRow = { ...NEWER, id: 'partly', heldOutRight: null, approveCardsPerRun: null };
 
 const cell = (rows: HistoryRow[], row: number, column: number) => historyView(rows).rows[row]?.cells[column];
 
@@ -66,7 +71,7 @@ describe('the change shown for each number', () => {
   // A change against a number nobody measured would be made up.
   it('shows no change for the last row, or when either side was not measured', () => {
     const view = historyView([BASELINE, PROTOTYPE]);
-    expect(view.rows[1]?.cells.map((c) => c.change)).toEqual([null, null, null, null, null]);
+    expect(view.rows[1]?.cells.map((c) => c.change)).toEqual([null, null, null, null, null, null]);
     expect(view.rows[0]?.cells[2]?.change).toBeNull();
     expect(view.rows[0]?.cells[3]?.change).toBeNull();
     const unmeasuredAbove = [{ ...NEWER, sentToPerson: null }, BASELINE];
@@ -87,15 +92,15 @@ describe('the table', () => {
       ['Baseline model (current)', 'Word weights plus safety rules', true],
       ['Course prototype', 'Keyword rules', false],
     ]);
-    expect(view.rows[0]?.cells.map((c) => c.value)).toEqual(['57.3%', '39 of 48', '0 of 24', '78%', '50.0']);
-    expect(view.rows[1]?.cells.map((c) => c.value)).toEqual(['33.6%', '14 of 48', 'Not measured', 'Not measured', 'Not measured']);
+    expect(view.rows[0]?.cells.map((c) => c.value)).toEqual(['57.3%', '39 of 48', '0 of 24', '78%', '50.0', '69.5%']);
+    expect(view.rows[1]?.cells.map((c) => c.value)).toEqual(['33.6%', '14 of 48', 'Not measured', 'Not measured', 'Not measured', 'Not measured']);
   });
 
   // Adding a row is how a model change reaches the page: the new row is compared with the baseline row under it.
   it('shows the change of a row added on top from the row below it, and leaves the other rows alone', () => {
     const view = historyView([NEWER, BASELINE, PROTOTYPE]);
     expect(view.rows.map((row) => row.id)).toEqual(['newer', 'baseline', 'prototype']);
-    expect(view.rows[0]?.cells.map((c) => c.change?.direction)).toEqual(['down', 'up', 'same', 'down', 'up']);
+    expect(view.rows[0]?.cells.map((c) => c.change?.direction)).toEqual(['down', 'up', 'same', 'down', 'up', 'up']);
     expect(view.rows[0]?.current).toBe(true);
     expect(view.rows[1]?.current).toBe(false);
     expect(view.rows[1]?.cells[0]?.change?.text).toBe('23.7 pts');
@@ -111,7 +116,22 @@ describe('the current model against the baseline', () => {
       ['High-risk missed', '0 of 24', 'Baseline 0 of 24. No change yet', null],
       ['Sent to a person', '78%', 'Baseline 78%. No change yet', null],
       ['Cards with Approve per run', '50.0', 'Baseline 50.0. No change yet', null],
+      ['Right on the blind set', '69.5%', 'Baseline 69.5%. No change yet', null],
     ]);
+  });
+
+  // A headline box reading "Not measured" for the current model says nothing; the table row still shows the gap.
+  it('leaves out a box the current model was not measured on, and keeps its cell in the table', () => {
+    const view = historyView([PARTLY, BASELINE, PROTOTYPE]);
+    expect(view.blocks.map((b) => b.title)).toEqual([
+      'Right on tickets written for this project',
+      'High-risk missed',
+      'Sent to a person',
+      'Right on the blind set',
+    ]);
+    expect(view.blocks[3]).toMatchObject({ value: '90.0%', baseline: 'Baseline 69.5%' });
+    expect(view.blocks[3]?.change).toEqual({ direction: 'up', text: '20.5 pts', label: 'up 20.5 points' });
+    expect(view.rows[0]?.cells[0]).toEqual({ value: 'Not measured', change: null });
   });
 
   // The block compares with the baseline itself, not with whichever row happens to sit below the current one.

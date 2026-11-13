@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { deskTickets } from '../src/desk/deskRun';
 import { DESK_WORDING } from '../src/generator/deskFrames';
+import { formatCount, formatPercent, type HistoryRow } from '../src/history/view';
 import { maskText } from '../src/privacy/mask';
 import { LOAD_MS, SEED, START } from './helpers';
 
@@ -84,7 +86,10 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
       name: 'You are the support team. Tickets reach your desk already sorted.',
     }),
   ).toBeVisible();
-  for (const number of ['0 of 24', '39 of 48', '78%']) {
+  // The numbers come from the current Model History row, so a new model moves them with no edit here.
+  const current = (JSON.parse(readFileSync(new URL('../src/history/history.json', import.meta.url), 'utf8')) as HistoryRow[])[0];
+  if (current === undefined) throw new Error('E_NO_HISTORY');
+  for (const number of [formatCount(current.highRiskMissed), formatCount(current.handWrittenRight), formatPercent(current.sentToPerson, 0)]) {
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
   await expect(page.getByText('tickets written for this project, category right; the old keyword method got 14')).toBeVisible();
@@ -94,11 +99,8 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
       'Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you can step in on any ticket. Nothing here is a real customer.',
     ),
   ).toBeVisible();
-  await expect(
-    page.getByText(
-      'These test results are checked on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is sometimes missed.',
-    ),
-  ).toBeVisible();
+  // The live share is held to its report by src/history/sources.test.ts; here only that the note shows.
+  await expect(page.getByText('These test results are checked on every code change. A live run is harder:')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Under the Hood' })).toHaveAttribute('href', 'under-the-hood.html');
   expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);

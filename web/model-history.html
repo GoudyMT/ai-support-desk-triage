@@ -29,6 +29,8 @@
           <span id="tip-fewer" class="tipbox" role="tooltip" hidden>Fewer is better, as long as High-risk missed stays at zero. Each ticket a person does not need to check is time saved.</span>
           <button type="button" class="tip" aria-label="What Cards with Approve means" aria-describedby="tip-approve" data-for="Cards with Approve per run"></button>
           <span id="tip-approve" class="tipbox" role="tooltip" hidden>How many cards in a run reach 70% sure, so Approve shows. A surer model lights more of them.</span>
+          <button type="button" class="tip" aria-label="What the blind set is" aria-describedby="tip-blind" data-for="Right on the blind set"></button>
+          <span id="tip-blind" class="tipbox" role="tooltip" hidden>2,000 tickets in wording no model trained or was tuned on, scored once after every model was frozen.</span>
         </div>
       </section>
       <h2 id="history-title">History, newest first</h2>
@@ -44,6 +46,15 @@
         "Right" means the category. High-risk missed and Sent to a person use the 60-ticket test set, written blind and frozen
         before any measurement. Cards with Approve is the average of 40 full desk runs. A live run uses different tickets, so
         its numbers differ.
+      </p>
+      <p class="note">
+        The sentence model checks the word model's answers, so more tickets go to a person: the share went up, from 78% to
+        83%. Each of those arrives with a better suggestion. Its hand-written and blind-set numbers are the sentence model alone.
+      </p>
+      <p class="note">
+        Two simulated 90-day runs retrained the sentence model each week on what reviewers fixed. Neither passed the mark set
+        before it. The last 30 days beat the stream's own first 30 days in the first run on 2 of 4 streams, and in the fair run
+        on 1 of 4. The fair run kept repeated wording out of the later weeks.
       </p>
     </main>
     <div class="bar">
