@@ -28,6 +28,19 @@ describe('the desk with two models', () => {
     expect(card?.why).toBe('A rule caught "charged twice". The two models gave different answers.');
   });
 
+  // The owner, 2026-11-13: a reason must not name the word model's department beside the sentence model's suggestion
+  // as if they were one answer.
+  it("names the word model when a rule fired on its department and the suggestion is another", () => {
+    const reasons = [
+      { kind: 'rule' as const, reason: 'billing dispute' as const, words: ['cannot tell what'] },
+      { kind: 'category' as const, category: 'Urgent Complaint' as const },
+    ];
+    const [card] = deskCards(withState({ open: [twoModelTrail({ category: 'Account Access', priority: 'High' }, reasons)] }));
+    expect(card?.why).toBe(
+      'A rule caught "cannot tell what". The word model said Urgent Complaint, and Urgent Complaint tickets always go to a person. The two models gave different answers.',
+    );
+  });
+
   it('shows a card the models agree on as before, percent and quick approve included', () => {
     const reasons = [{ kind: 'category' as const, category: 'Billing' as const }];
     const [card] = deskCards(withState({ open: [twoModelTrail({ category: 'Billing', priority: 'High' }, reasons)] }));

@@ -3,7 +3,7 @@
 // puts it back.
 import type { Category, Priority, TicketLabel } from '../domain/labels';
 import { computeMetrics } from '../pipeline/metrics';
-import type { TicketTrail } from '../pipeline/types';
+import type { FlagReason, TicketTrail } from '../pipeline/types';
 import { tagView, teamOf, whyFlagged, type TagView } from '../page/view';
 import type { RunState } from '../run/engine';
 import { canQuickApprove, surePercent } from '../run/engineParts';
@@ -53,10 +53,19 @@ export function modelsDiffer(trail: TicketTrail): boolean {
 }
 
 // Why the ticket came to a person: the gate's reasons, then the models' disagreement, which may be the only reason.
+// A department rule that fired on the word model's answer, when the suggestion shown is another department, is said as the
+// word model's, so the line never reads as if the suggestion were that department.
 export function deskWhy(trail: TicketTrail): string {
-  const reasons = whyFlagged(trail);
-  const differ = modelsDiffer(trail) ? MODELS_DIFFER : '';
-  return [reasons === '' ? '' : sentence(reasons), differ].filter((part) => part !== '').join(' ');
+  const differ = modelsDiffer(trail);
+  const isWordOnly = (reason: FlagReason): boolean => differ && reason.kind === 'category' && reason.category !== trail.category.label;
+  const wordOnly = trail.guard.reasons.filter(isWordOnly);
+  const rest = whyFlagged({ ...trail, guard: { ...trail.guard, reasons: trail.guard.reasons.filter((reason) => !isWordOnly(reason)) } });
+  const parts = [
+    rest === '' ? '' : sentence(rest),
+    ...wordOnly.map((reason) => (reason.kind === 'category' ? `The word model said ${reason.category}, and ${reason.category} tickets always go to a person.` : '')),
+    differ ? MODELS_DIFFER : '',
+  ];
+  return parts.filter((part) => part !== '').join(' ');
 }
 
 // The open list is already ordered by severity and then oldest first. A suggestion the models disagree on carries no
