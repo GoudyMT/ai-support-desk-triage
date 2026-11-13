@@ -33,6 +33,55 @@ KEY_ERROR = "E_KEY_IN_USE"
 MODEL_GONE = "E_MODEL_GONE"
 UNBALANCED = "E_WEEKS_UNBALANCED"
 WORK_IN_REPO = "E_WORK_IN_REPO"
+WEEKS_STARTED = "E_WEEKS_STARTED"
+
+
+def window_gap(day_shares_by_week):
+    """
+    The gap the balance check reads, in points, for weeks in the order given.
+
+    Args:
+        day_shares_by_week: For each week in calendar order, the start model's share right on
+            each of its seven days.
+
+    Returns:
+        The difference between the mean daily share of days 1-30 and of days 61-90, times 100.
+    """
+    days = [share for week in day_shares_by_week for share in week]
+    early = days[EARLY.start - 1:EARLY.stop - 1]
+    late = days[LATE.start - 1:LATE.stop - 1]
+    return abs(sum(early) / len(early) - sum(late) / len(late)) * 100
+
+
+def best_week_order(day_shares_by_week):
+    """
+    A calendar order of the weeks that levels days 1-30 against days 61-90.
+
+    A week keeps its templates, tickets and answers; only its place in the calendar moves,
+    and the dealt order was random. Starting from the dealt order, any swap of two weeks that
+    narrows the measured gap is kept, until none does, so the result is the same every time
+    and weeks already level stay where they were dealt.
+
+    Args:
+        day_shares_by_week: The start model's share right per day, for each week as dealt.
+
+    Returns:
+        order, where order[position] is the dealt week placed at that calendar position.
+    """
+    order = list(range(len(day_shares_by_week)))
+    current = window_gap([day_shares_by_week[week] for week in order])
+    improved = True
+    while improved:
+        improved = False
+        for i in range(len(order)):
+            for j in range(i + 1, len(order)):
+                order[i], order[j] = order[j], order[i]
+                swapped = window_gap([day_shares_by_week[week] for week in order])
+                if swapped < current - 1e-12:
+                    current, improved = swapped, True
+                else:
+                    order[i], order[j] = order[j], order[i]
+    return order
 FOLDS = 4
 # The most the start model's department share may differ between days 1-30 and days
 # 61-90, in points, for the weeks to count as equally hard (fair run design, section 2).
@@ -158,6 +207,10 @@ def run_balance(stream, deps, work_dir, path, settings, force=False):
     from triage_v2.template_difficulty import template_difficulty
 
     threads, work_dir, report, entry = _open_stream(stream, deps, work_dir, path, settings, force)
+    if entry["weeks"]:
+        # A new deal or order under weeks already run would judge them against other tickets.
+        print("    This stream has begun its retrains. Start a new record to check its balance again.")
+        raise SystemExit(WEEKS_STARTED)
     a, b = start_pair(stream)
     frozen_dir, frozen_fp = _model(deps, entry, f"stream_{stream}_start", deps.load(f"v2_tune_{a}_{b}.jsonl"), work_dir)
     save_report(path, report)
@@ -168,7 +221,6 @@ def run_balance(stream, deps, work_dir, path, settings, force=False):
     difficulty_path = work_dir / f"fair_difficulty_{stream}.json"
     difficulty_path.write_text(json.dumps(difficulty, indent=1), encoding="utf-8")
     deps.export_weeks(stream, difficulty_path)
-    _check_inputs(deps, entry, stream)
 
     by_week = {}
     for row in deps.load(weeks_name(stream, fair=True)):
@@ -179,10 +231,36 @@ def run_balance(stream, deps, work_dir, path, settings, force=False):
         frozen_path.write_text(json.dumps(deps.score(frozen_dir, by_week[week], frozen_fp, threads)), encoding="utf-8")
         # Both paths are the start model here: only its own counts are read.
         results.append(deps.run_week(stream, week, frozen_path, frozen_path, work_dir / f"stream_{stream}_week_{week}_balance.json"))
-    early, late = _frozen_share(results, EARLY), _frozen_share(results, LATE)
-    entry["balance"] = {"early": early, "late": late, "gap": round(abs(early - late) * 100, 6)}
+    entry["dealt_balance"] = _balance(results)
+    order = best_week_order([_day_shares(result) for result in results])
+    results = _reorder(stream, deps, work_dir, results, order)
+    entry["week_order"] = order
+    entry["balance"] = _balance(results)
+    # The weeks phase checks its tickets against these: the reordered file.
+    entry["inputs"] = deps.inputs(stream)
     save_report(path, report)
     return entry
+
+
+def _balance(results):
+    early, late = _frozen_share(results, EARLY), _frozen_share(results, LATE)
+    return {"early": early, "late": late, "gap": round(abs(early - late) * 100, 6)}
+
+
+def _day_shares(result):
+    days = sorted(result["days"], key=lambda day: day["day"])
+    return [day["frozen"]["categoryRight"] / day["frozen"]["tickets"] for day in days]
+
+
+def _reorder(stream, deps, work_dir, results, order):
+    """Puts each dealt week at its new calendar place: its tickets, its frozen answers, its counts."""
+    deps.reorder_weeks(stream, order)
+    kinds = ("frozen", "balance")
+    moved = {(week, kind): (work_dir / f"stream_{stream}_week_{week}_{kind}.json").read_text(encoding="utf-8") for week in range(WEEKS) for kind in kinds}
+    for position, dealt in enumerate(order):
+        for kind in kinds:
+            (work_dir / f"stream_{stream}_week_{position}_{kind}.json").write_text(moved[(dealt, kind)], encoding="utf-8")
+    return [{**results[dealt], "week": position} for position, dealt in enumerate(order)]
 
 
 def _refuse_unbalanced(report):
@@ -311,6 +389,17 @@ class LiveDeps:
 
     def export_weeks(self, stream, difficulty_path):
         self._tsx("exportWeeks.ts", "--fair", "--stream", stream, "--difficulty", difficulty_path)
+
+    def reorder_weeks(self, stream, order):
+        path = GENERATED / weeks_name(stream, fair=True)
+        place = {dealt: position for position, dealt in enumerate(order)}
+        rows = self.load(path.name)
+        for row in rows:
+            row["week"] = place[row["week"]]
+        rows.sort(key=lambda row: row["week"])
+        temporary = path.with_name(path.name + ".tmp")
+        temporary.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
+        os.replace(temporary, path)
 
     def run_week(self, stream, week, retrained_path, frozen_path, out_path):
         gate = REPO_DIR / "web" / "public" / "models" / f"fold_{stream}.json"

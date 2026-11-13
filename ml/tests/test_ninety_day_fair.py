@@ -56,6 +56,10 @@ class FairFakes:
         self.calls.append(f"score {bundle_dir.name} {what}")
         return [{"id": row["id"], "category": "Billing" if row["id"] != "p1" else "Other", "priority": "Low"} for row in rows]
 
+    def reorder_weeks(self, stream, order):
+        self.calls.append(f"reorder {stream}")
+        self.reordered = (stream, list(order))
+
     def export_weeks(self, stream, difficulty_path):
         self.calls.append(f"export {stream}")
         self.difficulty = json.loads(Path(difficulty_path).read_text(encoding="utf-8"))
@@ -96,12 +100,65 @@ def test_the_balance_phase_rates_templates_with_the_start_model_then_deals_and_s
     assert fakes.difficulty == {"built-in|plain1|0": {"right": 1.0, "count": 2}, "built-in|plain1|1": {"right": 0.5, "count": 2}}
     # Only the start model is trained in this phase.
     assert [c for c in fakes.calls if c.startswith("train")] == ["train stream_1_start"]
-    assert entry["balance"] == {"early": 0.9, "late": 0.88, "gap": 2.0}
+    # The weeks as dealt (hard weeks 0-6, easy weeks 7-12) are 2 points apart; put in
+    # another calendar order, the same weeks are level, with no ticket rescored.
+    assert entry["dealt_balance"] == {"early": 0.9, "late": 0.88, "gap": 2.0}
+    assert entry["balance"]["gap"] == 0.0
+    assert sorted(entry["week_order"]) == list(range(WEEKS))
+    assert fakes.reordered == (1, entry["week_order"])
+
+
+def test_each_week_keeps_its_frozen_answers_when_the_order_changes(tmp_path):
+    entry = balance(tmp_path, FairFakes(900, 860))
+    order = entry["week_order"]
+    assert order != list(range(WEEKS))
+    for position, dealt in enumerate(order):
+        answers = json.loads((tmp_path / "work" / f"stream_1_week_{position}_frozen.json").read_text(encoding="utf-8"))
+        assert {answer["id"].split("-")[0] for answer in answers} == {f"w{dealt}"}
+
+
+def test_the_best_order_levels_the_two_windows_and_is_the_same_every_time():
+    hard, easy = [0.6] * 7, [0.9] * 7
+    shares = [hard] * 6 + [easy] * 7
+    order = ninety_day.best_week_order(shares)
+    assert sorted(order) == list(range(WEEKS))
+    assert ninety_day.window_gap([shares[week] for week in order]) == pytest.approx(0.0, abs=1e-9)
+    assert ninety_day.best_week_order(shares) == order
+    # Weeks already level stay where they were dealt.
+    assert ninety_day.best_week_order([easy] * WEEKS) == list(range(WEEKS))
+
+
+def test_the_balance_phase_refuses_once_retrains_have_begun(tmp_path):
+    balance_all(tmp_path)
+    weeks(tmp_path, FairFakes(), max_weeks=2)
+    with pytest.raises(SystemExit) as stopped:
+        balance(tmp_path, FairFakes())
+    assert stopped.value.code == ninety_day.WEEKS_STARTED
+
+
+def test_the_week_file_is_rewritten_in_the_new_order(tmp_path, monkeypatch):
+    monkeypatch.setattr(ninety_day, "GENERATED", tmp_path)
+    rows = [{"id": f"w{w}-{i}", "week": w, "day": 1 + i, "text": f"t{w}{i}"} for w in range(WEEKS) for i in range(2)]
+    (tmp_path / "v2_fair_weeks_2.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    order = [12, *range(12)]
+    ninety_day.LiveDeps({}, fair=True).reorder_weeks(2, order)
+    written = [json.loads(line) for line in (tmp_path / "v2_fair_weeks_2.jsonl").read_text(encoding="utf-8").splitlines()]
+    # The dealt week 12 now opens the calendar; each row keeps its own text and day.
+    assert [r["id"] for r in written if r["week"] == 0] == ["w12-0", "w12-1"]
+    assert sorted((r["id"], r["day"], r["text"]) for r in written) == sorted((r["id"], r["day"], r["text"]) for r in rows)
+    assert sorted({r["week"] for r in written}) == list(range(WEEKS))
+
+
+def set_gap(tmp_path, stream, gap):
+    path = tmp_path / "report.json"
+    report = json.loads(path.read_text(encoding="utf-8"))
+    report["streams"][str(stream)]["balance"]["gap"] = gap
+    path.write_text(json.dumps(report), encoding="utf-8")
 
 
 def test_the_weeks_phase_refuses_while_any_stream_is_over_the_limit(tmp_path):
     balance_all(tmp_path)
-    balance(tmp_path, FairFakes(900, 879), stream=2)
+    set_gap(tmp_path, 2, 2.1)
     fakes = FairFakes()
     with pytest.raises(SystemExit) as stopped:
         weeks(tmp_path, fakes)
@@ -122,6 +179,7 @@ def test_the_weeks_phase_refuses_while_a_stream_has_no_balance_yet(tmp_path):
 def test_the_weeks_phase_goes_on_at_the_limit_and_reuses_the_frozen_answers(tmp_path):
     assert BALANCE_LIMIT == 2.0
     balance_all(tmp_path)
+    set_gap(tmp_path, 3, 2.0)
     fakes = FairFakes()
     entry = weeks(tmp_path, fakes)
     assert [w["week"] for w in entry["weeks"]] == list(range(WEEKS))
