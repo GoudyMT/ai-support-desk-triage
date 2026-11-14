@@ -4,6 +4,8 @@ import { historyView, type HistoryRow } from '../src/history/view';
 
 const HISTORY_PATH = '/model-history.html';
 const NARROW = { width: 375, height: 812 };
+// The light theme's change colors (history.css): better, worse, no change.
+const TONE_COLORS = { better: 'rgb(22, 101, 52)', worse: 'rgb(185, 28, 28)', same: 'rgb(75, 85, 99)' };
 // The expected words come from history.json through the same view the page draws, so a new model row moves
 // them with no edit here. What this guards is the drawing: every row, newest first, every number, and arrows
 // a screen reader can read. That the numbers are the ones the models earned is the CI history check's job.
@@ -29,13 +31,19 @@ test('the page lists the newest model first with its numbers and an arrow a scre
       }
     }
   }
-  // Every change shares one style, so the first one drawn stands for all; the view must hold at least one.
-  const firstChange = VIEW.rows.findIndex((row) => row.cells.some((cell) => cell.change !== null));
-  expect(firstChange).toBeGreaterThanOrEqual(0);
-  const arrow = rows.nth(firstChange).getByRole('img').first();
-  await expect(arrow).toHaveCSS('font-size', '13px');
-  await expect(arrow).toHaveCSS('font-weight', '400');
-  await expect(arrow).toHaveCSS('color', 'rgb(22, 101, 52)');
+  // A change is green only when it is for the better: a number that got worse is red, an unmoved one gray. Each tone
+  // the history holds is checked on its first change; the history must hold a better and a worse one.
+  const changes = VIEW.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.change === null ? [] : [cell.change])));
+  const tones = new Set(changes.map((one) => one.tone));
+  expect(tones.has('better') && tones.has('worse')).toBe(true);
+  for (const [tone, color] of Object.entries(TONE_COLORS)) {
+    const first = changes.find((one) => one.tone === tone);
+    if (first === undefined) continue;
+    const arrow = page.locator('#rows').getByRole('img', { name: first.label, exact: true }).first();
+    await expect(arrow).toHaveCSS('font-size', '13px');
+    await expect(arrow).toHaveCSS('font-weight', '400');
+    await expect(arrow).toHaveCSS('color', color);
+  }
   // Each block is found by the start of its title: the tip moved in after a title can name another block's words.
   await expect(page.locator('.block')).toHaveCount(VIEW.blocks.length);
   for (const block of VIEW.blocks) {

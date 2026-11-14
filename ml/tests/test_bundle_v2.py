@@ -13,6 +13,7 @@ ML_DIR = Path(__file__).resolve().parents[1]
 BUNDLE = ML_DIR / "models" / "bundle_v2"
 REPORT = json.loads((ML_DIR / "reports" / "bundle_v2.json").read_text(encoding="utf-8"))
 RECORD = json.loads((ML_DIR / "reports" / "bundle_v2_answers.json").read_text(encoding="utf-8"))
+SINGLE_PATH = ML_DIR / "reports" / "bundle_v2_answers_single.json"
 GENERATED = ML_DIR / "data" / "generated"
 # How many tickets of a set another machine may answer differently from the
 # record, which was made on the owner's PC. The model file holds 8-bit weights,
@@ -64,6 +65,26 @@ def test_the_bundle_still_gives_its_recorded_answer_for_every_ticket(name):
 def test_the_recorded_counts_are_the_counts_of_the_recorded_answers(name):
     # The report's numbers are quoted in the docs; they must be these answers'.
     assert REPORT["scored"][name] == count(load_set(name), as_answers(RECORD["sets"][name]["answers"]))
+
+
+def test_the_one_at_a_time_record_is_of_this_bundle_and_these_tickets():
+    # The desk scores one ticket at a time, and the 8-bit model's rounding depends
+    # on the other tickets in a batch, so the browser is held to this record.
+    single = json.loads(SINGLE_PATH.read_text(encoding="utf-8"))
+    assert single["bundle_fingerprint"] == REPORT["fingerprint"]
+    assert single["batch_size"] == 1
+    assert set(single["sets"]) == set(SCORED_FILES)
+    for name, recorded in single["sets"].items():
+        assert recorded["rows_sha256"] == RECORD["sets"][name]["rows_sha256"]
+        assert [row[0] for row in recorded["answers"]] == [row[0] for row in RECORD["sets"][name]["answers"]]
+
+
+def test_scoring_one_ticket_at_a_time_gives_the_one_at_a_time_record():
+    single = json.loads(SINGLE_PATH.read_text(encoding="utf-8"))
+    rows = load_set("handwritten")
+    got = answer_rows(score(BUNDLE, rows, REPORT["fingerprint"], THREADS, batch_size=1))
+    differing = [new[0] for new, old in zip(got, single["sets"]["handwritten"]["answers"]) if new != old]
+    assert len(differing) <= ANSWERS_MAY_DIFFER["handwritten"], differing
 
 
 def test_a_ticket_file_with_one_changed_label_has_another_digest():

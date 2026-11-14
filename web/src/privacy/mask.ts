@@ -1,7 +1,9 @@
 export type MaskKind = 'email' | 'phone' | 'order' | 'card';
 
-// Underscored so a model's tokenizer reads "card_number" and never the plain
-// word "card", which would teach it a cue the real text does not carry.
+// Underscored so the word model's tokenizer reads "card_number" and never the plain
+// word "card", which would teach it a cue the real text does not carry. The
+// sentence model's tokenizer splits on "_" and does see "card"; it was trained on
+// the same masked text, so it learned the mask as it is.
 export const MASK_TOKENS: Record<MaskKind, string> = {
   email: '[EMAIL_ADDRESS]',
   phone: '[PHONE_NUMBER]',

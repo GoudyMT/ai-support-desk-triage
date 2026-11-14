@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const PHONE = { width: 375, height: 812 };
 const TARGET = 44;
@@ -19,7 +20,7 @@ async function openDesk(page: Page): Promise<void> {
 async function runDesk(page: Page, ms = RUN_MS): Promise<void> {
   await openDesk(page);
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
   await page.clock.runFor(ms);
 }
 
@@ -139,7 +140,7 @@ test.describe('on a phone', () => {
     await expect(page.getByRole('heading', { name: 'Try a ticket yourself' })).toBeVisible();
     await expect(numbersButton(page)).toHaveCount(0);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(RUN_MS);
     await expectRunBar(page);
   });
@@ -244,7 +245,7 @@ test.describe('on a phone', () => {
     await openDesk(page);
     expect(await sideways(page), 'at rest').toBe(false);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(RUN_MS * 2);
     expect(await sideways(page), 'in a run').toBe(false);
     await tab(page, 'Sent to teams').tap();
@@ -276,7 +277,7 @@ test.describe('on a phone with a wider font', () => {
     expect(await sideways(page), 'at rest').toBe(false);
     expect((await boxOf(page.getByRole('button', { name: 'Start' }))).height).toBeGreaterThanOrEqual(TARGET);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(RUN_MS);
     expect(await sideways(page), 'in a run').toBe(false);
     await expectRunBar(page);
@@ -402,12 +403,16 @@ test.describe('the end of a run on a phone', () => {
 // The Model History page shares the desk's look and its tips; these are the parts that are its own.
 test.describe('the Model History page', () => {
   const HISTORY = '/model-history.html';
-  const APPROVE_TIP = 'How many cards in a run reach 70% sure, so Approve shows. A surer model lights more of them.';
+  const MODELS = (JSON.parse(readFileSync(new URL('../src/history/history.json', import.meta.url), 'utf8')) as unknown[]).length;
 
   test('at 768 wide the whole table fits its box, so no column is cut off', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto(HISTORY);
-    await expect(page.locator('#rows > tr')).toHaveCount(2);
+    await expect(page.locator('#rows > tr')).toHaveCount(MODELS);
+    // Linux's default fonts run wider than Windows'; the table must still fit with text a little wider than here.
+    await page.evaluate(() => {
+      document.body.style.letterSpacing = '0.04em';
+    });
     const fits = await page
       .getByRole('region', { name: 'History, newest first' })
       .evaluate((node) => node.scrollWidth <= node.clientWidth);
@@ -418,7 +423,10 @@ test.describe('the Model History page', () => {
     await page.goto(HISTORY);
     const block = page.locator('.block', { hasText: 'Cards with Approve per run' });
     await block.getByRole('button').focus();
-    await expect(page.locator('[role="tooltip"]:not([hidden])')).toHaveText(APPROVE_TIP);
+    // The tip names both conditions Approve has on the desk: how sure, and that the two models agree.
+    const tip = page.locator('[role="tooltip"]:not([hidden])');
+    await expect(tip).toContainText('70% sure');
+    await expect(tip).toContainText('both models agree');
   });
 
   test('in forced colors a tip box has an edge', async ({ page }) => {

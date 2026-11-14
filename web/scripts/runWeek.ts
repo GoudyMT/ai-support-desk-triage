@@ -5,6 +5,7 @@ import { REVIEWER_ERROR_RATE, createSimulatedReviewer } from '../src/pipeline/re
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicketWith, type Predict } from '../src/pipeline/run';
 import { tablePredict, type SavedAnswer } from '../src/pipeline/tableScorer';
 import type { ReviewDecision, ReviewInput, TicketTrail } from '../src/pipeline/types';
+import { maskText } from '../src/privacy/mask';
 import { isRunAsCommand } from './exportDataset';
 import { parseRows, type LabeledRow } from './measurePipeline';
 
@@ -25,6 +26,25 @@ const REVIEWER_SEED = 61;
 
 export interface WeekLabeledRow extends LabeledRow {
   day: number;
+  teachText?: string;
+}
+
+/**
+ * Reads one week's rows from a week file's lines.
+ *
+ * @param lines The file's non-empty lines.
+ * @param week The week to keep (0 to 12).
+ * @returns The week's rows, each with its day and, in the fair run, its teaching copy.
+ */
+export function weekRowsFrom(lines: readonly string[], week: number): WeekLabeledRow[] {
+  const meta = new Map(lines.map((line) => JSON.parse(line) as { id: string; week: number; day: number; teachText?: unknown }).map((m) => [m.id, m]));
+  return parseRows(lines.join('\n'))
+    .filter((row) => meta.get(row.id)?.week === week)
+    .map((row) => {
+      const found = meta.get(row.id);
+      const teachText = typeof found?.teachText === 'string' ? { teachText: found.teachText } : {};
+      return { ...row, day: found?.day ?? 0, ...teachText };
+    });
 }
 
 export interface ModelDay {
@@ -120,7 +140,9 @@ export function runWeek(
     if (countTicket(day.retrained, row.label, gateTrail, retrainedTrail)) {
       const suggestion = { category: retrainedTrail.category.label as Category, priority: retrainedTrail.guard.priority };
       const decision = reviewer.decide({ id: row.id, maskedText: retrainedTrail.maskedText, suggestion, reasons: retrainedTrail.guard.reasons });
-      checked.push({ id: row.id, maskedText: retrainedTrail.maskedText, category: decision.category, priority: decision.priority, day: row.day });
+      // In the fair run the retrained model learns from the teaching copy, masked the same way.
+      const taught = row.teachText === undefined ? retrainedTrail.maskedText : maskText(row.teachText).text;
+      checked.push({ id: row.id, maskedText: taught, category: decision.category, priority: decision.priority, day: row.day });
     }
   }
   return { days, checked };
@@ -138,11 +160,7 @@ function main(args: readonly string[]): number {
     return 2;
   }
   const weekNumber = Number(week);
-  const lines = readFileSync(rowsPath, 'utf8').split('\n').filter((line) => line.trim() !== '');
-  const meta = new Map(lines.map((line) => JSON.parse(line) as { id: string; week: number; day: number }).map((m) => [m.id, m]));
-  const rows = parseRows(lines.join('\n'))
-    .filter((row) => meta.get(row.id)?.week === weekNumber)
-    .map((row) => ({ ...row, day: meta.get(row.id)?.day ?? 0 }));
+  const rows = weekRowsFrom(readFileSync(rowsPath, 'utf8').split('\n').filter((line) => line.trim() !== ''), weekNumber);
   const gateModel = loadModel(JSON.parse(readFileSync(gatePath, 'utf8')));
   const gate: Predict = (head, maskedText) => score(gateModel, head, maskedText);
   const read = (path: string): SavedAnswer[] => JSON.parse(readFileSync(path, 'utf8')) as SavedAnswer[];

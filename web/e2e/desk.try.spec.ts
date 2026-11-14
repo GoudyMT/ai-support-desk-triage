@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { MAX_TICKET_CHARS } from '../src/pipeline/intake';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const LABEL = 'Type any support message. It stays in this page and is never sent or kept.';
 const EMPTY = 'Type a support message first, then press Sort this ticket.';
@@ -17,6 +17,16 @@ const CARD = '4111-1111-1111-1111';
 const PERSONAL = `Please write to ${EMAIL} about the charge on card ${CARD}.`;
 const SAFETY = 'Someone accessed my account without permission.';
 const SHIPPED = '/models/shipped.json';
+// The larger model: the runtime's loader and engine, then the four bundle files.
+const LARGER_MODEL_FILES = [
+  '/models/ort-1.31.1/ort.wasm.min.mjs',
+  '/models/ort-1.31.1/ort-wasm-simd-threaded.mjs',
+  '/models/ort-1.31.1/ort-wasm-simd-threaded.wasm',
+  '/models/bundle_v2/model_quantized.onnx',
+  '/models/bundle_v2/tokenizer.json',
+  '/models/bundle_v2/heads.json',
+  '/models/bundle_v2/manifest.json',
+];
 
 // Opens the desk with the clock under the test's control: nothing moves until `runFor`.
 async function openDesk(page: Page): Promise<void> {
@@ -27,7 +37,7 @@ async function openDesk(page: Page): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 const box = (page: Page): Locator => page.getByRole('textbox', { name: LABEL });
@@ -122,7 +132,9 @@ test.describe('Try a ticket at rest', () => {
     expect(left.stored).toEqual([0, 0]);
   });
 
-  test('the model file is asked for once across two sorts, and nothing else is asked for after the page loads', async ({
+  // Sort may start the larger model's download (the owner, 2026-11-13): each model file once, from this site, and the
+  // second sort asks for nothing.
+  test('each model file is asked for once across two sorts, and nothing else is asked for after the page loads', async ({
     page,
   }) => {
     await openDesk(page);
@@ -130,9 +142,11 @@ test.describe('Try a ticket at rest', () => {
     const asked = watchRequests(page);
     await sort(page, SAFETY);
     await expect(result(page)).toBeVisible();
+    const afterFirst = asked.length;
     await sort(page, 'Where is my package? The tracking number shows no update for a week.');
     await expect(result(page).locator('dd').nth(0)).toHaveText('Shipping/Order Issue');
-    expect(asked).toEqual([SHIPPED]);
+    expect(asked.length).toBe(afterFirst);
+    expect(asked.filter((path) => !/^\/assets\/[\w.-]+\.js$/.test(path)).sort(), asked.join(' ')).toEqual([...LARGER_MODEL_FILES, SHIPPED].sort());
   });
 
   test('the answer for a safety ticket reads in the desk words, with the reason', async ({ page }) => {
@@ -289,7 +303,7 @@ test.describe('Try a ticket during a run', () => {
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toBeHidden();
     await expect(tryButton(page)).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(30_000);
     expect(await page.locator('#run').innerText()).not.toBe(held);
   });
@@ -318,22 +332,71 @@ test.describe('Try a ticket during a run', () => {
     await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 
+  // A visitor sorts a ticket at rest and presses Start while the larger model is still coming: when it arrives, their
+  // answer must not land in a hidden panel under a run that started without them.
+  test('a ticket sorted at rest while Start loads keeps its answer in view and holds the run', async ({ page }) => {
+    let release = (): void => undefined;
+    const open = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/models/{bundle_v2,ort-*}/**', async (route) => {
+      await open;
+      await route.continue();
+    });
+    await openDesk(page);
+    await sort(page, SAFETY);
+    await expect(page.locator('.try').getByRole('button', { name: 'Loading...' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Start' }).click();
+    release();
+    await expect(dialog(page)).toBeVisible({ timeout: LOAD_MS });
+    await expect(dialog(page).locator('.try-result')).toBeVisible();
+    await expect(page.locator('#status')).toHaveText(PAUSED_TRY);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  });
+
+  test('the box cannot be changed while the larger model is on its way', async ({ page }) => {
+    // The larger model is asked for only once the word model is in, so the wait for it is the one under test.
+    let asked = (): void => undefined;
+    const larger = new Promise<void>((resolve) => {
+      asked = resolve;
+    });
+    await page.route('**/models/{bundle_v2,ort-*}/**', () => asked());
+    await openDesk(page);
+    await sort(page, SAFETY);
+    await larger;
+    await expect(box(page)).not.toBeEditable();
+    await expect(page.locator('.try').getByRole('button', { name: 'Loading...' })).toBeDisabled();
+  });
+
   // Finish a run, press Start and then Try a ticket while the model loads: when the model arrives the new run must wait
   // for the form to close, not play under it.
   test('a new run whose model arrives while the form is open holds until the form closes', async ({ page }) => {
     test.setTimeout(120_000);
+    // The larger model is held from the start, so the first run goes on the smaller model and the next Start truly waits
+    // for it; a model the page already has would arrive before the form could open.
+    let release = (): void => undefined;
+    const open = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/models/{bundle_v2,ort-*}/**', async (route) => {
+      await open;
+      await route.continue();
+    });
     await openDesk(page);
-    await start(page);
+    await page.getByRole('button', { name: 'Start' }).click();
+    await page.getByRole('button', { name: 'Start now with the word model only' }).click();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     const toggle = page.locator('#toggle');
     for (let step = 0; step < 60 && (await toggle.innerText()) !== 'Start'; step += 1) await page.clock.runFor(10_000);
     await expect(toggle).toHaveText('Start');
-    const model = await holdModel(page);
     await toggle.click();
     await expect(toggle).toBeDisabled();
     await tryButton(page).click();
     await expect(dialog(page)).toBeVisible();
-    model.release();
-    await expect(page.locator('body')).not.toHaveAttribute('data-seed', String(SEED));
+    release();
+    // The sentence model now downloads and reads the run's tickets.
+    await expect(page.locator('body')).not.toHaveAttribute('data-seed', String(SEED), { timeout: LOAD_MS });
     await expect(page.locator('#n-closed')).toHaveText(/^0 of /);
     await expect(toggle).toBeEnabled();
     await expect(toggle).toHaveText('Start');

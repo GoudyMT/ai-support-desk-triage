@@ -1,13 +1,25 @@
 [
   {
+    "id": "sentence",
+    "name": "Sentence model (current)",
+    "kind": "Suggests on tickets sent to a person; the word model and safety rules decide what goes out",
+    "heldOutRight": 0.839,
+    "handWrittenRight": { "k": 45, "n": 48 },
+    "highRiskMissed": { "k": 0, "n": 24 },
+    "sentToPerson": 0.83,
+    "approveCardsPerRun": 5.2,
+    "blindRight": 0.908
+  },
+  {
     "id": "baseline",
-    "name": "Baseline model (current)",
+    "name": "Baseline model",
     "kind": "Word weights plus safety rules",
     "heldOutRight": 0.573,
     "handWrittenRight": { "k": 39, "n": 48 },
     "highRiskMissed": { "k": 0, "n": 24 },
     "sentToPerson": 0.78,
-    "approveCardsPerRun": 6.8
+    "approveCardsPerRun": 6.8,
+    "blindRight": 0.6955
   },
   {
     "id": "prototype",
@@ -17,6 +29,7 @@
     "handWrittenRight": { "k": 14, "n": 48 },
     "highRiskMissed": null,
     "sentToPerson": null,
-    "approveCardsPerRun": null
+    "approveCardsPerRun": null,
+    "blindRight": null
   }
 ]

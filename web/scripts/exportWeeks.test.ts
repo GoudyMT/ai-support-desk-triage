@@ -1,10 +1,10 @@
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { WEEKS } from '../src/generator/weeks';
+import { WEEKS, type Difficulty } from '../src/generator/weeks';
 import { normalizeText } from './exportDataset';
-import { buildWeekData, startPair, writeWeeks } from './exportWeeks';
+import { FAIR_NAME, buildFairWeekStream, buildWeekData, readStartRows, startPair, startRowsOf, writeWeeks } from './exportWeeks';
 
 const SMALL = { perDay: 2, trainPerWording: 200 };
 
@@ -59,9 +59,61 @@ describe('writeWeeks', () => {
     const stream = data.streams[3];
     const leaked = stream?.weeks[1]?.[0]?.ticket;
     const tampered = {
-      streams: data.streams.map((s) => (s === stream && leaked ? { ...s, startTexts: new Set([...s.startTexts, normalizeText(leaked.text)]) } : s)),
+      streams: data.streams.map((s) => (s === stream && leaked ? { ...s, startRows: [...s.startRows, { text: leaked.text.toUpperCase() }] } : s)),
     };
     expect(() => writeWeeks(dir, tampered, none)).toThrow('E_WEEK_IN_TRAIN');
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  // The other guards also match on the masked text; so does this one now, so a
+  // start ticket that differs from a week ticket only in its fake data is caught.
+  it('stops when a start ticket matches a week ticket once personal data is masked', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'weeks-'));
+    const withEmail = data.streams.flatMap((s) => s.weeks.flat().map((row) => ({ s, text: row.ticket.text }))).find(({ text }) => /\S+@example\.(com|org)/.test(text));
+    expect(withEmail).toBeDefined();
+    const variant = (withEmail?.text ?? '').replace(/\S+@example\.(com|org)/, 'someone.else7@example.org');
+    expect(normalizeText(variant)).not.toBe(normalizeText(withEmail?.text ?? ''));
+    const tampered = { streams: data.streams.map((s) => (s === withEmail?.s ? { ...s, startRows: [...s.startRows, { text: variant }] } : s)) };
+    expect(() => writeWeeks(dir, tampered, none)).toThrow('E_WEEK_IN_TRAIN');
+    expect(readdirSync(dir)).toEqual([]);
+  });
+});
+
+describe('readStartRows', () => {
+  it('refuses a missing start file instead of checking against nothing', () => {
+    expect(() => readStartRows(mkdtempSync(join(tmpdir(), 'weeks-')), 0)).toThrow('E_START_MISSING');
+  });
+
+  it('reads the texts of the file the driver trains on', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'weeks-'));
+    writeFileSync(join(dir, 'v2_tune_0_3.jsonl'), `${JSON.stringify({ id: 'a', text: 'First.' })}\n${JSON.stringify({ id: 'b', text: 'Second.' })}\n`);
+    expect(readStartRows(dir, 3)).toEqual([{ text: 'First.' }, { text: 'Second.' }]);
+  });
+});
+
+describe('fair week files', () => {
+  const none = { blind: [], handwritten: [], fresh: [], desk: [] };
+  const stream = 2;
+  const difficulty: Difficulty = {};
+  const fair = { streams: [buildFairWeekStream(stream, difficulty, startRowsOf(stream, SMALL.trainPerWording), SMALL.perDay)] };
+
+  it('writes the fair file only, each row with its teaching copy and template names', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'weeks-'));
+    writeWeeks(dir, fair, none, FAIR_NAME);
+    expect(readdirSync(dir)).toEqual(['v2_fair_weeks_2.jsonl']);
+    const rows = readFileSync(join(dir, 'v2_fair_weeks_2.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as { text: string; teachText: string; templates: string[] });
+    expect(rows).toHaveLength(WEEKS * 7 * SMALL.perDay);
+    expect(rows.every((row) => typeof row.teachText === 'string' && row.templates.length > 0)).toBe(true);
+    expect(rows.some((row) => row.teachText !== row.text)).toBe(true);
+  });
+
+  it('stops before writing when a blind text equals a teaching copy', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'weeks-'));
+    const row = fair.streams[0]?.weeks.flat().find((candidate) => candidate.teachText !== candidate.ticket.text);
+    expect(() => writeWeeks(dir, fair, { ...none, blind: [{ text: row?.teachText ?? '' }] }, FAIR_NAME)).toThrow('E_BLIND_IN_TRAIN');
     expect(readdirSync(dir)).toEqual([]);
   });
 });

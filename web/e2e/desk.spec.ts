@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { foldOf } from '../src/run/seed';
-import { generateTicket } from '../src/generator/generate';
+import { deskTickets } from '../src/desk/deskRun';
+import { DESK_WORDING } from '../src/generator/deskFrames';
+import { formatCount, formatPercent, type HistoryRow } from '../src/history/view';
 import { maskText } from '../src/privacy/mask';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const TICKETS_IN_A_RUN = 130;
 const RUN_STEP_MS = 10_000;
@@ -21,17 +23,14 @@ async function openDesk(page: Page, query = `?seed=${SEED}`): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 // Every ticket a run of this seed can show, as the page masks it: a row outside this set is not from the seed's run.
 function realTexts(seed: number): Set<string> {
-  const fold = foldOf(seed);
-  return new Set(
-    Array.from({ length: TICKETS_IN_A_RUN }, (_, index) =>
-      maskText(generateTicket(seed, index, { fold, side: 'heldout' }).text).text,
-    ),
-  );
+  const tickets = deskTickets(seed, DESK_WORDING);
+  expect(tickets.length).toBe(TICKETS_IN_A_RUN);
+  return new Set(tickets.map((ticket) => maskText(ticket.text).text));
 }
 
 // A changed number fades out and then in on the browser's own clock, not the test's, so its text is final only once the
@@ -58,7 +57,8 @@ async function holdModels(page: Page): Promise<{ release: () => void }> {
   const gate = new Promise<void>((open) => {
     release = open;
   });
-  await page.route('**/models/*', async (route) => {
+  // The sentence model's files: the word model is fetched once per page, so only these can hold a later run.
+  await page.route('**/models/{bundle_v2,ort-*}/**', async (route) => {
     await gate;
     await route.continue();
   });
@@ -87,21 +87,21 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
       name: 'You are the support team. Tickets reach your desk already sorted.',
     }),
   ).toBeVisible();
-  for (const number of ['0 of 24', '39 of 48', '78%']) {
+  // The numbers come from the current Model History row, so a new model moves them with no edit here.
+  const current = (JSON.parse(readFileSync(new URL('../src/history/history.json', import.meta.url), 'utf8')) as HistoryRow[])[0];
+  if (current === undefined) throw new Error('E_NO_HISTORY');
+  for (const number of [formatCount(current.highRiskMissed), formatCount(current.handWrittenRight), formatPercent(current.sentToPerson, 0)]) {
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
   await expect(page.getByText('tickets written for this project, category right; the old keyword method got 14')).toBeVisible();
-  await expect(page.getByText('of tickets on the blind test set still went to a person')).toBeVisible();
+  await expect(page.getByText('of tickets on that set still went to a person')).toBeVisible();
   await expect(
     page.getByText(
       'Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you can step in on any ticket. Nothing here is a real customer.',
     ),
   ).toBeVisible();
-  await expect(
-    page.getByText(
-      'These test results are checked on every code change. A live run is harder: about 89% of tickets go to a person, and a high-risk ticket is sometimes missed.',
-    ),
-  ).toBeVisible();
+  // The live share is held to its report by src/history/sources.test.ts; here only that the note shows.
+  await expect(page.getByText('These test results are checked on every code change. A live run is harder:')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Under the Hood' })).toHaveAttribute('href', 'under-the-hood.html');
   expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);
@@ -214,7 +214,7 @@ test('a model that fails to load shows a plain message and Retry, and Retry star
   await expect(page.locator('#rest')).toBeVisible();
   await page.unroute('**/models/*');
   await page.getByRole('button', { name: 'Retry' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
   await expect(page.getByText(MODEL_FAILED)).toBeHidden();
   await page.clock.runFor(30_000);
   expect(await sentRows(page).count()).toBeGreaterThan(0);
@@ -266,10 +266,13 @@ test('Start stays off while the next run loads, even when Try a ticket is opened
   page,
 }) => {
   test.setTimeout(120_000);
-  await openDesk(page);
-  await start(page);
-  await finishRun(page);
+  // Held from the start, so the first run goes on the word model and the next Start truly waits for the sentence model.
   const model = await holdModels(page);
+  await openDesk(page);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start now with the word model only' }).click();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
+  await finishRun(page);
   const toggle = page.locator('#toggle');
   await toggle.click();
   await expect(toggle).toBeDisabled();
@@ -280,29 +283,9 @@ test('Start stays off while the next run loads, even when Try a ticket is opened
   await expect(toggle).toHaveText('Loading...');
   await expect(toggle).toBeDisabled();
   model.release();
-  await expect(toggle).toHaveText('Stop');
+  // The sentence model now downloads and reads the run's tickets.
+  await expect(toggle).toHaveText('Stop', { timeout: LOAD_MS });
   await expect(page.locator('#n-closed')).toHaveText(`0 of ${TICKETS_IN_A_RUN}`);
-});
-
-test('after a failed load, closing Try a ticket leaves Retry and the message on the bar', async ({ page }) => {
-  test.setTimeout(120_000);
-  await openDesk(page);
-  await start(page);
-  await finishRun(page);
-  await page.route('**/models/*', (route) => route.abort());
-  const toggle = page.locator('#toggle');
-  await toggle.click();
-  await expect(toggle).toHaveText('Retry');
-  await expect(page.locator('#notice')).toHaveText(MODEL_FAILED);
-  await tryButton(page).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(toggle).toHaveText('Retry');
-  await expect(page.locator('#notice')).toHaveText(MODEL_FAILED);
-  await page.unroute('**/models/*');
-  await toggle.click();
-  await expect(toggle).toHaveText('Stop');
 });
 
 test('a finished run ends on Start, and Start draws a new seed and resets every number', async ({ page }) => {

@@ -1,0 +1,55 @@
+/* The download page: its file list and code sample. Layout, type and the bar come from the Model History styles. */
+@import '../page/tokens.css';
+@import '../history/history.css';
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.files a {
+  font-weight: var(--w-strong);
+  color: var(--accent);
+}
+
+.files .size {
+  margin-left: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.files .what,
+.files .size {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.files .what::before {
+  content: ' - ';
+}
+
+.code-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.code-wrap pre {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+
+.history .note a {
+  color: var(--accent);
+}
+
+/* On this page the paragraphs are the text people read, not side notes: body size and color, at a reading width. */
+.history .note {
+  max-width: var(--measure);
+  font-size: var(--fs-body);
+  color: var(--text);
+}

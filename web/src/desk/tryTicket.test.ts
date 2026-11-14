@@ -4,7 +4,8 @@ import { ROUTES, type Category } from '../domain/labels';
 import { loadModel, score } from '../model/scorer';
 import { MAX_TICKET_CHARS } from '../pipeline/intake';
 import { MASK_TOKENS, maskText } from '../privacy/mask';
-import { refusal, tryTicket } from './tryTicket';
+import type { SentenceAnswer, SentenceModel } from '../model/sentenceScorer';
+import { refusal, sentenceAnswerFor, tryTicket } from './tryTicket';
 
 const MODEL = loadModel(JSON.parse(readFileSync(new URL('../model/model.json', import.meta.url), 'utf8')));
 
@@ -82,3 +83,51 @@ describe('refusal', () => {
     expect(refusal('a'.repeat(MAX_TICKET_CHARS + 1))).toBe('long');
   });
 });
+
+describe('tryTicket with both models', () => {
+  // The word model lets PLAIN out; the sentence model's answer decides whether a person is needed.
+  it('needs no person when the sentence model gives the same answer, and a person when it does not', () => {
+    const word = tryTicket(PLAIN, MODEL);
+    expect(word.person).toBe('No');
+    const same = tryTicket(PLAIN, MODEL, { category: word.category as Category, priority: plainPriority() });
+    expect(same.person).toBe('No');
+    const other = tryTicket(PLAIN, MODEL, { category: 'Billing', priority: plainPriority() });
+    expect(other.person).toBe('Yes: The two models gave different answers.');
+    // The answer shown is the suggestion: the sentence model's.
+    expect([other.category, other.team]).toEqual(['Billing', ROUTES.Billing]);
+  });
+});
+
+describe('sentenceAnswerFor', () => {
+  const ANSWER: SentenceAnswer = { category: 'Billing', priority: 'High', categoryProbability: 0.9, priorityProbability: 0.9 };
+  const model = (predict: SentenceModel['predict']) => () => Promise.resolve<SentenceModel | undefined>({ predict });
+
+  it('asks the sentence model about the masked ticket, never the typed one', async () => {
+    const asked: string[] = [];
+    await sentenceAnswerFor(
+      model((text) => {
+        asked.push(text);
+        return Promise.resolve(ANSWER);
+      }),
+      PERSONAL,
+    );
+    expect(asked).toEqual([maskText(PERSONAL).text]);
+  });
+
+  it("gives the model's answer when it loads and answers", async () => {
+    expect(await sentenceAnswerFor(model(() => Promise.resolve(ANSWER)), PLAIN)).toEqual(ANSWER);
+  });
+
+  // A visitor whose larger model did not load still gets the word model's answer, not a button stuck on Loading.
+  it('gives no answer when the model did not load', async () => {
+    expect(await sentenceAnswerFor(() => Promise.resolve(undefined), PLAIN)).toBeUndefined();
+  });
+
+  it('gives no answer when the model loaded but fails while answering', async () => {
+    expect(await sentenceAnswerFor(model(() => Promise.reject(new Error('E_RUNTIME'))), PLAIN)).toBeUndefined();
+  });
+});
+
+function plainPriority(): 'Low' | 'Medium' | 'High' | 'Urgent' {
+  return score(MODEL, 'priority', maskText(PLAIN).text).label as 'Low' | 'Medium' | 'High' | 'Urgent';
+}

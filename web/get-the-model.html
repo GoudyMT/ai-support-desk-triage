@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <!-- Its links to other sites do not tell them which page the visitor came from. -->
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>Get the Model - AI Support Desk Triage</title>
+    <!-- The page has no script: a fourth script entry would split a shared helper out of every other page. -->
+    <link rel="stylesheet" href="/src/download/download.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <p class="site-name">Support Desk</p>
+    </header>
+    <main class="history">
+      <h1>Get the model</h1>
+      <p class="lead">
+        The sentence model the desk runs, free to download and use under the Apache 2.0 license. It reads a support ticket
+        and suggests its department and priority.
+      </p>
+
+      <h2>The files</h2>
+      <ul class="files">
+        <li><a href="models/bundle_v2/model_quantized.onnx" download>model_quantized.onnx</a> <span class="size">22.8 MB</span> <span class="what">the model, 8-bit ONNX</span></li>
+        <li><a href="models/bundle_v2/tokenizer.json" download>tokenizer.json</a> <span class="size">712 KB</span> <span class="what">turns text into word pieces</span></li>
+        <li><a href="models/bundle_v2/heads.json" download>heads.json</a> <span class="size">111 KB</span> <span class="what">turns the sentence vector into a department and a priority</span></li>
+        <li><a href="models/bundle_v2/manifest.json" download>manifest.json</a> <span class="size">23 bytes</span> <span class="what">the token limit</span></li>
+        <li><a href="models/bundle_v2/LICENSE" download>LICENSE</a> <span class="what">Apache License 2.0</span></li>
+        <li><a href="models/bundle_v2/NOTICE.md" download>NOTICE.md</a> <span class="what">what was changed from the base model</span></li>
+      </ul>
+      <p class="note">Put the files in one folder. Download them on a fast connection: together they are about 23.7 MB.</p>
+
+      <h2>How to load it</h2>
+      <p class="note">In Python, with <code>onnxruntime</code>, <code>tokenizers</code> and <code>numpy</code>. Mask personal data first (emails, phone, order and card numbers): the model was trained on masked text.</p>
+      <div class="code-wrap" tabindex="0" role="region" aria-label="Python example">
+<pre><code>import json
+
+import numpy as np
+import onnxruntime as ort
+from tokenizers import Tokenizer
+
+folder = "bundle_v2"  # the folder you saved the files in
+manifest = json.load(open(f"{folder}/manifest.json"))
+heads = json.load(open(f"{folder}/heads.json"))
+tokenizer = Tokenizer.from_file(f"{folder}/tokenizer.json")
+tokenizer.enable_truncation(max_length=manifest["max_length"])
+session = ort.InferenceSession(f"{folder}/model_quantized.onnx", providers=["CPUExecutionProvider"])
+
+
+def triage(text):
+    encoded = tokenizer.encode(text)
+    feeds = {
+        "input_ids": np.array([encoded.ids], dtype=np.int64),
+        "attention_mask": np.array([encoded.attention_mask], dtype=np.int64),
+        "token_type_ids": np.array([encoded.type_ids], dtype=np.int64),
+    }
+    wanted = {item.name for item in session.get_inputs()}
+    hidden = session.run(None, {k: v for k, v in feeds.items() if k in wanted})[0]
+    vector = hidden[0].mean(axis=0)
+    vector /= max(np.linalg.norm(vector), 1e-12)
+    answer = {}
+    for field, head in heads.items():
+        scores = np.array(head["weight"], dtype=np.float32) @ vector + np.array(head["bias"], dtype=np.float32)
+        answer[field] = head["classes"][int(scores.argmax())]
+    return answer
+
+
+print(triage("I was charged twice for my subscription this month and need a refund."))
+# {'category': 'Billing', 'priority': 'Medium'}</code></pre>
+      </div>
+
+      <h2>What it is good for, and its limits</h2>
+      <p class="note">
+        On ticket wording it never trained on, it picks the right department 83.9% of the time, against 57.3% for the word
+        model. On 2,000 tickets kept from every model and read once, 90.8%. It was trained on generated tickets, not real
+        ones, and it is built to suggest an answer to a person, not to decide alone. The numbers and every limit are on
+        <a href="model-history.html">Model History</a> and in the
+        <a href="https://github.com/GoudyMT/ai-support-desk-triage/blob/main/ml/MODEL_CARD.md">model card</a>.
+      </p>
+
+      <h2>License</h2>
+      <p class="note">
+        A trained copy of <a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2">sentence-transformers/all-MiniLM-L6-v2</a>,
+        which its authors publish under the Apache License, Version 2.0. This copy is under the same license; NOTICE.md says
+        what was changed.
+      </p>
+    </main>
+    <div class="bar">
+      <a class="btn btn-solid" href="index.html">Back to the desk</a>
+      <div class="bar-links">
+        <a class="btn" href="model-history.html">Model History</a>
+        <a class="btn" href="under-the-hood.html">Under the Hood</a>
+      </div>
+    </div>
+  </body>
+</html>

@@ -536,6 +536,44 @@ body {
   color: var(--muted);
 }
 
+.suggests:not(:empty) {
+  margin-inline-start: var(--space-3);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 40rem;
+  margin-top: var(--space-5);
+}
+
+/* Under a finished run, the panel takes a row of its own. */
+.run > .loading {
+  flex: 1 1 100%;
+  margin-top: 0;
+}
+
+.loading h2,
+.loading p {
+  margin: 0;
+}
+
+.loading progress {
+  width: 100%;
+}
+
+.loading-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.loading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .bar-links {
   display: flex;
   flex-wrap: wrap;
@@ -640,6 +678,55 @@ body {
   margin: 0;
   font-size: var(--fs-body);
   font-weight: var(--w-strong);
+}
+
+.review-models {
+  color: var(--muted);
+}
+
+/* The control that opens both answers reads as one: full text color, a target a finger can hit, a hover, and the
+   app's drawn chevron instead of the browser's triangle. */
+.review-models summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.review-models summary::-webkit-details-marker {
+  display: none;
+}
+
+.review-models summary::before {
+  content: '';
+  flex: none;
+  width: var(--chevron);
+  height: var(--chevron);
+  border-right: var(--stroke) solid currentColor;
+  border-bottom: var(--stroke) solid currentColor;
+  transform: rotate(var(--turn-closed));
+}
+
+.review-models[open] summary::before {
+  transform: rotate(var(--turn-open));
+}
+
+.review-models summary:hover {
+  background: var(--hover-bg);
+}
+
+.review-models dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+}
+
+.review-models dd {
+  margin: 0;
 }
 
 .review-why,

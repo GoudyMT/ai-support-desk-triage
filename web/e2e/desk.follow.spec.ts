@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { SEED, START } from './helpers';
+import { LOAD_MS, SEED, START } from './helpers';
 
 const STEP_MS = 250;
 const MAX_STEPS = 400;
@@ -26,7 +26,7 @@ async function openDesk(page: Page): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 const list = (page: Page): Locator => page.locator('#open-list');
@@ -95,7 +95,7 @@ test.describe('reading a card', () => {
     expect(await held(page)).toEqual(still);
     await awayFromList(page);
     await expect(status(page)).not.toHaveText(READING);
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     expect(await goesOn(page)).toBe(true);
   });
 
@@ -173,7 +173,7 @@ test.describe('reading a card', () => {
       await awayFromList(page);
       await expect(status(page)).not.toHaveText(READING);
       await expect(status(page)).not.toHaveText('Paused while you review.');
-      await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
       expect(await goesOn(page)).toBe(true);
     });
   }
@@ -202,7 +202,7 @@ test.describe('reading a card', () => {
     expect(await held(page)).toEqual(still);
     await page.getByRole('button', { name: 'Why the order changes' }).focus();
     await expect(status(page)).not.toHaveText(READING);
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     expect(await goesOn(page)).toBe(true);
   });
 
@@ -227,7 +227,7 @@ test.describe('reading a card', () => {
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toBeHidden();
     await expect(status(page)).not.toHaveText(PAUSED_TRY);
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     expect(await goesOn(page)).toBe(true);
   });
 
@@ -254,7 +254,7 @@ test.describe('reading a card', () => {
     await page.getByRole('button', { name: 'Close report' }).click();
     await expect(page.locator('#report')).toBeHidden();
     await awayFromList(page);
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     expect(await goesOn(page)).toBe(true);
   });
 
@@ -272,7 +272,7 @@ test.describe('reading a card', () => {
     await awayFromList(page);
     await page.getByRole('button', { name: 'Start' }).click();
     await expect(page.locator('#report')).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     expect(await goesOn(page)).toBe(true);
   });
 });
@@ -397,7 +397,7 @@ test.describe('the links on the bar', () => {
     await expect(tab).toHaveURL(/\/model-history\.html$/);
     await tab.close();
     // The run is where it was left.
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await expect(page).toHaveURL(/\/\?seed=/);
     await finishRun(page);
     await expectHere(page);
@@ -467,7 +467,7 @@ test.describe('keyboard and mouse together', () => {
       await expect(dialog(page)).toBeHidden();
       await awayFromList(page);
       await expect(status(page)).not.toHaveText(READING);
-      await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
       expect(await goesOn(page)).toBe(true);
     });
   }
@@ -478,7 +478,7 @@ test.describe('keyboard and mouse together', () => {
     await runUntilCards(page, 2);
     await tabIntoList(page);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await expect(page.locator('#notice')).not.toHaveText('Stopped.');
     expect(await goesOn(page)).toBe(true);
   });

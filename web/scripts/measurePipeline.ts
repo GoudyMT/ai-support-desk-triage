@@ -3,17 +3,21 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATEGORIES, PRIORITIES, type Category, type Priority, type TicketLabel } from '../src/domain/labels';
+import type { Suggest } from '../src/desk/deskRun';
+import { generateTicket } from '../src/generator/generate';
 import { FOLDS } from '../src/generator/templates';
 import type { HistoryRow } from '../src/history/view';
 import { loadModel, type Model } from '../src/model/scorer';
 import { computeMetrics } from '../src/pipeline/metrics';
 import { createSimulatedReviewer } from '../src/pipeline/reviewer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTickets } from '../src/pipeline/run';
+import { maskText } from '../src/privacy/mask';
 import { createDeskSchedule } from '../src/run/clock';
 import { createRun } from '../src/run/engine';
 import { canQuickApprove } from '../src/run/engineParts';
 import { createPrescreener } from '../src/run/prescreen';
 import { foldOf } from '../src/run/seed';
+import { runTwoModels } from '../src/run/twoModels';
 import { isRunAsCommand, normalizeText } from './exportDataset';
 
 // Runs the real pipeline over every held-out fold (each scored by its own fold
@@ -245,7 +249,7 @@ export function evalNumbers(report: unknown): EvalNumbers {
   return { heldOutRight, handWrittenRight: { k, n }, keywordHeldOutRight, keywordHandWrittenRight: { k: keywordK, n: keywordN } };
 }
 
-// Static codes, one per number of the history's current and prototype rows that differs from the figure it repeats. Held-out
+// Static codes, one per number of the history's word-model and prototype rows that differs from the figure it repeats. Held-out
 // and hand-written right are the evaluation report's recorded numbers, for both rows. High-risk missed and Sent to a person
 // are the fresh set's recorded start point, which the gate holds the measured set to. Only Approve cards per run is measured
 // by this command, and it is held to one decimal.
@@ -271,9 +275,10 @@ export function historyFailures(
 }
 
 // How many cards offer Approve in one full desk run with no viewer: each ticket the pipeline flags counts once, when
-// it enters the open list, if its card shows the button.
-function approveCardsInRun(seed: number, model: Model): number {
-  const run = createRun({
+// it enters the open list, if its card shows the button. With a second model the run takes the two-model rule, as
+// the desk does.
+function approveCardsInRun(seed: number, model: Model, suggest?: Suggest): number {
+  const options = {
     seed,
     model,
     schedule: createDeskSchedule(seed),
@@ -281,7 +286,8 @@ function approveCardsInRun(seed: number, model: Model): number {
     prescreen: createPrescreener(model),
     closeEveryMs: DESK_REVIEWER_PACE_MS,
     deepTickets: 0,
-  });
+  };
+  const run = createRun(suggest === undefined ? options : { ...options, runOne: (text, id, deps) => runTwoModels(text, id, { ...deps, suggest }) });
   const entered = new Set<string>();
   let cards = 0;
   run.play();
@@ -297,13 +303,43 @@ function approveCardsInRun(seed: number, model: Model): number {
   return cards;
 }
 
-// The average over the runs, each scored by the model of the fold its seed holds out.
-export function approveCardsPerRun(modelOf: (fold: number) => Model, firstSeed = APPROVE_FIRST_SEED, runs = APPROVE_RUNS): number {
+// The average over the runs, each scored by the model of the fold its seed holds out; a second model, when given, is
+// that fold's too.
+export function approveCardsPerRun(
+  modelOf: (fold: number) => Model,
+  firstSeed = APPROVE_FIRST_SEED,
+  runs = APPROVE_RUNS,
+  suggestOf?: (fold: number) => Suggest,
+): number {
   let total = 0;
   for (let seed = firstSeed; seed < firstSeed + runs; seed += 1) {
-    total += approveCardsInRun(seed, modelOf(foldOf(seed)));
+    total += approveCardsInRun(seed, modelOf(foldOf(seed)), suggestOf?.(foldOf(seed)));
   }
   return total / runs;
+}
+
+export interface RunTicket {
+  id: string;
+  fold: number;
+  maskedText: string;
+}
+
+/**
+ * Every ticket of the Approve runs, in run order, as a second model must answer it before the runs.
+ *
+ * Returns:
+ *   Each ticket's id, the fold its seed holds out (the fold model that may answer it) and its masked text.
+ */
+export function approveRunTickets(firstSeed = APPROVE_FIRST_SEED, runs = APPROVE_RUNS): RunTicket[] {
+  const tickets: RunTicket[] = [];
+  for (let seed = firstSeed; seed < firstSeed + runs; seed += 1) {
+    const fold = foldOf(seed);
+    for (let index = 0; index < createDeskSchedule(seed).total; index += 1) {
+      const ticket = generateTicket(seed, index, { fold, side: 'heldout' });
+      tickets.push({ id: ticket.id, fold, maskedText: maskText(ticket.text).text });
+    }
+  }
+  return tickets;
 }
 
 export interface HistoryCheck {
@@ -313,7 +349,8 @@ export interface HistoryCheck {
 
 export function checkHistory(foldsDir: string, read: (path: string) => string = readText, runs = APPROVE_RUNS): HistoryCheck {
   const rows: unknown = JSON.parse(read(HISTORY));
-  const current = Array.isArray(rows) ? (rows[0] as HistoryRow | undefined) : undefined;
+  // The word model's row is found by id: a newer model's row sits above it, held to its own reports elsewhere.
+  const current = Array.isArray(rows) ? (rows as HistoryRow[]).find((row) => row.id === 'baseline') : undefined;
   const prototype = Array.isArray(rows) ? (rows as HistoryRow[]).find((row) => row.id === 'prototype') : undefined;
   const fresh = START_POINT[FRESH_SET_NAME];
   if (current === undefined || prototype === undefined || fresh === undefined) throw new Error('E_HISTORY_SHAPE');

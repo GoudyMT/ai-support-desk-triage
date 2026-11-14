@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { dollarsText, minutesText } from '../src/run/valueSaved';
-import { SEED, START, tabTo } from './helpers';
+import { LOAD_MS, SEED, START, tabTo } from './helpers';
 
 const TICKETS_IN_A_RUN = 130;
 const RUN_STEP_MS = 10_000;
@@ -27,7 +27,7 @@ async function openDesk(page: Page): Promise<void> {
 
 async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
 }
 
 const more = (page: Page): Locator => page.getByRole('button', { name: /^(More numbers and report|Fewer numbers)$/ });
@@ -108,7 +108,7 @@ test.describe('Generate report', () => {
     await expect(generate(page)).toBeFocused();
     // The lists come back under a pointer left where Close report was, which holds the run, so it moves away.
     await page.mouse.move(0, 0);
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(30_000);
     expect(await held(page)).not.toEqual(before);
   });
@@ -134,7 +134,7 @@ test.describe('Generate report', () => {
     await expect(report(page)).toBeVisible();
     await page.getByRole('button', { name: 'Start' }).click();
     await expect(report(page)).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(30_000);
     expect(await held(page)).not.toEqual(before);
   });
@@ -153,7 +153,7 @@ test.describe('Generate report', () => {
     expect(await held(page)).toEqual(before);
     await closeReport(page).click();
     await page.mouse.move(0, 0);
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     await page.clock.runFor(30_000);
     expect(await held(page)).not.toEqual(before);
   });
@@ -233,7 +233,7 @@ test('keyboard only: Start to a report and back, with focus where it should be',
   await openDesk(page);
   await tabTo(page, 'Start');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
   await page.clock.runFor(60_000);
   await tabTo(page, /numbers$/, true);
   await expect(more(page)).toBeFocused();

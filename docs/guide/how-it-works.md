@@ -43,6 +43,18 @@ ticket, weighs them, and turns the total into a "how sure" score for every answe
 TF-IDF features into logistic regression. The words that pushed hardest toward the answer are shown on the ticket as
 the "why".
 
+### The second model
+
+On the desk, a second model reads the same masked ticket: a small sentence encoder (all-MiniLM-L6-v2) trained on the
+same kind of generated tickets. It reads whole sentences rather than counting words, and on wording it never saw it
+is right on the category far more often (83.9% against 57.3%). It runs in the browser and is downloaded when the desk
+starts.
+
+It works as a check and a helper, never as the gate. A ticket the word model and the rules would let out leaves only if
+the second model gives the same category and priority; otherwise a person sees it. On every ticket a person sees, the
+second model's answer is the suggestion. When the two disagree, the card says so and offers no quick Approve
+([`twoModels.ts`](../../web/src/run/twoModels.ts), [model card](../../ml/MODEL_CARD.md#the-sentence-model)).
+
 ### The guardrails
 
 Six keyword rules look for tickets a person must always see. Each one can also raise the priority, never lower it
@@ -66,7 +78,7 @@ category ([`run.ts`](../../web/src/pipeline/run.ts)).
 On the live desk a simulated reviewer checks flagged tickets. It knows each ticket's true answer and is wrong on
 purpose 5% of the time, so it acts like a person, not a perfect answer key
 ([`reviewer.ts`](../../web/src/pipeline/reviewer.ts)). You can take any ticket yourself. A one-press Approve shows
-only when the ticket's card reads 70% sure or more ([`engineParts.ts`](../../web/src/run/engineParts.ts)).
+only when the ticket's card reads 70% sure or more and both models agree ([`engineParts.ts`](../../web/src/run/engineParts.ts)).
 
 ## Where the model comes from
 
@@ -119,11 +131,15 @@ flowchart TD
 ```
 
 Two more test sets sit outside the generator: 48 tickets written by hand, and 60 more written blind and frozen before
-any measurement. The live desk uses the same idea: each run plays one fold's wording, scored by the model that never
-learned it. More on what each number means: [Reading the numbers](reading-the-numbers.md).
+any measurement. A third, 2,000 tickets in wording kept from every model, was read once, after both models were
+frozen. The demo page uses the same idea: each run plays one fold's wording, scored by the model that never learned
+it. The desk deals wording written only for it, which neither model trained on. More on what each number means:
+[Reading the numbers](reading-the-numbers.md).
 
 ## What it is not
 
 - Not connected to a real help desk. The tickets are made up and the reviewer is simulated.
-- No server. The site is static, makes no calls except to load its model files, and stores nothing.
-- Not a language model. It counts words and word pairs; it does not understand meaning or negation.
+- No server. The site is static, makes no calls except to load its model files and the runtime that runs the sentence model, all
+  from this site, and stores nothing.
+- Not a chatbot. The word model counts words and word pairs. The sentence model turns a ticket into numbers and picks
+  an answer from a fixed list; it writes no text.

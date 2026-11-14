@@ -68,7 +68,14 @@ export function createReviewCard(actions: ReviewActions): ReviewCard {
   const text = el('p', 'review-text');
   const why = el('p', 'review-why');
   const reason = el('div', 'review-reason');
-  reason.append(el('h3', undefined, 'Why it came to you'), why);
+  // Each model's own answer, on demand: the suggestion is the sentence model's.
+  const both = el('details', 'review-models');
+  const wordAnswer = el('dd');
+  const sentenceAnswer = el('dd');
+  const answers = el('dl');
+  answers.append(el('dt', undefined, 'Word model'), wordAnswer, el('dt', undefined, 'Sentence model'), sentenceAnswer);
+  both.append(el('summary', undefined, "Show both models' answers"), answers);
+  reason.append(el('h3', undefined, 'Why it came to you'), why, both);
   const category = field('review-category', 'Category', CATEGORIES);
   const priority = field('review-priority', 'Priority', PRIORITIES);
   const team = field('review-team', 'Team', TEAMS);
@@ -172,6 +179,10 @@ export function createReviewCard(actions: ReviewActions): ReviewCard {
       tag.textContent = view.tag.word;
       text.textContent = view.text;
       why.textContent = view.why;
+      both.hidden = view.models === undefined;
+      both.open = false;
+      wordAnswer.textContent = view.models?.word ?? '';
+      sentenceAnswer.textContent = `${view.models?.sentence ?? ''} (the suggestion)`;
       pick(category.select, view.category);
       pick(priority.select, view.priority);
       pick(team.select, view.route);

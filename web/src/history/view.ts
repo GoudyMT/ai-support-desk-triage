@@ -10,17 +10,21 @@ export interface HistoryRow {
   id: string;
   name: string;
   kind: string;
-  heldOutRight: number;
+  heldOutRight: number | null;
   handWrittenRight: Count;
   highRiskMissed: Count | null;
   sentToPerson: number | null;
   approveCardsPerRun: number | null;
+  blindRight: number | null;
 }
 
 export type Direction = 'up' | 'down' | 'same';
+// Whether a change is good news: the arrow says which way a number moved, the tone says whether that way is better.
+export type Tone = 'better' | 'worse' | 'same';
 
 export interface Change {
   direction: Direction;
+  tone: Tone;
   text: string;
   label: string;
 }
@@ -57,7 +61,11 @@ export function formatCount(count: Count | null): string {
 }
 
 export function formatPercent(share: number | null, digits: number): string {
-  return share === null ? NOT_MEASURED : `${(share * 100).toFixed(digits)}%`;
+  if (share === null) return NOT_MEASURED;
+  // The product is rounded to a few places first, so an exact half stored as 0.6955 is not read as 69.54999...
+  const scale = 10 ** digits;
+  const shown = Math.round(Number((share * 100 * scale).toFixed(6))) / scale;
+  return `${shown.toFixed(digits)}%`;
 }
 
 const PERCENT = 100;
@@ -78,6 +86,8 @@ interface Column {
   figure: (row: HistoryRow) => Figure | null;
   // The size of a change as it is written, and its words for a screen reader.
   size: (amount: number) => { text: string; words: string };
+  // The way this number moves when the model gets better.
+  better: 'up' | 'down';
 }
 
 const points = (amount: number) => ({ text: `${amount} pts`, words: `${amount} points` });
@@ -95,30 +105,42 @@ const COLUMNS: readonly Column[] = [
     show: (row) => formatPercent(row.heldOutRight, 1),
     figure: (row) => shareFigure(row.heldOutRight),
     size: points,
+    better: 'up',
   },
   {
     title: 'Right on tickets written for this project',
     show: (row) => formatCount(row.handWrittenRight),
     figure: (row) => countFigure(row.handWrittenRight),
     size: tickets('ticket', 'tickets'),
+    better: 'up',
   },
   {
     title: 'High-risk missed',
     show: (row) => formatCount(row.highRiskMissed),
     figure: (row) => countFigure(row.highRiskMissed),
     size: tickets('high-risk ticket', 'high-risk tickets'),
+    better: 'down',
   },
   {
     title: 'Sent to a person',
     show: (row) => formatPercent(row.sentToPerson, 0),
     figure: (row) => shareFigure(row.sentToPerson),
     size: points,
+    better: 'down',
   },
   {
     title: 'Cards with Approve per run',
     show: (row) => (row.approveCardsPerRun === null ? NOT_MEASURED : row.approveCardsPerRun.toFixed(DECIMALS)),
     figure: (row) => (row.approveCardsPerRun === null ? null : { amount: row.approveCardsPerRun, basis: 0 }),
     size: tickets('card', 'cards'),
+    better: 'up',
+  },
+  {
+    title: 'Right on the blind set',
+    show: (row) => formatPercent(row.blindRight, 1),
+    figure: (row) => shareFigure(row.blindRight),
+    size: points,
+    better: 'up',
   },
 ];
 
@@ -131,7 +153,11 @@ function changeOf(column: Column, now: HistoryRow, before: HistoryRow): Change |
   const moved = Math.round((a.amount - b.amount) * SCALE) / SCALE;
   const direction: Direction = moved > 0 ? 'up' : moved < 0 ? 'down' : 'same';
   const { text, words } = column.size(Math.abs(moved));
-  return { direction, text, label: direction === 'same' ? 'no change' : `${direction} ${words}` };
+  const tone: Tone = direction === 'same' ? 'same' : direction === column.better ? 'better' : 'worse';
+  // The tone is written as well as colored, so a reader who cannot tell the colors apart still reads it.
+  return direction === 'same'
+    ? { direction, tone, text, label: 'no change' }
+    : { direction, tone, text: `${text} ${tone}`, label: `${direction} ${words}, ${tone}` };
 }
 
 export function historyView(rows: readonly HistoryRow[]): HistoryView {
@@ -146,7 +172,8 @@ export function historyView(rows: readonly HistoryRow[]): HistoryView {
   const atBaseline = current === baseline;
   return {
     columns: COLUMNS.map((column) => column.title),
-    blocks: COLUMNS.map((column) => ({
+    // A box for a number the current model was never measured on would only say so; its table cell does that.
+    blocks: COLUMNS.filter((column) => column.figure(current) !== null).map((column) => ({
       title: column.title,
       value: column.show(current),
       baseline: `Baseline ${column.show(baseline)}${atBaseline ? '. No change yet' : ''}`,

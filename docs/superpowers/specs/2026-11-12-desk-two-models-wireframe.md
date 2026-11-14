@@ -62,7 +62,7 @@ The run starts at once on the word model, as today.
 ```
 The Sort button reads "Loading..." the first time, while the larger model loads, as it does today for the word model.
 
-> OPEN (2026-11-12): the lock says the larger model downloads only when Start is pressed, never on page open; whether Sort here may start that download is not decided. Settle it with the owner before the desk is built.
+> SETTLED (the owner, 2026-11-13, "Yes, I'm both"): Sort may start the larger model's download; it is still never downloaded on page open.
 
 ## The choice: what happens to tickets that arrive while the larger model loads
 > SUPERSEDED (2026-11-12): the owner's loading panel replaces A, B and C - see "What was locked" at the top.

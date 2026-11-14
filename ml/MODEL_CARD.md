@@ -1,6 +1,11 @@
-# Model Card: Ticket Triage Word-Weight Model
+# Model Card: Ticket Triage Models
 
-The accuracy numbers on this page are quoted from `ml/reports/eval.json`, written by `python -m triage.evaluate`;
+The desk runs two models. The **word model** decides what may leave without a person; it is unchanged from the first
+release and is described first. The **sentence model** gives the suggestion a person sees on every ticket sent to
+them, and checks the word model: a ticket leaves unchecked only when both give the same answer. It is described in
+[The sentence model](#the-sentence-model).
+
+The word model's accuracy numbers are quoted from `ml/reports/eval.json`, written by `python -m triage.evaluate`;
 CI re-derives that file on every push and fails if it changes. The parity, size and row counts come from the
 commands named beside them.
 
@@ -91,3 +96,89 @@ F-48 rewords seen ticket H-07. The first 48-ticket hand-written set shaped the r
   looks like a year-first date ("2010-12-31"). Long digit runs, slash-written date ranges and 7+ digit ids are masked even when they are not
   personal data, and in text without spaces (Chinese, Japanese) the words joined to an email are masked with it.
 - **Size.** `model.json` is 3,825,908 bytes (about 1.4 MB gzipped).
+
+## The sentence model
+
+Numbers in this part are quoted from the report files named beside them; CI works the two-model counts and the blind
+reading out again from recorded answers on every push.
+
+### What it is
+
+A small sentence encoder, `sentence-transformers/all-MiniLM-L6-v2` (revision `1110a243`, Apache 2.0), trained on
+20,000 generated tickets with two answer heads, category and priority: 2 epochs, learning rate 0.00002, batch 64, up to
+256 word pieces (`ml/reports/bundle_v2.json`). It ships as an 8-bit ONNX file of 22,843,709 bytes with its tokenizer
+(711,649 bytes) and heads (110,533 bytes), and runs in the visitor's browser; nothing is sent anywhere. The browser
+downloads it only when the desk starts, and the desk can run on the word model alone.
+
+### How the two models work together
+
+The word model, its rules and its confidence floor decide first. A ticket they would let out leaves only if the sentence
+model gives the same category and priority; otherwise it goes to a person. Every ticket sent to a person shows the
+sentence model's answer, after the same safety rules, as the suggestion. When the two disagree, the card says so and
+offers no quick Approve. So the second model can only send more tickets to a person, never fewer.
+
+### Results
+
+| | Word model | Sentence model | Source |
+|---|---|---|---|
+| Category right on wording it never saw (mean of 4 folds) | 57.3% | 83.9% (92.2, 81.2, 83.9, 78.3) | `eval.json`, `sentence_folds.json` |
+| Priority right, same folds | 57.8% | 75.4% | `eval.json`, `sentence_folds.json` |
+| Category right, hand-written set | 39 / 48 | 45 / 48 | `eval.json`, `bundle_v2.json` |
+| Category right, blind set (2,000 tickets, read once) | 69.6% | 90.8% | `blind_reading.json` |
+
+The fold numbers repeat the word model's test: each fold's sentence model trains on the other three folds' wording with
+the shipped settings and is scored on its own (`python -m triage_v2.sentence_folds`).
+
+**The blind reading** (`ml/reports/blind_reading.json`). 2,000 tickets in wording no model trained or was tuned on,
+scored once after every model was frozen. The bar, written before the reading: on the tickets sent to a person, the
+suggestion is right on category at least 10 points more often than the word model's answer, and no safety count is
+worse. It was met:
+
+| On the blind set | Word model alone | Both models |
+|---|---|---|
+| Suggestion right on category, tickets sent to a person | 1,031 / 1,640 (62.9%) | 1,456 / 1,640 (88.8%) |
+| High-risk tickets out without a person | 61 | 38 |
+| High or Urgent tickets out as Low or Medium | 36 | 0 |
+| Out unchecked with the wrong category | 2 | 0 |
+| Out unchecked with the wrong priority | 83 | 3 |
+| Sent to a person | 1,556 | 1,640 |
+
+Six blind templates share many 4-word runs with the training wording; without their 53 tickets the sentence model is
+right on 90.5% and the word model on 68.7%.
+
+**On the 60-ticket set written blind** (`ml/reports/two_model_sets.json`): 0 of 24 high-risk tickets missed, as
+before, and 50 of 60 sent to a person, up from 47. **On the desk's own wording** (4,000 tickets): 83.3% sent to a
+person, up from 79.6%; high-risk tickets out without a person 73, down from 83. **Cards with Approve**: 5.2 per desk
+run, down from 6.8, since a card offers it only when both models agree (`sentence_folds.json`, worked out by
+`web/src/history/sources.test.ts`).
+
+### The 90-day runs
+
+Two simulated 90-day runs retrained the sentence model each week on what a simulated reviewer fixed, judged by a mark
+written before each run (`ml/reports/ninety_day.json`, `ml/reports/ninety_day_fair.json`). Neither passed. The last 30
+days beat the stream's own first 30 days on 2 of 4 streams in the first run, and on 1 of 4 in the fair run, which kept
+repeated wording out of the later weeks. The shipped model is not retrained live.
+
+### Limits
+
+- **More work for people.** The second model checks the first, so more tickets go to a person, not fewer. Whether a
+  ticket needs a person is still decided by word rules and the word model's confidence, not by the better model. Four
+  ways to cut those tickets were measured and not adopted: three let more high-risk tickets through, and one sent too
+  many to the wrong team first:
+  [`2026-11-14-routing-and-risk-note.md`](../docs/superpowers/specs/2026-11-14-routing-and-risk-note.md).
+- **High-risk tickets still get through.** On the blind set 38 high-risk tickets left without a person, down from 61.
+  The 0 of 24 on the 60-ticket set is a small sample.
+- **Priority is weaker than category.** 75.4% on unseen wording; the safety rules, not the model, keep High and Urgent
+  tickets from leaving as Low or Medium.
+- **Generated data.** As with the word model, the tickets come from templates.
+- **Typed control words are read as control words.** A ticket that contains "[SEP]", "[CLS]", "[PAD]", "[UNK]" or
+  "[MASK]" passes them to the model as its own markers, as the Python tokenizer does, so the browser and Python agree.
+  It can only change the answer on a visitor's own Try a ticket; generated tickets never hold them.
+- **Machines can differ on near ties.** The browser's runtime gives a different answer from Python on Windows on 23 of
+  4,000 desk tickets, each a close call; CI holds the browser to its own recorded answers
+  (`ml/reports/bundle_v2_answers_web.json`). Python itself differs between Windows and Linux on 13 of the 4,000, as
+  `NOTICE.md` beside the model records.
+- **Size.** About 38.5 MB to download: the model files plus the browser runtime's 14.8 MB engine
+  (`web/src/desk/sentenceLoader.ts`). In a simulated phone (Chromium with a Pixel 7 profile, not a real
+  device), the desk took 38.5 s from Start to the run on fast 4G with the CPU slowed 4 times, and 80.2 s on slow 4G with
+  it slowed 6 times.

@@ -3,15 +3,20 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CATEGORIES, type Category, type Priority } from '../src/domain/labels';
+import { generateTicket } from '../src/generator/generate';
 import type { HistoryRow } from '../src/history/view';
-import { loadModel } from '../src/model/scorer';
+import { loadModel, score } from '../src/model/scorer';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON } from '../src/pipeline/run';
+import { maskText } from '../src/privacy/mask';
 import { createDeskSchedule } from '../src/run/clock';
 import { createRun } from '../src/run/engine';
 import { canQuickApprove } from '../src/run/engineParts';
 import { createPrescreener } from '../src/run/prescreen';
+import { foldOf } from '../src/run/seed';
 import {
   approveCardsPerRun,
+  approveRunTickets,
   assertFreshUnseen,
   checkExitCode,
   checkHistory,
@@ -202,6 +207,7 @@ const CURRENT: HistoryRow = {
   highRiskMissed: { k: 0, n: 24 },
   sentToPerson: 0.78,
   approveCardsPerRun: 12.3,
+  blindRight: 0.6955,
 };
 // The old keyword method: the desk's home page says "the old keyword method got 14" from this row.
 const PROTOTYPE: HistoryRow = {
@@ -213,6 +219,7 @@ const PROTOTYPE: HistoryRow = {
   highRiskMissed: null,
   sentToPerson: null,
   approveCardsPerRun: null,
+  blindRight: null,
 };
 const EVALUATED = {
   heldOutRight: 0.573,
@@ -296,10 +303,13 @@ describe('the history check', () => {
     return text;
   };
 
-  it('reads the first history row as the current one, the prototype row by its id, and the fresh set as the real start point', () => {
+  // A newer model's row sits on top with numbers from other sets; the word model's row is still the one checked here.
+  it('reads the word model and prototype rows by their ids, and the fresh set as the real start point', () => {
     const approve = approveCardsPerRun(() => MODEL, 2000, 1);
     const row = { ...CURRENT, approveCardsPerRun: Number(approve.toFixed(1)) };
     expect(checkHistory('folds', readFrom(served([row, PROTOTYPE])), 1).failures).toEqual([]);
+    const newer = { ...row, id: 'sentence', heldOutRight: null, sentToPerson: 0.83, approveCardsPerRun: null };
+    expect(checkHistory('folds', readFrom(served([newer, row, PROTOTYPE])), 1).failures).toEqual([]);
     const moved = { ...row, sentToPerson: 0.5 };
     expect(checkHistory('folds', readFrom(served([moved, PROTOTYPE])), 1).failures).toEqual(['E_HISTORY_SENT']);
     const tampered = { ...PROTOTYPE, handWrittenRight: { k: 15, n: 48 } };
@@ -330,6 +340,33 @@ describe('Approve cards per run', () => {
     });
     expect(counts.every((count) => count > 0)).toBe(true);
     expect(approveCardsPerRun(() => MODEL, 2000, 2)).toBe(counts.reduce((sum, count) => sum + count, 0) / SEEDS.length);
+  });
+
+  // Under the two-model rule a card offers Approve only when both models give the same answer.
+  it('with a second model, counts a card only when both models agree', () => {
+    const same = () => (maskedText: string) => ({
+      category: score(MODEL, 'category', maskedText).label as Category,
+      priority: score(MODEL, 'priority', maskedText).label as Priority,
+    });
+    const other = () => (maskedText: string) => {
+      const gate = score(MODEL, 'category', maskedText).label;
+      return { category: CATEGORIES.find((name) => name !== gate) as Category, priority: 'Low' as Priority };
+    };
+    const alone = approveCardsPerRun(() => MODEL, 2000, 2);
+    expect(alone).toBeGreaterThan(0);
+    expect(approveCardsPerRun(() => MODEL, 2000, 2, same)).toBe(alone);
+    expect(approveCardsPerRun(() => MODEL, 2000, 2, other)).toBe(0);
+  });
+
+  // The second model answers the runs' tickets ahead of time, from this list, so the list must be the runs' own.
+  it('lists every ticket of the runs once, with the fold its seed holds out and the text the pipeline masks', () => {
+    const tickets = approveRunTickets(2000, 2);
+    const totals = [2000, 2001].map((seed) => createDeskSchedule(seed).total);
+    expect(tickets).toHaveLength(totals[0]! + totals[1]!);
+    expect(new Set(tickets.map((ticket) => ticket.id)).size).toBe(tickets.length);
+    const last = tickets.at(-1);
+    const ticket = generateTicket(2001, totals[1]! - 1, { fold: foldOf(2001), side: 'heldout' });
+    expect(last).toEqual({ id: ticket.id, fold: foldOf(2001), maskedText: maskText(ticket.text).text });
   });
 });
 

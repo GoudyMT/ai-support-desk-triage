@@ -92,17 +92,46 @@ RECORD_NOTE = (
 )
 
 
-def main():
-    """Writes the verdict into the run's record, so the record and its judgement travel together."""
-    import json
-    from pathlib import Path
+FAIR_RECORD_NOTE = (
+    "The fair run: weeks dealt and ordered so the start model scores days 1-30 and 61-90 alike "
+    "(see each stream's balance), and retrained models taught from copies with held-out pieces "
+    "swapped. Recorded once on the owner's PC; CI judges these counts again "
+    "(test_ninety_day_fair_record.py) but does not retrain."
+)
 
-    path = Path(__file__).resolve().parents[1] / "reports" / "ninety_day.json"
+
+def record_verdict(path, note):
+    """
+    Writes the judge's verdict and a note into one run's record, so they travel together.
+
+    Args:
+        path: The record to judge; no other file is touched.
+        note: What the record is, in a sentence or two.
+
+    Returns:
+        The verdict.
+    """
+    import json
+
     report = json.loads(path.read_text(encoding="utf-8"))
-    report["note"] = RECORD_NOTE
+    report["note"] = note
     report["verdict"] = judge(report)
     path.write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8", newline="\n")
-    print(f"    Passed: {report['verdict']['passed']} (complete: {report['verdict']['complete']})")
+    return report["verdict"]
+
+
+def main():
+    """Judges the first run's record, or the fair run's with --fair."""
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("--fair", action="store_true", help="judge the fair run's record")
+    args = parser.parse_args()
+    reports = Path(__file__).resolve().parents[1] / "reports"
+    path, note = (reports / "ninety_day_fair.json", FAIR_RECORD_NOTE) if args.fair else (reports / "ninety_day.json", RECORD_NOTE)
+    verdict = record_verdict(path, note)
+    print(f"    Passed: {verdict['passed']} (complete: {verdict['complete']})")
 
 
 if __name__ == "__main__":
