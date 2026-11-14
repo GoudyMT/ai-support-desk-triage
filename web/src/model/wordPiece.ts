@@ -171,13 +171,16 @@ function pieces(word: string, vocabulary: Vocabulary): number[] {
   if (chars.length > vocabulary.maxWordChars) {
     return [vocabulary.unk];
   }
+  // Where each character starts in the string, so a piece is one slice of it, not a join of characters.
+  const offsets = [0];
+  for (const char of chars) offsets.push((offsets.at(-1) ?? 0) + char.length);
   const found: number[] = [];
   let start = 0;
   while (start < chars.length) {
     let end = Math.min(chars.length, start + vocabulary.longestPiece);
     let id: number | undefined;
     while (end > start) {
-      const piece = chars.slice(start, end).join('');
+      const piece = word.slice(offsets[start], offsets[end]);
       id = vocabulary.ids.get(start > 0 ? `${SUBWORD_PREFIX}${piece}` : piece);
       if (id !== undefined) {
         break;
