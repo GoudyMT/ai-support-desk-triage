@@ -24,12 +24,13 @@ from threadpoolctl import threadpool_limits
 from triage.data import FOLD_COUNT, fold_paths, load_rows
 from triage_v2.practice_rounds import count
 from triage_v2.score_onnx import score
-from triage_v2.share_machine import GPU_REST_RATIO, share_the_machine
+from triage_v2.share_machine import CPU_THREADS, GPU_REST_RATIO, limit_cpu, share_the_machine
 from triage_v2.train_sentence import BATCH_SIZE, EPOCHS, FIELDS, LEARNING_RATE, MAX_LENGTH
 
 ML_DIR = Path(__file__).resolve().parents[1]
 TICKETS = ML_DIR / "data" / "generated" / "approve_runs.jsonl"
 REPORT = ML_DIR / "reports" / "sentence_folds.json"
+ANSWERS = ML_DIR / "reports" / "sentence_fold_answers.json"
 # The shipped bundle's settings (ml/reports/bundle_v2.json), so the folds measure the same recipe.
 SETTINGS = {"fields": list(FIELDS), "epochs": EPOCHS, "learning_rate": LEARNING_RATE, "batch_size": BATCH_SIZE, "max_length": MAX_LENGTH}
 MISSING_ERROR = "E_TICKETS_MISSING"
@@ -72,12 +73,48 @@ def run_fold(k, tickets, work_dir, threads):
     return record, [[a["id"], a["category"], a["priority"]] for a in approve]
 
 
+def fold_answers(work_dir, report, threads):
+    """
+    Answers each held-out fold with its recorded fold model, refusing a model that is not the recorded one.
+
+    Args:
+        work_dir: The folder the fold bundles were written to.
+        report: The fold report, with each fold's fingerprint.
+        threads: The most CPU threads scoring may use.
+
+    Returns:
+        Each fold's fingerprint and its answers as [id, category, priority], in file order.
+    """
+    found = {}
+    for record in sorted(report["folds"], key=lambda one: one["fold"]):
+        k = record["fold"]
+        heldout = load_rows(fold_paths(k)[1])
+        answers = score(Path(work_dir) / f"sentence_fold_{k}", heldout, record["fingerprint"], threads)
+        found[str(k)] = {"fingerprint": record["fingerprint"], "answers": [[a["id"], a["category"], a["priority"]] for a in answers]}
+        print(f"    fold {k}: {len(answers):,} held-out tickets answered")
+    return found
+
+
 def main():
     """Runs every fold not yet recorded and writes the report after each one."""
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument("--work-dir", required=True, help="where the fold bundles go; outside the repo")
     parser.add_argument("--force", action="store_true", help="the owner's override: start even when the GPU is busy")
+    parser.add_argument("--answers", action="store_true", help="only answer each held-out fold with its recorded fold model (CPU)")
     args = parser.parse_args()
+    if args.answers:
+        print("=" * 60)
+        print("HELD-OUT ANSWERS OF THE FOLD MODELS")
+        print("=" * 60)
+        # Step 1: no GPU is used, so only the CPU is capped
+        print("\n[1/2] Capping this run...")
+        limit_cpu()
+        # Step 2: score and write
+        print("\n[2/2] Answering each held-out fold...")
+        found = fold_answers(args.work_dir, json.loads(REPORT.read_text(encoding="utf-8")), CPU_THREADS)
+        ANSWERS.write_text(json.dumps(found, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
+        print(f"    Saved: {ANSWERS}")
+        return
     print("=" * 60)
     print("SENTENCE MODEL, FOLD BY FOLD")
     print("=" * 60)
