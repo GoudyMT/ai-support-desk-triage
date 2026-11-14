@@ -10,6 +10,9 @@ import { buildPoolData, writePool } from './exportFairPool';
 // held-out template is, before the templates are dealt into weeks.
 const SMALL = { perWording: 300, trainPerWording: 200 };
 const WORDINGS: WeekWording[] = ['built-in', 'extra'];
+// Building the pool data twice takes about 2.3 s alone (measured 2026-11-14) and passed 5 s with the whole suite
+// running beside it in CI, so the write test gets room for real work, as the sentence scorer's tests do.
+const WRITE_TIMEOUT_MS = 30_000;
 
 describe('templateRefsOf', () => {
   it.each(WORDINGS)('gives every %s template one ref, the same on every call', (wording) => {
@@ -69,7 +72,7 @@ describe('writePool', () => {
     expect(rows).toHaveLength(SMALL.perWording * WORDINGS.length);
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
     expect(rows.every((row) => row.fold === 2 && row.maskedText.length > 0 && row.templates.length > 0)).toBe(true);
-  });
+  }, WRITE_TIMEOUT_MS);
 
   it('stops before writing when a blind text is in a pool', () => {
     const dir = mkdtempSync(join(tmpdir(), 'pool-'));
