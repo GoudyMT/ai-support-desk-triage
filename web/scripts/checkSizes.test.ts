@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
+import RUNTIME_RECORD from '../src/model/runtimeRecord.json';
 import { compareSizes, measureDist, parseBudgets, type Budgets, type Measured } from './checkSizes';
 
 const MEASURED: Measured = {
@@ -137,7 +138,7 @@ describe('measuring a built site', () => {
   const SENTENCE = {
     'models/bundle_v2/model_quantized.onnx': 'm'.repeat(3000),
     'models/bundle_v2/tokenizer.json': 't'.repeat(200),
-    'models/ort/ort-wasm-simd-threaded.wasm': 'w'.repeat(4000),
+    [`models/${RUNTIME_RECORD.folder}/ort-wasm-simd-threaded.wasm`]: 'w'.repeat(4000),
   };
 
   // The shape of Vite's manifest: one chunk per key, each naming the chunks and styles it loads.
@@ -175,9 +176,19 @@ describe('measuring a built site', () => {
 
   it('says so when the build serves no sentence model or no runtime', () => {
     const noBundle = Object.fromEntries(Object.entries(SITE).filter(([path]) => !path.startsWith('models/bundle_v2/')));
-    const noRuntime = Object.fromEntries(Object.entries(SITE).filter(([path]) => !path.startsWith('models/ort/')));
+    const noRuntime = Object.fromEntries(Object.entries(SITE).filter(([path]) => !path.startsWith(`models/${RUNTIME_RECORD.folder}/`)));
     expect(() => measureDist(build(noBundle), PAGES)).toThrow('E_NO_BUILD');
     expect(() => measureDist(build(noRuntime), PAGES)).toThrow('E_NO_BUILD');
+  });
+
+  // A page added to the site with no budget line would otherwise ship unmeasured.
+  it('measures a page the build serves that has no budget line, and fails it for a missing limit', () => {
+    const manifest = { ...(JSON.parse(MANIFEST) as Record<string, unknown>), 'extra.html': { file: 'assets/extra.css', src: 'extra.html', isEntry: true } };
+    const site = { ...SITE, '.vite/manifest.json': JSON.stringify(manifest), 'extra.html': '<html></html>', 'assets/extra.css': STYLE };
+    const measured = measureDist(build(site), PAGES);
+    expect(measured.pages['extra.html']).toBe(gzipSync(STYLE).length);
+    const budgets = { pages: { demo: { entry: 'under-the-hood.html', limit: 1e9 }, desk: { entry: 'index.html', limit: 1e9 } }, modelBytes: { limit: 1e9 }, sentenceBytes: { limit: 1e9 } };
+    expect(compareSizes(measured, budgets).failures).toEqual([{ code: 'E_NO_LIMIT', budget: 'pages.extra.html' }]);
   });
 
   it('counts each page by what it loads: the shared chunk for both, on-demand parts and styles for their own page', () => {

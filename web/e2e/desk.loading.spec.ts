@@ -6,7 +6,7 @@ import { DEMO_PATH, LOAD_MS, SEED, START } from './helpers';
 // model; a failed or changed download says so and offers Retry and the same button. The model downloads only from this
 // site, and only the desk asks for it.
 
-const LARGER = '**/models/{bundle_v2,ort}/**';
+const LARGER = '**/models/{bundle_v2,ort-*}/**';
 const SENTENCE = 'Suggestions: sentence model';
 const WORD_ONLY = 'Suggestions: word model only';
 const WORD_ONLY_FAILED = 'Suggestions: word model only (the larger model did not load)';
@@ -152,7 +152,7 @@ test.describe('only the desk loads the larger model', () => {
       const asked = watch(page);
       await page.goto(path);
       await page.waitForLoadState('networkidle');
-      expect(asked.map((request) => new URL(request.url()).pathname).filter((url) => /\/models\/(bundle_v2|ort)\//.test(url))).toEqual([]);
+      expect(asked.map((request) => new URL(request.url()).pathname).filter((url) => /\/models\/(bundle_v2|ort-[^/]+)\//.test(url))).toEqual([]);
     });
   }
 });

@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { BUNDLE_FILES, RUNTIME_FILES, SERVED_FILES, bundleFingerprint, copyBundle, copyRuntime, readBundle } from './copyBundle';
+import RUNTIME_RECORD from '../src/model/runtimeRecord.json';
+import { BUNDLE_FILES, RUNTIME_FILES, RUNTIME_FOLDER, SERVED_FILES, bundleFingerprint, copyBundle, copyRuntime, readBundle } from './copyBundle';
 
 // The site serves the sentence model the desk runs. It must be the very bundle the
 // records measured, so the copy is refused unless its fingerprint is the recorded one.
@@ -61,6 +62,23 @@ describe('copyBundle', () => {
     const none = join(mkdtempSync(join(tmpdir(), 'served-')), 'ort');
     expect(() => copyRuntime(empty, none)).toThrow('E_RUNTIME_MISSING');
     expect(existsSync(none)).toBe(false);
+  });
+
+  // A stale or hand-changed node_modules must not ship a runtime other than the recorded one.
+  it('refuses a runtime file that is not the recorded one and writes nothing', () => {
+    const from = fileURLToPath(new URL('../node_modules/onnxruntime-web/dist/', import.meta.url));
+    const changed = mkdtempSync(join(tmpdir(), 'ort-'));
+    for (const name of RUNTIME_FILES) copyFileSync(join(from, name), join(changed, name));
+    writeFileSync(join(changed, 'ort-wasm-simd-threaded.mjs'), `${readFileSync(join(changed, 'ort-wasm-simd-threaded.mjs'), 'utf8')}\n`);
+    const out = join(mkdtempSync(join(tmpdir(), 'served-')), 'ort');
+    expect(() => copyRuntime(changed, out)).toThrow('E_RUNTIME_CHANGED');
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('serves the runtime from a folder named for its version', () => {
+    expect(RUNTIME_FOLDER).toBe(`ort-${RUNTIME_RECORD.version}`);
+    const pinned = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { dependencies: Record<string, string> }).dependencies['onnxruntime-web'];
+    expect(pinned).toBe(RUNTIME_RECORD.version);
   });
 
   it('refuses a bundle with a file missing', () => {

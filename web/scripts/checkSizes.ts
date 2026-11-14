@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import RUNTIME_RECORD from '../src/model/runtimeRecord.json';
 
 export interface PageBudget {
   entry: string;
@@ -32,7 +33,8 @@ export interface SizeResult {
 
 // The desk's sentence model and the runtime that runs it are served as files and loaded on
 // demand, outside every page's code; each folder must be in the build.
-const SENTENCE_FOLDERS = [join('models', 'bundle_v2'), join('models', 'ort')];
+const SENTENCE_FOLDERS = [join('models', 'bundle_v2'), join('models', RUNTIME_RECORD.folder)];
+const PAGE_FILE = /\.html$/;
 
 interface ManifestChunk {
   file: string;
@@ -141,8 +143,8 @@ function readManifest(dir: string): Map<string, ManifestChunk> {
 
 // The code and style files a page loads: its entry chunk, and everything that chunk imports, loads
 // on demand or styles itself with, followed all the way down. A shared chunk is counted for each
-// page that reaches it, and once for a page that reaches it twice. A page whose HTML has no script
-// has no chunk in the manifest and loads no files of its own.
+// page that reaches it, and once for a page that reaches it twice. A page whose HTML loads neither a
+// script nor a stylesheet has no chunk in the manifest and loads no files of its own.
 function pageFiles(entry: string, chunks: Map<string, ManifestChunk>): Set<string> {
   const files = new Set<string>();
   const seen = new Set<string>();
@@ -186,7 +188,10 @@ export function measureDist(dir: string, pages: Record<string, { entry: string }
     throw new Error('E_NO_BUILD');
   }
   const chunks = readManifest(dir);
-  const sizes = Object.entries(pages).map(([name, page]): [string, number] => {
+  // A page the build serves with no budget line is measured under its file name, so it fails for a missing limit.
+  const budgeted = new Set(Object.values(pages).map((page) => page.entry));
+  const unbudgeted = [...chunks.keys()].filter((key) => PAGE_FILE.test(key) && !budgeted.has(key)).map((key) => [key, { entry: key }] as const);
+  const sizes = [...Object.entries(pages), ...unbudgeted].map(([name, page]): [string, number] => {
     if (!existsSync(join(dir, page.entry))) {
       throw new Error('E_NO_ENTRY');
     }

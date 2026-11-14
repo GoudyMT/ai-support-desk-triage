@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import RUNTIME_RECORD from '../src/model/runtimeRecord.json';
 import { isRunAsCommand } from './exportDataset';
 
 // The desk runs the sentence model in the browser, so the site serves its bundle.
@@ -15,6 +16,8 @@ export const SERVED_FILES: readonly string[] = [...BUNDLE_FILES, 'LICENSE', 'NOT
 // The runtime's WebAssembly build for the CPU: its loader, the worker script it starts and
 // the engine. Served from the site, so the page calls no outside host.
 export const RUNTIME_FILES: readonly string[] = ['ort.wasm.min.mjs', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm'];
+// The folder is named for the runtime's version, so a browser holding an older copy never mixes its files with a newer one.
+export const RUNTIME_FOLDER = RUNTIME_RECORD.folder;
 
 /**
  * Copies the runtime files the browser loads to where the site serves them.
@@ -24,15 +27,21 @@ export const RUNTIME_FILES: readonly string[] = ['ort.wasm.min.mjs', 'ort-wasm-s
  *   to: the served folder; replaced whole.
  *
  * Throws:
- *   Error('E_RUNTIME_MISSING') when a file is not there; nothing is written then.
+ *   Error('E_RUNTIME_MISSING') when a file is not there; Error('E_RUNTIME_CHANGED') when a file is not the one the
+ *   runtime record names. Nothing is written in either case.
  */
 export function copyRuntime(from: string, to: string): void {
+  const recorded: Record<string, string> = RUNTIME_RECORD.sha256;
   const files = RUNTIME_FILES.map((name): [string, Buffer] => {
     const path = join(from, name);
     if (!existsSync(path)) {
       throw new Error('E_RUNTIME_MISSING');
     }
-    return [name, readFileSync(path)];
+    const bytes = readFileSync(path);
+    if (createHash('sha256').update(bytes).digest('hex') !== recorded[name]) {
+      throw new Error('E_RUNTIME_CHANGED');
+    }
+    return [name, bytes];
   });
   rmSync(to, { recursive: true, force: true });
   mkdirSync(to, { recursive: true });
@@ -45,7 +54,7 @@ const SOURCE = new URL('../../ml/models/bundle_v2/', import.meta.url);
 const RECORD = new URL('../../ml/reports/bundle_v2.json', import.meta.url);
 const TARGET = new URL('../public/models/bundle_v2/', import.meta.url);
 const RUNTIME_SOURCE = new URL('../node_modules/onnxruntime-web/dist/', import.meta.url);
-const RUNTIME_TARGET = new URL('../public/models/ort/', import.meta.url);
+const RUNTIME_TARGET = new URL(`../public/models/${RUNTIME_FOLDER}/`, import.meta.url);
 
 /**
  * Reads the four files that decide the model's answers, as the repo stores them.

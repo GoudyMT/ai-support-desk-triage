@@ -1,4 +1,5 @@
 import { bundle_bytes as BUNDLE_BYTES, fingerprint as FINGERPRINT } from '../../../ml/reports/bundle_v2.json';
+import RUNTIME_RECORD from '../model/runtimeRecord.json';
 import { SENTENCE_FILES, loadSentenceModel, type OrtRuntime, type SentenceClasses, type SentenceModel } from '../model/sentenceScorer';
 
 // Loads the sentence model the site serves: the runtime's engine and the four
@@ -51,6 +52,21 @@ export async function readCounting(response: Response, onBytes: (bytes: number) 
 }
 
 /**
+ * Whether the engine's bytes are the ones the runtime record names, checked before the runtime is given them.
+ *
+ * Args:
+ *   bytes: the engine as downloaded.
+ *
+ * Returns:
+ *   True when its SHA-256 is the recorded one.
+ */
+export async function engineIsRecorded(bytes: ArrayBuffer): Promise<boolean> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const hex = [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return hex === RUNTIME_RECORD.sha256[ENGINE_FILE];
+}
+
+/**
  * Loads the sentence model, reporting the share of the download done.
  *
  * Args:
@@ -79,22 +95,22 @@ export async function loadDeskSentence(classes: SentenceClasses, onProgress: (sh
     });
     return new Response(body as Uint8Array<ArrayBuffer>, { status: response.status });
   };
-  let runtime: WebRuntime;
-  let engine: Response;
-  try {
-    [runtime, engine] = await Promise.all([
-      import(/* @vite-ignore */ `${folder}ort/${RUNTIME_FILE}`) as Promise<WebRuntime>,
-      counted(`${folder}ort/${ENGINE_FILE}`),
-    ]);
-  } catch {
+  // Both are waited for even when one fails, so a Retry never starts beside an engine download still in flight.
+  const [loaded, fetched] = await Promise.allSettled([
+    import(/* @vite-ignore */ `${folder}${RUNTIME_RECORD.folder}/${RUNTIME_FILE}`) as Promise<WebRuntime>,
+    counted(`${folder}${RUNTIME_RECORD.folder}/${ENGINE_FILE}`),
+  ]);
+  if (loaded.status !== 'fulfilled' || fetched.status !== 'fulfilled' || !fetched.value.ok) {
     throw new Error(LOAD_ERROR);
   }
-  if (!engine.ok) {
+  const runtime = loaded.value;
+  const engine = await fetched.value.arrayBuffer();
+  if (!(await engineIsRecorded(engine))) {
     throw new Error(LOAD_ERROR);
   }
   // One thread: several need a cross-origin isolated page, which this static site is not.
   runtime.env.wasm.numThreads = 1;
-  runtime.env.wasm.wasmPaths = `${folder}ort/`;
-  runtime.env.wasm.wasmBinary = await engine.arrayBuffer();
+  runtime.env.wasm.wasmPaths = `${folder}${RUNTIME_RECORD.folder}/`;
+  runtime.env.wasm.wasmBinary = engine;
   return loadSentenceModel(`${folder}bundle_v2/`, FINGERPRINT, runtime, classes, counted);
 }

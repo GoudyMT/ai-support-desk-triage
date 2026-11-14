@@ -2,8 +2,9 @@ node_modules/
 web/dist/
 # Copied from ml/models/bundle_v2 at build time, after its fingerprint check.
 web/public/models/bundle_v2/
-# Copied from the pinned onnxruntime-web package at build time.
+# Copied from the pinned onnxruntime-web package at build time, into a folder named for its version.
 web/public/models/ort/
+web/public/models/ort-*/
 web/test-results/
 web/playwright-report/
 ml/data/generated/
