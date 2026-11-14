@@ -210,8 +210,8 @@ tr > :last-child {
   font-weight: 400;
   color: var(--change);
   font-variant-numeric: tabular-nums;
-  /* The arrow, the size and the word stay together. */
-  white-space: nowrap;
+  /* The words beside the arrow may wrap in a narrow column; the arrow stays beside them as a flex item. */
+  text-align: right;
 }
 
 .change.worse {

@@ -409,6 +409,10 @@ test.describe('the Model History page', () => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto(HISTORY);
     await expect(page.locator('#rows > tr')).toHaveCount(MODELS);
+    // Linux's default fonts run wider than Windows'; the table must still fit with text a little wider than here.
+    await page.evaluate(() => {
+      document.body.style.letterSpacing = '0.04em';
+    });
     const fits = await page
       .getByRole('region', { name: 'History, newest first' })
       .evaluate((node) => node.scrollWidth <= node.clientWidth);
