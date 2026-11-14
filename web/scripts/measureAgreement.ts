@@ -120,6 +120,9 @@ if (isRunAsCommand(process.argv[1], import.meta.url)) {
       sentence: chosenTable(answers),
     }),
   );
+  // The first try, recorded for the note: the whole floor lifted when the models agree. It is not a step to choose.
+  console.log('-- full lift (the first try)');
+  for (const { fold, rows, word, sentence } of folds) report(`fold ${fold}`, measureAgreement(rows, word, sentence));
   const byStep = new Map<number, AgreementResult[]>();
   for (const step of LIFT_STEPS) {
     console.log(`-- lift from ${step}`);

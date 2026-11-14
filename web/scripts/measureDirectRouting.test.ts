@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Predict } from '../src/pipeline/run';
-import { measureDirectRouting } from './measureDirectRouting';
+import { measureDirectRouting, whySent } from './measureDirectRouting';
 import type { LabeledRow } from './measurePipeline';
 
 // An angry customer the escalated-complaint rule flags and raises to High.
@@ -29,5 +29,27 @@ describe('direct routing, as evidence for the next design', () => {
   it('counts a wrong direct route by what flagged it', () => {
     const c = measureDirectRouting([ANGRY], says('Billing', 'High', 0.9), says('Billing', 'High', 1));
     expect(c).toMatchObject({ direct: 1, directRight: 0, wrongByRule: 1, wrongByDepartment: 0 });
+  });
+
+  // The routing note's table comes from these counts: each ticket sent to a person is named once, by its first reason.
+  it('names each ticket sent to a person by its first reason, and counts the ones that did not need one', () => {
+    const calm: LabeledRow = { id: 'T-3', text: 'Hello, the settings page shows the wrong time zone.', label: { category: 'Technical Issue', priority: 'Low', mustReview: false } };
+    const risky: LabeledRow = { ...calm, id: 'T-4', label: { ...calm.label, mustReview: true } };
+    const ruled = whySent([ANGRY], says('Shipping/Order Issue', 'High', 0.9), says('Shipping/Order Issue', 'High', 1));
+    expect(ruled).toMatchObject({ sent: 1, mustReview: 1, rule: { sent: 1, notNeeded: 0 }, escalated: { fires: 1, notNeeded: 0 } });
+    const department = whySent([calm], says('Accessibility Support', 'Low', 0.9), says('Accessibility Support', 'Low', 1));
+    expect(department).toMatchObject({ sent: 1, department: { sent: 1, notNeeded: 1 } });
+    const unsure = whySent([calm, risky], says('Technical Issue', 'Low', 0.3), says('Technical Issue', 'Low', 1));
+    expect(unsure).toMatchObject({ sent: 2, unsure: { sent: 2, notNeeded: 1, riskyOnlyHere: 1 } });
+    const split = whySent([calm], says('Technical Issue', 'Low', 0.9), says('Billing', 'Low', 1));
+    expect(split).toMatchObject({ sent: 1, disagree: 1 });
+    expect(whySent([calm], says('Technical Issue', 'Low', 0.9), says('Technical Issue', 'Low', 1)).sent).toBe(0);
+  });
+
+  // No rule cue: only the always-checked department sent it to a person, so a wrong route is the department's.
+  it('counts a wrong direct route flagged only by its department as the department', () => {
+    const quiet: LabeledRow = { id: 'T-2', text: 'Hello, the settings page shows the wrong time zone.', label: { category: 'Technical Issue', priority: 'High', mustReview: false } };
+    const c = measureDirectRouting([quiet], says('Accessibility Support', 'High', 0.9), says('Accessibility Support', 'High', 1));
+    expect(c).toMatchObject({ direct: 1, directRight: 0, wrongByRule: 0, wrongByDepartment: 1 });
   });
 });

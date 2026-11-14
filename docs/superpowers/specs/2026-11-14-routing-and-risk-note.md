@@ -15,14 +15,15 @@ The desk does two jobs and treats them as one:
 
 A ticket waits for a triage person whenever either job raises a doubt. Routing improved a lot this version: the
 sentence model is right on the department 83.9% of the time on held-out wording (word model 57.3%) and 90.8% on the
-blind set (69.5%). Risk did not change: it is still six keyword rules, three always-checked departments and the word
+blind set (69.6%). Risk did not change: it is still six keyword rules, three always-checked departments and the word
 model's 50% confidence floor. The stronger model was only allowed to add tickets for a person. So a better model could
 not mean fewer tickets: the design ruled it out.
 
 ## What the numbers show
 
-On the desk's own wording, 4,000 tickets, with both models (`web/scripts/measureAgreement.ts`,
-`web/scripts/measureDirectRouting.ts`, from the recorded answers in `ml/reports/`):
+On the desk's own wording, 4,000 tickets, with both models, from the recorded answers in `ml/reports/`. The table and
+the escalated-complaint counts are printed by `npm --prefix web run measure-routing` (its "why sent" lines); the floor
+tries by `npm --prefix web run measure-agreement`; the direct routes by `measure-routing` too.
 
 | | Tickets |
 |---|---|
@@ -36,14 +37,15 @@ On the desk's own wording, 4,000 tickets, with both models (`web/scripts/measure
 **Tried and not adopted** (the bar: fewer tickets to a person on every set, high-risk missed and High/Urgent out as
 low never worse, wrong answers out unchecked within 0.25% of a set):
 
-- **Let agreement skip the 50% floor.** Cut 10 to 18 points of tickets on the folds, but high-risk tickets out rose on
+- **Let agreement skip the 50% floor** (the "full lift" lines). Cut 10 to 18 points of tickets on the folds, but high-risk tickets out rose on
   three of four folds (fold 1: 4 to 36). The floor is quietly catching risky tickets the rules miss.
 - **A partial lift, chosen on the folds** (agreement skips the floor only from 45% down to 5%). No setting met the bar
   on all four folds; even 45% let more high-risk tickets out on folds 1 to 3.
 - **Narrow the escalated-complaint rule.** It fires on 1,379 desk tickets, 722 not needed. But each of its busiest
   words ("fed up", "sick of", "annoyed", "tired of", "angry") is also the only catch for some truly risky tickets:
   the newer wording has annoyed-but-routine customers using the same words as real escalations. A word list cannot
-  tell them apart.
+  tell them apart. (The fire counts come from `measure-routing`; the per-word check was a one-off probe that is not in
+  the repo, so that part is UNVERIFIED by a script and should be measured again before the final version leans on it.)
 - **Send agreed, urgent, flagged tickets straight to their department** (triage keeps disagreements and unsure ones).
   Triage fell 5 to 19 points on every set, and no risky ticket left without a person. But on the desk wording 129 of
   560 direct tickets reached the wrong department first (115 of them flagged by a word rule), and on fold 1 131 of 327
