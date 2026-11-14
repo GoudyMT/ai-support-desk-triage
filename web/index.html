@@ -30,7 +30,7 @@
           </li>
           <li>
             <span id="m-sent" class="num"></span>
-            <span class="what">of tickets on the blind test set still went to a person</span>
+            <span class="what">of tickets on that set still went to a person</span>
           </li>
         </ul>
         <p class="note">
@@ -39,17 +39,17 @@
         </p>
       </div>
       <section id="loading" class="loading" aria-labelledby="loading-title" hidden>
-        <h2 id="loading-title" tabindex="-1">Loading the larger model</h2>
+        <h2 id="loading-title" tabindex="-1">Loading the sentence model (larger download)</h2>
         <p>
           A second model reads whole sentences and gives the suggestion on each ticket sent to a person. It downloads once, from this
           site. The run starts when it is ready.
         </p>
         <progress id="loading-bar" max="1" value="0" aria-labelledby="loading-title"></progress>
         <p id="loading-count" class="loading-count"></p>
-        <p id="loading-failed" hidden>The larger model did not load. Check your connection and press Retry, or start with the smaller model.</p>
+        <p id="loading-failed" hidden>The sentence model did not load. Check your connection and press Retry, or start with the word model only.</p>
         <div class="loading-actions">
           <button id="loading-retry" type="button" class="btn btn-solid" hidden>Retry</button>
-          <button id="loading-small" type="button" class="btn">Start now with the smaller model only</button>
+          <button id="loading-small" type="button" class="btn">Start now with the word model only</button>
         </div>
       </section>
     </main>

@@ -57,7 +57,8 @@ async function holdModels(page: Page): Promise<{ release: () => void }> {
   const gate = new Promise<void>((open) => {
     release = open;
   });
-  await page.route('**/models/*', async (route) => {
+  // The sentence model's files: the word model is fetched once per page, so only these can hold a later run.
+  await page.route('**/models/{bundle_v2,ort-*}/**', async (route) => {
     await gate;
     await route.continue();
   });
@@ -93,7 +94,7 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
   await expect(page.getByText('tickets written for this project, category right; the old keyword method got 14')).toBeVisible();
-  await expect(page.getByText('of tickets on the blind test set still went to a person')).toBeVisible();
+  await expect(page.getByText('of tickets on that set still went to a person')).toBeVisible();
   await expect(
     page.getByText(
       'Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you can step in on any ticket. Nothing here is a real customer.',
@@ -265,10 +266,13 @@ test('Start stays off while the next run loads, even when Try a ticket is opened
   page,
 }) => {
   test.setTimeout(120_000);
-  await openDesk(page);
-  await start(page);
-  await finishRun(page);
+  // Held from the start, so the first run goes on the word model and the next Start truly waits for the sentence model.
   const model = await holdModels(page);
+  await openDesk(page);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start now with the word model only' }).click();
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
+  await finishRun(page);
   const toggle = page.locator('#toggle');
   await toggle.click();
   await expect(toggle).toBeDisabled();
@@ -279,7 +283,8 @@ test('Start stays off while the next run loads, even when Try a ticket is opened
   await expect(toggle).toHaveText('Loading...');
   await expect(toggle).toBeDisabled();
   model.release();
-  await expect(toggle).toHaveText('Stop');
+  // The sentence model now downloads and reads the run's tickets.
+  await expect(toggle).toHaveText('Stop', { timeout: LOAD_MS });
   await expect(page.locator('#n-closed')).toHaveText(`0 of ${TICKETS_IN_A_RUN}`);
 });
 

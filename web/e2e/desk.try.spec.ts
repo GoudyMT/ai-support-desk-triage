@@ -385,7 +385,7 @@ test.describe('Try a ticket during a run', () => {
     });
     await openDesk(page);
     await page.getByRole('button', { name: 'Start' }).click();
-    await page.getByRole('button', { name: 'Start now with the smaller model only' }).click();
+    await page.getByRole('button', { name: 'Start now with the word model only' }).click();
     await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     const toggle = page.locator('#toggle');
     for (let step = 0; step < 60 && (await toggle.innerText()) !== 'Start'; step += 1) await page.clock.runFor(10_000);
@@ -395,7 +395,8 @@ test.describe('Try a ticket during a run', () => {
     await tryButton(page).click();
     await expect(dialog(page)).toBeVisible();
     release();
-    await expect(page.locator('body')).not.toHaveAttribute('data-seed', String(SEED));
+    // The sentence model now downloads and reads the run's tickets.
+    await expect(page.locator('body')).not.toHaveAttribute('data-seed', String(SEED), { timeout: LOAD_MS });
     await expect(page.locator('#n-closed')).toHaveText(/^0 of /);
     await expect(toggle).toBeEnabled();
     await expect(toggle).toHaveText('Start');

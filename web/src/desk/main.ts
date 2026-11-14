@@ -21,7 +21,7 @@ import { createTryModal, createTryPanel } from './tryPanel';
 import { deskCards, deskNumbers, deskReview, moreNumbers, resultLine, sentRows, type DeskNumbers } from './view';
 
 const MODEL_FAILED = 'The sorting model could not be loaded. Check your connection, then press Retry.';
-const LARGER_FAILED = 'The larger model did not load.';
+const LARGER_FAILED = 'The sentence model did not load.';
 // How often the simulated reviewer closes the top card: one every two and a half seconds, a slow trickle a viewer can follow.
 const REVIEWER_PACE_MS = 2500;
 const SLOW_NOTE = 'Slowed down so you can follow.';
@@ -568,7 +568,7 @@ type DeskKit = typeof import('./deskKit');
 
 const SUGGESTS_SENTENCE = 'Suggestions: sentence model';
 const SUGGESTS_WORD = 'Suggestions: word model only';
-const SUGGESTS_WORD_FAILED = 'Suggestions: word model only (the larger model did not load)';
+const SUGGESTS_WORD_FAILED = 'Suggestions: word model only (the sentence model did not load)';
 
 const SENTENCE_CLASSES = { category: CATEGORIES, priority: PRIORITIES };
 
@@ -597,11 +597,11 @@ async function trySentence(): Promise<SentenceModel | undefined> {
 
 const loadingPanel = createLoadingPanel({ retry: () => void load(), smallerOnly: () => void smallerOnly() });
 
-// Each Start, Retry or "smaller model only" press counts up, so a load an earlier press began cannot start a run late.
+// Each Start, Retry or "word model only" press counts up, so a load an earlier press began cannot start a run late.
 let loadTurn = 0;
 
 // The word model and the desk's own code: both runs need them. The word model is fetched once and shared, so
-// "smaller model only" never waits behind the larger model's downloads for a second copy; a failed fetch is tried again.
+// "word model only" never waits behind the larger model's downloads for a second copy; a failed fetch is tried again.
 let shippedLoad: Promise<Model> | undefined;
 function deskParts(): Promise<[Model, DeskKit]> {
   shippedLoad ??= fetchShipped().catch((error: unknown) => {

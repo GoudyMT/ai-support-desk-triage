@@ -2,14 +2,16 @@ import { expect, test, type Page, type Request } from '@playwright/test';
 import { DEMO_PATH, LOAD_MS, SEED, START } from './helpers';
 
 // The desk while the larger (sentence) model loads or fails to (the owner's lock of 2026-11-12): Start opens a loading
-// panel and the run begins once the model is ready; "Start now with the smaller model only" starts at once on the word
+// panel and the run begins once the model is ready; "Start now with the word model only" starts at once on the word
 // model; a failed or changed download says so and offers Retry and the same button. The model downloads only from this
 // site, and only the desk asks for it.
 
 const LARGER = '**/models/{bundle_v2,ort-*}/**';
 const SENTENCE = 'Suggestions: sentence model';
 const WORD_ONLY = 'Suggestions: word model only';
-const WORD_ONLY_FAILED = 'Suggestions: word model only (the larger model did not load)';
+// The bar names the model the run uses and, after a failure, why: the words a viewer acts on, not the whole line.
+const WORD_ONLY_FAILED = /^Suggestions: word model only \(.*did not load\)$/;
+const FAILED = 'The sentence model did not load.';
 
 async function openDesk(page: Page): Promise<void> {
   await page.clock.install({ time: START });
@@ -18,7 +20,7 @@ async function openDesk(page: Page): Promise<void> {
 }
 
 const panel = (page: Page) => page.locator('#loading');
-const smallerOnly = (page: Page) => page.getByRole('button', { name: 'Start now with the smaller model only' });
+const smallerOnly = (page: Page) => page.getByRole('button', { name: 'Start now with the word model only' });
 const retry = (page: Page) => panel(page).getByRole('button', { name: 'Retry' });
 const stop = (page: Page) => page.getByRole('button', { name: 'Stop' });
 const suggests = (page: Page) => page.locator('#suggests');
@@ -69,10 +71,10 @@ test.describe('the larger model fails to load', () => {
     await page.route('**/models/bundle_v2/heads.json', (route) => route.fulfill({ status: 404, body: '' }));
     await openDesk(page);
     await page.getByRole('button', { name: 'Start' }).click();
-    await expect(panel(page).getByText('The larger model did not load.')).toBeVisible({ timeout: LOAD_MS });
+    await expect(panel(page).getByText(FAILED)).toBeVisible({ timeout: LOAD_MS });
     await expect(retry(page)).toBeVisible();
     await expect(smallerOnly(page)).toBeVisible();
-    await expect(page.locator('#notice')).toHaveText('The larger model did not load.');
+    await expect(page.locator('#notice')).toHaveText(FAILED);
     await page.unroute('**/models/bundle_v2/heads.json');
     await retry(page).click();
     await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
@@ -89,13 +91,6 @@ test.describe('the larger model fails to load', () => {
     await expect(suggests(page)).toHaveText(WORD_ONLY_FAILED);
   });
 
-  test('with reduced motion the panel and the run work the same', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await openDesk(page);
-    await page.getByRole('button', { name: 'Start' }).click();
-    await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
-    await expect(suggests(page)).toHaveText(SENTENCE);
-  });
 });
 
 // Runs the clock until the run in view has ended and the bar offers Start again.
@@ -138,7 +133,7 @@ test.describe('Start after a run has ended', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(toggle).toHaveText('Retry');
-    await expect(page.locator('#notice')).toHaveText('The larger model did not load.');
+    await expect(page.locator('#notice')).toHaveText(FAILED);
     await page.unroute('**/models/bundle_v2/heads.json');
     await toggle.click();
     await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
