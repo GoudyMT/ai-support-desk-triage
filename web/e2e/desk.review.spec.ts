@@ -76,6 +76,20 @@ const dialog = (page: Page): Locator => page.getByRole('dialog');
 const mainButton = (page: Page): Locator =>
   dialog(page).getByRole('button', { name: new RegExp(`^(${SEND}|${SEND_CHANGED})$`) });
 
+// The review card's control for both answers is a real control: a full-size target that opens to name each model.
+test('Show both models\' answers is a full-size control that opens to each model\'s answer', async ({ page }) => {
+  await openDesk(page);
+  await start(page);
+  const card = await runUntilCard(page, (list) => list);
+  await reviewOf(card).click();
+  const toggle = dialog(page).getByText("Show both models' answers");
+  expect((await toggle.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.clock.runFor(SETTLE_MS);
+  await toggle.click();
+  await expect(dialog(page).getByText('Word model', { exact: true })).toBeVisible();
+  await expect(dialog(page).getByText('Sentence model', { exact: true })).toBeVisible();
+});
+
 test.describe('Approve and Review on a card', () => {
   test('Approve is on every card at 70 percent or more and on no card under it', async ({ page }) => {
     await openDesk(page);
