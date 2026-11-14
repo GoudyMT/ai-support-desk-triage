@@ -202,16 +202,16 @@ tr > :last-child {
 }
 
 .change {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 3px;
   font-size: var(--change-size);
   font-weight: 400;
   color: var(--change);
   font-variant-numeric: tabular-nums;
-  /* The words beside the arrow may wrap in a narrow column; the arrow stays beside them as a flex item. */
-  text-align: right;
+}
+
+/* Inline, so the arrow flows with the words: when they wrap in a narrow column it stays on their first line. */
+.change svg {
+  margin-right: 3px;
+  vertical-align: baseline;
 }
 
 .change.worse {
@@ -222,7 +222,9 @@ tr > :last-child {
   color: var(--change-same);
 }
 
+/* A block's change is short, so it moves to its own line whole rather than splitting. */
 .block-note .change {
+  display: inline-block;
   margin-left: var(--space-2);
 }
 

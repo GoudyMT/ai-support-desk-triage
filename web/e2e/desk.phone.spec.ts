@@ -419,6 +419,37 @@ test.describe('the Model History page', () => {
     expect(fits).toBe(true);
   });
 
+  // A wrapped change once left its arrow at the far side of a wide cell, away from the words it marks.
+  for (const width of [1280, 768]) {
+    test(`at ${width} wide each change arrow sits right beside its words`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1024 });
+      await page.goto(HISTORY);
+      await expect(page.locator('#rows > tr')).toHaveCount(MODELS);
+      const gaps = await page.locator('.change').evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const arrow = node.querySelector('svg')!.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(node.lastChild!);
+          const firstLine = range.getClientRects()[0]!;
+          return firstLine.left - arrow.right;
+        }),
+      );
+      expect(gaps.length).toBeGreaterThan(0);
+      for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(0);
+      for (const gap of gaps) expect(gap).toBeLessThanOrEqual(6);
+      // A summary block's change is short: it moves to a line of its own whole, never split across two.
+      const lines = await page.locator('.block-note .change').evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const range = document.createRange();
+          range.selectNodeContents(node.lastChild!);
+          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+        }),
+      );
+      expect(lines.length).toBeGreaterThan(0);
+      for (const count of lines) expect(count).toBe(1);
+    });
+  }
+
   test('Cards with Approve per run has an info tip that says what the number means', async ({ page }) => {
     await page.goto(HISTORY);
     const block = page.locator('.block', { hasText: 'Cards with Approve per run' });
