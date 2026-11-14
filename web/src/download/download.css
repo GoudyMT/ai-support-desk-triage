@@ -46,3 +46,10 @@
 .history .note a {
   color: var(--accent);
 }
+
+/* On this page the paragraphs are the text people read, not side notes: body size and color, at a reading width. */
+.history .note {
+  max-width: var(--measure);
+  font-size: var(--fs-body);
+  color: var(--text);
+}

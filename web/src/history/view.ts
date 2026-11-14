@@ -61,7 +61,11 @@ export function formatCount(count: Count | null): string {
 }
 
 export function formatPercent(share: number | null, digits: number): string {
-  return share === null ? NOT_MEASURED : `${(share * 100).toFixed(digits)}%`;
+  if (share === null) return NOT_MEASURED;
+  // The product is rounded to a few places first, so an exact half stored as 0.6955 is not read as 69.54999...
+  const scale = 10 ** digits;
+  const shown = Math.round(Number((share * 100 * scale).toFixed(6))) / scale;
+  return `${shown.toFixed(digits)}%`;
 }
 
 const PERCENT = 100;

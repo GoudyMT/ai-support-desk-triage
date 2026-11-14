@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { readdirSync } from 'node:fs';
+
+// Every file the build serves with the model; the license and notice are text whose size the page does not state.
+const SERVED_FILES = readdirSync(new URL('../public/models/bundle_v2/', import.meta.url)).sort();
+const NOTICES = new Set(['LICENSE', 'NOTICE.md']);
 
 // The page someone uses to take the model away: every file must be there, served by this site, and the size it states
 // must be the size they get. Opening the page downloads nothing.
@@ -19,20 +24,26 @@ test('every file link answers from this site, and each stated size is the file i
   await page.goto(PAGE);
   await expect(page.getByRole('heading', { level: 1, name: 'Get the model' })).toBeVisible();
   const items = page.locator('.files li');
-  const count = await items.count();
-  expect(count).toBe(6);
-  for (let at = 0; at < count; at += 1) {
+  // The list is every file the site serves with the model, and each model file states its size.
+  const names = await items.getByRole('link').allTextContents();
+  expect([...names].sort()).toEqual(SERVED_FILES);
+  for (const [at, name] of names.entries()) {
     const item = items.nth(at);
     const href = await item.getByRole('link').getAttribute('href');
     const url = new URL(href ?? '', `${baseURL}/`);
     expect(url.origin).toBe(new URL(baseURL ?? '').origin);
     const response = await page.request.get(url.href);
     expect(response.status(), url.pathname).toBe(200);
-    const size = item.locator('.size');
-    if ((await size.count()) === 1) {
-      await expect(size).toHaveText(written((await response.body()).length));
+    if (!NOTICES.has(name)) {
+      await expect(item.locator('.size')).toHaveText(written((await response.body()).length));
     }
   }
+});
+
+// The page links to GitHub and Hugging Face; a click must not tell them which page the visitor came from.
+test('links to other sites send no referrer', async ({ page }) => {
+  await page.goto(PAGE);
+  expect(await page.evaluate(() => document.querySelector('meta[name="referrer"]')?.getAttribute('content'))).toBe('no-referrer');
 });
 
 test('opening the page downloads no model file', async ({ page }) => {

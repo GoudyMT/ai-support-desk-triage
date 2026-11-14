@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { historyView, type HistoryRow } from './view';
+import { formatPercent, historyView, type HistoryRow } from './view';
+
+// A share stored to four places, such as 1,391 of 2,000, ends in an exact half when shown to one: it rounds up, as the
+// guide and model card print it, not down as the computer's nearest binary number would.
+describe('formatPercent', () => {
+  it('rounds an exact half up', () => {
+    expect(formatPercent(0.6955, 1)).toBe('69.6%');
+    expect(formatPercent(0.9215, 1)).toBe('92.2%');
+  });
+
+  it('keeps a share below the half where it is', () => {
+    expect(formatPercent(0.6954, 1)).toBe('69.5%');
+  });
+});
 
 const BASELINE: HistoryRow = {
   id: 'baseline',

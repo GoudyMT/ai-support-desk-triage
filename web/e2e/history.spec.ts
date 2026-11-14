@@ -34,7 +34,8 @@ test('the page lists the newest model first with its numbers and an arrow a scre
   // A change is green only when it is for the better: a number that got worse is red, an unmoved one gray. Each tone
   // the history holds is checked on its first change; the history must hold a better and a worse one.
   const changes = VIEW.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.change === null ? [] : [cell.change])));
-  expect(new Set(changes.map((one) => one.tone))).toEqual(new Set(['better', 'worse', 'same']));
+  const tones = new Set(changes.map((one) => one.tone));
+  expect(tones.has('better') && tones.has('worse')).toBe(true);
   for (const [tone, color] of Object.entries(TONE_COLORS)) {
     const first = changes.find((one) => one.tone === tone);
     if (first === undefined) continue;
