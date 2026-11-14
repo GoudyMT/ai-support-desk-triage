@@ -51,9 +51,9 @@ The desk runs two models: the word model decides what may leave without a person
 |---|---|---|---|
 | Category right on tickets it never saw | 33.6% | 57.3% | **83.9%** |
 | Category right on 48 tickets written for this project | 14 of 48 | 39 of 48 | **45 of 48** |
-| Category right on 2,000 blind tickets, read once | not measured | 69.5% | **90.8%** |
+| Category right on 2,000 blind tickets, read once | not measured | 69.6% | **90.8%** |
 | High-risk tickets missed on a test set written blind | not measured | 0 of 24 | **0 of 24** |
-| Sent to a person, same set | not measured | 78% | 83% |
+| Sent to a person, 60 tickets written blind | not measured | 78% | 83% |
 
 More tickets now go to a person, on purpose: one leaves alone only when both models agree. On the 2,000 blind tickets, the suggestion a person sees is right on the category 88.8% of the time, against 62.9% for the word model's answer.
 

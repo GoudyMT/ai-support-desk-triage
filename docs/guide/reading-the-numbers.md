@@ -36,7 +36,7 @@ The sentence model, measured the same way (the desk now runs both models; see th
 |---|---|---|---|
 | Category right on unseen wording: 83.9% | The same four rounds as the word model's 57.3% | The weakest round is 78.3% | [`sentence_folds.json`](../../ml/reports/sentence_folds.json) |
 | Hand-written tickets: 45 of 48 | The shipped sentence model on the same 48 | Same caveat: one author, a small set | [`bundle_v2.json`](../../ml/reports/bundle_v2.json) |
-| Blind set: 90.8% (word model 69.5%) | 2,000 tickets in wording no model trained or was tuned on, read once after every model was frozen | 53 of them come from templates close to the training wording; without them, 90.5% against 68.7% | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
+| Blind set: 90.8% (word model 69.6%) | 2,000 tickets in wording no model trained or was tuned on, read once after every model was frozen | 53 of them come from templates close to the training wording; without them, 90.5% against 68.7% | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
 | Sent to a person: 83% (was 78%) | Both models on the 60-ticket blind set | Higher, on purpose: a ticket leaves alone only when both models agree | [`two_model_sets.json`](../../ml/reports/two_model_sets.json) |
 | High-risk missed: 0 of 24 | Both models on the same set | On the 2,000-ticket blind set, 38 still got out (61 with the word model alone) | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
 

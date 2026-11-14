@@ -139,6 +139,7 @@ it. The desk deals wording written only for it, which neither model trained on. 
 ## What it is not
 
 - Not connected to a real help desk. The tickets are made up and the reviewer is simulated.
-- No server. The site is static, makes no calls except to load its model files, and stores nothing.
+- No server. The site is static, makes no calls except to load its model files and the runtime that runs the sentence model, all
+  from this site, and stores nothing.
 - Not a chatbot. The word model counts words and word pairs. The sentence model turns a ticket into numbers and picks
   an answer from a fixed list; it writes no text.

@@ -30,9 +30,12 @@ what may leave without a person, and this model checks them and suggests an answ
 | `tokenizer.json` | The encoder's tokenizer |
 | `heads.json` | Two linear heads, category and priority, applied to the sentence vector |
 | `manifest.json` | The token limit (256) |
+| `LICENSE` | The Apache 2.0 license of the base model, which this model keeps |
+| `NOTICE.md` | What was changed from the base model, and where it came from |
 
-The base model is `sentence-transformers/all-MiniLM-L6-v2` (revision `1110a243`), under the Apache 2.0 license. It was
-trained here on 20,000 generated tickets for 2 epochs.
+The base model is `sentence-transformers/all-MiniLM-L6-v2` (revision `1110a243`), under the Apache 2.0 license. Its
+weights were changed here: trained on 20,000 generated tickets for 2 epochs, given two answer heads, and saved as 8-bit
+ONNX. `NOTICE.md` records the changes.
 
 ## Use
 
@@ -83,12 +86,13 @@ The probabilities are flat: read the top answer, not the percent. In the demo, c
 
 ## Results
 
-All tickets below are in wording the model never trained on.
+The first two rows are on wording the model never trained on. The 48 tickets were written for the project and seen
+while it was built, so they are a sanity check, not an independent test.
 
 | Test | Word model | This model |
 |---|---|---|
 | Category right, 4 held-out folds of wording (mean) | 57.3% | 83.9% |
-| Category right, 2,000 blind tickets read once | 69.5% | 90.8% |
+| Category right, 2,000 blind tickets read once | 69.6% | 90.8% |
 | Category right, 48 tickets written for the project | 39 of 48 | 45 of 48 |
 
 Used as a check beside the word model on the blind tickets, the suggestion a person sees was right on the category

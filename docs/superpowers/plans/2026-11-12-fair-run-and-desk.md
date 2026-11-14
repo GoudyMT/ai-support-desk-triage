@@ -1,7 +1,7 @@
 # Fair 90-Day Run, Then the Desk and the Release - Plan
 
 ## Progress
-- Current task: 2
+- Current task: 19 (sweep fixes, then the PR)
 - Done (with evidence):
   - design approved by the owner 2026-11-12 ("Plan looks good, lets continue"); plan approved 2026-11-12 ("And then let's begin")
   - Task 0 - fd51002 - `tracking-check.mjs progress` PASS on both plans
@@ -30,10 +30,10 @@
   - Task 12, simulated on the owner's word ("you can simulate the phone test please"): Chromium, Pixel 7 profile, `probe/phone_sim.mjs` in the session scratchpad. Fast 4G (9 Mbit/s, 60 ms) and CPU 4x slower: Start to run 38.5 s; slow 4G (4 Mbit/s, 150 ms) and CPU 6x slower: 80.2 s; the page scrolled and the panel showed while loading; JS heap 13 MB; both runs on the sentence model. Not a real device. Fix: the progress line says "Starting the download..." before the first bytes
   - Desk limit 64,960 on the owner's A (measured 63,493: growth 14,669 plus 10%)
   - Task 13 - `blindReading.test.ts` 5 rows written after the code, proven by 6 breaks (one first green, row strengthened); `test_blind_reading.py` red before the record; the near-match check rebuilt from the Part 1 note (union of built-in templates, slots removed, over 30%) finds the recorded 6 (53 tickets). The first run refused before scoring (the blind file's CRLF checkout; fingerprint of the LF form, fixed). On the owner's yes ("Yes, read the blind set", 2026-11-13), after the load check alone (GPU 12%, CPU 2%): 95 s, CPU avg 16.8% peak 29.3%. BAR MET: suggestion on reviewed tickets 88.8% vs word 62.9% (+25.9 points); four counts held (high-risk missed 61 -> 38, High/Urgent out low 36 -> 0, silent category 2 -> 0, silent priority 83 -> 3); sentence alone 90.8% vs word 69.5%; to a person 1,556 -> 1,640. CI step `npm run blind-reading` added
-- Next: Task 14 (Model History)
+  - Tasks 14-17 (Model History, fold measure, card and guide, download page), the owner's late ask and its four tries, and the feature sweep: commits on this branch from 5b2e4e1 on; the tries in Execution Notes; the sweep in `.kit/sweeps/2026-11-14-fair-run-and-desk.md`
+- Next: fix the sweep's findings, the full gate, then the PR body for the owner
 - Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
-- Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12); what Model History shows for two runs (Task 13, default: both, as measured)
-
+- Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12)
 **Goal:** a 90-day verdict that measures learning, not the deal of weeks or repeated wording; then the desk's reviewer sees the sentence model's suggestion, and Model History tells the truth about both runs.
 **Record:** `docs/brainstorms/2026-11-10-next-model.brainstorm.md` (local): growth from understanding, not memory (Q1, option A); accuracy first (Q1); hard lines never worse (Q2). The fair run itself is the owner's pick of 2026-11-12 (option C, then approach A).
 **Design:** [`../specs/2026-11-12-fair-ninety-day-run-design.md`](../specs/2026-11-12-fair-ninety-day-run-design.md) (approved 2026-11-12); Tasks 8-19 argue from [`../specs/2026-11-12-sentence-model-part2-design.md`](../specs/2026-11-12-sentence-model-part2-design.md) and the locked wireframe [`../specs/2026-11-12-desk-two-models-wireframe.md`](../specs/2026-11-12-desk-two-models-wireframe.md).
@@ -158,6 +158,10 @@ Run as written in `docs/superpowers/plans/2026-11-12-sentence-model-part2.md` (T
 ## Parking Lot
 - Close-out item, after this PR (the owner, 2026-11-13): updated README visuals on how the process works and how the model improved over time, for technical and non-technical readers (future employers). Not in this PR.
 - Cut for budget (the owner, 2026-11-13, "yes to both"): Task 17 (wider privacy mask, stretch); carry-over rows of Task 18 outside files this PR already changes.
+- Task 18's carry-over rows on files this PR changes were not mapped row by row before the sweep; all of them go whole to the next version's plan, to be listed there as in or cut (the sweep's gaps role found this).
+- The next and final version (the owner, 2026-11-14): routing and risk as separate jobs, from `../specs/2026-11-14-routing-and-risk-note.md`, planned with plan-feature.
+- A real-device check of the larger download (the phone test was simulated on the owner's word).
+- The wireframe's "smaller model only" line needs its SUPERSEDED marker for the owner's renaming (2026-11-14: "sentence model" and "word model" everywhere); the edit to the locked file waits for the owner's yes.
 
 ## Execution Notes & Deviations
 - 2026-11-12, Task 1 (mechanics, decided alone): the teaching copy is a second build from the same seed with a recording swap, so the scored ticket is untouched by construction (a test compares it byte for byte). Slot values are drawn raw and swapped only when written, so `{otherPlan}` still avoids the drawn plan and every later draw matches. Pieces: `SwapMap` is one map per kind (`ReadonlyMap<PieceKind, ReadonlyMap<string, string>>`); `recordingSwap` throws `E_PIECE_UNMAPPED`. Only one fixed-word clash exists across 115 pieces and 567 fixed texts ("March" in one Billing template, by probe), so the held-out check allows a word only where the ticket's own template carries it.
@@ -170,4 +174,6 @@ Run as written in `docs/superpowers/plans/2026-11-12-sentence-model-part2.md` (T
 - 2026-11-13, Task 9 (finding, asked the owner): the browser differs from the one-at-a-time record on 0 handwritten, 0 fresh, 23 of 4,000 desk tickets (limit 20); every one a close call (top-two gap under 0.01, `probe/desk_gaps.py`). The web runtime's four optimization levels give 23, 23, 26, 26 (`probe/desk_opt.mts`). Probabilities on the 16 cases agree to 1e-8 except four texts, up to 0.0022: the engine's kernels, not the pooling.
 - 2026-11-13, Task 9 (the owner, "Let's go with A"): the browser is held to a record made by its own engine (`ml/reports/bundle_v2_answers_web.json`, `npm --prefix web run record-web-answers`, 71 s on one thread); the limit stays 20. Web vs Python one at a time: desk 23 differ, handwritten 0, fresh 0; rows digests equal. Slip: the load check (GPU 50/50/50%, "too busy") ran in the same command as the run, so it did not stop it; the run used one CPU thread and no GPU. The check now runs alone and a busy answer stops the run. Told the owner.
 - 2026-11-13, Task 9 (decided alone): the browser tokenizer is written out (`wordPiece.ts`) instead of adding a tokenizer package; its tests compare 16 hard texts with the Python library's numbers (`ml/triage_v2/token_cases.py` writes them). `sentenceScorer.ts` was written before its tests, so its rows are shown red by breaks instead. `predict` returns a Promise (the runtime scores asynchronously), not a plain value as the Part 2 interface said.
+- 2026-11-14, the owner's late ask (fewer tickets to a person, accuracy kept): bar written in `web/scripts/measureAgreement.ts` before any number: fewer tickets to a person on every set, high-risk missed and High/Urgent out as low never worse, wrong answers out unchecked within 0.25% of a set. Full lift, partial lift (chosen on the folds), a narrower escalated-complaint rule and direct routing were measured; none met it; nothing was shipped from them. Reproduce with `npm --prefix web run measure-agreement` and `measure-routing`.
+- 2026-11-14, sweep slips: a repo-wide search printed about 20 blind-set rows to the lead (after the reading; no model was tuned after); searches now exclude `ml/data/`. A `cd` into a subfolder was written and blocked by the guard.
 - 2026-11-12, crash log: two full web runs had worker access violations (0xC0000005) on different files each time (exportV2, exportDataset, folds, measureTwoModels) with 63 workers while the owner's machine was at 51% CPU; each file passed alone, and the suite passed whole on 8 workers. Not investigated (rule:test-and-review-cadence, crashes).

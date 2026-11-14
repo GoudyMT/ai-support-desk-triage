@@ -124,7 +124,7 @@ offers no quick Approve. So the second model can only send more tickets to a per
 | Category right on wording it never saw (mean of 4 folds) | 57.3% | 83.9% (92.2, 81.2, 83.9, 78.3) | `eval.json`, `sentence_folds.json` |
 | Priority right, same folds | 57.8% | 75.4% | `eval.json`, `sentence_folds.json` |
 | Category right, hand-written set | 39 / 48 | 45 / 48 | `eval.json`, `bundle_v2.json` |
-| Category right, blind set (2,000 tickets, read once) | 69.5% | 90.8% | `blind_reading.json` |
+| Category right, blind set (2,000 tickets, read once) | 69.6% | 90.8% | `blind_reading.json` |
 
 The fold numbers repeat the word model's test: each fold's sentence model trains on the other three folds' wording with
 the shipped settings and is scored on its own (`python -m triage_v2.sentence_folds`).
@@ -171,8 +171,14 @@ repeated wording out of the later weeks. The shipped model is not retrained live
 - **Priority is weaker than category.** 75.4% on unseen wording; the safety rules, not the model, keep High and Urgent
   tickets from leaving as Low or Medium.
 - **Generated data.** As with the word model, the tickets come from templates.
-- **Browser and Python can differ on near ties.** The browser's runtime gives a different answer from Python on 23 of
+- **Typed control words are read as control words.** A ticket that contains "[SEP]", "[CLS]", "[PAD]", "[UNK]" or
+  "[MASK]" passes them to the model as its own markers, as the Python tokenizer does, so the browser and Python agree.
+  It can only change the answer on a visitor's own Try a ticket; generated tickets never hold them.
+- **Machines can differ on near ties.** The browser's runtime gives a different answer from Python on Windows on 23 of
   4,000 desk tickets, each a close call; CI holds the browser to its own recorded answers
-  (`ml/reports/bundle_v2_answers_web.json`).
+  (`ml/reports/bundle_v2_answers_web.json`). Python itself differs between Windows and Linux on 13 of the 4,000, as
+  `NOTICE.md` beside the model records.
 - **Size.** About 38.5 MB to download: the model files plus the browser runtime's 14.8 MB engine
-  (`web/src/desk/sentenceLoader.ts`). On a simulated phone on fast 4G the desk took 38.5 s from Start to the first ticket.
+  (`web/src/desk/sentenceLoader.ts`). In a simulated phone (Chromium with a Pixel 7 profile, not a real
+  device), the desk took 38.5 s from Start to the run on fast 4G with the CPU slowed 4 times, and 80.2 s on slow 4G with
+  it slowed 6 times.
