@@ -161,7 +161,11 @@ repeated wording out of the later weeks. The shipped model is not retrained live
 
 ### Limits
 
-- **More work for people.** The second model checks the first, so more tickets go to a person, not fewer.
+- **More work for people.** The second model checks the first, so more tickets go to a person, not fewer. Whether a
+  ticket needs a person is still decided by word rules and the word model's confidence, not by the better model. Four
+  ways to cut those tickets were measured and not adopted: three let more high-risk tickets through, and one sent too
+  many to the wrong team first:
+  [`2026-11-14-routing-and-risk-note.md`](../docs/superpowers/specs/2026-11-14-routing-and-risk-note.md).
 - **High-risk tickets still get through.** On the blind set 38 high-risk tickets left without a person, down from 61.
   The 0 of 24 on the 60-ticket set is a small sample.
 - **Priority is weaker than category.** 75.4% on unseen wording; the safety rules, not the model, keep High and Urgent
