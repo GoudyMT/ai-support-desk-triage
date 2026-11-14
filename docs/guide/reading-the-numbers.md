@@ -30,20 +30,30 @@ flowchart LR
 | High-risk missed: 0 of 24 | Risky tickets that got past every check, on 60 tickets written blind and frozen before measuring | A small sample. The four larger test rounds miss 72 of 5,856 (1.2%), and at that rate 24 tickets would show fewer than one miss | [`history.json`](../../web/src/history/history.json), [design spec](../superpowers/specs/2026-10-29-v1-triage-demo-design.md#6-success-charter) |
 | Sent to a person: 78% | Share of that blind set flagged for a person | Higher on live runs | [`history.json`](../../web/src/history/history.json) |
 
+The sentence model, measured the same way (the desk now runs both models; see the [model card](../../ml/MODEL_CARD.md#the-sentence-model)):
+
+| Number | What it means | Keep in mind | Source |
+|---|---|---|---|
+| Category right on unseen wording: 83.9% | The same four rounds as the word model's 57.3% | The weakest round is 78.3% | [`sentence_folds.json`](../../ml/reports/sentence_folds.json) |
+| Hand-written tickets: 45 of 48 | The shipped sentence model on the same 48 | Same caveat: one author, a small set | [`bundle_v2.json`](../../ml/reports/bundle_v2.json) |
+| Blind set: 90.8% (word model 69.5%) | 2,000 tickets in wording no model trained or was tuned on, read once after every model was frozen | 53 of them come from templates close to the training wording; without them, 90.5% against 68.7% | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
+| Sent to a person: 83% (was 78%) | Both models on the 60-ticket blind set | Higher, on purpose: a ticket leaves alone only when both models agree | [`two_model_sets.json`](../../ml/reports/two_model_sets.json) |
+| High-risk missed: 0 of 24 | Both models on the same set | On the 2,000-ticket blind set, 38 still got out (61 with the word model alone) | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
+
 ### Live-run numbers
 
-Counted over 40 full desk runs of 130 tickets each, seeds 2000 to 2039, with no one stepping in
-([`MODEL_CARD.md`](../../ml/MODEL_CARD.md#on-the-desk)):
+The desk deals tickets in its own wording, which neither model trained on. Over 4,000 of them
+([`two_model_sets.json`](../../ml/reports/two_model_sets.json)):
 
-| Number | Result | Keep in mind |
-|---|---|---|
-| Category right, model alone | 58% | Close to the test-set number, as it should be |
-| Category right after review | 94.5% | Rests on a simulated reviewer assumed right 95% of the time |
-| Sent to a person | 89% | The model is cautious; cutting this was the [next version's goal](the-version-that-did-not-ship.md) |
-| High-risk tickets out without a person | 30, in 17 of the 40 runs | Live runs use the same unseen wording as the four test rounds, so read this beside their 1.2% miss rate, not beside 0 of 24 |
+| Number | Word model alone | Both models | Keep in mind |
+|---|---|---|---|
+| Sent to a person | 79.6% | 83.3% | The second model only ever adds tickets for a person |
+| Suggestion right on category, on those sent to a person | 1,819 of 3,333 (54.6%) | 2,494 of 3,333 (74.8%) | The word model's own answer against the sentence model's, on the same tickets |
+| High-risk tickets out without a person | 83 | 73 | The most important line in a run's report |
+| High or Urgent tickets out as Low or Medium | 3 | 0 | |
 
-Each run is random, so a single run can differ from these averages. The seed is shown, so any run can be
-replayed exactly.
+Each run is random, so a single run can differ from these. The seed is shown, so any run can be replayed exactly.
+The first release's desk, on the word model alone, is described in the [model card](../../ml/MODEL_CARD.md#on-the-desk).
 
 ### Estimates
 
@@ -91,7 +101,7 @@ may lower them; it may never raise them.
 |---|---|---|
 | Run the full check locally | Before any pull request | `npm --prefix web run gate`, then `npm --prefix web run e2e` |
 | Retrain the model | After the generator or training code changes | `npm --prefix web run export-data` writes the tickets; then from `ml/`, `python -m triage.export_model --folds-out ../web/public/models` and `python -m triage.evaluate` ([model card](../../ml/MODEL_CARD.md)) |
-| Add a Model History row | When a new model ships | A new entry in [`history.json`](../../web/src/history/history.json); the baseline stays below it |
+| Add a Model History row | When a new model ships | A new entry on top of [`history.json`](../../web/src/history/history.json), every number measured on the baseline's own tests; [`sources.test.ts`](../../web/src/history/sources.test.ts) holds each to its report |
 | Update a dependency | When a fix is out | Versions are pinned exactly, and the project adds only versions at least 14 days old; Python packages are pinned by hash in [`requirements.txt`](../../ml/requirements.txt) |
 | Raise a page size limit | Only when a measured change needs it, after looking for waste first | [`size-budgets.json`](../../web/size-budgets.json) |
 

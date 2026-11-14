@@ -45,15 +45,19 @@ The [technical guide](docs/guide/README.md) explains each design choice with a d
 
 ## What the current model delivers
 
-The first table is re-measured or checked in CI on each code change. The second is a count of 40 full desk runs, and two of its rows are estimates.
+The desk runs two models: the word model decides what may leave without a person, and the sentence model checks it and gives the suggestion on every ticket a person sees. The first table is re-measured or checked in CI on each code change.
 
-| Measure | Keyword prototype | Current model |
-|---|---|---|
-| Category right on tickets it never saw | 33.6% | **57.3%** |
-| Category right on 48 tickets written for this project | 14 of 48 | **39 of 48** |
-| High-risk tickets missed on a test set written blind | not measured | **0 of 24** |
+| Measure | Keyword prototype | Word model | Sentence model (current) |
+|---|---|---|---|
+| Category right on tickets it never saw | 33.6% | 57.3% | **83.9%** |
+| Category right on 48 tickets written for this project | 14 of 48 | 39 of 48 | **45 of 48** |
+| Category right on 2,000 blind tickets, read once | not measured | 69.5% | **90.8%** |
+| High-risk tickets missed on a test set written blind | not measured | 0 of 24 | **0 of 24** |
+| Sent to a person, same set | not measured | 78% | 83% |
 
-Across 40 full desk runs, seeds 2000 to 2039, with no one stepping in:
+More tickets now go to a person, on purpose: one leaves alone only when both models agree. On the 2,000 blind tickets, the suggestion a person sees is right on the category 88.8% of the time, against 62.9% for the word model's answer.
+
+The first release, on the word model alone, across 40 full desk runs, seeds 2000 to 2039, with no one stepping in (two of these rows are estimates):
 
 | Per run of 130 tickets | Result |
 |---|---|
@@ -64,7 +68,7 @@ Across 40 full desk runs, seeds 2000 to 2039, with no one stepping in:
 | Time saved (estimate, at 2 minutes a ticket) | about 24 minutes |
 | Value saved (estimate, at $21.53 an hour) | about $8.52 |
 
-**What this means.** The model gets about 1.7 times as many categories right as the keyword method, and the guardrails keep risky tickets in front of a person. It is also a first model. It is cautious, so most tickets still go to a person, and a live run is harder than the blind test set: 30 high-risk tickets across those 40 runs went out without a person, in 17 of the runs. The goal of the next versions is more right answers and fewer tickets that need a person, with none of those misses. [Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) will show each step, and the [model card](ml/MODEL_CARD.md) has the full method and limits.
+**What this means.** The sentence model gets the category right far more often than the word model, and the guardrails keep risky tickets in front of a person. It has not cut the work: most tickets still go to a person, and on the 2,000 blind tickets 38 high-risk tickets went out without one (61 with the word model alone). Fewer tickets for a person, with none of those misses, is still the goal. Two simulated 90-day runs of weekly retraining did not show real growth, and are reported as measured. [Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) shows each step, and the [model card](ml/MODEL_CARD.md) has the full method and limits.
 
 The two estimates use less than the lowest figure IT desk vendors publish for sorting a ticket, and the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). You can change both on the desk.
 
