@@ -21,10 +21,20 @@ describe('tokenizerFrom', () => {
     expect(tokenizer.encode(item.text)).toEqual(item.ids);
   });
 
-  it('cuts a long ticket at the bundle limit and still ends it', () => {
-    const long = cases.find((item) => item.name === 'long ticket');
-    expect(long?.ids.length).toBe(maxLength);
-    expect(tokenizer.encode(long?.text ?? '').at(-1)).toBe(long?.ids.at(-1));
+  // The row above proves the cut only while the cases file holds a ticket that reaches the limit.
+  it('has a case long enough to reach the bundle limit', () => {
+    expect(cases.find((item) => item.name === 'long ticket')?.ids.length).toBe(maxLength);
+  });
+
+  // A visitor can type up to 20,000 characters into Try a ticket, and the tokenizer runs on the page's main thread.
+  // Long made-up words once took about 420 ms here; the page's own budget for a whole ticket is 50 ms. The bound is
+  // loose so a busy machine does not fail it, and still far below the slow version.
+  it('splits the longest ticket a visitor may type, made of long unknown words, quickly', () => {
+    const word = 'qxzjvkw'.repeat(15).slice(0, 99);
+    const text = Array.from({ length: 199 }, () => word).join(' ').slice(0, 20_000);
+    const began = performance.now();
+    tokenizer.encode(text);
+    expect(performance.now() - began).toBeLessThan(100);
   });
 
   it('refuses a tokenizer it does not implement', () => {

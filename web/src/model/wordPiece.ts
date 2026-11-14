@@ -43,6 +43,8 @@ interface Vocabulary {
   cls: number;
   sep: number;
   maxWordChars: number;
+  // The most characters any piece holds, "##" left out: no longer piece can match, so the search starts there.
+  longestPiece: number;
   // Tokens such as [MASK] that are matched in the raw text before anything else.
   special: { content: string; id: number }[];
 }
@@ -111,6 +113,7 @@ function vocabularyOf(json: unknown): Vocabulary {
     cls,
     sep,
     maxWordChars: model['max_input_chars_per_word'] as number,
+    longestPiece: Math.max(...[...ids.keys()].map((key) => Array.from(key.startsWith(SUBWORD_PREFIX) ? key.slice(SUBWORD_PREFIX.length) : key).length)),
     // Longest first, so a longer token wins over one it starts with.
     special: (special as { content: string; id: number }[]).sort((a, b) => b.content.length - a.content.length),
   };
@@ -171,7 +174,7 @@ function pieces(word: string, vocabulary: Vocabulary): number[] {
   const found: number[] = [];
   let start = 0;
   while (start < chars.length) {
-    let end = chars.length;
+    let end = Math.min(chars.length, start + vocabulary.longestPiece);
     let id: number | undefined;
     while (end > start) {
       const piece = chars.slice(start, end).join('');
