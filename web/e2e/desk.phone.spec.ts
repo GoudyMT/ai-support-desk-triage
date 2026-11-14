@@ -420,7 +420,7 @@ test.describe('the Model History page', () => {
   });
 
   // A wrapped change once left its arrow at the far side of a wide cell, away from the words it marks.
-  for (const width of [1280, 768]) {
+  for (const width of [1280, 768, 320]) {
     test(`at ${width} wide each change arrow sits right beside its words`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1024 });
       await page.goto(HISTORY);
