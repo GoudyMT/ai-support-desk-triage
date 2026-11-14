@@ -16,7 +16,7 @@ This began as a keyword prototype for a course capstone. It is now a trained mod
 
 | Page | What it shows |
 |---|---|
-| **[The desk](https://goudymt.github.io/ai-support-desk-triage/)** | The receiving end. Press Start, the sentence model downloads (about 38.5 MB, from this site), and a run of 130 made-up tickets plays out in about 5 minutes. Each one goes to a team or waits in Needs a person, highest risk first. Step in with Review, or press Approve when both models agree and the word model is at least 70% sure. |
+| **[The desk](https://goudymt.github.io/ai-support-desk-triage/)** | The receiving end. Press Start, the sentence model and its runtime download (about 38.5 MB, from this site), and a run of 130 made-up tickets plays out in about 5 minutes. Each one goes to a team or waits in Needs a person, highest risk first. Step in with Review, or press Approve when both models agree and the word model is at least 70% sure. |
 | **Try a ticket** | Type your own support message and see its category, priority, team and whether a person is needed. |
 | **The report** | An after action report for the run so far, with the numbers behind it. Print it or save it as a PDF. |
 | **[Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)** | The same pipeline slowed down, one stage at a time, with the words that moved each decision. |
