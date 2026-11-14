@@ -3,8 +3,6 @@
 // masked text, so the typed words are not left on screen, in the page or in the old box's undo history.
 import type { Model } from '../model/scorer';
 import type { SentenceModel } from '../model/sentenceScorer';
-import { intake } from '../pipeline/intake';
-import { maskText } from '../privacy/mask';
 import { button, el } from '../page/dom';
 import { fetchShipped } from '../page/fetchModel';
 import {
@@ -22,7 +20,7 @@ import {
   TRY_WARNING,
   TRY_WORD_ONLY,
 } from './copy';
-import { refusal, tryTicket } from './tryTicket';
+import { refusal, sentenceAnswerFor, tryTicket } from './tryTicket';
 
 export interface TryModal {
   open(): void;
@@ -48,7 +46,8 @@ let shipped: Model | undefined;
 // did not load, so the ticket is sorted on the word model alone and the panel says so.
 export type SentenceSource = () => Promise<SentenceModel | undefined>;
 
-export function createTryPanel(sentenceSource: SentenceSource): HTMLElement {
+// `onAnswered` is told each time a sorted ticket is shown.
+export function createTryPanel(sentenceSource: SentenceSource, onAnswered: () => void = () => undefined): HTMLElement {
   const title = el('h2', 'try-title', TRY_HEADING);
   title.id = 'try-title';
   const label = el('label', undefined, TRY_LABEL);
@@ -125,14 +124,19 @@ export function createTryPanel(sentenceSource: SentenceSource): HTMLElement {
       }
       if (shipped === undefined) return;
     }
+    // The larger model can take minutes to arrive. The box is held still meanwhile: it is replaced by the masked text of
+    // the ticket read above, so anything typed during the wait would be lost.
     sort.disabled = true;
     sort.textContent = TRY_LOADING;
-    const sentence = await sentenceSource();
-    const answer = sentence === undefined ? undefined : await sentence.predict(maskText(intake(typed, 'try', 0).text).text);
+    box.readOnly = true;
+    section.dataset.waiting = 'true';
+    const answer = await sentenceAnswerFor(sentenceSource, typed);
+    delete section.dataset.waiting;
     sort.disabled = false;
     sort.textContent = TRY_SORT;
+    box.readOnly = false;
     const view = tryTicket(typed, shipped, answer);
-    wordOnly.hidden = sentence !== undefined;
+    wordOnly.hidden = answer !== undefined;
     // A box that is only given new text keeps its edit history, and undo and redo would bring the typed words back.
     const masked = box.cloneNode(false) as HTMLTextAreaElement;
     masked.value = view.text;
@@ -145,6 +149,7 @@ export function createTryPanel(sentenceSource: SentenceSource): HTMLElement {
     });
     result.hidden = false;
     warning.hidden = false;
+    onAnswered();
   }
 
   sort.addEventListener('click', () => {

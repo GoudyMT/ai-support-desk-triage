@@ -280,7 +280,14 @@ document.addEventListener('focusout', (event) => {
 // the desk and the run holds while it is open, then goes on only if it was going when the panel opened, or if a new run
 // arrived under it.
 const tryOpen = byId('try-open');
-const tryPanel = createTryPanel(trySentence);
+// Whether a ticket was sorted at rest while the next run loaded: the run then opens with the form over it, so the
+// visitor's answer is not hidden with the rest view the moment it arrives.
+let answeredWhileLoading = false;
+// An answer that arrives after a run started under it opens over the desk, so it is not left in the hidden rest view.
+const tryPanel = createTryPanel(trySentence, () => {
+  if (loadState === 'loading') answeredWhileLoading = true;
+  if (byId('rest').hidden && !tryModal.isOpen()) openTryOverRun();
+});
 byId('rest').append(tryPanel);
 let resumeAfterTry = false;
 // The line a run that started under the form has yet to say.
@@ -296,13 +303,15 @@ const tryModal = createTryModal(tryPanel, byId('rest'), () => {
   settleReading();
 });
 
-tryOpen.addEventListener('click', () => {
+function openTryOverRun(): void {
   resumeAfterTry = live?.run.state().playing === true;
   tryModal.open();
   live?.run.pause();
   // Pausing only tells the desk when the run was going; a stopped run still has to show why it is held.
   if (live !== undefined && !resumeAfterTry) redrawBar(live);
-});
+}
+
+tryOpen.addEventListener('click', openTryOverRun);
 
 // The report shows the tickets closed when Generate report is pressed and holds the run while it is open, as Try a
 // ticket does.
@@ -539,6 +548,11 @@ function mount(seed: number, run: Run, total: number, announce: string): void {
   byId('rest').hidden = true;
   byId('run').hidden = false;
   tryOpen.hidden = false;
+  // A ticket sorted at rest while this run loaded, or still waiting for its answer: the form moves over the desk with
+  // it, so the answer stays in view.
+  const sortedMeanwhile = answeredWhileLoading || tryPanel.dataset.waiting === 'true';
+  answeredWhileLoading = false;
+  if (!tryModal.isOpen() && sortedMeanwhile) tryModal.open();
   // The model can arrive while the form is open: the run waits under it and goes on when the form closes.
   if (tryModal.isOpen()) {
     resumeAfterTry = true;
@@ -603,7 +617,7 @@ function begin(seed: number, model: Model, kit: DeskKit, suggest: Suggest | unde
   setText(byId('suggests'), suggests);
   const run = createDeskRun({ seed, wording: kit.DESK_WORDING, model, suggest, wallClock: () => performance.now(), closeEveryMs: REVIEWER_PACE_MS });
   mount(seed, run, deskTotal(seed), startLine(seed));
-  toggle().focus();
+  if (!tryModal.isOpen()) toggle().focus();
 }
 
 // Start opens the loading panel; the run begins once the larger model has answered every ticket of the run, so every

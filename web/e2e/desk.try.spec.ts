@@ -19,9 +19,9 @@ const SAFETY = 'Someone accessed my account without permission.';
 const SHIPPED = '/models/shipped.json';
 // The larger model: the runtime's loader and engine, then the four bundle files.
 const LARGER_MODEL_FILES = [
-  '/models/ort/ort.wasm.min.mjs',
-  '/models/ort/ort-wasm-simd-threaded.mjs',
-  '/models/ort/ort-wasm-simd-threaded.wasm',
+  '/models/ort-1.31.1/ort.wasm.min.mjs',
+  '/models/ort-1.31.1/ort-wasm-simd-threaded.mjs',
+  '/models/ort-1.31.1/ort-wasm-simd-threaded.wasm',
   '/models/bundle_v2/model_quantized.onnx',
   '/models/bundle_v2/tokenizer.json',
   '/models/bundle_v2/heads.json',
@@ -332,21 +332,69 @@ test.describe('Try a ticket during a run', () => {
     await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 
+  // A visitor sorts a ticket at rest and presses Start while the larger model is still coming: when it arrives, their
+  // answer must not land in a hidden panel under a run that started without them.
+  test('a ticket sorted at rest while Start loads keeps its answer in view and holds the run', async ({ page }) => {
+    let release = (): void => undefined;
+    const open = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/models/{bundle_v2,ort-*}/**', async (route) => {
+      await open;
+      await route.continue();
+    });
+    await openDesk(page);
+    await sort(page, SAFETY);
+    await expect(page.locator('.try').getByRole('button', { name: 'Loading...' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Start' }).click();
+    release();
+    await expect(dialog(page)).toBeVisible({ timeout: LOAD_MS });
+    await expect(dialog(page).locator('.try-result')).toBeVisible();
+    await expect(page.locator('#status')).toHaveText(PAUSED_TRY);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  });
+
+  test('the box cannot be changed while the larger model is on its way', async ({ page }) => {
+    // The larger model is asked for only once the word model is in, so the wait for it is the one under test.
+    let asked = (): void => undefined;
+    const larger = new Promise<void>((resolve) => {
+      asked = resolve;
+    });
+    await page.route('**/models/{bundle_v2,ort-*}/**', () => asked());
+    await openDesk(page);
+    await sort(page, SAFETY);
+    await larger;
+    await expect(box(page)).not.toBeEditable();
+    await expect(page.locator('.try').getByRole('button', { name: 'Loading...' })).toBeDisabled();
+  });
+
   // Finish a run, press Start and then Try a ticket while the model loads: when the model arrives the new run must wait
   // for the form to close, not play under it.
   test('a new run whose model arrives while the form is open holds until the form closes', async ({ page }) => {
     test.setTimeout(120_000);
+    // The larger model is held from the start, so the first run goes on the smaller model and the next Start truly waits
+    // for it; a model the page already has would arrive before the form could open.
+    let release = (): void => undefined;
+    const open = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/models/{bundle_v2,ort-*}/**', async (route) => {
+      await open;
+      await route.continue();
+    });
     await openDesk(page);
-    await start(page);
+    await page.getByRole('button', { name: 'Start' }).click();
+    await page.getByRole('button', { name: 'Start now with the smaller model only' }).click();
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
     const toggle = page.locator('#toggle');
     for (let step = 0; step < 60 && (await toggle.innerText()) !== 'Start'; step += 1) await page.clock.runFor(10_000);
     await expect(toggle).toHaveText('Start');
-    const model = await holdModel(page);
     await toggle.click();
     await expect(toggle).toBeDisabled();
     await tryButton(page).click();
     await expect(dialog(page)).toBeVisible();
-    model.release();
+    release();
     await expect(page.locator('body')).not.toHaveAttribute('data-seed', String(SEED));
     await expect(page.locator('#n-closed')).toHaveText(/^0 of /);
     await expect(toggle).toBeEnabled();
