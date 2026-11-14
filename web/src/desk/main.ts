@@ -651,6 +651,7 @@ async function smallerOnly(): Promise<void> {
     loadingPanel.hide();
     loadState = 'failed';
     drawLoad();
+    toggle().focus();
   }
 }
 

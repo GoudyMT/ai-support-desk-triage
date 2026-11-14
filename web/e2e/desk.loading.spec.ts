@@ -98,6 +98,54 @@ test.describe('the larger model fails to load', () => {
   });
 });
 
+// Runs the clock until the run in view has ended and the bar offers Start again.
+async function finishRun(page: Page): Promise<void> {
+  const toggle = page.locator('#toggle');
+  for (let step = 0; step < 60 && (await toggle.innerText()) !== 'Start'; step += 1) await page.clock.runFor(10_000);
+  await expect(toggle).toHaveText('Start');
+}
+
+// A first run on the smaller model, with the larger model's heads missing so it can never load, played to its end.
+async function firstRunEnded(page: Page): Promise<void> {
+  await page.route('**/models/bundle_v2/heads.json', (route) => route.fulfill({ status: 404, body: '' }));
+  await openDesk(page);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await smallerOnly(page).click();
+  await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
+  await finishRun(page);
+}
+
+test.describe('Start after a run has ended', () => {
+  test('shows the loading panel again, and the smaller model only starts the next run', async ({ page }) => {
+    test.setTimeout(120_000);
+    await firstRunEnded(page);
+    await page.getByRole('button', { name: 'Start' }).click();
+    await expect(panel(page)).toBeVisible();
+    await smallerOnly(page).click();
+    await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
+    await expect(panel(page)).toBeHidden();
+  });
+
+  test('after the larger model fails, closing Try a ticket leaves Retry and the message on the bar', async ({ page }) => {
+    test.setTimeout(120_000);
+    await firstRunEnded(page);
+    const toggle = page.locator('#toggle');
+    await toggle.click();
+    await expect(retry(page)).toBeVisible({ timeout: LOAD_MS });
+    await expect(toggle).toHaveText('Retry');
+    await page.getByRole('button', { name: 'Try a ticket' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(toggle).toHaveText('Retry');
+    await expect(page.locator('#notice')).toHaveText('The larger model did not load.');
+    await page.unroute('**/models/bundle_v2/heads.json');
+    await toggle.click();
+    await expect(stop(page)).toBeVisible({ timeout: LOAD_MS });
+    await expect(suggests(page)).toHaveText(SENTENCE);
+  });
+});
+
 test.describe('only the desk loads the larger model', () => {
   for (const path of [DEMO_PATH, '/model-history.html']) {
     test(`${path} asks for no file of the larger model`, async ({ page }) => {

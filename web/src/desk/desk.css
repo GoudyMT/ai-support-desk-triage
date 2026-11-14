@@ -548,6 +548,12 @@ body {
   margin-top: var(--space-5);
 }
 
+/* Under a finished run, the panel takes a row of its own. */
+.run > .loading {
+  flex: 1 1 100%;
+  margin-top: 0;
+}
+
 .loading h2,
 .loading p {
   margin: 0;
