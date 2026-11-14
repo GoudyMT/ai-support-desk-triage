@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { buildFold } from '../../scripts/exportDataset';
 import { approveCardsPerRun, approveRunTickets } from '../../scripts/measurePipeline';
 import { suggestFrom } from '../desk/deskRun';
 import type { Category, Priority } from '../domain/labels';
@@ -34,12 +35,14 @@ interface NinetyReport {
 }
 
 interface FoldsReport {
-  folds: { fold: number; n: number; category_right: number }[];
+  folds: { fold: number; n: number; category_right: number; fingerprint: string }[];
   approve_answers: [string, Category, Priority][];
 }
+type FoldAnswers = Record<string, { fingerprint: string; answers: [string, Category, Priority][] }>;
 
 const ROWS = json<HistoryRow[]>('./history.json');
 const FOLDS_REPORT = json<FoldsReport>('../../../ml/reports/sentence_folds.json');
+const FOLD_ANSWERS = json<FoldAnswers>('../../../ml/reports/sentence_fold_answers.json');
 const SETS = json<SetsReport>('../../../ml/reports/two_model_sets.json');
 const BLIND = json<BlindReport>('../../../ml/reports/blind_reading.json');
 const BUNDLE = json<BundleReport>('../../../ml/reports/bundle_v2.json');
@@ -78,6 +81,19 @@ describe('the sentence model row', () => {
     expect(ROWS[0]?.heldOutRight).toBe(Number(mean.toFixed(3)));
   });
 
+  // The counts above are typed into the fold report by the run; the fold models' recorded answers, checked against
+  // each fold's own held-out tickets, must give the same counts, from the same models.
+  it("has each fold's count of right answers from that fold model's recorded answers", () => {
+    for (const fold of FOLDS_REPORT.folds) {
+      const recorded = FOLD_ANSWERS[String(fold.fold)];
+      if (recorded === undefined) throw new Error('E_REPORT_SHAPE');
+      expect(recorded.fingerprint).toBe(fold.fingerprint);
+      const truth = new Map(buildFold(fold.fold).heldout.map((ticket) => [ticket.id, ticket.label.category]));
+      expect(recorded.answers.length).toBe(fold.n);
+      expect(recorded.answers.filter(([id, category]) => truth.get(id) === category).length).toBe(fold.category_right);
+    }
+  }, 120_000);
+
   // Each run is replayed with the word model and the sentence model that never saw its wording, under the desk's
   // two-model rule, and every ticket of the runs has its answer.
   it('offers Approve on as many cards per run as the replayed runs give', () => {
@@ -106,8 +122,10 @@ describe('what the pages say', () => {
     expect(HISTORY_PAGE).toContain(`went up, from ${percent(before)} to ${percent(after)}`);
   });
 
-  it('gives both 90-day runs as measured, the fair one named, neither passed', () => {
-    expect([FIRST_RUN.verdict.passed, FAIR_RUN.verdict.passed]).toEqual([false, false]);
+  it('gives both 90-day runs as measured, the fair one named, with whether each passed', () => {
+    const [first, fair] = [FIRST_RUN.verdict.passed, FAIR_RUN.verdict.passed];
+    const said = first && fair ? 'Both passed' : first ? 'The first run passed' : fair ? 'The fair run passed' : 'Neither passed';
+    expect(HISTORY_PAGE).toContain(said);
     expect(HISTORY_PAGE).toContain(`the first run on ${ownStart(FIRST_RUN)} of ${FIRST_RUN.verdict.streams.length} streams`);
     expect(HISTORY_PAGE).toContain(`the fair run on ${ownStart(FAIR_RUN)} of ${FAIR_RUN.verdict.streams.length}`);
   });

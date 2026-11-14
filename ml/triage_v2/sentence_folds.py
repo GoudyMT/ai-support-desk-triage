@@ -22,10 +22,11 @@ from pathlib import Path
 from threadpoolctl import threadpool_limits
 
 from triage.data import FOLD_COUNT, fold_paths, load_rows
+from triage_v2.ninety_day import _refuse_work_in_repo
 from triage_v2.practice_rounds import count
 from triage_v2.score_onnx import score
 from triage_v2.share_machine import CPU_THREADS, GPU_REST_RATIO, limit_cpu, share_the_machine
-from triage_v2.train_sentence import BATCH_SIZE, EPOCHS, FIELDS, LEARNING_RATE, MAX_LENGTH
+from triage_v2.sentence_settings import BATCH_SIZE, EPOCHS, FIELDS, LEARNING_RATE, MAX_LENGTH
 
 ML_DIR = Path(__file__).resolve().parents[1]
 TICKETS = ML_DIR / "data" / "generated" / "approve_runs.jsonl"
@@ -35,6 +36,18 @@ ANSWERS = ML_DIR / "reports" / "sentence_fold_answers.json"
 SETTINGS = {"fields": list(FIELDS), "epochs": EPOCHS, "learning_rate": LEARNING_RATE, "batch_size": BATCH_SIZE, "max_length": MAX_LENGTH}
 MISSING_ERROR = "E_TICKETS_MISSING"
 SETTINGS_ERROR = "E_SETTINGS_CHANGED"
+FOLDS_ERROR = "E_FOLDS_MISSING"
+
+
+def check_work_dir(work_dir):
+    """Refuses a work folder inside the repo, as the 90-day run does."""
+    _refuse_work_in_repo(work_dir)
+
+
+def check_all_folds(report):
+    """Refuses a report that does not hold every fold, so no answers file is written partial."""
+    if sorted(fold["fold"] for fold in report["folds"]) != list(range(FOLD_COUNT)):
+        raise SystemExit(FOLDS_ERROR)
 
 
 def tickets_of(tickets, fold):
@@ -102,6 +115,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="the owner's override: start even when the GPU is busy")
     parser.add_argument("--answers", action="store_true", help="only answer each held-out fold with its recorded fold model (CPU)")
     args = parser.parse_args()
+    check_work_dir(args.work_dir)
     if args.answers:
         print("=" * 60)
         print("HELD-OUT ANSWERS OF THE FOLD MODELS")
@@ -111,7 +125,9 @@ def main():
         limit_cpu()
         # Step 2: score and write
         print("\n[2/2] Answering each held-out fold...")
-        found = fold_answers(args.work_dir, json.loads(REPORT.read_text(encoding="utf-8")), CPU_THREADS)
+        report = json.loads(REPORT.read_text(encoding="utf-8"))
+        check_all_folds(report)
+        found = fold_answers(args.work_dir, report, CPU_THREADS)
         ANSWERS.write_text(json.dumps(found, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
         print(f"    Saved: {ANSWERS}")
         return

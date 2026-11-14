@@ -16,18 +16,18 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 
-RANDOM_STATE = 113
-BASE_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-# The exact published version the bundle was trained from. A bare name follows
-# whatever its publisher uploads next; a version id does not.
-BASE_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
-FIELDS = ("category", "priority")
-# A third answer a model may be trained to give: whether a person must see the ticket.
-REVIEW_FIELD = "mustReview"
-EPOCHS = 2
-LEARNING_RATE = 2e-5
-BATCH_SIZE = 64
-MAX_LENGTH = 256
+from triage_v2.sentence_settings import (  # noqa: F401 - the settings are read from here by the training callers
+    BASE_MODEL,
+    BASE_REVISION,
+    BATCH_SIZE,
+    EPOCHS,
+    FIELDS,
+    LEARNING_RATE,
+    MAX_LENGTH,
+    RANDOM_STATE,
+    REVIEW_FIELD,
+)
+
 PREDICT_BATCH_SIZE = 512
 
 

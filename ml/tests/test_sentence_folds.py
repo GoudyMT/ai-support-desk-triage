@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from triage_v2.sentence_folds import SETTINGS, SETTINGS_ERROR, mean_right, start_report, tickets_of
-from triage_v2.train_sentence import BATCH_SIZE, EPOCHS, LEARNING_RATE, MAX_LENGTH
+from triage_v2.ninety_day import REPO_DIR, WORK_IN_REPO
+from triage_v2.sentence_folds import FOLDS_ERROR, SETTINGS, SETTINGS_ERROR, check_all_folds, check_work_dir, mean_right, start_report, tickets_of
+from triage_v2.sentence_settings import BATCH_SIZE, EPOCHS, LEARNING_RATE, MAX_LENGTH
 
 BUNDLE_REPORT = Path(__file__).resolve().parents[1] / "reports" / "bundle_v2.json"
 
@@ -38,3 +39,17 @@ def test_a_rerun_carries_on_from_the_same_settings_and_refuses_others():
     assert start_report(None) == {"settings": SETTINGS, "folds": [], "approve_answers": []}
     with pytest.raises(SystemExit, match=SETTINGS_ERROR):
         start_report({**earlier, "settings": {**SETTINGS, "epochs": 3}})
+
+
+# Fold bundles are large and never committed; a work folder in the repo could be staged by accident.
+def test_a_work_folder_inside_the_repo_is_refused_and_one_outside_is_kept(tmp_path):
+    with pytest.raises(SystemExit, match=WORK_IN_REPO):
+        check_work_dir(REPO_DIR / "ml" / "fold_work")
+    check_work_dir(tmp_path)
+
+
+# The answers file is read as complete by the measuring scripts, so it is written only from a report of every fold.
+def test_answers_are_written_only_from_a_report_of_every_fold():
+    with pytest.raises(SystemExit, match=FOLDS_ERROR):
+        check_all_folds({"folds": [{"fold": 0}, {"fold": 1}, {"fold": 2}]})
+    check_all_folds({"folds": [{"fold": k} for k in range(4)]})
