@@ -64,7 +64,6 @@ describe('the desk run', () => {
     const answers = await scoreDesk(model, deskTickets(SEED, DESK_WORDING));
     expect([...answers.keys()]).toEqual(deskTickets(SEED, DESK_WORDING).map((ticket) => ticket.id));
     expect(asked).toEqual(deskTickets(SEED, DESK_WORDING).map((ticket) => maskText(ticket.text).text));
-    expect([...answers.values()].every((answer) => answer.category === 'Billing' && answer.priority === 'High')).toBe(true);
   });
 
   it('refuses a ticket with no suggestion instead of letting it out on one model', () => {

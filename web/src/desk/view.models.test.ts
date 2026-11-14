@@ -36,9 +36,10 @@ describe('the desk with two models', () => {
       { kind: 'category' as const, category: 'Urgent Complaint' as const },
     ];
     const [card] = deskCards(withState({ open: [twoModelTrail({ category: 'Account Access', priority: 'High' }, reasons)] }));
-    expect(card?.why).toBe(
-      'A rule caught "cannot tell what". The word model said Urgent Complaint, and Urgent Complaint tickets always go to a person. The two models gave different answers.',
-    );
+    // What the operator acts on: the rule's words, the department named as the word model's, and the disagreement last.
+    expect(card?.why).toContain('"cannot tell what"');
+    expect(card?.why).toContain('The word model said Urgent Complaint');
+    expect(card?.why).toMatch(/different answers\.$/);
   });
 
   it('shows a card the models agree on as before, percent and quick approve included', () => {

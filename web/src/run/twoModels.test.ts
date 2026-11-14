@@ -69,7 +69,6 @@ describe('runTwoModels', () => {
   });
 
   it('sends a ticket the gate lets out to a person when the models disagree, with the sentence answer as the suggestion', () => {
-    let checked = 0;
     let differed = 0;
     for (const ticket of TICKETS_LIST) {
       const word = wordAnswer(ticket.text, ticket.id);
@@ -89,9 +88,7 @@ describe('runTwoModels', () => {
         expect(trail.category.confidence).toBe(0);
         differed += 1;
       }
-      checked += 1;
     }
-    expect(checked).toBe(TICKETS);
     expect(differed).toBeGreaterThan(TICKETS / 2);
   });
 

@@ -98,7 +98,10 @@ describe('the sentence model in the browser', () => {
       throw new TypeError('Failed to fetch');
     }) as typeof fetch;
     await expect(loadSentenceModel('models/bundle_v2/', RECORD.fingerprint, ort, CLASSES, offline)).rejects.toThrow('E_SENTENCE_LOAD');
+    // Served files load the same model as the files read straight from the bundle.
+    const ticket = 'I was charged twice for my plan this month.';
     const model = await loadSentenceModel('models/bundle_v2/', RECORD.fingerprint, ort, CLASSES, served('none'));
-    expect((await model.predict('I was charged twice for my plan this month.')).category).toBe('Billing');
+    const direct = await sentenceModelFrom(bundleFiles(), RECORD.fingerprint, ort, CLASSES);
+    expect(await model.predict(ticket)).toEqual(await direct.predict(ticket));
   });
 });

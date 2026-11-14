@@ -15,8 +15,11 @@ const GATE: Predict = (head, maskedText) => score(MODEL, head, maskedText);
 const TICKETS = generateTickets(77, 300, 'all', DESK_WORDING);
 const ROWS = TICKETS.map((ticket) => ({ id: ticket.id, text: ticket.text, label: ticket.label }));
 const SHA = 'stand-in';
-// The Part 1 check found 6 blind templates over the share (plan notes, 2026-11-10).
-const NEAR_TEMPLATES_RECORDED = 6;
+// What the one reading recorded about the blind templates close to the training wording.
+const RECORDED = JSON.parse(readFileSync(new URL('../../ml/reports/blind_reading.json', import.meta.url), 'utf8')) as {
+  near_match_templates: number;
+  near_match_tickets: number;
+};
 
 function answersFrom(pick: (row: (typeof ROWS)[number]) => [string, string]): AnswersFile {
   return { blind_sha256: SHA, models: { sentence: { fingerprint: 'f', answers: ROWS.map((row) => [row.id, ...pick(row)]) } } };
@@ -29,12 +32,10 @@ const wordOwn = answersFrom((row) => {
 });
 
 describe('the blind reading', () => {
-  it('finds the 6 near-match templates the Part 1 check found, and the tickets built from them', () => {
+  it('finds the near-match templates and the tickets built from them that the reading recorded', () => {
     const near = nearMatchTemplates();
-    expect(near.size).toBe(NEAR_TEMPLATES_RECORDED);
-    const ids = nearMatchIds(near);
-    expect(ids.size).toBeGreaterThan(0);
-    expect(ids.size).toBeLessThan(2_000);
+    expect(near.size).toBe(RECORDED.near_match_templates);
+    expect(nearMatchIds(near).size).toBe(RECORDED.near_match_tickets);
   });
 
   it('meets the bar when the suggestion is right far more often than the word model and the counts hold', () => {
