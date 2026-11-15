@@ -1,11 +1,12 @@
 # Routing and Risk Plan
 
 ## Progress
-- Current task: 5
+- Current task: 7
 - Done (with evidence): design approved 2026-11-15 with the plan gap check folded in (design section 13); plan approved 2026-11-15 ("Lets see how far we get!"); Task 0 - fair run plan Progress closed with #14 (150f9e4), `tracking-check.mjs progress` PASS on this plan; Task 1 - `splitFlow.test.ts` 8 tests, 8 red on the stub, green after; 10 breaks (department only, vague as risk, no raise, raise to exactly High, mark lost after triage, floor dropped, pass-through review kept, marked sent to the operator, everything marked) each turned a row red, file restored; lint and typecheck exit 0; Task 2 - `measureSplit.test.ts` 7 tests, red on stubs, green after; 10 breaks each turned a row red (one first stayed green, marked tickets left out of the hard line, and got its row); `split_flow.json` written: every count equals the design 9 table on all 7 sets; `--check` exit 1 on an edited record, exit 0 restored; ci.yml parses; Task 3 - wireframe locked by the owner 2026-11-15 ("Check the route"; the mark aligned on one line); unit tests red first then green (desk run paths, one-model fallback, metrics by path, value saved, Sent to teams mark, Try a ticket path), 1,342 unit tests pass; browser suite on Chromium 405 of 406 passed, the one failure a 30 s model-load wait under parallel workers that passes alone (3 runs, a different test each time); Approve and long-list rows moved to the word-model-only start; new row: no Approve on two models, marked row's pill and status on the team's line; visual check on the local build; Task 4 - new current row `split` from `split_flow.json` (fresh: 0 of 20 risky missed, operator 40%) and the replayed runs under the three paths (Approve 0 per run; v1.1 replay 5.15 kept on the sentence row); pages say "fell, from 83% to 40%" and "about 48% of tickets wait for the operator"; 4 breaks each red; history, pipeline and desk unit tests 147 pass; browser suite 404 of 406, the 2 others a page crash while loading the model under parallel workers, both pass alone (logged, not investigated, per the crash rule)
 ; Task 5 code (no run yet) - `test_risk_detector.py` 6 tests, 4 red on the stub (2 empty-passing rows rewritten after their breaks stayed green), 6 breaks red; `routeTicketWith` riskMark seam, 1 new test, 3 breaks red; `measureRiskDetector.test.ts` 10 tests, 9 red on stubs, 5 breaks red (one first green, allowance rounding, got its row)
 ; Task 5 run on the owner's yes (2026-11-15 "yes gop ahead"): busy check GPU 40% / CPU 14-23%, 21.1 s on 4 threads below normal; B1 judged once on the 7 sets: NOT PASSED, 6 of 7 fail (risky missed desk 55 -> 75, fold 1 4 -> 27, fold 3 0 -> 10; High/Urgent out low fold 3 0 -> 99), though false marks fell on every set (desk 691 -> 260); cut-offs 0.86 to 1.0 set on a tuning side that shares templates with training; not adopted, record `ml/reports/risk_detector.json`
-- Next: the owner's call on B2 (needs a new blind set: the 7 sets have judged B1), then Task 6
+; owner chose A 2026-11-15 (no B2; ship the split); Task 6 - README (desk row, two jobs, split table from `split_flow.json`, detector not adopted) and guide (how-it-works two jobs, design choice 7); ASCII scan clean; every number checked against its record
+- Next: Task 7
 - Branch: `feature/routing-and-risk` (local, not pushed)
 - Open questions: none
 
@@ -129,5 +130,6 @@ would wait on each other. Expected: Tasks 0-4 one to two sessions; Task 5 one se
 Feature (new data flow, desk behaviour, a model trial).
 
 ## Parking Lot
+- README images `docs/images/how-it-works.png` and `how-it-grew.png` still show the v1.1 flow (to a person on any doubt; 83% sent); regenerate for the split (medium, docs).
 
 ## Execution Notes & Deviations

@@ -73,12 +73,23 @@ Two more checks flag a ticket: the model's answer is Security Concern, Accessibi
 (these always get a person, [`guard.ts`](../../web/src/pipeline/guard.ts)), or the model is less than 50% sure of the
 category ([`run.ts`](../../web/src/pipeline/run.ts)).
 
+### Two jobs: routing and risk
+
+With both models loaded, the desk keeps where a ticket goes apart from whether a person must handle it
+([`splitFlow.ts`](../../web/src/run/splitFlow.ts)). A ticket the two models place on a different team or priority, or
+one the vague-ticket rule alone flags, waits for the operator. Every other ticket goes to the team both models named;
+if a rule other than the vague one, a must-see department or the 50% floor flagged it, it arrives marked "Needs a
+person" and at least High. On the desk's own wording this sends 1,915 of 4,000 tickets to the operator instead of
+3,333, with every safety line unchanged ([`split_flow.json`](../../ml/reports/split_flow.json)). Without the sentence
+model the desk keeps the one-model flow: every flagged ticket waits for a person.
+
 ### The person
 
-On the live desk a simulated reviewer checks flagged tickets. It knows each ticket's true answer and is wrong on
+On the live desk a simulated reviewer checks the tickets waiting for the operator. It knows each ticket's true answer and is wrong on
 purpose 5% of the time, so it acts like a person, not a perfect answer key
 ([`reviewer.ts`](../../web/src/pipeline/reviewer.ts)). You can take any ticket yourself. A one-press Approve shows
-only when the ticket's card reads 70% sure or more and both models agree ([`engineParts.ts`](../../web/src/run/engineParts.ts)).
+only when the ticket's card reads 70% sure or more and both models agree ([`engineParts.ts`](../../web/src/run/engineParts.ts)),
+so on the two-model desk, where every card is a disagreement, none does; it remains on the word-model-only desk.
 
 ## Where the model comes from
 
