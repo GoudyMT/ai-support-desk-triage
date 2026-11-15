@@ -74,7 +74,8 @@ export function deskWhy(trail: TicketTrail): string {
 }
 
 // The open list is already ordered by severity and then oldest first. A suggestion the models disagree on carries no
-// "sure" percent and no quick approve: a person reads it.
+// "sure" percent and no quick approve: a person reads it. Neither does any card of the three-path desk: the only one
+// the models agree on came because its team is unclear, so the operator places it.
 export function deskCards(state: RunState): DeskCard[] {
   return state.open.map((trail) => {
     const team = teamOf(trail);
@@ -88,7 +89,7 @@ export function deskCards(state: RunState): DeskCard[] {
       why: deskWhy(trail),
       percent,
       leaning: differ ? `Leaning ${team}.` : `Leaning ${team}, ${percent}% sure.`,
-      showApprove: !differ && canQuickApprove(trail),
+      showApprove: !differ && trail.path === undefined && canQuickApprove(trail),
     };
   });
 }

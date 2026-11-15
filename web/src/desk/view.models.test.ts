@@ -50,6 +50,16 @@ describe('the desk with two models', () => {
     expect(card?.showApprove).toBe(true);
   });
 
+  // On the three-path desk a card the models agree on reached the operator only because the vague rule said its team
+  // is unclear, so the operator places it: one press must not send it to the team the models guessed.
+  it('offers no quick approve on an operator card of the three-path desk, even when the models agree', () => {
+    const reasons = [{ kind: 'rule' as const, reason: 'vague ticket' as const, words: ['not sure'] }];
+    const trail: TicketTrail = { ...twoModelTrail({ category: 'Billing', priority: 'High' }, reasons), path: 'triage', marked: false };
+    const [card] = deskCards(withState({ open: [trail] }));
+    expect(card?.leaning).toBe(`Leaning ${card?.team}, 99% sure.`);
+    expect(card?.showApprove).toBe(false);
+  });
+
   it("lists each model's own answer on the review card, and nothing on a one-model run", () => {
     const review = deskReview(withState({ reviewing: twoModelTrail({ category: 'Account Access', priority: 'Medium' }) }));
     expect(review?.models).toEqual({ word: 'Account Access, Medium', sentence: 'Billing, High' });

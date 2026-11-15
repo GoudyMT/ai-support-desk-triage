@@ -4,6 +4,8 @@ import { LOAD_MS, SEED, START, startWordOnly } from './helpers';
 
 const STEP_MS = 1000;
 const MAX_STEPS = 80;
+// About a third of a run at the default speed: long enough for many operator cards to come and go.
+const APPROVE_WATCH_STEPS = 30;
 const QUICK_PERCENT = 70;
 const SEND = "Looks good, send it";
 const SEND_CHANGED = 'Send with my changes';
@@ -96,8 +98,10 @@ test('on two models the list is Check the route, no card offers Approve, and a m
   await openDesk(page);
   await start(page);
   await expect(page.locator('#open-title')).toHaveText(/^Check the route \d+$/);
-  const marked = page.locator('#sent-list > li').filter({ has: page.locator('.how-marked') });
-  for (let step = 0; step < MAX_STEPS && (await marked.count()) === 0; step += 1) {
+  // A ticket sent marked with no review is never below High; a risky one a person placed keeps the person's priority.
+  const marked = page.locator('#sent-list > li').filter({ has: page.locator('.how-marked') }).filter({ has: page.locator('.tag', { hasText: /^(Critical|High)$/ }) });
+  // Approve is watched for a whole stretch of the run, not only until the first marked row.
+  for (let step = 0; step < MAX_STEPS && (step < APPROVE_WATCH_STEPS || (await marked.count()) === 0); step += 1) {
     await page.clock.runFor(STEP_MS);
     await expect(page.locator('#open-list').getByRole('button', { name: /^Approve/ })).toHaveCount(0);
   }

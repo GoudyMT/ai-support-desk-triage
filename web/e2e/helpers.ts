@@ -146,8 +146,8 @@ export function moreNumber(page: Page, label: string) {
 }
 
 // Starts the desk on the word model alone: the larger model's download is held and the viewer chooses not to wait. On
-// two models every card is one the models disagree on and offers no Approve; the one-model desk still does, and its
-// list holds every flagged ticket, so the rows about Approve and about a long list start here.
+// two models no operator card offers Approve and the list holds only route doubts; the one-model desk still offers it,
+// and its list holds every flagged ticket, so the rows about Approve and about a long list start here.
 export async function startWordOnly(page: Page): Promise<void> {
   await page.route('**/models/{bundle_v2,ort-*}/**', () => undefined);
   await page.getByRole('button', { name: 'Start' }).click();
