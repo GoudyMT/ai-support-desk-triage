@@ -1,5 +1,10 @@
 # Desk with Two Models - Wireframe (for the owner's lock)
 
+> SUPERSEDED (2026-11-15) by `docs/superpowers/specs/2026-11-14-routing-and-risk-design.md`: the desk now sends each
+> ticket down one of three paths, and a risky ticket reaches Sent to teams with a "needs a person" mark instead of
+> waiting for the operator. Its wireframe was locked again on 2026-11-15 (`docs/superpowers/plans/2026-11-14-routing-and-risk.md`,
+> Task 3). This file stays as the record of the v1.1 desk.
+
 **Date:** 2026-11-12. **Status:** LOCKED by the owner on 2026-11-12 ("Lets go with no border - lets go with the desk design"), from real screenshots of the desk now and with the change drawn in. **Part 2 design:** section 3.2. A real-data screenshot follows after the first visual unit is built (lesson L-05).
 
 ## What was locked (supersedes the choice at the end of this file)
