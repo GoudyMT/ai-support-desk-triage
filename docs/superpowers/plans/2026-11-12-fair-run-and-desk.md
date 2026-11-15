@@ -1,7 +1,7 @@
 # Fair 90-Day Run, Then the Desk and the Release - Plan
 
 ## Progress
-- Current task: 19 (sweep fixes, then the PR)
+- Current task: none; closed. PR #14 squash merged as 150f9e4 (2026-11-14); v1.1.0 released
 - Done (with evidence):
   - design approved by the owner 2026-11-12 ("Plan looks good, lets continue"); plan approved 2026-11-12 ("And then let's begin")
   - Task 0 - fd51002 - `tracking-check.mjs progress` PASS on both plans
@@ -31,8 +31,8 @@
   - Desk limit 64,960 on the owner's A (measured 63,493: growth 14,669 plus 10%)
   - Task 13 - `blindReading.test.ts` 5 rows written after the code, proven by 6 breaks (one first green, row strengthened); `test_blind_reading.py` red before the record; the near-match check rebuilt from the Part 1 note (union of built-in templates, slots removed, over 30%) finds the recorded 6 (53 tickets). The first run refused before scoring (the blind file's CRLF checkout; fingerprint of the LF form, fixed). On the owner's yes ("Yes, read the blind set", 2026-11-13), after the load check alone (GPU 12%, CPU 2%): 95 s, CPU avg 16.8% peak 29.3%. BAR MET: suggestion on reviewed tickets 88.8% vs word 62.9% (+25.9 points); four counts held (high-risk missed 61 -> 38, High/Urgent out low 36 -> 0, silent category 2 -> 0, silent priority 83 -> 3); sentence alone 90.8% vs word 69.5%; to a person 1,556 -> 1,640. CI step `npm run blind-reading` added
   - Tasks 14-17 (Model History, fold measure, card and guide, download page), the owner's late ask and its four tries, and the feature sweep: commits on this branch from 5b2e4e1 on; the tries in Execution Notes; the sweep in `.kit/sweeps/2026-11-14-fair-run-and-desk.md`
-- Next: fix the sweep's findings, the full gate, then the PR body for the owner
-- Branch: `feature/fair-ninety-day-run` (local, from `main` at 24653e4)
+- Next: none; the next version is `docs/superpowers/plans/2026-11-14-routing-and-risk.md`
+- Branch: `feature/fair-ninety-day-run`, merged as #14 and retired
 - Open questions: the owner's yes on the old scratch delete list (asked 2026-11-12)
 **Goal:** a 90-day verdict that measures learning, not the deal of weeks or repeated wording; then the desk's reviewer sees the sentence model's suggestion, and Model History tells the truth about both runs.
 **Record:** `docs/brainstorms/2026-11-10-next-model.brainstorm.md` (local): growth from understanding, not memory (Q1, option A); accuracy first (Q1); hard lines never worse (Q2). The fair run itself is the owner's pick of 2026-11-12 (option C, then approach A).
