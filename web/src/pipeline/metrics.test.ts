@@ -174,6 +174,24 @@ describe('computeMetrics on the three-path desk', () => {
     expect(m.flagRate).toBe(0.25);
     expect(m.sentMarked).toBe(1);
   });
+
+  // The report's "Handled with no person" must not count a marked ticket, which a person handles at its team, and
+  // "sent marked" counts a risky ticket the operator placed as well as one marked straight away.
+  it('counts only direct tickets as handled with no person, and every marked trail as sent marked', () => {
+    const base = trailOf(ROWS[0] as Row);
+    const truth: TicketLabel = { category: 'Billing', priority: 'Medium', mustReview: false };
+    const byModel = { ...base.final, by: 'model' as const };
+    const m = computeMetrics(
+      [
+        { ...base, id: 'M', path: 'marked', marked: true, final: byModel },
+        { ...base, id: 'D', path: 'direct', marked: false, final: byModel },
+        { ...base, id: 'T', path: 'triage', marked: true, final: { ...base.final, by: 'reviewer' } },
+      ],
+      () => truth,
+    );
+    expect(m.handledWithoutReview).toBe(1);
+    expect(m.sentMarked).toBe(2);
+  });
 });
 
 describe('computeMetrics edges', () => {

@@ -170,6 +170,23 @@ describe('sentRows', () => {
     expect(rows.find((r) => r.id === 'D-1')?.mark).toBeUndefined();
   });
 
+  // A risky ticket the models disagreed on is placed by a person first, then still needs a person at its team: its
+  // row keeps the mark and the pill at the priority the person chose, and it counts as sent marked.
+  it('keeps the mark on a risky ticket a person placed from the operator cards', () => {
+    const { truthOf, end } = day();
+    const some = end.done[0];
+    if (some === undefined) throw new Error('test: an empty day');
+    const placed = { ...some, id: 'T-1', path: 'triage' as const, marked: true, final: { ...some.final, priority: 'Medium' as const, by: 'reviewer' as const } };
+    const plain = { ...some, id: 'T-2', path: 'triage' as const, marked: false, final: { ...some.final, by: 'reviewer' as const } };
+    const state: RunState = { ...end, viewerReviews: [{ id: 'T-3', correct: true, quick: false }], done: [placed, plain, { ...placed, id: 'T-3' }] };
+    const rows = sentRows(state);
+    expect(rows.find((r) => r.id === 'T-1')).toMatchObject({ how: 'Needs a person', mark: { word: 'Medium' } });
+    expect(rows.find((r) => r.id === 'T-2')?.mark).toBeUndefined();
+    expect(rows.find((r) => r.id === 'T-2')?.how).not.toBe('Needs a person');
+    expect(rows.find((r) => r.id === 'T-3')).toMatchObject({ how: 'You reviewed', mark: { word: 'Medium' } });
+    expect(deskNumbers(state, 3, () => truthOf(some.id)).sentMarked).toBe(2);
+  });
+
   it('names the team the ticket was sent to, which is the reviewer\'s when they changed it', () => {
     const { end } = day();
     const changed = end.done.find((t) => t.final.by === 'reviewer' && t.final.category !== t.category.label);

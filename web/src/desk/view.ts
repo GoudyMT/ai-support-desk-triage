@@ -98,7 +98,7 @@ function howClosed(state: RunState, trail: TicketTrail): string {
   if (yours !== undefined) {
     return yours.quick ? 'You approved' : 'You reviewed';
   }
-  if (trail.path === 'marked') {
+  if (trail.marked === true) {
     return 'Needs a person';
   }
   if (!toOperator(trail)) {
@@ -117,7 +117,7 @@ export function sentRows(state: RunState): SentRow[] {
       was: trail.final.route === teamOf(trail) ? undefined : teamOf(trail),
       text: trail.maskedText,
     };
-    if (trail.path === 'marked') row.mark = tagView(trail.final.priority);
+    if (trail.marked === true) row.mark = tagView(trail.final.priority);
     return row;
   });
 }
@@ -192,7 +192,7 @@ export function deskNumbers(state: RunState, total: number, truthOf: (id: string
     total,
     waiting: state.open.length + (state.reviewing === undefined ? 0 : 1),
     highRiskMissed: live.highRiskMissed,
-    sentMarked: state.done.filter((trail) => trail.path === 'marked').length,
+    sentMarked: state.done.filter((trail) => trail.marked === true).length,
     rightNoPerson: valueSaved(state, truthOf).counted,
     reviewerChanged: live.overrides,
   };

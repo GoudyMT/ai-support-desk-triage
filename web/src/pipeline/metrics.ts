@@ -1,5 +1,5 @@
 import type { Category, TicketLabel } from '../domain/labels';
-import { missedRisk, toOperator } from './paths';
+import { missedRisk, reachedPerson, toOperator } from './paths';
 import type { FlagReason, TicketTrail } from './types';
 
 export interface RunMetrics {
@@ -86,7 +86,7 @@ export function computeMetrics(trails: TicketTrail[], truthOf: (id: string) => T
     },
     highRiskMissed: countWhere(rows, ({ trail, truth }) => missedRisk(trail, truth)),
     flagRate: share(countWhere(trails, toOperator), total),
-    sentMarked: countWhere(trails, (trail) => trail.path === 'marked'),
+    sentMarked: countWhere(trails, (trail) => trail.marked === true),
     flagsByReason,
     secondCheckCleared: countWhere(trails, (trail) => trail.guard.clearedBySecondCheck),
     overrideRate: share(overridden, reviewed.length),
@@ -95,7 +95,7 @@ export function computeMetrics(trails: TicketTrail[], truthOf: (id: string) => T
       priority: rate(({ trail, truth }) => trail.v0.priority === truth.priority),
       flag: rate(({ trail, truth }) => trail.v0.mustReview === truth.mustReview),
     },
-    handledWithoutReview: countWhere(trails, (trail) => trail.final.by === 'model'),
+    handledWithoutReview: countWhere(trails, (trail) => !reachedPerson(trail)),
     msPerTicket: trails.reduce((sum, trail) => sum + trail.ms, 0) / total,
     instructiveMisses,
   };
