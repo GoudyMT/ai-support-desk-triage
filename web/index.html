@@ -73,13 +73,13 @@
           </div>
         </dl>
         <div class="tabs" role="tablist" aria-label="Ticket lists">
-          <button id="tab-open" type="button" class="tab" role="tab" aria-selected="true" aria-controls="open-col" data-view="open">Needs a person <span id="tab-open-n">0</span></button>
+          <button id="tab-open" type="button" class="tab" role="tab" aria-selected="true" aria-controls="open-col" data-view="open"><span class="open-name">Needs a person</span> <span id="tab-open-n">0</span></button>
           <button id="tab-sent" type="button" class="tab" role="tab" aria-selected="false" aria-controls="sent-col" data-view="sent" tabindex="-1">Sent to teams <span id="tab-sent-n">0</span></button>
         </div>
       </div>
       <section id="open-col" class="col lists" aria-labelledby="open-title">
         <div class="col-title">
-          <h2 id="open-title" class="col-head" tabindex="-1">Needs a person <span id="open-count" class="count">0</span></h2>
+          <h2 id="open-title" class="col-head" tabindex="-1"><span class="open-name">Needs a person</span> <span id="open-count" class="count">0</span></h2>
           <button type="button" class="tip" aria-label="Why the order changes" aria-describedby="tip-order"></button>
           <span id="tip-order" class="tipbox" role="tooltip" hidden>The most serious tickets go to the top, so a person sees them first. Two tickets at the same level stay oldest first.</span>
         </div>
@@ -94,7 +94,7 @@
         <div class="col-title">
           <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
           <button type="button" class="tip" aria-label="What the labels mean" aria-describedby="tip-labels"></button>
-          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.</span>
+          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Needs a person: both models agreed on the team, but a rule, the team or the model's doubt says a person must handle it there. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.</span>
         </div>
         <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
       </section>
@@ -166,6 +166,8 @@
             <span id="tip-missed" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
           </dt>
           <dd id="n-missed">0</dd>
+          <dt>Sent marked</dt>
+          <dd id="n-marked">0</dd>
           <dt>Right with no person</dt>
           <dd id="n-right">0</dd>
           <dt>

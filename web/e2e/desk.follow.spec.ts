@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { LOAD_MS, SEED, START } from './helpers';
+import { LOAD_MS, SEED, START, startWordOnly } from './helpers';
 
 const STEP_MS = 250;
 const MAX_STEPS = 400;
@@ -126,7 +126,7 @@ test.describe('reading a card', () => {
     page,
   }) => {
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     for (let step = 0; step < MAX_STEPS; step += 1) {
       const withApprove = cards(page).filter({ has: page.getByRole('button', { name: /^Approve/ }) });
       if ((await withApprove.count()) >= 1 && (await cards(page).count()) >= 2) break;
@@ -416,17 +416,19 @@ test.describe('keyboard and mouse together', () => {
     await expect(status(page)).toHaveText(READING);
   }
 
+  // A card to approve and another for focus to move on to.
   async function runUntilApprove(page: Page): Promise<void> {
     const approve = page.locator('#open-list').getByRole('button', { name: /^Approve/ });
-    for (let step = 0; step < MAX_STEPS && (await approve.count()) === 0; step += 1) await page.clock.runFor(STEP_MS);
-    expect(await approve.count()).toBeGreaterThan(0);
+    const ready = async (): Promise<boolean> => (await approve.count()) > 0 && (await cards(page).count()) >= 2;
+    for (let step = 0; step < MAX_STEPS && !(await ready()); step += 1) await page.clock.runFor(STEP_MS);
+    expect(await ready()).toBe(true);
   }
 
   test('Approve pressed from the keyboard moves focus to the next card, keeps the run held, and throws nothing', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     await runUntilApprove(page);
     await tabIntoList(page);
     const approve = page.locator('#open-list').getByRole('button', { name: /^Approve/ }).first();
@@ -486,7 +488,7 @@ test.describe('keyboard and mouse together', () => {
   test('Tab into a list taller than the screen keeps the start of the list on screen', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     await runUntilCards(page, 8);
     await page.getByRole('button', { name: FIRST_REVIEW_BEFORE_LIST }).focus();
     await page.keyboard.press('Tab');
@@ -498,7 +500,7 @@ test.describe('keyboard and mouse together', () => {
   test('moving focus along the bar leaves the page where it is', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     await runUntilCards(page, 8);
     const controls = page.locator('.bar button:visible, .bar a:visible');
     for (let at = 0; at < (await controls.count()); at += 1) {

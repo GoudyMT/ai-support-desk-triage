@@ -1,4 +1,5 @@
 import type { Category, TicketLabel } from '../domain/labels';
+import { missedRisk, toOperator } from './paths';
 import type { FlagReason, TicketTrail } from './types';
 
 export interface RunMetrics {
@@ -6,6 +7,7 @@ export interface RunMetrics {
   priorityAccuracy: { model: number; system: number };
   highRiskMissed: number;
   flagRate: number;
+  sentMarked: number;
   flagsByReason: Record<string, number>;
   secondCheckCleared: number;
   overrideRate: number;
@@ -82,8 +84,9 @@ export function computeMetrics(trails: TicketTrail[], truthOf: (id: string) => T
       model: rate(({ trail, truth }) => trail.priority.label === truth.priority),
       system: rate(({ trail, truth }) => trail.final.priority === truth.priority),
     },
-    highRiskMissed: countWhere(rows, ({ trail, truth }) => truth.mustReview && !trail.guard.flagged),
-    flagRate: share(flaggedRows.length, total),
+    highRiskMissed: countWhere(rows, ({ trail, truth }) => missedRisk(trail, truth)),
+    flagRate: share(countWhere(trails, toOperator), total),
+    sentMarked: countWhere(trails, (trail) => trail.path === 'marked'),
     flagsByReason,
     secondCheckCleared: countWhere(trails, (trail) => trail.guard.clearedBySecondCheck),
     overrideRate: share(overridden, reviewed.length),

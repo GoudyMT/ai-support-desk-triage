@@ -11,7 +11,7 @@ const PRIVACY =
   'Before the model reads a ticket, we hide common forms of email addresses, phone numbers, order numbers and ' +
   'card-like numbers. Names and street addresses are not hidden. Nothing you type is saved or sent.';
 const PAUSED_TRY = 'Paused while you try a ticket.';
-const SAFETY_SPOKEN = 'Sorted: Security Concern, Critical, Security Team. Person needed: yes.';
+const SAFETY_SPOKEN = 'Sorted: Security Concern, Critical, Security Team. Marked: needs a person. Person needed: yes.';
 const EMAIL = 'jordan@mail.example.net';
 const CARD = '4111-1111-1111-1111';
 const PERSONAL = `Please write to ${EMAIL} about the charge on card ${CARD}.`;
@@ -116,8 +116,8 @@ test.describe('Try a ticket at rest', () => {
     await expect(page.getByText(PRIVACY, { exact: true })).toBeVisible();
     await expect(result(page)).toBeHidden();
     await sort(page, PERSONAL);
-    await expect(result(page).locator('dt')).toHaveText(['Category', 'Priority', 'Team', 'Person needed']);
-    await expect(result(page).locator('dd')).toHaveCount(4);
+    await expect(result(page).locator('dt')).toHaveText(['Category', 'Priority', 'Team', 'Person needed', 'Path']);
+    await expect(result(page).locator('dd')).toHaveCount(5);
     await expect(page.getByText(WARNING, { exact: true })).toBeVisible();
     await expect(box(page)).toHaveValue(/\[EMAIL_ADDRESS\]/);
     await expect(box(page)).toHaveValue(/\[CARD_NUMBER\]/);
@@ -156,7 +156,8 @@ test.describe('Try a ticket at rest', () => {
       'Security Concern',
       'Critical',
       'Security Team',
-      'Yes: A rule caught "someone accessed", and Security Concern tickets always go to a person.',
+      'Yes, at Security Team: A rule caught "someone accessed", and Security Concern tickets always go to a person.',
+      'Marked: needs a person',
     ]);
   });
 

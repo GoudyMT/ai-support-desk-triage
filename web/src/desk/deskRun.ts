@@ -6,13 +6,16 @@ import { maskText } from '../privacy/mask';
 import { createDeskSchedule } from '../run/clock';
 import { createRun, type Run } from '../run/engine';
 import { createPrescreener } from '../run/prescreen';
-import { runTwoModels, type ModelAnswer } from '../run/twoModels';
+import { routeTicket } from '../run/splitFlow';
+import type { ModelAnswer } from '../run/twoModels';
 
 // The desk's run: tickets in wording no model trained on (the desk wording,
-// generator/deskFrames.ts), the shipped word model as the gate and, when the
-// sentence model has loaded, its answer as the suggestion (the two-model rule,
-// run/twoModels.ts). The demo page keeps its fold tickets and one model. The
-// wording is passed in: it is fetched on demand with the sentence model's code.
+// generator/deskFrames.ts), the shipped word model and, when the sentence model
+// has loaded, the three paths (run/splitFlow.ts): the operator checks only the
+// tickets the two models place differently. Without the sentence model every
+// flagged ticket waits for the operator, as before. The demo page keeps its fold
+// tickets and one model. The wording is passed in: it is fetched on demand with
+// the sentence model's code.
 
 export type Suggest = (maskedText: string, id: string) => ModelAnswer;
 
@@ -91,5 +94,5 @@ export function createDeskRun(opts: DeskRunOptions): Run {
     deepTickets: 0,
     ticketAt: (index: number) => generateTicket(seed, index, 'all', wording),
   };
-  return createRun(suggest === undefined ? run : { ...run, runOne: (text, id, deps) => runTwoModels(text, id, { ...deps, suggest }) });
+  return createRun(suggest === undefined ? run : { ...run, runOne: (text, id, deps) => routeTicket(text, id, { ...deps, suggest }) });
 }

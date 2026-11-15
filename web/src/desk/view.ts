@@ -3,6 +3,7 @@
 // puts it back.
 import type { Category, Priority, TicketLabel } from '../domain/labels';
 import { computeMetrics } from '../pipeline/metrics';
+import { toOperator } from '../pipeline/paths';
 import type { FlagReason, TicketTrail } from '../pipeline/types';
 import { tagView, teamOf, whyFlagged, type TagView } from '../page/view';
 import type { RunState } from '../run/engine';
@@ -28,6 +29,8 @@ export interface SentRow {
   // The team the card showed, when the ticket went to another one; otherwise nothing.
   was: string | undefined;
   text: string;
+  // A ticket sent to its team marked as needing a person carries its priority, shown as the cards' pill.
+  mark?: TagView;
 }
 
 export interface DeskNumbers {
@@ -35,6 +38,8 @@ export interface DeskNumbers {
   total: number;
   waiting: number;
   highRiskMissed: number;
+  // Closed tickets sent straight to their team marked as needing a person.
+  sentMarked: number;
   rightNoPerson: number;
   reviewerChanged: number;
 }
@@ -93,7 +98,10 @@ function howClosed(state: RunState, trail: TicketTrail): string {
   if (yours !== undefined) {
     return yours.quick ? 'You approved' : 'You reviewed';
   }
-  if (!trail.guard.flagged) {
+  if (trail.path === 'marked') {
+    return 'Needs a person';
+  }
+  if (!toOperator(trail)) {
     return 'No person needed';
   }
   return trail.final.category === trail.category.label ? 'Reviewer checked' : 'Reviewer changed it';
@@ -101,13 +109,17 @@ function howClosed(state: RunState, trail: TicketTrail): string {
 
 // The team is where the ticket was sent, which is the reviewer's choice when they changed it.
 export function sentRows(state: RunState): SentRow[] {
-  return [...state.done].reverse().map((trail) => ({
-    id: trail.id,
-    team: trail.final.route,
-    how: howClosed(state, trail),
-    was: trail.final.route === teamOf(trail) ? undefined : teamOf(trail),
-    text: trail.maskedText,
-  }));
+  return [...state.done].reverse().map((trail) => {
+    const row: SentRow = {
+      id: trail.id,
+      team: trail.final.route,
+      how: howClosed(state, trail),
+      was: trail.final.route === teamOf(trail) ? undefined : teamOf(trail),
+      text: trail.maskedText,
+    };
+    if (trail.path === 'marked') row.mark = tagView(trail.final.priority);
+    return row;
+  });
 }
 
 export interface DeskReview {
@@ -156,7 +168,7 @@ export const percent = (share: number): string => `${Math.round(share * 100)}%`;
 
 export const msText = (ms: number): string => `${ms.toFixed(1)} ms`;
 
-export const flaggedCount = (done: readonly TicketTrail[]): number => done.filter((trail) => trail.guard.flagged).length;
+export const flaggedCount = (done: readonly TicketTrail[]): number => done.filter(toOperator).length;
 
 // How many closed tickets went to a person, with their share: `119 (92%)`.
 export const sentText = (flagged: number, share: number): string => `${flagged} (${percent(share)})`;
@@ -180,6 +192,7 @@ export function deskNumbers(state: RunState, total: number, truthOf: (id: string
     total,
     waiting: state.open.length + (state.reviewing === undefined ? 0 : 1),
     highRiskMissed: live.highRiskMissed,
+    sentMarked: state.done.filter((trail) => trail.path === 'marked').length,
     rightNoPerson: valueSaved(state, truthOf).counted,
     reviewerChanged: live.overrides,
   };

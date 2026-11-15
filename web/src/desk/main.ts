@@ -566,6 +566,8 @@ function mount(seed: number, run: Run, total: number, announce: string): void {
 
 type DeskKit = typeof import('./deskKit');
 
+const OPEN_TWO_MODELS = 'Check the route';
+const OPEN_ONE_MODEL = 'Needs a person';
 const SUGGESTS_SENTENCE = 'Suggestions: sentence model';
 const SUGGESTS_WORD = 'Suggestions: word model only';
 const SUGGESTS_WORD_FAILED = 'Suggestions: word model only (the sentence model did not load)';
@@ -615,6 +617,9 @@ function begin(seed: number, model: Model, kit: DeskKit, suggest: Suggest | unde
   loadState = 'idle';
   loadingPanel.hide();
   setText(byId('suggests'), suggests);
+  // With both models the operator's list holds only the tickets the models place differently; with one model it holds
+  // every ticket a person must see, as before.
+  for (const name of document.querySelectorAll('.open-name')) setText(name, suggest === undefined ? OPEN_ONE_MODEL : OPEN_TWO_MODELS);
   const run = createDeskRun({ seed, wording: kit.DESK_WORDING, model, suggest, wallClock: () => performance.now(), closeEveryMs: REVIEWER_PACE_MS });
   mount(seed, run, deskTotal(seed), startLine(seed));
   if (!tryModal.isOpen()) toggle().focus();

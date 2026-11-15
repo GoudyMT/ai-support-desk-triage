@@ -1,6 +1,7 @@
 import { ROUTES, type Category, type Priority, type TicketLabel } from '../domain/labels';
 import { generateTicket } from '../generator/generate';
 import { createSimulatedReviewer } from '../pipeline/reviewer';
+import { toOperator } from '../pipeline/paths';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
 import type { Reviewer, TicketTrail } from '../pipeline/types';
 import { maskText } from '../privacy/mask';
@@ -192,7 +193,7 @@ export function createRun(opts: RunOptions): Run {
       playing = false;
     }
     center = undefined;
-    if (trail.guard.flagged) {
+    if (toOperator(trail)) {
       addOpen({ index, text, trail });
     } else {
       done.push(trail);

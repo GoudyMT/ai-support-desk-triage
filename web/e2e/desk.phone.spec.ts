@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { LOAD_MS, SEED, START } from './helpers';
+import { LOAD_MS, SEED, START, startWordOnly } from './helpers';
 
 const PHONE = { width: 375, height: 812 };
 const TARGET = 44;
@@ -88,7 +88,7 @@ test.describe('on a phone', () => {
   test('one list at a time: a tap or an arrow key picks it, and each tab carries its list count', async ({ page }) => {
     await runDesk(page);
     await expect(page.getByRole('tablist')).toBeVisible();
-    const open = tab(page, 'Needs a person');
+    const open = tab(page, 'Check the route');
     const sent = tab(page, 'Sent to teams');
     await expect(open).toHaveAttribute('aria-selected', 'true');
     await expect(sent).toHaveAttribute('aria-selected', 'false');
@@ -110,12 +110,12 @@ test.describe('on a phone', () => {
     const counts = async () => [await page.locator('#open-list > li').count(), await page.locator('#sent-list > li').count()];
     const [openNow = 0, sentNow = 0] = await counts();
     expect(sentNow).toBeGreaterThan(0);
-    await expect(open).toHaveText(`Needs a person ${openNow}`);
+    await expect(open).toHaveText(`Check the route ${openNow}`);
     await expect(sent).toHaveText(`Sent to teams ${sentNow}`);
     await page.clock.runFor(RUN_MS);
     const [openLater = 0, sentLater = 0] = await counts();
     expect(sentLater).toBeGreaterThan(sentNow);
-    await expect(open).toHaveText(`Needs a person ${openLater}`);
+    await expect(open).toHaveText(`Check the route ${openLater}`);
     await expect(sent).toHaveText(`Sent to teams ${sentLater}`);
   });
 
@@ -169,7 +169,7 @@ test.describe('on a phone', () => {
     await page.getByRole('button', { name: 'Back to the tickets' }).tap();
     await expect(side(page)).toBeHidden();
     await expect(page.locator('#open-list')).toBeVisible();
-    await expect(tab(page, 'Needs a person')).toBeFocused();
+    await expect(tab(page, 'Check the route')).toBeFocused();
   });
 
   test('Numbers pressed over a report goes back to the panel, and Model History is a link at the end of the panel', async ({
@@ -281,7 +281,7 @@ test.describe('on a phone with a wider font', () => {
     await page.clock.runFor(RUN_MS);
     expect(await sideways(page), 'in a run').toBe(false);
     await expectRunBar(page);
-    for (const name of [/^Needs a person \d+$/, /^Sent to teams \d+$/]) {
+    for (const name of [/^Check the route \d+$/, /^Sent to teams \d+$/]) {
       expect((await boxOf(page.getByRole('tab', { name }))).height).toBeGreaterThanOrEqual(TARGET);
     }
     await numbersButton(page).click();
@@ -322,7 +322,9 @@ test.describe('at a phone width and a screen tall enough for one screen', () => 
   test.use({ viewport: PHONE });
 
   test('the desk is still one screen: the list scrolls inside it and the page does not', async ({ page }) => {
-    await runDesk(page, 120_000);
+    await openDesk(page);
+    await startWordOnly(page);
+    await page.clock.runFor(120_000);
     const room = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
     expect(room).toBeLessThanOrEqual(0);
     const list = await page.locator('#open-list').evaluate((node) => node.scrollHeight > node.clientHeight);
@@ -376,7 +378,7 @@ test.describe('in forced colors on a phone', () => {
   test('the selected tab is marked by more than its weight, and a tip box has an edge', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' });
     await runDesk(page);
-    await expect(tab(page, 'Needs a person')).toHaveCSS('outline-style', 'solid');
+    await expect(tab(page, 'Check the route')).toHaveCSS('outline-style', 'solid');
     await expect(tab(page, 'Sent to teams')).toHaveCSS('outline-style', 'none');
     await page.locator('.phone-head .tip').focus();
     const box = page.locator('[role="tooltip"]:not([hidden])');

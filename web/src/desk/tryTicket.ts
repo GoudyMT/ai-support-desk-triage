@@ -7,8 +7,10 @@ import { maskText } from '../privacy/mask';
 import { tagView } from '../page/view';
 import { intake } from '../pipeline/intake';
 import { CONFIDENCE_FLOOR, SECOND_CHECK_ON, runTicket } from '../pipeline/run';
-import type { Reviewer } from '../pipeline/types';
-import { runTwoModels, type ModelAnswer } from '../run/twoModels';
+import { reachedPerson } from '../pipeline/paths';
+import type { Reviewer, TicketPath } from '../pipeline/types';
+import { routeTicket } from '../run/splitFlow';
+import type { ModelAnswer } from '../run/twoModels';
 import { deskWhy } from './view';
 
 export interface TryView {
@@ -17,6 +19,8 @@ export interface TryView {
   priority: string;
   team: string;
   person: string;
+  // With both models: which of the desk's three paths the ticket took.
+  path?: string;
   // The result as one plain sentence, for a screen reader.
   spoken: string;
 }
@@ -67,18 +71,29 @@ export async function sentenceAnswerFor(source: () => Promise<SentenceModel | un
   }
 }
 
+const PATH_WORDS: Record<TicketPath, string> = {
+  triage: 'Check the route',
+  marked: 'Marked: needs a person',
+  direct: 'Straight to the team',
+};
+
 export function tryTicket(text: string, model: Model, sentenceAnswer?: ModelAnswer): TryView {
   const deps = { model, reviewer: ACCEPTS, floor: CONFIDENCE_FLOOR, secondCheckOn: SECOND_CHECK_ON, now: Date.now };
   const trail =
-    sentenceAnswer === undefined ? runTicket(text, TRY_ID, deps) : runTwoModels(text, TRY_ID, { ...deps, suggest: () => sentenceAnswer });
+    sentenceAnswer === undefined ? runTicket(text, TRY_ID, deps) : routeTicket(text, TRY_ID, { ...deps, suggest: () => sentenceAnswer });
   const { category, route: team } = trail.final;
   const priority = tagView(trail.final.priority).word;
-  return {
+  const needed = reachedPerson(trail);
+  const person = !needed ? 'No' : trail.path === 'marked' ? `Yes, at ${team}: ${deskWhy(trail)}` : `Yes: ${deskWhy(trail)}`;
+  const path = trail.path === undefined ? undefined : PATH_WORDS[trail.path];
+  const view: TryView = {
     text: trail.maskedText,
     category,
     priority,
     team,
-    person: trail.guard.flagged ? `Yes: ${deskWhy(trail)}` : 'No',
-    spoken: `Sorted: ${category}, ${priority}, ${team}. Person needed: ${trail.guard.flagged ? 'yes' : 'no'}.`,
+    person,
+    spoken: `Sorted: ${category}, ${priority}, ${team}.${path === undefined ? '' : ` ${path}.`} Person needed: ${needed ? 'yes' : 'no'}.`,
   };
+  if (path !== undefined) view.path = path;
+  return view;
 }

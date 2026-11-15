@@ -156,6 +156,20 @@ describe('sentRows', () => {
     );
   });
 
+  // A marked ticket reached its team with no reviewer, so it must never read "Reviewer checked"; its priority shows
+  // as the cards' pill beside the mark.
+  it('says a marked ticket needs a person and gives its priority pill, and a direct one needs none', () => {
+    const { end } = day();
+    const some = end.done[0];
+    if (some === undefined) throw new Error('test: an empty day');
+    const marked = { ...some, id: 'M-1', path: 'marked' as const, marked: true, review: undefined, final: { ...some.final, priority: 'Urgent' as const, by: 'model' as const } };
+    const direct = { ...some, id: 'D-1', path: 'direct' as const, marked: false, review: undefined, guard: { ...some.guard, flagged: false } };
+    const rows = sentRows({ ...end, viewerReviews: [], done: [marked, direct] });
+    expect(rows.find((r) => r.id === 'M-1')).toMatchObject({ how: 'Needs a person', mark: { word: 'Critical' } });
+    expect(rows.find((r) => r.id === 'D-1')).toMatchObject({ how: 'No person needed' });
+    expect(rows.find((r) => r.id === 'D-1')?.mark).toBeUndefined();
+  });
+
   it('names the team the ticket was sent to, which is the reviewer\'s when they changed it', () => {
     const { end } = day();
     const changed = end.done.find((t) => t.final.by === 'reviewer' && t.final.category !== t.category.label);
@@ -260,6 +274,7 @@ describe('deskNumbers', () => {
         total: DESK_TOTAL,
         waiting: state.open.length,
         highRiskMissed: live.highRiskMissed,
+        sentMarked: state.done.length === 0 ? 0 : computeMetrics(state.done, (id) => run.truthOf(id)).sentMarked,
         rightNoPerson: valueSaved(state, (id) => run.truthOf(id)).counted,
         reviewerChanged: live.overrides,
       });

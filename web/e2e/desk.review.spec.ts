@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ROUTES, type Category } from '../src/domain/labels';
-import { LOAD_MS, SEED, START } from './helpers';
+import { LOAD_MS, SEED, START, startWordOnly } from './helpers';
 
 const STEP_MS = 1000;
 const MAX_STEPS = 80;
@@ -90,10 +90,30 @@ test('Show both models\' answers is a full-size control that opens to each model
   await expect(dialog(page).getByText('Sentence model', { exact: true })).toBeVisible();
 });
 
+// On two models the operator checks only the route doubts, and a risky ticket the models agree on goes to its team
+// marked, with its priority pill beside the team and no reviewer named.
+test('on two models the list is Check the route, no card offers Approve, and a marked row shows its pill', async ({ page }) => {
+  await openDesk(page);
+  await start(page);
+  await expect(page.locator('#open-title')).toHaveText(/^Check the route \d+$/);
+  const marked = page.locator('#sent-list > li').filter({ has: page.locator('.how-marked') });
+  for (let step = 0; step < MAX_STEPS && (await marked.count()) === 0; step += 1) {
+    await page.clock.runFor(STEP_MS);
+    await expect(page.locator('#open-list').getByRole('button', { name: /^Approve/ })).toHaveCount(0);
+  }
+  const row = marked.first();
+  await expect(row.locator('.how')).toHaveText('Needs a person');
+  await expect(row.locator('.tag')).toHaveText(/^(Critical|High)$/);
+  // The pill sits on the team's line and the status stays on that same line.
+  const [team, tag, how] = await Promise.all(['.team', '.tag', '.how'].map((part) => row.locator(part).boundingBox()));
+  expect(Math.abs((tag?.y ?? 0) - (team?.y ?? 1)) < (team?.height ?? 0)).toBe(true);
+  expect(Math.abs((how?.y ?? 0) - (team?.y ?? 1)) < (team?.height ?? 0)).toBe(true);
+});
+
 test.describe('Approve and Review on a card', () => {
   test('Approve is on every card at 70 percent or more and on no card under it', async ({ page }) => {
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     let quick = 0;
     let slow = 0;
     for (let step = 0; step < 40; step += 1) {
@@ -113,8 +133,13 @@ test.describe('Approve and Review on a card', () => {
 
   test('Approve sends the ticket to the shown team as "You approved" and the count falls', async ({ page }) => {
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
+    // A card to approve and another for focus to move on to.
+    for (let step = 0; step < MAX_STEPS && ((await withApprove(cards(page)).count()) === 0 || (await cards(page).count()) < 2); step += 1) {
+      await page.clock.runFor(STEP_MS);
+    }
     const card = await runUntilCard(page, withApprove);
+    expect(await cards(page).count()).toBeGreaterThanOrEqual(2);
     const id = await idOf(card);
     const lean = await card.locator('.lean strong').innerText();
     const team = /^Leaning (.+), \d+% sure\.$/.exec(lean)?.[1] ?? '';
@@ -237,7 +262,7 @@ test.describe('Approve and Review on a card', () => {
     await page.clock.runFor(SETTLE_MS);
     await mainButton(page).click();
     await expect(cards(page)).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: /^Needs a person/ })).toBeFocused();
+    await expect(page.getByRole('heading', { name: /^Check the route/ })).toBeFocused();
   });
 
   test('Escape hands the ticket back, and the run goes on', async ({ page }) => {
@@ -396,7 +421,7 @@ test.describe('a held Enter', () => {
 
   test('approves one ticket and does not go on down the list', async ({ page }) => {
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     // A card with Approve and two more behind it, so a press that went on down the list would have somewhere to land.
     for (let step = 0; step < MAX_STEPS && !((await withApprove(cards(page)).count()) >= 1 && (await cards(page).count()) >= 3); step += 1) {
       await page.clock.runFor(STEP_MS);
@@ -415,7 +440,7 @@ test.describe('a held Enter', () => {
 
   test('opens the review card once and does not send the ticket from it', async ({ page }) => {
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     await waitForCards(page, 4);
     await reviewOf(cards(page).first()).focus();
     await page.keyboard.down('Enter');
@@ -451,7 +476,7 @@ test.describe('a second press right after a card opens', () => {
 
 test('an Approve soon after a sent review takes that review\'s result off the bar', async ({ page }) => {
   await openDesk(page);
-  await start(page);
+  await startWordOnly(page);
   // One card to review and another with Approve to press after it.
   for (let step = 0; step < MAX_STEPS; step += 1) {
     if ((await withApprove(cards(page)).count()) >= 1 && (await withoutApprove(cards(page)).count()) >= 1) break;
@@ -591,7 +616,7 @@ test.describe('numbers and cards moving', () => {
       }).observe(document, { childList: true, subtree: true });
     });
     await openDesk(page);
-    await start(page);
+    await startWordOnly(page);
     const card = await runUntilCard(page, withApprove);
     const id = await idOf(card);
     await approveOf(card).click();

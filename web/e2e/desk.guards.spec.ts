@@ -11,7 +11,7 @@ import { computeMetrics } from '../src/pipeline/metrics';
 import { createDeskRun, deskTickets, scoreDesk, suggestFrom } from '../src/desk/deskRun';
 import { DESK_WORDING } from '../src/generator/deskFrames';
 import { webModel } from '../scripts/recordWebAnswers';
-import { LOAD_MS, SEED, START } from './helpers';
+import { LOAD_MS, SEED, START, startWordOnly } from './helpers';
 
 const WIDE = { width: 1280, height: 800 };
 const SHORT = { width: 1280, height: 520 };
@@ -23,9 +23,9 @@ const RUN_MS = 60_000;
 const RUN_STEP_MS = 10_000;
 const MAX_RUN_STEPS = 60;
 // A seed whose finished run has a high-risk ticket that got past review, so that number is not zero.
-const MISSED_SEED = 1003;
+const MISSED_SEED = 1000;
 // A seed whose finished run has six different shares in the report table, so a swap of two cells shows (found by search).
-const REPORT_SEED = 1002;
+const REPORT_SEED = 1004;
 // The card ignores a press for a moment after it opens; a person takes longer than that to read it.
 const A_PERSONS_PAUSE_MS = 450;
 const NOTE = 'Zephyr9 call them first';
@@ -270,7 +270,9 @@ test.describe('review cards and Approve', () => {
   });
 
   test('Approve works on a run that has been stopped', async ({ page }) => {
-    await runDesk(page, 0);
+    await openDesk(page);
+    await startWordOnly(page);
+    await page.clock.runFor(0);
     const card = await runUntilApprove(page);
     const id = (await card.getAttribute('data-ticket')) ?? '';
     await page.getByRole('button', { name: 'Stop' }).click();
@@ -415,7 +417,7 @@ test.describe('on a phone', () => {
 
   test('only the chosen tab is a stop in the Tab order, and the arrow keys carry that stop with the choice', async ({ page }) => {
     await runDesk(page);
-    const open = tab(page, 'Needs a person');
+    const open = tab(page, 'Check the route');
     const sent = tab(page, 'Sent to teams');
     await expect(open).toHaveJSProperty('tabIndex', 0);
     await expect(sent).toHaveJSProperty('tabIndex', -1);

@@ -18,7 +18,7 @@ const TIPS = [
   },
   {
     name: 'What the labels mean',
-    text: 'These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.',
+    text: "These tickets reached a team. No person needed: no rule fired and the model was sure enough. Needs a person: both models agreed on the team, but a rule, the team or the model's doubt says a person must handle it there. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.",
   },
   { name: 'What high-risk missed means', text: 'Tickets that truly needed a person but went out without one. The goal is zero.' },
   {
@@ -234,7 +234,7 @@ test.describe('an icon moves nothing', () => {
         ]),
       };
     });
-    expect(heights.terms.length).toBe(4);
+    expect(heights.terms.length).toBe(5);
     for (const [shown, gone] of heights.terms) expect(shown).toBe(gone);
     // A heading with an icon beside it is no taller than the heading alone.
     expect(heights.titles.length).toBe(2);

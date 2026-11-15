@@ -66,6 +66,37 @@ describe('the desk run', () => {
     expect(asked).toEqual(deskTickets(SEED, DESK_WORDING).map((ticket) => maskText(ticket.text).text));
   });
 
+  // The operator's queue holds only route doubts; a risky ticket the models agree on goes to its team marked.
+  it('puts every ticket of a two-model run on a path, and only route doubts wait in the operator queue', () => {
+    const run = createDeskRun({ seed: SEED, wording: DESK_WORDING, model: MODEL, suggest: suggestFrom(standInSuggestions(SEED)), wallClock: () => 0, closeEveryMs: PACE_MS });
+    run.play();
+    const everOpen = new Set<string>();
+    for (let n = 0; run.state().act !== 'complete' && n <= 20000; n += 1) {
+      run.advance();
+      for (const trail of run.state().open) everOpen.add(trail.id);
+    }
+    const done = run.state().done;
+    expect(done.every((trail) => trail.path !== undefined)).toBe(true);
+    const triage = done.filter((trail) => trail.path === 'triage').map((trail) => trail.id);
+    expect(triage.length).toBeGreaterThan(0);
+    expect(done.some((trail) => trail.path === 'marked')).toBe(true);
+    expect([...everOpen].sort()).toEqual(triage.sort());
+  });
+
+  // Without the sentence model there is no second opinion, so the v1.1 one-model flow stays: every flag is a card.
+  it('keeps the one-model flow when the sentence model is not there', () => {
+    const run = createDeskRun({ seed: SEED, wording: DESK_WORDING, model: MODEL, suggest: undefined, wallClock: () => 0, closeEveryMs: PACE_MS });
+    run.play();
+    const everOpen = new Set<string>();
+    for (let n = 0; run.state().act !== 'complete' && n <= 20000; n += 1) {
+      run.advance();
+      for (const trail of run.state().open) everOpen.add(trail.id);
+    }
+    const done = run.state().done;
+    expect(done.every((trail) => trail.path === undefined)).toBe(true);
+    expect([...everOpen].sort()).toEqual(done.filter((trail) => trail.guard.flagged).map((trail) => trail.id).sort());
+  });
+
   it('refuses a ticket with no suggestion instead of letting it out on one model', () => {
     const partial = new Map([...standInSuggestions(SEED)].slice(1));
     const run = createDeskRun({ seed: SEED, wording: DESK_WORDING, model: MODEL, suggest: suggestFrom(partial), wallClock: () => 0, closeEveryMs: PACE_MS });
