@@ -78,6 +78,13 @@ describe('lineBreaches', () => {
       expect(lineBreaches({ ...even, split: { ...even.split, [line]: even.split[line] + 1 } })).toEqual([line]);
     }
   });
+
+  // The owner accepted marked tickets reaching the wrong team first only up to the number measured when the flow was
+  // locked: a later change that sends more there fails even when its record is written again.
+  it('names marked tickets to the wrong team above the locked cap, and none at the cap', () => {
+    expect(lineBreaches(even, 1)).toEqual([]);
+    expect(lineBreaches({ ...even, split: { ...even.split, markedWrongTeam: 2 } }, 1)).toEqual(['markedWrongTeam']);
+  });
 });
 
 describe('parseRiskRows', () => {

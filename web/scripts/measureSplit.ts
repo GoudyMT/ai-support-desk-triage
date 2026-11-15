@@ -153,17 +153,33 @@ export function measureSplit(rows: readonly RiskRow[], word: Predict, sentence: 
   return { tickets: rows.length, today, split };
 }
 
+// Marked tickets that reach the wrong team first, as measured when the owner accepted the line (2026-11-15): the
+// v1.1 desk has no marked path to compare with, so the accepted number is the ceiling.
+const WRONG_TEAM_CAPS: Record<string, number> = {
+  desk: 301,
+  handwritten: 1,
+  fresh: 1,
+  'fold 0': 30,
+  'fold 1': 357,
+  'fold 2': 31,
+  'fold 3': 132,
+};
+
 /**
- * Names each safety line on which the three-path desk is worse than the v1.1 desk.
+ * Names each safety line on which the three-path desk is worse than the v1.1 desk, and the marked-to-wrong-team line
+ * when it is above its cap.
  *
  * Args:
  *   counts: one set's counts.
+ *   wrongTeamCap: the accepted ceiling for marked tickets sent to the wrong team first; unset for none.
  *
  * Returns:
  *   The worse lines; empty when none is.
  */
-export function lineBreaches(counts: SplitCounts): string[] {
-  return HELD_LINES.filter((line) => counts.split[line] > counts.today[line]);
+export function lineBreaches(counts: SplitCounts, wrongTeamCap?: number): string[] {
+  const worse: string[] = HELD_LINES.filter((line) => counts.split[line] > counts.today[line]);
+  if (wrongTeamCap !== undefined && counts.split.markedWrongTeam > wrongTeamCap) worse.push('markedWrongTeam');
+  return worse;
 }
 
 const ANSWERS_RECORD = new URL('../../ml/reports/bundle_v2_answers.json', import.meta.url);
@@ -222,7 +238,11 @@ function main(args: readonly string[]): number {
   const recorded = JSON.parse(readFileSync(REPORT, 'utf8')) as typeof built;
   const names = new Set([...Object.keys(recorded.sets), ...Object.keys(built.sets)]);
   const differing = [...names].filter((name) => JSON.stringify(recorded.sets[name]) !== JSON.stringify(built.sets[name]));
-  const worse = Object.entries(built.sets).flatMap(([name, counts]) => lineBreaches(counts).map((line) => `${name} ${line}`));
+  if (recorded.how !== built.how) differing.push('how');
+  // A set with no cap is a new set: it fails until its accepted number is written above.
+  const worse = Object.entries(built.sets).flatMap(([name, counts]) =>
+    lineBreaches(counts, WRONG_TEAM_CAPS[name] ?? -1).map((line) => `${name} ${line}`),
+  );
   for (const name of differing) console.log(`FAIL record differs: ${name}`);
   for (const line of worse) console.log(`FAIL worse than the v1.1 desk: ${line}`);
   if (differing.length === 0 && worse.length === 0) console.log('PASS three-path record matches and no safety line is worse');
