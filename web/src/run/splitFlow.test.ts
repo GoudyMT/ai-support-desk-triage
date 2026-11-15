@@ -120,6 +120,27 @@ describe('routeTicket', () => {
     }
   });
 
+  // A risk detector takes the place of the word model's doubt in the mark; the word rules and checked departments stay.
+  it('with a risk detector, marks what it says yes to, drops doubt alone, keeps rules, and marks when it fails', () => {
+    const route2 = (text: string, id: string, answer: ModelAnswer, riskMark: (id: string) => boolean): TicketTrail =>
+      routeTicket(text, id, { ...settings, reviewer: recording([]), suggest: () => answer, riskMark });
+    const doubtOnly = where((trail) => trail.guard.flagged && trail.guard.reasons.every((reason) => reason.kind === 'low confidence'));
+    for (const { ticket, answer } of doubtOnly) {
+      expect(route2(ticket.text, ticket.id, answer, () => false).path).toBe('direct');
+      expect(route2(ticket.text, ticket.id, answer, () => true).path).toBe('marked');
+    }
+    for (const { ticket, answer } of where((trail) => !trail.guard.flagged)) {
+      expect(route2(ticket.text, ticket.id, answer, () => true).path).toBe('marked');
+      const failed = route2(ticket.text, ticket.id, answer, () => {
+        throw new Error('E_DETECTOR');
+      });
+      expect(failed.path).toBe('marked');
+    }
+    for (const { ticket, answer } of where((trail) => riskFlag(trail) && !vagueOnly(trail))) {
+      expect(route2(ticket.text, ticket.id, answer, () => false).path).toBe('marked');
+    }
+  });
+
   it('keeps the mark on a risky ticket the operator routes, and adds none for doubt alone', () => {
     for (const { ticket, answer, trail: gate } of GATES) {
       const other = answer.category === 'Billing' ? 'Other' : 'Billing';

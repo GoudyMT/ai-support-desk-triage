@@ -129,18 +129,20 @@ export function countSplit(c: SplitLines, row: RiskRow, trail: TicketTrail): voi
  *   rows: the tickets with their true labels and review reasons.
  *   word: the word model's scorer.
  *   sentence: the sentence model's recorded answer for a ticket id.
+ *   riskMark: a risk detector's yes for a ticket id, in place of the word model's doubt in the mark; unset for A.
  *
  * Returns:
  *   The counts for both desks.
  */
-export function measureSplit(rows: readonly RiskRow[], word: Predict, sentence: (id: string) => Answer): SplitCounts {
+export function measureSplit(rows: readonly RiskRow[], word: Predict, sentence: (id: string) => Answer, riskMark?: (id: string) => boolean): SplitCounts {
   const settings = { reviewer: TAKES_SUGGESTION, floor: CONFIDENCE_FLOOR, secondCheckOn: SECOND_CHECK_ON, now: () => 0 };
   const today: TodayCounts = { cards: 0, riskyMissed: 0, highOutLow: 0, uncheckedWrongDept: 0, uncheckedWrongPriority: 0, vagueDirect: 0 };
   const split: SplitLines = { ...today, marked: 0, markedRisky: 0, falseMarks: 0, markedWrongTeam: 0, markedWrongTeamRisky: 0, markedWrongPriority: 0 };
   const certain = (label: string) => ({ label, confidence: 1, probabilities: {}, topTerms: [] });
   for (const row of rows) {
     const said = sentence(row.id);
-    countSplit(split, row, routeTicketWith(row.text, row.id, word, { ...settings, suggest: () => said }));
+    const deps = riskMark === undefined ? { ...settings, suggest: () => said } : { ...settings, suggest: () => said, riskMark };
+    countSplit(split, row, routeTicketWith(row.text, row.id, word, deps));
     // The v1.1 desk: a ticket leaves unchecked only when the word model lets it and the sentence answer, after the
     // same rules, is the same department and priority.
     const gate = runTicketWith(row.text, row.id, word, settings);

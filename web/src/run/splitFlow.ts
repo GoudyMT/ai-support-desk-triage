@@ -40,6 +40,15 @@ function onlyVague(reasons: readonly FlagReason[]): boolean {
   return names.length > 0 && names.every((name) => name === 'vague ticket') && !reasons.some((reason) => reason.kind === 'category');
 }
 
+// A detector that cannot answer marks the ticket: a person sees it rather than a risk slipping through.
+function detectorSaysYes(riskMark: (id: string) => boolean, id: string): boolean {
+  try {
+    return riskMark(id);
+  } catch {
+    return true;
+  }
+}
+
 function atLeast(priority: Priority, floor: Priority): Priority {
   return PRIORITIES.indexOf(priority) < PRIORITIES.indexOf(floor) ? floor : priority;
 }
@@ -56,7 +65,7 @@ function atLeast(priority: Priority, floor: Priority): Priority {
  *   The word model's trail with `path`, `marked` and each model's answer under `models`; for an operator card,
  *   the reviewer's decision on the sentence model's suggestion.
  */
-export function routeTicket(text: string, id: string, deps: TwoModelDeps): TicketTrail {
+export function routeTicket(text: string, id: string, deps: TwoModelDeps & Pick<SplitDeps, 'riskMark'>): TicketTrail {
   return routeTicketWith(text, id, (head, maskedText) => score(deps.model, head, maskedText), deps);
 }
 
@@ -72,7 +81,12 @@ export function routeTicket(text: string, id: string, deps: TwoModelDeps): Ticke
  * Returns:
  *   The ticket's trail with its path.
  */
-export function routeTicketWith(text: string, id: string, predict: Predict, deps: RunSettings & Pick<TwoModelDeps, 'suggest'>): TicketTrail {
+export interface SplitDeps extends RunSettings, Pick<TwoModelDeps, 'suggest'> {
+  // A risk detector's yes for a ticket id; when given, it takes the place of the word model's doubt in the mark.
+  riskMark?: (id: string) => boolean;
+}
+
+export function routeTicketWith(text: string, id: string, predict: Predict, deps: SplitDeps): TicketTrail {
   const gate = runTicketWith(text, id, predict, { ...deps, reviewer: PASS_THROUGH });
   const said = deps.suggest(gate.maskedText, id);
   const answer = runTicketWith(text, id, (head) => certain(head === 'category' ? said.category : said.priority), {
@@ -102,7 +116,7 @@ export function routeTicketWith(text: string, id: string, predict: Predict, deps
       marked: risky,
     };
   }
-  if (gate.guard.flagged) {
+  if (deps.riskMark === undefined ? gate.guard.flagged : risky || detectorSaysYes(deps.riskMark, id)) {
     // No person decided anything yet, so the pass-through review is not kept.
     const unreviewed: TicketTrail = { ...gate };
     delete unreviewed.review;
