@@ -94,7 +94,7 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
   await expect(page.getByText('tickets written for this project, category right; the old keyword method got 14')).toBeVisible();
-  await expect(page.getByText('of tickets on that set still went to a person')).toBeVisible();
+  await expect(page.getByText('of tickets on that set still waited for the operator')).toBeVisible();
   await expect(
     page.getByText(
       'Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you can step in on any ticket. Nothing here is a real customer.',

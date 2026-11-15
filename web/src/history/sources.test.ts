@@ -53,16 +53,47 @@ const DESK_PAGE = read('../../index.html').replace(/\s+/g, ' ');
 
 // The 60 tickets written blind and frozen, as the word model's row measures them.
 const FRESH = SETS.sets['hand-written (fresh)']?.both;
-const DESK = SETS.sets['desk-only wording']?.both;
 const SENTENCE_BLIND = BLIND.models['sentence']?.all;
 const row = (id: string): HistoryRow | undefined => ROWS.find((one) => one.id === id);
 const share = (k: number, n: number, digits: number): number => Number((k / n).toFixed(digits));
 const percent = (value: number): string => `${Math.round(value * 100)}%`;
 const ownStart = (report: NinetyReport): number => report.verdict.streams.filter((stream) => stream.beats_own_start).length;
 
+interface SplitReport {
+  sets: Record<string, { tickets: number; split: { cards: number; riskyMissed: number; markedRisky: number } }>;
+}
+const SPLIT = json<SplitReport>('../../../ml/reports/split_flow.json');
+const FRESH_RISKY = (): number => {
+  const rows = read('../../../ml/data/handwritten_fresh.jsonl').split('\n').filter((line) => line.trim() !== '');
+  return rows.map((line) => JSON.parse(line) as { mustReview: boolean; reviewReason: string | null }).filter((one) => one.mustReview && one.reviewReason !== 'vague ticket').length;
+};
+
+// The three-path desk is the current row: the same two models, with the operator checking only route doubts. Its
+// numbers come from the three-path record (scripts/measureSplit.ts) and from the same replayed desk runs as the rows
+// below it, under the three paths.
+describe('the routing and risk row', () => {
+  it('is the current row, with the sentence model right-answer numbers and the three-path desk numbers on the fresh set', () => {
+    const split = ROWS[0];
+    const sentence = row('sentence');
+    const fresh = SPLIT.sets['fresh'];
+    if (split === undefined || sentence === undefined || fresh === undefined) throw new Error('E_REPORT_SHAPE');
+    expect(split.id).toBe('split');
+    expect([split.heldOutRight, split.handWrittenRight, split.blindRight]).toEqual([sentence.heldOutRight, sentence.handWrittenRight, sentence.blindRight]);
+    expect(split.highRiskMissed).toEqual({ k: fresh.split.riskyMissed, n: FRESH_RISKY() });
+    expect(split.sentToPerson).toBe(share(fresh.split.cards, fresh.tickets, 2));
+  });
+
+  it('offers Approve on as many cards per run as the replayed runs give under the three paths', () => {
+    const answers = new Map(FOLDS_REPORT.approve_answers.map(([id, category, priority]) => [id, { category, priority }]));
+    const words = [0, 1, 2, 3].map((fold) => loadModel(json(`../../public/models/fold_${fold}.json`)));
+    const approve = approveCardsPerRun((fold) => words[fold]!, undefined, undefined, () => suggestFrom(answers), 'split');
+    expect(ROWS[0]?.approveCardsPerRun).toBe(Number(approve.toFixed(1)));
+  }, 120_000);
+});
+
 describe('the sentence model row', () => {
-  it('is the current row, and its numbers are the recorded ones on the same sets as the word model', () => {
-    const sentence = ROWS[0];
+  it('is the row below the current one, and its numbers are the recorded ones on the same sets as the word model', () => {
+    const sentence = ROWS[1];
     const hand = BUNDLE.scored['handwritten'];
     if (FRESH === undefined || SENTENCE_BLIND === undefined || hand === undefined || sentence === undefined) throw new Error('E_REPORT_SHAPE');
     expect(sentence.id).toBe('sentence');
@@ -78,7 +109,7 @@ describe('the sentence model row', () => {
     const folds = FOLDS_REPORT.folds;
     expect(folds.map((fold) => fold.fold).sort()).toEqual([0, 1, 2, 3]);
     const mean = folds.reduce((sum, fold) => sum + fold.category_right / fold.n, 0) / folds.length;
-    expect(ROWS[0]?.heldOutRight).toBe(Number(mean.toFixed(3)));
+    expect(row('sentence')?.heldOutRight).toBe(Number(mean.toFixed(3)));
   });
 
   // The counts above are typed into the fold report by the run; the fold models' recorded answers, checked against
@@ -102,7 +133,7 @@ describe('the sentence model row', () => {
     expect(tickets.every((ticket) => answers.has(ticket.id))).toBe(true);
     const words = [0, 1, 2, 3].map((fold) => loadModel(json(`../../public/models/fold_${fold}.json`)));
     const approve = approveCardsPerRun((fold) => words[fold]!, undefined, undefined, () => suggestFrom(answers));
-    expect(ROWS[0]?.approveCardsPerRun).toBe(Number(approve.toFixed(1)));
+    expect(row('sentence')?.approveCardsPerRun).toBe(Number(approve.toFixed(1)));
   }, 120_000);
 
   it('gives the word model its blind-set reading, and the keyword prototype none', () => {
@@ -116,10 +147,19 @@ describe('what the pages say', () => {
   // The owner asked that the page say plainly when more tickets go to a person, not leave it to the table.
   it('says the share sent to a person went up, from the word model to the sentence model', () => {
     const before = row('baseline')?.sentToPerson;
-    const after = ROWS[0]?.sentToPerson;
+    const after = row('sentence')?.sentToPerson;
     if (before == null || after == null) throw new Error('E_REPORT_SHAPE');
     expect(after).toBeGreaterThan(before);
     expect(HISTORY_PAGE).toContain(`went up, from ${percent(before)} to ${percent(after)}`);
+  });
+
+  // The correction the final version makes, said as plainly as the rise before it.
+  it('says the share the operator checks fell, from the sentence model row to the three-path desk', () => {
+    const before = row('sentence')?.sentToPerson;
+    const after = row('split')?.sentToPerson;
+    if (before == null || after == null) throw new Error('E_REPORT_SHAPE');
+    expect(after).toBeLessThan(before);
+    expect(HISTORY_PAGE).toContain(`fell, from ${percent(before)} to ${percent(after)}`);
   });
 
   it('gives both 90-day runs as measured, the fair one named, with whether each passed', () => {
@@ -130,9 +170,10 @@ describe('what the pages say', () => {
     expect(HISTORY_PAGE).toContain(`the fair run on ${ownStart(FAIR_RUN)} of ${FAIR_RUN.verdict.streams.length}`);
   });
 
-  // The desk's own wording is what a live run deals, under both models.
-  it('gives the desk the share a live run sends to a person', () => {
-    if (DESK === undefined) throw new Error('E_REPORT_SHAPE');
-    expect(DESK_PAGE).toContain(`about ${percent(DESK.flagged / DESK.tickets)} of tickets go to a person`);
+  // The desk's own wording is what a live run deals, on the three paths.
+  it('gives the desk the share of a live run the operator checks', () => {
+    const desk = SPLIT.sets['desk'];
+    if (desk === undefined) throw new Error('E_REPORT_SHAPE');
+    expect(DESK_PAGE).toContain(`about ${percent(desk.split.cards / desk.tickets)} of tickets wait for the operator`);
   });
 });

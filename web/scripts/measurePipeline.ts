@@ -17,6 +17,7 @@ import { createRun } from '../src/run/engine';
 import { canQuickApprove } from '../src/run/engineParts';
 import { createPrescreener } from '../src/run/prescreen';
 import { foldOf } from '../src/run/seed';
+import { routeTicket } from '../src/run/splitFlow';
 import { runTwoModels } from '../src/run/twoModels';
 import { isRunAsCommand, normalizeText } from './exportDataset';
 
@@ -277,7 +278,8 @@ export function historyFailures(
 // How many cards offer Approve in one full desk run with no viewer: each ticket the pipeline flags counts once, when
 // it enters the open list, if its card shows the button. With a second model the run takes the two-model rule, as
 // the desk does.
-function approveCardsInRun(seed: number, model: Model, suggest?: Suggest): number {
+function approveCardsInRun(seed: number, model: Model, suggest?: Suggest, flow: DeskFlow = 'two-model'): number {
+  const runOne = flow === 'split' ? routeTicket : runTwoModels;
   const options = {
     seed,
     model,
@@ -287,7 +289,7 @@ function approveCardsInRun(seed: number, model: Model, suggest?: Suggest): numbe
     closeEveryMs: DESK_REVIEWER_PACE_MS,
     deepTickets: 0,
   };
-  const run = createRun(suggest === undefined ? options : { ...options, runOne: (text, id, deps) => runTwoModels(text, id, { ...deps, suggest }) });
+  const run = createRun(suggest === undefined ? options : { ...options, runOne: (text, id, deps) => runOne(text, id, { ...deps, suggest }) });
   const entered = new Set<string>();
   let cards = 0;
   run.play();
@@ -303,6 +305,9 @@ function approveCardsInRun(seed: number, model: Model, suggest?: Suggest): numbe
   return cards;
 }
 
+// With a second model: the v1.1 two-model rule, or the three paths the desk now runs (run/splitFlow.ts).
+export type DeskFlow = 'two-model' | 'split';
+
 // The average over the runs, each scored by the model of the fold its seed holds out; a second model, when given, is
 // that fold's too.
 export function approveCardsPerRun(
@@ -310,10 +315,11 @@ export function approveCardsPerRun(
   firstSeed = APPROVE_FIRST_SEED,
   runs = APPROVE_RUNS,
   suggestOf?: (fold: number) => Suggest,
+  flow: DeskFlow = 'two-model',
 ): number {
   let total = 0;
   for (let seed = firstSeed; seed < firstSeed + runs; seed += 1) {
-    total += approveCardsInRun(seed, modelOf(foldOf(seed)), suggestOf?.(foldOf(seed)));
+    total += approveCardsInRun(seed, modelOf(foldOf(seed)), suggestOf?.(foldOf(seed)), flow);
   }
   return total / runs;
 }
