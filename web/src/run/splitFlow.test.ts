@@ -152,10 +152,21 @@ describe('routeTicket', () => {
       const other = answer.category === 'Billing' ? 'Other' : 'Billing';
       return route(ticket.text, ticket.id, { category: other, priority: answer.priority });
     };
+    // A rule and a checked department each mark on their own; the vague rule and the model's doubt never do.
     for (const gate of where((trail) => rules(trail).includes('threatening language'))) {
       const trail = operatorRoutes(gate);
       expect(trail.path).toBe('triage');
       expect(trail.marked).toBe(true);
+    }
+    for (const gate of where((trail) => kinds(trail).has('category') && rules(trail).length === 0)) {
+      const trail = operatorRoutes(gate);
+      expect(trail.path).toBe('triage');
+      expect(trail.marked).toBe(true);
+    }
+    for (const gate of where(vagueOnly)) {
+      const trail = operatorRoutes(gate);
+      expect(trail.path).toBe('triage');
+      expect(trail.marked).toBe(false);
     }
     for (const gate of where((trail) => trail.guard.reasons.length > 0 && [...kinds(trail)].every((kind) => kind === 'low confidence'))) {
       const trail = operatorRoutes(gate);
