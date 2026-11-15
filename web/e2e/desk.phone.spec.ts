@@ -318,6 +318,27 @@ for (const { width, height } of [
   });
 }
 
+// The narrowest phone at the normal text size: a marked row keeps its team, priority pill and "Needs a person" on one
+// line, as the desk's design has it. With larger text the status may move to a line of its own, which is fine.
+test.describe('at 320 wide with the normal text size', () => {
+  test.use({ viewport: { width: 320, height: 700 } });
+
+  test('every marked row in Sent to teams keeps its team, pill and status on one line', async ({ page }) => {
+    await runDesk(page, 90_000);
+    await tab(page, 'Sent to teams').click();
+    const rows = page.locator('#sent-list > li').filter({ has: page.locator('.how-marked') });
+    expect(await rows.count()).toBeGreaterThan(0);
+    const spreads = await rows.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const tops = ['.team', '.tag', '.how'].map((part) => node.querySelector(part)!.getBoundingClientRect().top);
+        const team = node.querySelector('.team')!.getBoundingClientRect().height;
+        return { spread: Math.max(...tops) - Math.min(...tops), team };
+      }),
+    );
+    for (const { spread, team } of spreads) expect(spread).toBeLessThan(team);
+  });
+});
+
 test.describe('at a phone width and a screen tall enough for one screen', () => {
   test.use({ viewport: PHONE });
 
