@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bBreaches, chooseThreshold, type TuneRow } from './measureRiskDetector';
+import { bBreaches, chooseThreshold, recordDiffers, type TuneRow } from './measureRiskDetector';
 import type { SplitLines } from './measureSplit';
 
 // The risk detector's cut-off is set on the tuning side before any judged ticket is read, and its result is held to
@@ -52,5 +52,23 @@ describe('bBreaches', () => {
     // 0.25% of 500 is 1.25: rounded down, the allowance is 1.
     expect(bBreaches(LINES, { ...b, uncheckedWrongDept: 3 }, 500)).toEqual(['uncheckedWrongDept']);
     expect(bBreaches(LINES, { ...b, uncheckedWrongDept: 1, uncheckedWrongPriority: 3 }, 400)).toEqual(['uncheckedWrongPriority']);
+  });
+});
+
+// CI works the detector's published lines out again from the tickets it said yes to: a number or verdict edited by
+// hand, or a set dropped from the record, fails the check.
+describe('recordDiffers', () => {
+  const record = { verdict: 'not passed', sets: { desk: { cut: 0.9, yes: ['T-1'], a: LINES, b: LINES, failing: ['falseMarks'] } } };
+
+  it('passes a record that matches what was worked out again', () => {
+    expect(recordDiffers(record, structuredClone(record))).toEqual([]);
+  });
+
+  it('names an edited line, an edited verdict and a missing set', () => {
+    const edited = structuredClone(record);
+    edited.sets.desk.b = { ...LINES, riskyMissed: 0 };
+    expect(recordDiffers(edited, record)).toEqual(['desk']);
+    expect(recordDiffers({ ...record, verdict: 'passed' }, record)).toEqual(['verdict']);
+    expect(recordDiffers({ ...record, sets: {} }, record)).toEqual(['desk']);
   });
 });
