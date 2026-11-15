@@ -13,7 +13,7 @@ The project began as course work: a support-ticket triage page that sorted ticke
 
 Source: `web/src/history/history.json`.
 
-Two rules were set early and never bent: a High or Urgent ticket is never sent out unchecked as Low or Medium, and a high-risk ticket is never missed. Every change since has been judged against those two lines first.
+Two rules were set early and never bent: a High or Urgent ticket is never sent out unchecked as Low or Medium, and no change may let more high-risk tickets through than before. Every change since has been judged against those two lines first.
 
 ## 2. First try: send fewer tickets to a person (did not work)
 
@@ -95,13 +95,13 @@ Source: `ml/reports/ninety_day_fair.json` and the fair run plan, `docs/superpowe
   It beat the frozen model on 2 of 4 streams and its own start on 1 of 4 (3 of 4 needed for each). The two safety lines were never worse than the frozen model's on any stream. Source: `ml/reports/ninety_day_fair.json`.
 
   Read beside the first run, this is the honest finding: much of the first run's growth came from the uneven weeks and the repeated wording. Week-by-week retraining on the tickets a person checks, as built today, does not yet show real growth.
-- **Both models went on the live desk (v1.1).** The 2,000-ticket blind set was read once, after everything was frozen. The sentence model got the category right on 90.8% of it, against 69.6% for the word model. On the tickets a person checks, the suggestion they see was right on the category 88.8% of the time, against 62.9% for the word model's answer. Model History, the model card and a download page show these numbers, the two runs that did not pass included. Source: `ml/reports/blind_reading.json`.
+- **Both models went on the live desk (v1.1).** The 2,000-ticket blind set was read once, after everything was frozen. The sentence model got the category right on 90.8% of it, against 69.6% for the word model. On the tickets a person checks, the suggestion they see was right on the category 88.8% of the time, against 62.9% for the word model's answer. The model card shows all of these numbers and both runs that did not pass; Model History shows the blind result and both runs. Source: `ml/reports/blind_reading.json`.
 
 ## 7. Version 1.2: routing and risk as separate jobs (worked)
 
 Better routing had not shrunk the operator's queue: on the desk wording, 3,333 of 4,000 tickets (83%) still waited for a person. The reason was that one queue did two jobs. "Where does this ticket go?" and "must a person handle it?" were the same question.
 
-Version 1.2 split them. The operator now checks a ticket only when the two models place it on a different team or priority, or it is too vague to place. A risky ticket goes straight to its team, marked "needs a person" and raised to at least High. Every other ticket goes to the team both models name.
+Version 1.2 split them. The operator now checks a ticket only when the two models place it on a different team or priority, or it is too vague to place. When the models agree and a rule, a checked department or the word model's doubt flags the ticket, it goes straight to its team, marked "needs a person" and raised to at least High. Every other ticket goes to the team both models name. The split moves work; it does not remove it: a marked ticket is still handled by a person, at its team, so the same tickets reach a person as before.
 
 | Desk wording, 4,000 tickets | Before | After the split |
 |---|---|---|
@@ -113,13 +113,13 @@ Version 1.2 split them. The operator now checks a ticket only when the two model
 
 On the 60 tickets written blind, the operator checks 24 instead of 50, and none of the 20 risky tickets is missed. The costs are shown, not hidden: 691 marks were not needed, and 301 marked tickets reach the wrong team first. CI works the numbers out again on every change and fails if any safety line gets worse. Source: `ml/reports/split_flow.json`.
 
-**What did not work: a learned risk detector.** It was meant to replace the word model's doubt as the trigger for the mark. Its bar was written before any number: no worse than the split on every safety line, on all seven sets, and fewer false marks. It cut false marks on every set, but it failed the bar on 6 of 7 and let more risky tickets through on 3 (on the desk, 55 to 75). It was not adopted. Source: `ml/reports/risk_detector.json`.
+**What did not work: a learned risk detector.** It was meant to replace the word model's doubt as the trigger for the mark. Its bar was written before any number: no worse than the split on every safety line, on all seven sets, and fewer false marks. It cut false marks on every set, but it failed the bar on 6 of 7 and let more risky tickets through on 3 (on the desk, 55 to 75). It was not adopted. Its cut-off was tuned on tickets of which about a quarter repeated its own training texts, so the result stands as measured, for that tuning. Source: `ml/reports/risk_detector.json`.
 
-**What it taught:** the queue was too long because of how the work was shaped, not because the model was weak. Separating the two jobs did what the earlier tries at a better gate could not.
+**What it taught:** the operator's queue was long because of how the work was shaped, not because the model was weak. Separating the two jobs cut the operator's checks by about two fifths (3,333 to 1,915) without a safety line getting worse. It did not cut the number of tickets a person handles; that is still the open goal.
 
 ## 8. How to explain it
 
 - **The goal:** a model that gets better at sorting support tickets, without ever being less safe on urgent or high-risk tickets.
 - **What worked:** a sentence model reads new wording far better (52% -> 82% on practice rounds), and pairing it with the word model keeps every safety line intact.
-- **What did not:** making the gate itself send fewer tickets to a person. Every attempt either broke a safety line or turned out to be memory, not learning. What did cut the queue was splitting routing from risk (83% -> 48% of desk tickets to the operator, no safety line worse).
+- **What did not:** making the gate itself send fewer tickets to a person. Every attempt missed its bar, and the one that looked like a win turned out to be memory, not learning. What did shorten the operator's queue was splitting routing from risk (83% -> 48% of desk tickets to the operator, no safety line worse); the marked tickets still go to a person at their team.
 - **The habit behind it:** write the pass mark before the result, never loosen it afterwards, and when a result looks too good or too bad, check the test before trusting the model. Twice, checking the test changed the story.
