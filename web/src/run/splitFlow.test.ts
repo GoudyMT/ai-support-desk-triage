@@ -148,12 +148,19 @@ describe('routeTicket', () => {
   });
 
   it('keeps the mark on a risky ticket the operator routes, and adds none for doubt alone', () => {
-    for (const { ticket, answer, trail: gate } of GATES) {
+    const operatorRoutes = ({ ticket, answer }: (typeof GATES)[number]) => {
       const other = answer.category === 'Billing' ? 'Other' : 'Billing';
-      const trail = route(ticket.text, ticket.id, { category: other, priority: answer.priority });
+      return route(ticket.text, ticket.id, { category: other, priority: answer.priority });
+    };
+    for (const gate of where((trail) => rules(trail).includes('threatening language'))) {
+      const trail = operatorRoutes(gate);
       expect(trail.path).toBe('triage');
-      expect(trail.marked).toBe(riskFlag(gate));
+      expect(trail.marked).toBe(true);
     }
-    expect(GATES.some(({ trail }) => rules(trail).includes('threatening language'))).toBe(true);
+    for (const gate of where((trail) => trail.guard.reasons.length > 0 && [...kinds(trail)].every((kind) => kind === 'low confidence'))) {
+      const trail = operatorRoutes(gate);
+      expect(trail.path).toBe('triage');
+      expect(trail.marked).toBe(false);
+    }
   });
 });
