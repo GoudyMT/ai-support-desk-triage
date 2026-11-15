@@ -12,6 +12,8 @@ export const TRY_PRIVACY =
   'card-like numbers. Names and street addresses are not hidden. Nothing you type is saved or sent.';
 // The result's row names, in the order they are shown.
 export const TRY_ROWS = ['Category', 'Priority', 'Team', 'Person needed'] as const;
+// Shown only when both models answered: which of the desk's three paths the ticket took.
+export const TRY_PATH_ROW = 'Path';
 export const TRY_WARNING = 'These are suggestions. A person must check them before anything reaches a customer.';
 export const TRY_EMPTY = 'Type a support message first, then press Sort this ticket.';
 export const TRY_TOO_LONG =

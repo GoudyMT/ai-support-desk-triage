@@ -96,6 +96,24 @@ describe('tryTicket with both models', () => {
     // The answer shown is the suggestion: the sentence model's.
     expect([other.category, other.team]).toEqual(['Billing', ROUTES.Billing]);
   });
+
+  // A visitor sees which of the desk's three paths their ticket took, and why.
+  it('names the path: the route check when the models disagree, the team marked for a risky ticket, the team alone', () => {
+    const safety = tryTicket(SAFETY, MODEL);
+    const marked = tryTicket(SAFETY, MODEL, { category: safety.category as Category, priority: 'Urgent' });
+    expect(marked.path).toBe('Marked: needs a person');
+    expect(marked.person).toMatch(new RegExp(`^Yes, at ${marked.team}: A rule caught "hacked"`));
+    expect(marked.spoken).toContain('Marked: needs a person');
+    const plain = tryTicket(PLAIN, MODEL, { category: tryTicket(PLAIN, MODEL).category as Category, priority: plainPriority() });
+    expect(plain.path).toBe('Straight to the team');
+    expect(plain.person).toBe('No');
+    expect(tryTicket(PLAIN, MODEL, { category: 'Billing', priority: plainPriority() }).path).toBe('Check the route');
+  });
+
+  // Without the sentence model there is no second opinion, so no path is claimed.
+  it('names no path on the word model alone', () => {
+    expect(tryTicket(SAFETY, MODEL).path).toBeUndefined();
+  });
 });
 
 describe('sentenceAnswerFor', () => {

@@ -94,14 +94,14 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
   await expect(page.getByText('tickets written for this project, category right; the old keyword method got 14')).toBeVisible();
-  await expect(page.getByText('of tickets on that set still went to a person')).toBeVisible();
+  await expect(page.getByText('of tickets on that set still waited for the operator')).toBeVisible();
   await expect(
     page.getByText(
       'Press Start and made-up tickets arrive. A trained model sorts them. A simulated reviewer clears what it flags, and you can step in on any ticket. Nothing here is a real customer.',
     ),
   ).toBeVisible();
   // The live share is held to its report by src/history/sources.test.ts; here only that the note shows.
-  await expect(page.getByText('These test results are checked on every code change. A live run is harder:')).toBeVisible();
+  await expect(page.getByText('These test results are checked on every code change. A live run with both models is harder:')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Under the Hood' })).toHaveAttribute('href', 'under-the-hood.html');
   expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);

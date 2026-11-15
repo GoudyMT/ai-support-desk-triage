@@ -157,6 +157,43 @@ describe('computeMetrics on the twelve-ticket fixture', () => {
   });
 });
 
+describe('computeMetrics on the three-path desk', () => {
+  // The desk's live counter uses the five risk reasons: a marked or operator-checked risky ticket is caught, a risky
+  // ticket sent unmarked is missed, and a vague ticket (a routing doubt) is not a risk miss.
+  it('counts a risky ticket sent unmarked as missed, a marked one as caught, and the operator share by path', () => {
+    const base = trailOf(ROWS[0] as Row);
+    const trail = (id: string, path: 'triage' | 'marked' | 'direct'): TicketTrail => ({ ...base, id, path, marked: path === 'marked' });
+    const truths: Record<string, TicketLabel> = {
+      M: { category: 'Security Concern', priority: 'Urgent', mustReview: true, reviewReason: 'security incident' },
+      D: { category: 'Billing', priority: 'High', mustReview: true, reviewReason: 'billing dispute' },
+      V: { category: 'Other', priority: 'Medium', mustReview: true, reviewReason: 'vague ticket' },
+      T: { category: 'Billing', priority: 'Medium', mustReview: false },
+    };
+    const m = computeMetrics([trail('M', 'marked'), trail('D', 'direct'), trail('V', 'direct'), trail('T', 'triage')], (id) => truths[id] as TicketLabel);
+    expect(m.highRiskMissed).toBe(1);
+    expect(m.flagRate).toBe(0.25);
+    expect(m.sentMarked).toBe(1);
+  });
+
+  // The report's "Handled with no person" must not count a marked ticket, which a person handles at its team, and
+  // "sent marked" counts a risky ticket the operator placed as well as one marked straight away.
+  it('counts only direct tickets as handled with no person, and every marked trail as sent marked', () => {
+    const base = trailOf(ROWS[0] as Row);
+    const truth: TicketLabel = { category: 'Billing', priority: 'Medium', mustReview: false };
+    const byModel = { ...base.final, by: 'model' as const };
+    const m = computeMetrics(
+      [
+        { ...base, id: 'M', path: 'marked', marked: true, final: byModel },
+        { ...base, id: 'D', path: 'direct', marked: false, final: byModel },
+        { ...base, id: 'T', path: 'triage', marked: true, final: { ...base.final, by: 'reviewer' } },
+      ],
+      () => truth,
+    );
+    expect(m.handledWithoutReview).toBe(1);
+    expect(m.sentMarked).toBe(2);
+  });
+});
+
 describe('computeMetrics edges', () => {
   it('reports no overrides, no flags and no misses when nothing was reviewed', () => {
     const [first] = TRAILS;

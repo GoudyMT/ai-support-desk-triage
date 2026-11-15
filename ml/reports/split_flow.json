@@ -1,0 +1,180 @@
+{
+ "how": "npm --prefix web run measure-split -- --write (worked out again by CI with --check)",
+ "sets": {
+  "desk": {
+   "tickets": 4000,
+   "today": {
+    "cards": 3333,
+    "riskyMissed": 55,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 15,
+    "vagueDirect": 18
+   },
+   "split": {
+    "cards": 1915,
+    "riskyMissed": 55,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 15,
+    "vagueDirect": 18,
+    "marked": 1418,
+    "markedRisky": 727,
+    "falseMarks": 691,
+    "markedWrongTeam": 301,
+    "markedWrongTeamRisky": 123,
+    "markedWrongPriority": 509
+   }
+  },
+  "handwritten": {
+   "tickets": 48,
+   "today": {
+    "cards": 36,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 0,
+    "vagueDirect": 0
+   },
+   "split": {
+    "cards": 18,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 0,
+    "vagueDirect": 0,
+    "marked": 18,
+    "markedRisky": 12,
+    "falseMarks": 6,
+    "markedWrongTeam": 1,
+    "markedWrongTeamRisky": 1,
+    "markedWrongPriority": 2
+   }
+  },
+  "fresh": {
+   "tickets": 60,
+   "today": {
+    "cards": 50,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 1,
+    "vagueDirect": 0
+   },
+   "split": {
+    "cards": 24,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 1,
+    "vagueDirect": 0,
+    "marked": 26,
+    "markedRisky": 15,
+    "falseMarks": 11,
+    "markedWrongTeam": 1,
+    "markedWrongTeamRisky": 0,
+    "markedWrongPriority": 9
+   }
+  },
+  "fold 0": {
+   "tickets": 4000,
+   "today": {
+    "cards": 3688,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 81,
+    "vagueDirect": 0
+   },
+   "split": {
+    "cards": 2523,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 81,
+    "vagueDirect": 0,
+    "marked": 1165,
+    "markedRisky": 587,
+    "falseMarks": 578,
+    "markedWrongTeam": 30,
+    "markedWrongTeamRisky": 8,
+    "markedWrongPriority": 319
+   }
+  },
+  "fold 1": {
+   "tickets": 4000,
+   "today": {
+    "cards": 3588,
+    "riskyMissed": 4,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 4,
+    "uncheckedWrongPriority": 1,
+    "vagueDirect": 0
+   },
+   "split": {
+    "cards": 2313,
+    "riskyMissed": 4,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 4,
+    "uncheckedWrongPriority": 1,
+    "vagueDirect": 0,
+    "marked": 1275,
+    "markedRisky": 621,
+    "falseMarks": 654,
+    "markedWrongTeam": 357,
+    "markedWrongTeamRisky": 57,
+    "markedWrongPriority": 679
+   }
+  },
+  "fold 2": {
+   "tickets": 4000,
+   "today": {
+    "cards": 3546,
+    "riskyMissed": 3,
+    "highOutLow": 5,
+    "uncheckedWrongDept": 1,
+    "uncheckedWrongPriority": 43,
+    "vagueDirect": 3
+   },
+   "split": {
+    "cards": 2313,
+    "riskyMissed": 3,
+    "highOutLow": 5,
+    "uncheckedWrongDept": 1,
+    "uncheckedWrongPriority": 43,
+    "vagueDirect": 3,
+    "marked": 1233,
+    "markedRisky": 549,
+    "falseMarks": 684,
+    "markedWrongTeam": 31,
+    "markedWrongTeamRisky": 26,
+    "markedWrongPriority": 430
+   }
+  },
+  "fold 3": {
+   "tickets": 4000,
+   "today": {
+    "cards": 3657,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 2,
+    "uncheckedWrongPriority": 2,
+    "vagueDirect": 23
+   },
+   "split": {
+    "cards": 2539,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 2,
+    "uncheckedWrongPriority": 2,
+    "vagueDirect": 23,
+    "marked": 1118,
+    "markedRisky": 364,
+    "falseMarks": 754,
+    "markedWrongTeam": 132,
+    "markedWrongTeamRisky": 16,
+    "markedWrongPriority": 471
+   }
+  }
+ }
+}

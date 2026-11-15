@@ -30,11 +30,11 @@
           </li>
           <li>
             <span id="m-sent" class="num"></span>
-            <span class="what">of tickets on that set still went to a person</span>
+            <span class="what">of tickets on that set still waited for the operator</span>
           </li>
         </ul>
         <p class="note">
-          These test results are checked on every code change. A live run is harder: about 83% of tickets go to a person, and a high-risk ticket is
+          These test results are checked on every code change. A live run with both models is harder: about 48% of tickets wait for the operator, and a high-risk ticket is
           sometimes missed.
         </p>
       </div>
@@ -64,7 +64,7 @@
             <dt>High-risk missed</dt>
             <dd>
               <span id="p-missed">0</span>&#8288;<button type="button" class="tip" aria-label="What high-risk missed means" aria-describedby="tip-missed-row"></button>
-              <span id="tip-missed-row" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
+              <span id="tip-missed-row" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. With both models, a ticket only too vague to place is not counted. The goal is zero.</span>
             </dd>
           </div>
           <div>
@@ -73,13 +73,13 @@
           </div>
         </dl>
         <div class="tabs" role="tablist" aria-label="Ticket lists">
-          <button id="tab-open" type="button" class="tab" role="tab" aria-selected="true" aria-controls="open-col" data-view="open">Needs a person <span id="tab-open-n">0</span></button>
+          <button id="tab-open" type="button" class="tab" role="tab" aria-selected="true" aria-controls="open-col" data-view="open"><span class="open-name">Needs a person</span> <span id="tab-open-n">0</span></button>
           <button id="tab-sent" type="button" class="tab" role="tab" aria-selected="false" aria-controls="sent-col" data-view="sent" tabindex="-1">Sent to teams <span id="tab-sent-n">0</span></button>
         </div>
       </div>
       <section id="open-col" class="col lists" aria-labelledby="open-title">
         <div class="col-title">
-          <h2 id="open-title" class="col-head" tabindex="-1">Needs a person <span id="open-count" class="count">0</span></h2>
+          <h2 id="open-title" class="col-head" tabindex="-1"><span class="open-name">Needs a person</span> <span id="open-count" class="count">0</span></h2>
           <button type="button" class="tip" aria-label="Why the order changes" aria-describedby="tip-order"></button>
           <span id="tip-order" class="tipbox" role="tooltip" hidden>The most serious tickets go to the top, so a person sees them first. Two tickets at the same level stay oldest first.</span>
         </div>
@@ -94,7 +94,7 @@
         <div class="col-title">
           <h2 id="sent-title" class="col-head">Sent to teams <span id="sent-count" class="count">0</span></h2>
           <button type="button" class="tip" aria-label="What the labels mean" aria-describedby="tip-labels"></button>
-          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.</span>
+          <span id="tip-labels" class="tipbox" role="tooltip" hidden>These tickets reached a team. No person needed: no rule fired and the model was sure enough. Needs a person: both models agreed on the team, but a rule, the team or the model's doubt says a person must handle it there. Reviewer checked: the simulated reviewer agreed on the category. Reviewer changed it: the simulated reviewer changed the category.</span>
         </div>
         <ul id="sent-list" class="list" tabindex="0" aria-labelledby="sent-title"></ul>
       </section>
@@ -163,9 +163,14 @@
           <!-- A word joiner (&#8288;) keeps each icon on its term's line: the browser may otherwise start a new line before it. -->
           <dt>
             High-risk missed&#8288;<button type="button" class="tip" aria-label="What high-risk missed means" aria-describedby="tip-missed"></button>
-            <span id="tip-missed" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
+            <span id="tip-missed" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. With both models, a ticket only too vague to place is not counted. The goal is zero.</span>
           </dt>
           <dd id="n-missed">0</dd>
+          <dt id="marked-term">
+            Sent marked&#8288;<button type="button" class="tip" aria-label="What sent marked means" aria-describedby="tip-marked"></button>
+            <span id="tip-marked" class="tipbox" role="tooltip" hidden>Sent straight to its team as needing a person: a risky ticket, or one a person placed that was risky.</span>
+          </dt>
+          <dd id="n-marked">0</dd>
           <dt>Right with no person</dt>
           <dd id="n-right">0</dd>
           <dt>

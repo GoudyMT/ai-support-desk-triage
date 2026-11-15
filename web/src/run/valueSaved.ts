@@ -18,7 +18,8 @@ export interface ValueSaved {
  * What the run has saved so far: a closed ticket that no person touched and that the system sorted fully right (the
  * true team and the true priority, as the viewer's own review is judged) is time nobody spent. A ticket sent to the
  * wrong team or closed at the wrong priority, or one the truth says needed a person and did not get one, saves
- * nothing: someone would have to find it and do it again.
+ * nothing: someone would have to find it and do it again. A ticket sent to its team marked as needing a person is
+ * handled by a person there, so it saves nothing either.
  *
  * Only `state.done` is read. The open list and the review form hold trails with the reviewer's answer
  * hidden, so a ticket there must not count, and a ticket the viewer reviewed carries the viewer's
@@ -28,7 +29,7 @@ export interface ValueSaved {
  */
 export function valueSaved(state: RunState, truthOf: (id: string) => TicketLabel): ValueSaved {
   const counted = state.done.filter((trail) => {
-    if (trail.review !== undefined) return false;
+    if (trail.review !== undefined || trail.marked === true) return false;
     const truth = truthOf(trail.id);
     return !truth.mustReview && trail.final.route === ROUTES[truth.category] && trail.final.priority === truth.priority;
   }).length;

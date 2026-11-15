@@ -253,6 +253,13 @@ body {
   color: var(--muted);
 }
 
+/* "Needs a person" on a ticket sent straight to its team: the one status a person there must act on. */
+.how.how-marked {
+  color: var(--text);
+  font-weight: var(--w-strong);
+  white-space: nowrap;
+}
+
 .text,
 .lean {
   margin: 0;

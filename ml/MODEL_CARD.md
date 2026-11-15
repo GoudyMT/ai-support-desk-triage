@@ -115,7 +115,10 @@ downloads it only when the desk starts, and the desk can run on the word model a
 The word model, its rules and its confidence floor decide first. A ticket they would let out leaves only if the sentence
 model gives the same category and priority; otherwise it goes to a person. Every ticket sent to a person shows the
 sentence model's answer, after the same safety rules, as the suggestion. When the two disagree, the card says so and
-offers no quick Approve. So the second model can only send more tickets to a person, never fewer.
+offers no quick Approve. So the second model can only send more tickets to a person, never fewer. The desk has since
+split routing from risk, so the operator checks fewer tickets (see the
+[guide](../docs/guide/how-it-works.md#two-jobs-routing-and-risk)); this card describes the models and the first
+two-model desk.
 
 ### Results
 

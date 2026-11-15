@@ -25,6 +25,16 @@ function finishedDay(seed: number): { state: RunState; truthOf: (id: string) => 
   return { state: run.state(), truthOf: run.truthOf };
 }
 
+describe('value saved on the three-path desk', () => {
+  // A marked ticket still costs a person at its team, so it saves no time even when it was sorted right.
+  it('counts no time saved for a marked ticket, and counts a direct one sorted right', () => {
+    const truth: TicketLabel = { category: 'Billing', priority: 'Medium', mustReview: false };
+    const trail = (id: string, path: 'marked' | 'direct') => ({ id, path, marked: path === 'marked', final: { category: 'Billing', priority: 'Medium', route: ROUTES.Billing, by: 'model' } });
+    const state = { done: [trail('M-1', 'marked'), trail('D-1', 'direct')] } as unknown as RunState;
+    expect(valueSaved(state, () => truth).counted).toBe(1);
+  });
+});
+
 describe('value saved', () => {
   // Counted by hand from the closed trails of a whole day, with no tool of this module: tickets with no review,
   // less those the truth says needed a person (Missed), those sent to a team other than the true one and those

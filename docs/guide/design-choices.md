@@ -1,6 +1,6 @@
 # Design Choices
 
-Six decisions shaped the desk. Each card shows the question, the options, the pick, and what was measured once it was
+Seven decisions shaped the desk. Each card shows the question, the options, the pick, and what was measured once it was
 built. Green is the path taken. Amber is what it cost.
 
 ## 1. Keywords or a trained model?
@@ -151,3 +151,35 @@ flowchart TD
 
 **Outcome:** the after-review number is labelled as resting on that assumption wherever it appears
 ([`reviewer.ts`](../../web/src/pipeline/reviewer.ts), [`MODEL_CARD.md`](../../ml/MODEL_CARD.md#on-the-desk)).
+
+## 7. One queue for every doubt, or two jobs?
+
+The sentence model routed far better, yet more tickets went to a person: one queue held both routing doubts and risk,
+and the second model could only add to it ([routing and risk note](../superpowers/specs/2026-11-14-routing-and-risk-note.md)).
+
+```mermaid
+flowchart TD
+    Q["<b>The question</b><br/>What should make a ticket<br/>wait for the operator?"]
+    Q --> A["<b>Any doubt or any risk</b><br/>The v1.1 desk."]
+    Q --> B["<b>Only a routing doubt</b><br/>The models disagree, or it is too vague.<br/>Risk becomes a mark at the team."]
+    Q --> D["<b>A learned risk detector</b><br/>in place of the 50% floor"]
+    A --> RA["<b>Measured</b><br/>3,333 of 4,000 desk tickets<br/>wait for the operator"]
+    B --> RB["<b>Result</b><br/>1,915 of 4,000 wait,<br/>every safety line unchanged"]
+    D --> RD["<b>Not adopted</b><br/>more risky tickets missed<br/>on 3 of 7 sets"]
+    RB --> C["<b>Cost</b><br/>301 marked tickets reach<br/>the wrong team first"]
+    classDef q fill:#ddf4ff,stroke:#0969da,color:#1f2328
+    classDef off fill:#f6f8fa,stroke:#8c959f,color:#57606a
+    classDef pick fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#1f2328
+    classDef cost fill:#fff8c5,stroke:#9a6700,color:#1f2328
+    class Q q
+    class A,RA,D,RD off
+    class B,RB pick
+    class C cost
+```
+
+**Outcome:** the operator checks about half as many tickets, held in CI to the v1.1 desk's safety lines
+([`split_flow.json`](../../ml/reports/split_flow.json), [`measureSplit.ts`](../../web/scripts/measureSplit.ts)). A marked
+ticket still reaches a person, at its team. The detector cut false marks but failed its bar on 6 of 7 sets, missing more
+risky tickets on 3, so the word model's doubt stays in the mark ([`risk_detector.json`](../../ml/reports/risk_detector.json)).
+Its cut-off was tuned on tickets of which about a quarter repeated its training texts, so the verdict holds for that
+tuning; the script now refuses such a tuning side.

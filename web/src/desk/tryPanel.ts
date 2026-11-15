@@ -14,6 +14,7 @@ import {
   TRY_LOADING,
   TRY_PRIVACY,
   TRY_RETRY,
+  TRY_PATH_ROW,
   TRY_ROWS,
   TRY_SORT,
   TRY_TOO_LONG,
@@ -74,6 +75,9 @@ export function createTryPanel(sentenceSource: SentenceSource, onAnswered: () =>
     result.append(el('dt', undefined, name), value);
     return value;
   });
+  const pathName = el('dt', undefined, TRY_PATH_ROW);
+  const pathValue = el('dd');
+  result.append(pathName, pathValue);
   const wordOnly = el('p', 'try-word-only', TRY_WORD_ONLY);
   wordOnly.hidden = true;
   const warning = el('p', 'try-warning', TRY_WARNING);
@@ -147,6 +151,9 @@ export function createTryPanel(sentenceSource: SentenceSource, onAnswered: () =>
       const value = values[at];
       if (value !== undefined) value.textContent = text;
     });
+    pathValue.textContent = view.path ?? '';
+    pathName.hidden = view.path === undefined;
+    pathValue.hidden = view.path === undefined;
     result.hidden = false;
     warning.hidden = false;
     onAnswered();

@@ -110,7 +110,10 @@ function markNew(node: HTMLElement, word: string | undefined): void {
 
 function makeRow(row: SentRow, note: string | undefined): HTMLElement {
   const head = el('div', 'meta');
-  head.append(el('span', 'team', row.team), el('span', 'how', row.how));
+  head.append(el('span', 'team', row.team));
+  // A marked ticket shows its priority as the cards do, beside the team, and its status stands at the right like any other.
+  if (row.mark !== undefined) head.append(el('span', `tag tag-${row.mark.level}`, row.mark.word));
+  head.append(el('span', row.mark === undefined ? 'how' : 'how how-marked', row.how));
   if (row.was !== undefined) head.append(el('span', 'was', `Was ${row.was}`));
   const node = el('li', 'row');
   node.dataset.ticket = row.id;
@@ -146,6 +149,7 @@ export function drawNumbers(numbers: DeskNumbers, cards: number, rows: number): 
   fadeNumber(byId('sent-count'), String(rows));
   fadeNumber(byId('n-closed'), `${numbers.closed} of ${numbers.total}`);
   fadeNumber(byId('n-missed'), String(numbers.highRiskMissed));
+  fadeNumber(byId('n-marked'), String(numbers.sentMarked));
   fadeNumber(byId('n-right'), String(numbers.rightNoPerson));
   fadeNumber(byId('n-changed'), String(numbers.reviewerChanged));
 }

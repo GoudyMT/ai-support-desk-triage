@@ -1,6 +1,6 @@
 {
   "name": "ai-support-desk-web",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -21,6 +21,8 @@
     "measure-two-models": "tsx scripts/measureTwoModels.ts",
     "measure-agreement": "tsx scripts/measureAgreement.ts",
     "measure-routing": "tsx scripts/measureDirectRouting.ts",
+    "measure-split": "tsx scripts/measureSplit.ts",
+    "measure-risk-detector": "tsx scripts/measureRiskDetector.ts",
     "run-week": "tsx scripts/runWeek.ts",
     "copy-bundle": "tsx scripts/copyBundle.ts",
     "record-web-answers": "tsx scripts/recordWebAnswers.ts",

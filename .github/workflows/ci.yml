@@ -78,6 +78,14 @@ jobs:
       # hand, or filed under another bundle's fingerprint, fails here.
       - run: npm run measure-two-models -- --check-sets
         working-directory: web
+      # The three-path desk's counts are worked out again the same way, and the
+      # check fails if it is worse than the v1.1 desk on any safety line.
+      - run: npm run measure-split -- --check
+        working-directory: web
+      # The risk detector that was tried and not adopted: its lines, failing lines and verdict are worked out again
+      # from the tickets it said yes to.
+      - run: npm run measure-risk-detector -- --check
+        working-directory: web
       # The one blind reading is worked out again from its recorded answers, the
       # frozen blind set and the shipped word model.
       - run: npm run blind-reading

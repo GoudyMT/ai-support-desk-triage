@@ -145,6 +145,19 @@ export function moreNumber(page: Page, label: string) {
   return page.locator('#numbers > dl > div', { hasText: label }).locator('dd');
 }
 
+// Starts the desk on the word model alone: the larger model's download is held and the viewer chooses not to wait. On
+// two models no operator card offers Approve and the list holds only route doubts; the one-model desk still offers it,
+// and its list holds every flagged ticket, so the rows about Approve and about a long list start here.
+export async function startWordOnly(page: Page): Promise<void> {
+  await page.route('**/models/{bundle_v2,ort-*}/**', () => undefined);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.getByRole('button', { name: 'Start now with the word model only' }).click();
+  // The panel's button stood where the list now is; a pointer left resting there would hold the run.
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible({ timeout: LOAD_MS });
+  await expect(page.locator('#suggests')).toHaveText('Suggestions: word model only');
+}
+
 const MAX_TABS = 30;
 
 // Presses Tab until the focused control's text matches; keyboard only, so no pointer and no focus().
