@@ -1,7 +1,7 @@
 # Design: Routing and Risk as Separate Jobs (the final version)
 
 **Date:** 2026-11-14 (owner's clock, UTC-8)
-**Status:** draft for the owner's approval
+**Status:** approved by the owner 2026-11-15; A built, B1 tried and not adopted
 **Starts from:** `docs/superpowers/specs/2026-11-14-routing-and-risk-note.md`
 **Branch:** `feature/routing-and-risk` (local)
 

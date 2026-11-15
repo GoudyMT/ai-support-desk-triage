@@ -6,7 +6,8 @@
 ; Task 5 code (no run yet) - `test_risk_detector.py` 6 tests, 4 red on the stub (2 empty-passing rows rewritten after their breaks stayed green), 6 breaks red; `routeTicketWith` riskMark seam, 1 new test, 3 breaks red; `measureRiskDetector.test.ts` 10 tests, 9 red on stubs, 5 breaks red (one first green, allowance rounding, got its row)
 ; Task 5 run on the owner's yes (2026-11-15 "yes gop ahead"): busy check GPU 40% / CPU 14-23%, 21.1 s on 4 threads below normal; B1 judged once on the 7 sets: NOT PASSED, 6 of 7 fail (risky missed desk 55 -> 75, fold 1 4 -> 27, fold 3 0 -> 10; High/Urgent out low fold 3 0 -> 99), though false marks fell on every set (desk 691 -> 260); cut-offs 0.86 to 1.0 set on a tuning side that shares templates with training; not adopted, record `ml/reports/risk_detector.json`
 ; owner chose A 2026-11-15 (no B2; ship the split); Task 6 - README (desk row, two jobs, split table from `split_flow.json`, detector not adopted) and guide (how-it-works two jobs, design choice 7); ASCII scan clean; every number checked against its record
-- Next: Task 7
+; Task 7 - carry-overs cut (00abe2d); full gate green (1,584 unit, 251 Python, all records, browser 405 of 406, the one a parallel-load flake that passes alone); feature sweep, 7 roles, 42 findings, every high fixed or ruled on, each fix red first (ca8ccfa, 5681d75, 1ab4193, b8bd936, f0f99c0, 15ba049, 0589beb, ed1d190)
+- Next: the owner's stops (push, PR, merge, release)
 - Branch: `feature/routing-and-risk` (local, not pushed)
 - Open questions: none
 
@@ -30,7 +31,7 @@ only if it passes the written bar.
 - A marked ticket's priority is raised to at least High.
 - Never change a bar after its numbers are seen; B's bar is design section 9.
 - Training, embedding or bulk scoring runs: `ml/triage_v2/share_machine.py`, a load check first, the owner's yes.
-- Size limits: desk 64,960; demo 50,500; sentenceBytes 42,467,037 (size band rule; any raise is a measured ask).
+- Size limits: desk 64,960 (raised to 65,310, see Execution Notes); demo 50,500; sentenceBytes 42,467,037 (size band rule; any raise is a measured ask).
 - ASCII only; errors throw static codes; tests derive expected model numbers from their records, never typed (L-12).
 - The demo page's output and the v1.1 Model History rows stay byte-equal.
 
@@ -48,22 +49,22 @@ only if it passes the written bar.
 ## Tasks
 
 ### Task 0: records (must)
-- [ ] Close the Progress block of `docs/superpowers/plans/2026-11-12-fair-run-and-desk.md` with the merge of #14
+- [x] Close the Progress block of `docs/superpowers/plans/2026-11-12-fair-run-and-desk.md` with the merge of #14
       (150f9e4) -> verify: its Progress names no open task
-- [ ] Commit the design and this plan `docs: plan routing and risk as separate jobs` -> verify: commit-msg hook passes
+- [x] Commit the design and this plan `docs: plan routing and risk as separate jobs` -> verify: commit-msg hook passes
 
 ### Task 1: the three-path flow (must)
 **Files:** Create `web/src/run/splitFlow.ts` | Modify `web/src/pipeline/types.ts` | Test `web/src/run/splitFlow.test.ts`
 **Interfaces:** Consumes `runTicket`, `runTicketWith`, `RunDeps` (`web/src/pipeline/run.ts`), `TwoModelDeps`
 (`twoModels.ts`). Produces `routeTicket(text: string, id: string, deps: TwoModelDeps): TicketTrail` with `path` set;
 `MARK_FLOOR_PRIORITY = 'High'`.
-- [ ] Failing tests, one per design 8 criterion: disagreement on department or priority -> `triage` whatever the
+- [x] Failing tests, one per design 8 criterion: disagreement on department or priority -> `triage` whatever the
       rules; only flag the vague rule -> `triage`; agreed + rule -> `marked`, no operator card; agreed Security Concern
       at Medium -> `marked`, final priority `High`; agreed Urgent stays `Urgent`; agreed, no rule, non-checked
       department, word >= 0.5 -> `direct`; a disagreeing threatening ticket -> `triage` with `marked: true` after
       the reviewer -> verify: red on assertions
-- [ ] Implement `routeTicket` -> verify: `npm --prefix web exec --no -- vitest run src/run/splitFlow.test.ts`
-- [ ] Commit `feat: route each desk ticket on one of three paths`
+- [x] Implement `routeTicket` -> verify: `npm --prefix web exec --no -- vitest run src/run/splitFlow.test.ts`
+- [x] Commit `feat: route each desk ticket on one of three paths`
 
 ### Task 2: the measurement and its CI check (must)
 **Files:** Create `web/scripts/measureSplit.ts`, `web/scripts/measureSplit.test.ts`, `ml/reports/split_flow.json` |
@@ -71,49 +72,49 @@ Modify `web/package.json`, the CI workflow that runs `measure-routing` checks
 **Interfaces:** Consumes `routeTicket`, `parseRows` (reviewReason added), `chosenTable` pattern from
 `measureDirectRouting.ts`. Produces `measureSplit(rows, word, sentence): SplitCounts` with the design 7 M2 fields
 for both today and A, and `--write` / `--check`.
-- [ ] Failing tests: a fixture where an agreed, marked Security Concern at Medium (truth Urgent) is not counted as
+- [x] Failing tests: a fixture where an agreed, marked Security Concern at Medium (truth Urgent) is not counted as
       High/Urgent out as low; a marked risky ticket is not counted missed; `--check` fails when a record line differs
       and when A's risky missed exceeds today's in the same run -> verify: red
-- [ ] Implement; write the record -> verify: counts equal design 9 table on all seven sets, exactly
-- [ ] Add `--check` to CI; parse the changed workflow with a YAML parser (L-02) -> verify: parse ok, local check green
-- [ ] Commit `feat: measure the three-path desk and hold it to today's safety lines`
+- [x] Implement; write the record -> verify: counts equal design 9 table on all seven sets, exactly
+- [x] Add `--check` to CI; parse the changed workflow with a YAML parser (L-02) -> verify: parse ok, local check green
+- [x] Commit `feat: measure the three-path desk and hold it to today's safety lines`
 
 ### Task 3: the desk reads the path (must) - starts with an owner stop
-- [ ] **Stop:** wireframe of Sent to teams with the mark and the operator queue, in the real screens, real data
+- [x] **Stop:** wireframe of Sent to teams with the mark and the operator queue, in the real screens, real data
       (L-05) -> verify: the owner locks it
-- [ ] Failing tests: engine puts only `path === 'triage'` in `open`; metrics count a marked risky ticket as caught;
+- [x] Failing tests: engine puts only `path === 'triage'` in `open`; metrics count a marked risky ticket as caught;
       `valueSaved` skips marked tickets; Sent to teams shows the mark and never "Reviewer checked" on a marked ticket;
       Try a ticket says the path and why (S1); with `suggest` unset the open list equals v1.1's; the demo page's run
       output is byte-equal to v1.1 -> verify: red
-- [ ] Implement in the files listed above; grep `web/e2e` and `web/src` for every changed sentence first (L-09)
+- [x] Implement in the files listed above; grep `web/e2e` and `web/src` for every changed sentence first (L-09)
       -> verify: `npm --prefix web run gate` exit 0
-- [ ] Commit `feat: show risky tickets as marked in Sent to teams`
+- [x] Commit `feat: show risky tickets as marked in Sent to teams`
 
 ### Task 4: Model History and page numbers (must)
-- [ ] Failing tests: the new row's numbers equal `split_flow.json`; the row order and current-row test changed on
+- [x] Failing tests: the new row's numbers equal `split_flow.json`; the row order and current-row test changed on
       purpose; the desk page's share sentence reads the record -> verify: red
-- [ ] Implement -> verify: gate green
-- [ ] Commit `feat: add the routing and risk row to Model History`
+- [x] Implement -> verify: gate green
+- [x] Commit `feat: add the routing and risk row to Model History`
 
 ### Task 5: the risk detector, B1 (must to try; adopted only if it passes)
 **Threshold rule, written now:** per judged set, B1 is trained on that set's model's training side with 20% of it
 held back; its threshold is the highest one at which, on the held-back 20%, rules + checked departments + B1 miss no
 more risky tickets than rules + checked departments + the 50% floor. No judged ticket is read to pick it.
-- [ ] Failing tests: a B1 that marks no vague ticket fails the bar; a detector that throws marks the ticket; the
+- [x] Failing tests: a B1 that marks no vague ticket fails the bar; a detector that throws marks the ticket; the
       fold B1 never sees its fold's held-out ids (leak check) -> verify: red
-- [ ] Implement `ml/triage_v2/risk_detector.py` (CPU, through `share_machine.py`); ask the owner before the run with
+- [x] Implement `ml/triage_v2/risk_detector.py` (CPU, through `share_machine.py`); ask the owner before the run with
       its load -> verify: record written
-- [ ] Judge once against design 9 B bar on the seven sets -> verify: verdict per line per set by script (L-15)
-- [ ] If B1 fails the held-back check: B2 needs the owner's GPU yes; if B1 or B2 passes: a new blind set, owner stop
-- [ ] Commit `feat: try a risk detector against the three-path desk` (adopted or recorded as not adopted)
+- [x] Judge once against design 9 B bar on the seven sets -> verify: verdict per line per set by script (L-15)
+- [x] If B1 fails the held-back check: B2 needs the owner's GPU yes; if B1 or B2 passes: a new blind set, owner stop
+- [x] Commit `feat: try a risk detector against the three-path desk` (adopted or recorded as not adopted)
 
 ### Task 6: docs (should)
-- [ ] README and guide pages describe the two jobs; every number from a record -> verify: gate green
+- [x] README and guide pages describe the two jobs; every number from a record -> verify: gate green
 
 ### Task 7: carry-overs and close (must)
-- [ ] Parking-lot triage of the handoff's carry-overs (fair run plan Task 18 rows, PR 4 H6b H9 H10 H11 H12, PR 5
+- [x] Parking-lot triage of the handoff's carry-overs (fair run plan Task 18 rows, PR 4 H6b H9 H10 H11 H12, PR 5
       T2-4 T2-6 T2-7 T2-8, DEFERRED rows in the two sweep reports): each in or cut, listed here
-- [ ] Full gate, then the feature-tier sweep; findings through the pipeline -> verify: report exists
+- [x] Full gate, then the feature-tier sweep; findings through the pipeline -> verify: report exists
 - [ ] Owner stops: push (pop-up yes, L-17), PR, merge, release
 
 ## Review Focus
@@ -138,5 +139,10 @@ Feature (new data flow, desk behaviour, a model trial).
   - 90-day sweep DEFERRED rows still open (P2 `npm.cmd` shell, P3 non-atomic writes): CUT - the 90-day scripts are untouched and not run again in this version.
   - PR 5 T2-4, T2-6, T2-7, T2-8 (test rows and a comment): CUT - their line numbers are from 2026-11-06 and no longer point at the same code; re-finding them costs more than they guard.
   - PR 4 H6b, H9, H10, H11, H12: CUT - each was ACCEPTED as worded by its sweep; carried only as known limits.
-
-## Execution Notes & Deviations
+- `web/src/desk/report.ts` and `web/src/run/narrate.ts` were listed under Files first but needed no edit: the report
+  reads the path through `computeMetrics`, and the demo page runs the word model alone (byte-equal to v1.1).
+- Desk size limit raised on the owner's yes, 64,960 -> 65,310 (0cbe3de); the first ask (65,170) was measured before
+  Tasks 4-6, the second from the rebuilt desk.
+- Sweep findings (`.kit/sweeps/2026-11-15-routing-and-risk.md`): a reviewed risky ticket keeps its mark on screen; the
+  detector's tuning side repeated 919 to 1,064 training texts per set, so its verdict is recorded "for that tuning" and
+  the script now refuses such a side; desk copy for Sent marked and High-risk missed locked by the owner 2026-11-15.
