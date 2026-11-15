@@ -131,5 +131,10 @@ Feature (new data flow, desk behaviour, a model trial).
 
 ## Parking Lot
 - README images `docs/images/how-it-works.png` and `how-it-grew.png` still show the v1.1 flow (to a person on any doubt; 83% sent); regenerate for the split (medium, docs).
+- Carry-over triage (Task 7), proposed to the owner; none is high or critical:
+  - Part 1 DEFERRED rows (installed-package check, export offline switch, practice pairing by text, carry-on row, scorer small paths): CUT from this build - files untouched here (`ml/triage_v2/*` export and practice), all low or medium.
+  - 90-day sweep DEFERRED rows still open (P2 `npm.cmd` shell, P3 non-atomic writes): CUT - the 90-day scripts are untouched and not run again in this version.
+  - PR 5 T2-4, T2-6, T2-7, T2-8 (test rows and a comment): CUT - their line numbers are from 2026-11-06 and no longer point at the same code; re-finding them costs more than they guard.
+  - PR 4 H6b, H9, H10, H11, H12: CUT - each was ACCEPTED as worded by its sweep; carried only as known limits.
 
 ## Execution Notes & Deviations
