@@ -34,7 +34,7 @@
           </li>
         </ul>
         <p class="note">
-          These test results are checked on every code change. A live run is harder: about 48% of tickets wait for the operator, and a high-risk ticket is
+          These test results are checked on every code change. A live run with both models is harder: about 48% of tickets wait for the operator, and a high-risk ticket is
           sometimes missed.
         </p>
       </div>
@@ -64,7 +64,7 @@
             <dt>High-risk missed</dt>
             <dd>
               <span id="p-missed">0</span>&#8288;<button type="button" class="tip" aria-label="What high-risk missed means" aria-describedby="tip-missed-row"></button>
-              <span id="tip-missed-row" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
+              <span id="tip-missed-row" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. With both models, a ticket only too vague to place is not counted. The goal is zero.</span>
             </dd>
           </div>
           <div>
@@ -163,10 +163,13 @@
           <!-- A word joiner (&#8288;) keeps each icon on its term's line: the browser may otherwise start a new line before it. -->
           <dt>
             High-risk missed&#8288;<button type="button" class="tip" aria-label="What high-risk missed means" aria-describedby="tip-missed"></button>
-            <span id="tip-missed" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. The goal is zero.</span>
+            <span id="tip-missed" class="tipbox" role="tooltip" hidden>Tickets that truly needed a person but went out without one. With both models, a ticket only too vague to place is not counted. The goal is zero.</span>
           </dt>
           <dd id="n-missed">0</dd>
-          <dt>Sent marked</dt>
+          <dt id="marked-term">
+            Sent marked&#8288;<button type="button" class="tip" aria-label="What sent marked means" aria-describedby="tip-marked"></button>
+            <span id="tip-marked" class="tipbox" role="tooltip" hidden>Sent straight to its team as needing a person: a risky ticket, or one a person placed that was risky.</span>
+          </dt>
           <dd id="n-marked">0</dd>
           <dt>Right with no person</dt>
           <dd id="n-right">0</dd>

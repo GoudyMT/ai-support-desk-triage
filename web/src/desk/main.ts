@@ -620,6 +620,8 @@ function begin(seed: number, model: Model, kit: DeskKit, suggest: Suggest | unde
   // With both models the operator's list holds only the tickets the models place differently; with one model it holds
   // every ticket a person must see, as before.
   for (const name of document.querySelectorAll('.open-name')) setText(name, suggest === undefined ? OPEN_ONE_MODEL : OPEN_TWO_MODELS);
+  // Only the two-model desk sends a ticket to its team marked, so the count is left out with one model.
+  for (const id of ['marked-term', 'n-marked']) byId(id).hidden = suggest === undefined;
   const run = createDeskRun({ seed, wording: kit.DESK_WORDING, model, suggest, wallClock: () => performance.now(), closeEveryMs: REVIEWER_PACE_MS });
   mount(seed, run, deskTotal(seed), startLine(seed));
   if (!tryModal.isOpen()) toggle().focus();

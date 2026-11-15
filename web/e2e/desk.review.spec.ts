@@ -114,6 +114,18 @@ test('on two models the list is Check the route, no card offers Approve, and a m
   expect(Math.abs((how?.y ?? 0) - (team?.y ?? 1)) < (team?.height ?? 0)).toBe(true);
 });
 
+// "Sent marked" counts a path only the two-model desk has: on the word model alone it would read 0 for no reason.
+test('Sent marked shows with both models and is gone with the word model only', async ({ page }) => {
+  await openDesk(page);
+  await start(page);
+  await expect(page.locator('#n-marked')).toBeVisible();
+  await expect(page.locator('#tip-marked')).toHaveCount(1);
+  await openDesk(page);
+  await startWordOnly(page);
+  await expect(page.locator('#n-marked')).toBeHidden();
+  await expect(page.getByText('Sent marked', { exact: true })).toBeHidden();
+});
+
 test.describe('Approve and Review on a card', () => {
   test('Approve is on every card at 70 percent or more and on no card under it', async ({ page }) => {
     await openDesk(page);
