@@ -1,0 +1,252 @@
+{
+ "verdict": "not passed",
+ "sets": {
+  "desk": {
+   "cut": 0.9,
+   "a": {
+    "cards": 1915,
+    "riskyMissed": 55,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 15,
+    "vagueDirect": 18,
+    "marked": 1418,
+    "markedRisky": 727,
+    "falseMarks": 691,
+    "markedWrongTeam": 301,
+    "markedWrongTeamRisky": 123,
+    "markedWrongPriority": 509
+   },
+   "b": {
+    "cards": 1915,
+    "riskyMissed": 75,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 3,
+    "uncheckedWrongPriority": 142,
+    "vagueDirect": 42,
+    "marked": 967,
+    "markedRisky": 707,
+    "falseMarks": 260,
+    "markedWrongTeam": 298,
+    "markedWrongTeamRisky": 123,
+    "markedWrongPriority": 201
+   },
+   "failing": [
+    "riskyMissed",
+    "vagueDirect",
+    "uncheckedWrongPriority"
+   ]
+  },
+  "handwritten": {
+   "cut": 0.9,
+   "a": {
+    "cards": 18,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 0,
+    "vagueDirect": 0,
+    "marked": 18,
+    "markedRisky": 12,
+    "falseMarks": 6,
+    "markedWrongTeam": 1,
+    "markedWrongTeamRisky": 1,
+    "markedWrongPriority": 2
+   },
+   "b": {
+    "cards": 18,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 0,
+    "vagueDirect": 0,
+    "marked": 12,
+    "markedRisky": 12,
+    "falseMarks": 0,
+    "markedWrongTeam": 1,
+    "markedWrongTeamRisky": 1,
+    "markedWrongPriority": 0
+   },
+   "failing": []
+  },
+  "fresh": {
+   "cut": 0.9,
+   "a": {
+    "cards": 24,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 1,
+    "vagueDirect": 0,
+    "marked": 26,
+    "markedRisky": 15,
+    "falseMarks": 11,
+    "markedWrongTeam": 1,
+    "markedWrongTeamRisky": 0,
+    "markedWrongPriority": 9
+   },
+   "b": {
+    "cards": 24,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 2,
+    "vagueDirect": 1,
+    "marked": 17,
+    "markedRisky": 15,
+    "falseMarks": 2,
+    "markedWrongTeam": 1,
+    "markedWrongTeamRisky": 0,
+    "markedWrongPriority": 3
+   },
+   "failing": [
+    "vagueDirect"
+   ]
+  },
+  "fold 0": {
+   "cut": 1,
+   "a": {
+    "cards": 2523,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 81,
+    "vagueDirect": 0,
+    "marked": 1165,
+    "markedRisky": 587,
+    "falseMarks": 578,
+    "markedWrongTeam": 30,
+    "markedWrongTeamRisky": 8,
+    "markedWrongPriority": 319
+   },
+   "b": {
+    "cards": 2523,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 0,
+    "uncheckedWrongPriority": 101,
+    "vagueDirect": 0,
+    "marked": 610,
+    "markedRisky": 587,
+    "falseMarks": 23,
+    "markedWrongTeam": 30,
+    "markedWrongTeamRisky": 8,
+    "markedWrongPriority": 145
+   },
+   "failing": [
+    "uncheckedWrongPriority"
+   ]
+  },
+  "fold 1": {
+   "cut": 1,
+   "a": {
+    "cards": 2313,
+    "riskyMissed": 4,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 4,
+    "uncheckedWrongPriority": 1,
+    "vagueDirect": 0,
+    "marked": 1275,
+    "markedRisky": 621,
+    "falseMarks": 654,
+    "markedWrongTeam": 357,
+    "markedWrongTeamRisky": 57,
+    "markedWrongPriority": 679
+   },
+   "b": {
+    "cards": 2313,
+    "riskyMissed": 27,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 49,
+    "uncheckedWrongPriority": 24,
+    "vagueDirect": 9,
+    "marked": 876,
+    "markedRisky": 598,
+    "falseMarks": 278,
+    "markedWrongTeam": 312,
+    "markedWrongTeamRisky": 34,
+    "markedWrongPriority": 396
+   },
+   "failing": [
+    "riskyMissed",
+    "vagueDirect",
+    "uncheckedWrongDept",
+    "uncheckedWrongPriority"
+   ]
+  },
+  "fold 2": {
+   "cut": 0.86,
+   "a": {
+    "cards": 2313,
+    "riskyMissed": 3,
+    "highOutLow": 5,
+    "uncheckedWrongDept": 1,
+    "uncheckedWrongPriority": 43,
+    "vagueDirect": 3,
+    "marked": 1233,
+    "markedRisky": 549,
+    "falseMarks": 684,
+    "markedWrongTeam": 31,
+    "markedWrongTeamRisky": 26,
+    "markedWrongPriority": 430
+   },
+   "b": {
+    "cards": 2313,
+    "riskyMissed": 3,
+    "highOutLow": 7,
+    "uncheckedWrongDept": 3,
+    "uncheckedWrongPriority": 58,
+    "vagueDirect": 51,
+    "marked": 572,
+    "markedRisky": 549,
+    "falseMarks": 23,
+    "markedWrongTeam": 29,
+    "markedWrongTeamRisky": 26,
+    "markedWrongPriority": 79
+   },
+   "failing": [
+    "highOutLow",
+    "vagueDirect",
+    "uncheckedWrongPriority"
+   ]
+  },
+  "fold 3": {
+   "cut": 0.93,
+   "a": {
+    "cards": 2539,
+    "riskyMissed": 0,
+    "highOutLow": 0,
+    "uncheckedWrongDept": 2,
+    "uncheckedWrongPriority": 2,
+    "vagueDirect": 23,
+    "marked": 1118,
+    "markedRisky": 364,
+    "falseMarks": 754,
+    "markedWrongTeam": 132,
+    "markedWrongTeamRisky": 16,
+    "markedWrongPriority": 471
+   },
+   "b": {
+    "cards": 2539,
+    "riskyMissed": 10,
+    "highOutLow": 99,
+    "uncheckedWrongDept": 89,
+    "uncheckedWrongPriority": 257,
+    "vagueDirect": 31,
+    "marked": 402,
+    "markedRisky": 354,
+    "falseMarks": 48,
+    "markedWrongTeam": 45,
+    "markedWrongTeamRisky": 6,
+    "markedWrongPriority": 56
+   },
+   "failing": [
+    "riskyMissed",
+    "highOutLow",
+    "vagueDirect",
+    "uncheckedWrongDept",
+    "uncheckedWrongPriority"
+   ]
+  }
+ }
+}

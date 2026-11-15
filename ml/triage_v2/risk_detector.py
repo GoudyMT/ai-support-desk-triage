@@ -17,7 +17,15 @@ from threadpoolctl import threadpool_limits
 from triage.data import GENERATED_DIR, load_rows
 from triage.export_model import build_model, write_atomically
 from triage.train import RANDOM_STATE, assert_no_leak, fit_models, fit_pipeline
-from triage_v2.share_machine import share_the_machine
+from triage_v2.share_machine import (
+    BUSY_ERROR,
+    CPU_THREADS,
+    SAMPLES,
+    limit_cpu,
+    machine_too_busy,
+    read_cpu_percent,
+    read_gpu_percent,
+)
 
 TUNE_SHARE = 0.2
 YES = "yes"
@@ -103,7 +111,14 @@ def main():
     print(DIVIDER)
     # Step 1: leave room for the owner's other work, or do not start
     print(f"\n[1/{STEP_COUNT}] Checking the machine and capping this run...")
-    threads = share_the_machine()
+    # A CPU-only run: the same busy check as share_the_machine, then the CPU caps, without the GPU library it loads.
+    gpu = [read_gpu_percent() for _ in range(SAMPLES)]
+    cpu = [read_cpu_percent() for _ in range(SAMPLES)]
+    print(f"    GPU in use: {gpu}%, CPU in use: {cpu}%")
+    if machine_too_busy(gpu, cpu):
+        raise SystemExit(BUSY_ERROR)
+    limit_cpu()
+    threads = CPU_THREADS
     started = time.perf_counter()
     OUT_DIR.mkdir(exist_ok=True)
     with threadpool_limits(limits=threads):
