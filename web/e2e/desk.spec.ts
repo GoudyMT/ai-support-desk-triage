@@ -101,7 +101,7 @@ test('at rest the desk says what it is, shows its three measured numbers and Sta
     ),
   ).toBeVisible();
   // The live share is held to its report by src/history/sources.test.ts; here only that the note shows.
-  await expect(page.getByText('These test results are checked on every code change. A live run is harder:')).toBeVisible();
+  await expect(page.getByText('These test results are checked on every code change. A live run with both models is harder:')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Under the Hood' })).toHaveAttribute('href', 'under-the-hood.html');
   expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);
