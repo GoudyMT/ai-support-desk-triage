@@ -1,9 +1,9 @@
 # Routing and Risk Plan
 
 ## Progress
-- Current task: 1
-- Done (with evidence): design approved 2026-11-15 with the plan gap check folded in (design section 13); plan approved 2026-11-15 ("Lets see how far we get!"); Task 0 - fair run plan Progress closed with #14 (150f9e4), `tracking-check.mjs progress` PASS on this plan
-- Next: Task 1
+- Current task: 2
+- Done (with evidence): design approved 2026-11-15 with the plan gap check folded in (design section 13); plan approved 2026-11-15 ("Lets see how far we get!"); Task 0 - fair run plan Progress closed with #14 (150f9e4), `tracking-check.mjs progress` PASS on this plan; Task 1 - `splitFlow.test.ts` 8 tests, 8 red on the stub, green after; 10 breaks (department only, vague as risk, no raise, raise to exactly High, mark lost after triage, floor dropped, pass-through review kept, marked sent to the operator, everything marked) each turned a row red, file restored; lint and typecheck exit 0
+- Next: Task 2
 - Branch: `feature/routing-and-risk` (local, not pushed)
 - Open questions: none
 

@@ -39,6 +39,8 @@ export interface Reviewer {
   decide(input: ReviewInput): ReviewDecision;
 }
 
+export type TicketPath = 'triage' | 'marked' | 'direct';
+
 export interface TicketTrail {
   id: string;
   receivedAt: number;
@@ -51,6 +53,10 @@ export interface TicketTrail {
   final: { category: Category; priority: Priority; route: string; by: 'model' | 'reviewer' };
   // On the desk, each model's own answer; the sentence model's is the suggestion a person sees.
   models?: { word: { category: Category; priority: Priority }; sentence: { category: Category; priority: Priority } };
+  // On the desk with both models: an operator card when the models disagree, otherwise straight to the agreed team;
+  // `marked` means the ticket reaches its team as needing a person.
+  path?: TicketPath;
+  marked?: boolean;
   v0: V0Result;
   ms: number;
 }
