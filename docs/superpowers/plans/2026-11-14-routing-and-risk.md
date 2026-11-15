@@ -1,9 +1,9 @@
 # Routing and Risk Plan
 
 ## Progress
-- Current task: 2
-- Done (with evidence): design approved 2026-11-15 with the plan gap check folded in (design section 13); plan approved 2026-11-15 ("Lets see how far we get!"); Task 0 - fair run plan Progress closed with #14 (150f9e4), `tracking-check.mjs progress` PASS on this plan; Task 1 - `splitFlow.test.ts` 8 tests, 8 red on the stub, green after; 10 breaks (department only, vague as risk, no raise, raise to exactly High, mark lost after triage, floor dropped, pass-through review kept, marked sent to the operator, everything marked) each turned a row red, file restored; lint and typecheck exit 0
-- Next: Task 2
+- Current task: 3
+- Done (with evidence): design approved 2026-11-15 with the plan gap check folded in (design section 13); plan approved 2026-11-15 ("Lets see how far we get!"); Task 0 - fair run plan Progress closed with #14 (150f9e4), `tracking-check.mjs progress` PASS on this plan; Task 1 - `splitFlow.test.ts` 8 tests, 8 red on the stub, green after; 10 breaks (department only, vague as risk, no raise, raise to exactly High, mark lost after triage, floor dropped, pass-through review kept, marked sent to the operator, everything marked) each turned a row red, file restored; lint and typecheck exit 0; Task 2 - `measureSplit.test.ts` 7 tests, red on stubs, green after; 10 breaks each turned a row red (one first stayed green, marked tickets left out of the hard line, and got its row); `split_flow.json` written: every count equals the design 9 table on all 7 sets; `--check` exit 1 on an edited record, exit 0 restored; ci.yml parses
+- Next: Task 3 (wireframe for the owner first)
 - Branch: `feature/routing-and-risk` (local, not pushed)
 - Open questions: none
 

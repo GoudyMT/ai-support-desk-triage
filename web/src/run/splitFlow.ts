@@ -1,6 +1,6 @@
 import { PRIORITIES, ROUTES, type Category, type Priority } from '../domain/labels';
-import type { Prediction } from '../model/scorer';
-import { runTicket, runTicketWith } from '../pipeline/run';
+import { score, type Prediction } from '../model/scorer';
+import { runTicketWith, type Predict, type RunSettings } from '../pipeline/run';
 import type { FlagReason, Reviewer, TicketTrail } from '../pipeline/types';
 import type { TwoModelDeps } from './twoModels';
 
@@ -57,7 +57,23 @@ function atLeast(priority: Priority, floor: Priority): Priority {
  *   the reviewer's decision on the sentence model's suggestion.
  */
 export function routeTicket(text: string, id: string, deps: TwoModelDeps): TicketTrail {
-  const gate = runTicket(text, id, { ...deps, reviewer: PASS_THROUGH });
+  return routeTicketWith(text, id, (head, maskedText) => score(deps.model, head, maskedText), deps);
+}
+
+/**
+ * Puts one ticket on its path as `routeTicket` does, taking the word model's answer from `predict`.
+ *
+ * Args:
+ *   text: the ticket as typed.
+ *   id: the ticket's id.
+ *   predict: where the word model's category and priority come from.
+ *   deps: the run settings and the sentence model's answers.
+ *
+ * Returns:
+ *   The ticket's trail with its path.
+ */
+export function routeTicketWith(text: string, id: string, predict: Predict, deps: RunSettings & Pick<TwoModelDeps, 'suggest'>): TicketTrail {
+  const gate = runTicketWith(text, id, predict, { ...deps, reviewer: PASS_THROUGH });
   const said = deps.suggest(gate.maskedText, id);
   const answer = runTicketWith(text, id, (head) => certain(head === 'category' ? said.category : said.priority), {
     ...deps,
