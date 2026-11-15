@@ -6,6 +6,9 @@ must see. Everything runs in the browser.
 
 ## One ticket's trip
 
+The trip below is the word model's alone. With both models loaded, step 5 splits in two: where the ticket goes, and
+whether a person must handle it there ([Two jobs](#two-jobs-routing-and-risk)).
+
 ```mermaid
 flowchart TD
     T["<b>1. A ticket arrives</b><br/>as the customer typed it"] --> I["<b>2. Intake</b><br/>gives it an id and a time"]
@@ -83,13 +86,29 @@ person" and at least High. On the desk's own wording this sends 1,915 of 4,000 t
 3,333, with every safety line unchanged ([`split_flow.json`](../../ml/reports/split_flow.json)). Without the sentence
 model the desk keeps the one-model flow: every flagged ticket waits for a person.
 
+```mermaid
+flowchart TD
+    A["<b>Both models answer</b><br/>after the same rules"] --> Q{"<b>Same team and priority,</b><br/>and not only vague?"}
+    Q -- "No" --> O["<b>Check the route</b><br/>the operator places it"]
+    Q -- "Yes" --> F{"<b>Flagged?</b><br/>a rule other than vague,<br/>a must-see department,<br/>or under 50% sure"}
+    F -- "Yes" --> K["<b>To its team, marked</b><br/>Needs a person, at least High"]
+    F -- "No" --> D["<b>To its team</b>"]
+    O --> T["<b>To the team the operator picked</b><br/>still marked if it was risky"]
+    classDef step fill:#ddf4ff,stroke:#0969da,color:#1f2328
+    classDef gate fill:#fff8c5,stroke:#9a6700,color:#1f2328
+    classDef person fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#1f2328
+    class A,D step
+    class Q,F gate
+    class O,K,T person
+```
+
 ### The person
 
 On the live desk a simulated reviewer checks the tickets waiting for the operator. It knows each ticket's true answer and is wrong on
 purpose 5% of the time, so it acts like a person, not a perfect answer key
 ([`reviewer.ts`](../../web/src/pipeline/reviewer.ts)). You can take any ticket yourself. A one-press Approve shows
-only when the ticket's card reads 70% sure or more and both models agree ([`engineParts.ts`](../../web/src/run/engineParts.ts)),
-so on the two-model desk, where every card is a disagreement, none does; it remains on the word-model-only desk.
+only on the word-model-only desk, when the ticket's card reads 70% sure or more ([`engineParts.ts`](../../web/src/run/engineParts.ts)).
+On the two-model desk no card offers it: each card is a route the operator places ([`view.ts`](../../web/src/desk/view.ts)).
 
 ## Where the model comes from
 

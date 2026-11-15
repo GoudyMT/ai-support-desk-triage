@@ -37,20 +37,32 @@ The sentence model, measured the same way (the desk now runs both models; see th
 | Category right on unseen wording: 83.9% | The same four rounds as the word model's 57.3% | The weakest round is 78.3% | [`sentence_folds.json`](../../ml/reports/sentence_folds.json) |
 | Hand-written tickets: 45 of 48 | The shipped sentence model on the same 48 | Same caveat: one author, a small set | [`bundle_v2.json`](../../ml/reports/bundle_v2.json) |
 | Blind set: 90.8% (word model 69.6%) | 2,000 tickets in wording no model trained or was tuned on, read once after every model was frozen | 53 of them come from templates close to the training wording; without them, 90.5% against 68.7% | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
-| Sent to a person: 83% (was 78%) | Both models on the 60-ticket blind set | Higher, on purpose: a ticket leaves alone only when both models agree | [`two_model_sets.json`](../../ml/reports/two_model_sets.json) |
+| Sent to a person: 83% (was 78%) | Both models on the 60-ticket blind set, on the first two-model desk | Higher, on purpose: there a ticket left alone only when both models agreed | [`two_model_sets.json`](../../ml/reports/two_model_sets.json) |
 | High-risk missed: 0 of 24 | Both models on the same set | On the 2,000-ticket blind set, 38 still got out (61 with the word model alone) | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
+
+The desk today splits routing from risk ([how it works](how-it-works.md)). On the same 60 blind tickets:
+
+| Number | What it means | Keep in mind | Source |
+|---|---|---|---|
+| Waited for the operator: 24 of 60 (40%) | Tickets the two models placed differently, or too vague to place | 26 more went straight to their team marked as needing a person, so 50 of 60 still reached a person | [`split_flow.json`](../../ml/reports/split_flow.json) |
+| High-risk missed: 0 of 20 | The 20 tickets with one of the five risk reasons | Counted without the 4 vague tickets, which are a routing doubt, not a risk | [`split_flow.json`](../../ml/reports/split_flow.json) |
 
 ### Live-run numbers
 
 The desk deals tickets in its own wording, which neither model trained on. Over 4,000 of them
 ([`two_model_sets.json`](../../ml/reports/two_model_sets.json)):
 
-| Number | Word model alone | Both models | Keep in mind |
+| Number | Word model alone | Both models, first two-model desk | Keep in mind |
 |---|---|---|---|
-| Sent to a person | 79.6% | 83.3% | The second model only ever adds tickets for a person |
+| Sent to a person | 79.6% | 83.3% | On that desk the second model only ever added tickets for a person |
 | Suggestion right on category, on those sent to a person | 1,819 of 3,333 (54.6%) | 2,494 of 3,333 (74.8%) | The word model's own answer against the sentence model's, on the same tickets |
 | High-risk tickets out without a person | 83 | 73 | The most important line in a run's report |
 | High or Urgent tickets out as Low or Medium | 3 | 0 | |
+
+On the same 4,000 tickets, the desk that splits routing from risk sends 1,915 (47.9%) to the operator and 1,418
+straight to their team marked as needing a person. Risky tickets out with no person stay at 55 and High or Urgent
+out low at 0, the same as the first two-model desk on the same tickets; 301 marked tickets reach the wrong team
+first ([`split_flow.json`](../../ml/reports/split_flow.json)).
 
 Each run is random, so a single run can differ from these. The seed is shown, so any run can be replayed exactly.
 The first release's desk, on the word model alone, is described in the [model card](../../ml/MODEL_CARD.md#on-the-desk).
@@ -66,10 +78,14 @@ You can change both assumptions on the desk. The formula: [`valueSaved.ts`](../.
 
 ## What to look for in a run
 
-- **Needs a person, highest risk first.** If a Security or Urgent ticket sits low in that list, something is wrong.
+- **The operator's list, highest risk first.** It is called Check the route with both models and Needs a person with
+  the word model alone. If a Security or Urgent ticket sits low in it, something is wrong.
+- **Rows marked Needs a person in Sent to teams.** With both models, a risky ticket goes straight to its team with
+  that mark and its priority, at least High unless a person set it.
 - **The words on each ticket.** They show what drove the model's answer. When an answer is wrong, they show which words misled it.
 - **The report's misses.** A high-risk ticket that went out without a person is the most important line in the report.
-- **Approve.** It shows only when the ticket's card reads 70% sure or more. Wrong quick approvals are counted in the report.
+- **Approve.** With the word model alone, it shows only when the ticket's card reads 70% sure or more. With both
+  models no card offers it: every card is a route the operator places. Wrong quick approvals are counted in the report.
 
 ## Upkeep
 

@@ -27,6 +27,8 @@ This began as a keyword prototype for a course capstone. It is now a trained mod
 
 ![How one ticket moves through the masker, the two models and the checks, then to its team or to a person](docs/images/how-it-works.png)
 
+*The picture shows the first two-model desk, where any doubt sent a ticket to a person; step 4 below is how the desk works now.*
+
 1. **The ticket.** It arrives as the customer typed it. Here the tickets are made up.
 2. **The masker.** Plain pattern rules, no AI, swap common forms of email addresses, phone numbers, order numbers and card numbers for labels like `[CARD_NUMBER]`. Names and street addresses are not hidden, and a form the masker misses reaches the model.
 3. **Two models.** Both read only the masked text. The word model is two small classifiers, TF-IDF word and word-pair counts into logistic regression, trained in Python with scikit-learn and exported to JSON; a TypeScript scorer runs them in the browser and agrees with Python on every evaluation ticket. With the rules, it decides who must check a ticket. The sentence model is a small sentence encoder (all-MiniLM-L6-v2) trained on 20,000 generated tickets, shipped as an 8-bit ONNX file and run in the browser; it gives the suggestion a person sees.
@@ -48,7 +50,7 @@ The [technical guide](docs/guide/README.md) explains each design choice with a d
 
 ![Category right on wording it never saw: keyword prototype 33.6%, word model 57.3%, sentence model 83.9%; sent to a person on 60 tickets written blind: 78% with the word model, 83% with both models](docs/images/how-it-grew.png)
 
-The desk runs two models: the word model decides what may leave without a person, and the sentence model checks it and gives the suggestion on every ticket a person sees. The first table is re-measured or checked in CI on each code change.
+The chart's last bar is the first two-model desk; the split below lowers it to 40% on the same 60 tickets. The desk runs two models: the word model and its rules decide what must reach a person, and the sentence model checks the route and gives the suggestion on every ticket a person sees. The first table is re-measured or checked in CI on each code change.
 
 | Measure | Keyword prototype | Word model | Sentence model (current) |
 |---|---|---|---|
@@ -56,7 +58,7 @@ The desk runs two models: the word model decides what may leave without a person
 | Category right on 48 tickets written for this project | 14 of 48 | 39 of 48 | **45 of 48** |
 | Category right on 2,000 blind tickets, read once | not measured | 69.6% | **90.8%** |
 | High-risk tickets missed on a test set written blind | not measured | 0 of 24 | **0 of 24** |
-| Sent to a person, 60 tickets written blind | not measured | 78% | 83% |
+| Sent to a person, 60 tickets written blind | not measured | 78% | 83% (40% to the operator with the split) |
 
 On the 2,000 blind tickets, the suggestion a person sees is right on the category 88.8% of the time, against 62.9% for the word model's answer.
 
@@ -73,9 +75,9 @@ The same two models, with the operator checking only the tickets they place diff
 | Sent to the team marked "Needs a person" | not used | 1,418 (691 did not need one) |
 | Marked tickets that reach the wrong team first | not used | 301 |
 
-On the 60 tickets written blind, the operator checks 24 instead of 50, and none of the 20 risky tickets is missed. A marked ticket still reaches a person, at its team, and the 301 that land on the wrong team first are counted on their own line. Every operator card is one the models disagree on, so none offers a one-press Approve.
+On the 60 tickets written blind, the operator checks 24 instead of 50, 26 more go to their team marked, and none of the 20 risky tickets is missed (the 24 above also count 4 tickets that are only too vague to place). A marked ticket still reaches a person, at its team, and the 301 that land on the wrong team first are counted on their own line, held in CI to that number. No operator card offers a one-press Approve: each is a route the operator places.
 
-A learned risk detector, meant to replace the word model's doubt in the mark, was tried and not adopted: it cut false marks on every set but let more risky tickets through on 3 of 7 sets (on the desk, 55 to 75). The record is `ml/reports/risk_detector.json`.
+A learned risk detector, meant to replace the word model's doubt in the mark, was tried and not adopted: it cut false marks on every set but failed its bar on 6 of 7, letting more risky tickets through on 3 (on the desk, 55 to 75). Its cut-off was tuned on tickets of which about a quarter repeated its own training texts, which set it too high; the result stands as measured, for that tuning. The record, checked again by CI, is `ml/reports/risk_detector.json`.
 
 The first release, on the word model alone, across 40 full desk runs, seeds 2000 to 2039, with no one stepping in (two of these rows are estimates):
 

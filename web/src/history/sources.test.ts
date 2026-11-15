@@ -60,7 +60,7 @@ const percent = (value: number): string => `${Math.round(value * 100)}%`;
 const ownStart = (report: NinetyReport): number => report.verdict.streams.filter((stream) => stream.beats_own_start).length;
 
 interface SplitReport {
-  sets: Record<string, { tickets: number; split: { cards: number; riskyMissed: number; markedRisky: number } }>;
+  sets: Record<string, { tickets: number; split: { cards: number; riskyMissed: number; markedRisky: number; marked: number } }>;
 }
 const SPLIT = json<SplitReport>('../../../ml/reports/split_flow.json');
 const FRESH_RISKY = (): number => {
@@ -160,6 +160,10 @@ describe('what the pages say', () => {
     if (before == null || after == null) throw new Error('E_REPORT_SHAPE');
     expect(after).toBeLessThan(before);
     expect(HISTORY_PAGE).toContain(`fell, from ${percent(before)} to ${percent(after)}`);
+    // The fall is in the operator's work, not in the tickets a person handles: the marked ones are said beside it.
+    const fresh = SPLIT.sets['fresh'];
+    if (fresh === undefined) throw new Error('E_REPORT_SHAPE');
+    expect(HISTORY_PAGE).toContain(`${fresh.split.marked} of the ${fresh.tickets} went straight to their team marked`);
   });
 
   it('gives both 90-day runs as measured, the fair one named, with whether each passed', () => {

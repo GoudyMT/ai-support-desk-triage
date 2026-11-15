@@ -1,6 +1,6 @@
 # Design Choices
 
-Six decisions shaped the desk. Each card shows the question, the options, the pick, and what was measured once it was
+Seven decisions shaped the desk. Each card shows the question, the options, the pick, and what was measured once it was
 built. Green is the path taken. Amber is what it cost.
 
 ## 1. Keywords or a trained model?
@@ -179,5 +179,7 @@ flowchart TD
 
 **Outcome:** the operator checks about half as many tickets, held in CI to the v1.1 desk's safety lines
 ([`split_flow.json`](../../ml/reports/split_flow.json), [`measureSplit.ts`](../../web/scripts/measureSplit.ts)). A marked
-ticket still reaches a person, at its team. The detector cut false marks but missed risky tickets on new wording, so the
-word model's doubt stays in the mark ([`risk_detector.json`](../../ml/reports/risk_detector.json)).
+ticket still reaches a person, at its team. The detector cut false marks but failed its bar on 6 of 7 sets, missing more
+risky tickets on 3, so the word model's doubt stays in the mark ([`risk_detector.json`](../../ml/reports/risk_detector.json)).
+Its cut-off was tuned on tickets of which about a quarter repeated its training texts, so the verdict holds for that
+tuning; the script now refuses such a tuning side.

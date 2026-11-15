@@ -53,13 +53,15 @@
         Its right-answer numbers are the sentence model alone, each measured the same way as the word model's. You can
         <a href="get-the-model.html">get the model</a> to try it yourself. Four ways to
         send fewer tickets to a person were tried and not adopted: three let more high-risk tickets through, and one sent
-        too many to the wrong team first. Deciding
-        who must see a ticket is still done by word rules, so the next version gives that job a model of its own.
+        too many to the wrong team first.
       </p>
       <p class="note">
         The routing and risk split makes the operator check a ticket only when the two models place it differently, and
         sends a risky ticket straight to its team marked as needing a person. The share the operator checks fell, from 83%
-        to 40%, with no high-risk ticket missed. No card offers Approve, because every card is one the models disagree on.
+        to 40%, with no high-risk ticket missed; 26 of the 60 went straight to their team marked, where a person handles
+        them. No card offers Approve: each one is a route the operator places. Its High-risk missed counts the 20 tickets
+        with a risk reason, not the 4 that are only too vague to place. A model for deciding who must see a ticket was
+        tried and not adopted, so word rules still decide it.
       </p>
       <p class="note">
         Two simulated 90-day runs retrained the sentence model each week on what reviewers fixed. Neither passed the mark set
