@@ -40,10 +40,11 @@ function onlyVague(reasons: readonly FlagReason[]): boolean {
   return names.length > 0 && names.every((name) => name === 'vague ticket') && !reasons.some((reason) => reason.kind === 'category');
 }
 
-// A detector that cannot answer marks the ticket: a person sees it rather than a risk slipping through.
+// A detector that cannot answer, by an error or by no answer at all, marks the ticket: a person sees it rather than a
+// risk slipping through.
 function detectorSaysYes(riskMark: (id: string) => boolean, id: string): boolean {
   try {
-    return riskMark(id);
+    return riskMark(id) !== false;
   } catch {
     return true;
   }
@@ -69,6 +70,11 @@ export function routeTicket(text: string, id: string, deps: TwoModelDeps & Pick<
   return routeTicketWith(text, id, (head, maskedText) => score(deps.model, head, maskedText), deps);
 }
 
+export interface SplitDeps extends RunSettings, Pick<TwoModelDeps, 'suggest'> {
+  // A risk detector's yes for a ticket id; when given, it takes the place of the word model's doubt in the mark.
+  riskMark?: (id: string) => boolean;
+}
+
 /**
  * Puts one ticket on its path as `routeTicket` does, taking the word model's answer from `predict`.
  *
@@ -81,11 +87,6 @@ export function routeTicket(text: string, id: string, deps: TwoModelDeps & Pick<
  * Returns:
  *   The ticket's trail with its path.
  */
-export interface SplitDeps extends RunSettings, Pick<TwoModelDeps, 'suggest'> {
-  // A risk detector's yes for a ticket id; when given, it takes the place of the word model's doubt in the mark.
-  riskMark?: (id: string) => boolean;
-}
-
 export function routeTicketWith(text: string, id: string, predict: Predict, deps: SplitDeps): TicketTrail {
   const gate = runTicketWith(text, id, predict, { ...deps, reviewer: PASS_THROUGH });
   const said = deps.suggest(gate.maskedText, id);
@@ -116,12 +117,12 @@ export function routeTicketWith(text: string, id: string, predict: Predict, deps
       marked: risky,
     };
   }
+  // No person decided anything on either path below, so the pass-through review is not kept.
+  const unreviewed: TicketTrail = { ...gate };
+  delete unreviewed.review;
   if (deps.riskMark === undefined ? gate.guard.flagged : risky || detectorSaysYes(deps.riskMark, id)) {
-    // No person decided anything yet, so the pass-through review is not kept.
-    const unreviewed: TicketTrail = { ...gate };
-    delete unreviewed.review;
     const priority = atLeast(gate.final.priority, MARK_FLOOR_PRIORITY);
     return { ...unreviewed, models, final: { ...gate.final, priority, by: 'model' }, path: 'marked', marked: true };
   }
-  return { ...gate, models, path: 'direct', marked: false };
+  return { ...unreviewed, models, final: { ...gate.final, by: 'model' }, path: 'direct', marked: false };
 }

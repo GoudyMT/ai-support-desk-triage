@@ -126,8 +126,14 @@ describe('routeTicket', () => {
       routeTicket(text, id, { ...settings, reviewer: recording([]), suggest: () => answer, riskMark });
     const doubtOnly = where((trail) => trail.guard.flagged && trail.guard.reasons.every((reason) => reason.kind === 'low confidence'));
     for (const { ticket, answer } of doubtOnly) {
-      expect(route2(ticket.text, ticket.id, answer, () => false).path).toBe('direct');
+      const cleared = route2(ticket.text, ticket.id, answer, () => false);
+      expect(cleared.path).toBe('direct');
+      // Nobody reviewed it, so it must not be counted as reviewed.
+      expect(cleared.review).toBeUndefined();
+      expect(cleared.final.by).toBe('model');
       expect(route2(ticket.text, ticket.id, answer, () => true).path).toBe('marked');
+      // A score lookup that finds nothing is no answer, so the ticket is marked, as when the detector throws.
+      expect(route2(ticket.text, ticket.id, answer, () => undefined as unknown as boolean).path).toBe('marked');
     }
     for (const { ticket, answer } of where((trail) => !trail.guard.flagged)) {
       expect(route2(ticket.text, ticket.id, answer, () => true).path).toBe('marked');
