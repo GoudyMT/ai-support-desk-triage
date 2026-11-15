@@ -29,19 +29,28 @@ describe('tokenizerFrom', () => {
   // A visitor can type up to 20,000 characters into Try a ticket, and the tokenizer runs on the page's main thread.
   // Splitting once cost time in the square of a word's length: 20,000 characters of 99-letter made-up words took about
   // 420 ms. The cost must grow with the text, not with how long its words are: the same total length in words three
-  // times as long may not take twice as long. Both are timed in the same run, best of three, so load slows both alike.
+  // times as long may not take twice as long (the split does about 1.26 times the work, counted 2026-11-14). The two
+  // texts are timed in turns, best of five each, after one warm-up of each, so a cold start or a busy moment does not
+  // land on one text alone.
   it('splits long unknown words in time that grows with the text, not with the length of each word', () => {
-    const fastest = (text: string): number =>
-      Math.min(
-        ...[0, 1, 2].map(() => {
-          const began = performance.now();
-          tokenizer.encode(text);
-          return performance.now() - began;
-        }),
-      );
     const madeUp = (letters: number): string =>
       Array.from({ length: 20_000 }, () => 'qxzjvkw'.repeat(15).slice(0, letters)).join(' ').slice(0, 20_000);
-    expect(fastest(madeUp(99))).toBeLessThan(2 * fastest(madeUp(33)));
+    const long = madeUp(99);
+    const short = madeUp(33);
+    const time = (text: string): number => {
+      const began = performance.now();
+      tokenizer.encode(text);
+      return performance.now() - began;
+    };
+    time(long);
+    time(short);
+    let bestLong = Infinity;
+    let bestShort = Infinity;
+    for (let turn = 0; turn < 5; turn += 1) {
+      bestLong = Math.min(bestLong, time(long));
+      bestShort = Math.min(bestShort, time(short));
+    }
+    expect(bestLong).toBeLessThan(2 * bestShort);
   });
 
   it('refuses a tokenizer it does not implement', () => {

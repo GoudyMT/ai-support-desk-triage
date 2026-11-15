@@ -8,7 +8,7 @@
 
 ![One ticket on the desk: it arrives, private details are hidden, the model suggests a team, a person reviews it, and it goes to its team](docs/images/desk-demo.gif)
 
-**Version 1.0.** Tickets are made up and the reviewer is simulated. Nothing is connected to a real help desk, and nothing you type leaves the page.
+**Version 1.1.** Tickets are made up and the reviewer is simulated. Nothing is connected to a real help desk, and nothing you type leaves the page.
 
 This began as a keyword prototype for a course capstone. It is now a trained model, a rules layer, a privacy mask and a measured test setup, shown live.
 
@@ -16,24 +16,25 @@ This began as a keyword prototype for a course capstone. It is now a trained mod
 
 | Page | What it shows |
 |---|---|
-| **[The desk](https://goudymt.github.io/ai-support-desk-triage/)** | The receiving end. Press Start and a run of 130 made-up tickets plays out in about 5 minutes. Each one goes to a team or waits in Needs a person, highest risk first. Step in with Review, or press Approve when the model is at least 70% sure. |
+| **[The desk](https://goudymt.github.io/ai-support-desk-triage/)** | The receiving end. Press Start, the sentence model and its runtime download (about 38.5 MB, from this site), and a run of 130 made-up tickets plays out in about 5 minutes. Each one goes to a team or waits in Needs a person, highest risk first. Step in with Review, or press Approve when both models agree and the word model is at least 70% sure. |
 | **Try a ticket** | Type your own support message and see its category, priority, team and whether a person is needed. |
 | **The report** | An after action report for the run so far, with the numbers behind it. Print it or save it as a PDF. |
 | **[Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)** | The same pipeline slowed down, one stage at a time, with the words that moved each decision. |
 | **[Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html)** | Every model against the baseline, measured the same way each time. |
+| **[Get the model](https://goudymt.github.io/ai-support-desk-triage/get-the-model.html)** | The sentence model's files to download, with a short Python sample, the license and the notice of changes. |
 
 ## How it works
 
-![How one ticket moves through the masker, the model and the guardrails, then to its team or to a person](docs/images/how-it-works.png)
+![How one ticket moves through the masker, the two models and the checks, then to its team or to a person](docs/images/how-it-works.png)
 
 1. **The ticket.** It arrives as the customer typed it. Here the tickets are made up.
 2. **The masker.** Plain pattern rules, no AI, swap common forms of email addresses, phone numbers, order numbers and card numbers for labels like `[CARD_NUMBER]`. Names and street addresses are not hidden, and a form the masker misses reaches the model.
-3. **The model.** It reads only the masked text and suggests an answer with how sure it is. It is two small classifiers, TF-IDF word and word-pair counts into logistic regression, trained in Python with scikit-learn and exported to JSON. A TypeScript scorer runs them in the browser and agrees with Python on every evaluation ticket.
-4. **The guardrails.** Keyword rules catch security incidents, accessibility issues, billing disputes, threats, escalated complaints and vague tickets, and they can raise a priority. Any ticket the model is under 50% sure about goes to a person.
+3. **Two models.** Both read only the masked text. The word model is two small classifiers, TF-IDF word and word-pair counts into logistic regression, trained in Python with scikit-learn and exported to JSON; a TypeScript scorer runs them in the browser and agrees with Python on every evaluation ticket. With the rules, it decides who must check a ticket. The sentence model is a small sentence encoder (all-MiniLM-L6-v2) trained on 20,000 generated tickets, shipped as an 8-bit ONNX file and run in the browser; it gives the suggestion a person sees.
+4. **The checks.** Keyword rules catch security incidents, accessibility issues, billing disputes, threats, escalated complaints and vague tickets, and they can raise a priority. Any ticket the word model is under 50% sure about goes to a person, and so does any ticket where the two models disagree.
 
-Then a clear ticket goes to its team, and a flagged one waits in Needs a person. The model only suggests. A person, here a simulated reviewer that is wrong 5% of the time, clears what is flagged, and you can take any ticket yourself.
+Then a ticket that passes every check goes to its team, and the rest wait in Needs a person. The second model can only send more tickets to a person, never fewer. The models only suggest. A person, here a simulated reviewer that is wrong 5% of the time, clears what is flagged, and you can take any ticket yourself.
 
-There is no server. The site is static, makes no calls after loading its model file, and stores nothing.
+There is no server. The site is static, makes no calls after loading its model files, and stores nothing.
 
 The [technical guide](docs/guide/README.md) explains each design choice with a diagram, what it was measured to do, and the model update that was tested and not released.
 
@@ -44,6 +45,8 @@ The [technical guide](docs/guide/README.md) explains each design choice with a d
 **[Open Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)** to see it live.
 
 ## What the current model delivers
+
+![Category right on wording it never saw: keyword prototype 33.6%, word model 57.3%, sentence model 83.9%; sent to a person on 60 tickets written blind: 78% with the word model, 83% with both models](docs/images/how-it-grew.png)
 
 The desk runs two models: the word model decides what may leave without a person, and the sentence model checks it and gives the suggestion on every ticket a person sees. The first table is re-measured or checked in CI on each code change.
 
@@ -68,7 +71,11 @@ The first release, on the word model alone, across 40 full desk runs, seeds 2000
 | Time saved (estimate, at 2 minutes a ticket) | about 24 minutes |
 | Value saved (estimate, at $21.53 an hour) | about $8.52 |
 
-**What this means.** The sentence model gets the category right far more often than the word model, and the guardrails keep risky tickets in front of a person. It has not cut the work: most tickets still go to a person, and on the 2,000 blind tickets 38 high-risk tickets went out without one (61 with the word model alone). Fewer tickets for a person, with none of those misses, is still the goal. Two simulated 90-day runs of weekly retraining did not show real growth, and are reported as measured. [Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) shows each step, and the [model card](ml/MODEL_CARD.md) has the full method and limits.
+**What this means.** The sentence model gets the category right far more often than the word model, and the guardrails keep risky tickets in front of a person. It has not cut the work: most tickets still go to a person, and on the 2,000 blind tickets 38 high-risk tickets went out without one (61 with the word model alone). Fewer tickets for a person, with none of those misses, is still the goal. Two simulated 90-day runs of weekly retraining did not show real growth, and are reported as measured.
+
+[![Model History: the sentence model against the baseline, with each change marked better or worse](docs/images/model-history.png)](https://goudymt.github.io/ai-support-desk-triage/model-history.html)
+
+[Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html) shows each step, and the [model card](ml/MODEL_CARD.md) has the full method and limits.
 
 The two estimates use less than the lowest figure IT desk vendors publish for sorting a ticket, and the US median pay for customer service representatives (Bureau of Labor Statistics, May 2025). You can change both on the desk.
 
@@ -84,7 +91,7 @@ The two estimates use less than the lowest figure IT desk vendors publish for so
 | Risk | What the desk does |
 |---|---|
 | Privacy | Fictional tickets only. Common forms of personal details are hidden before the model reads a ticket. Nothing typed is stored or sent. |
-| Wrong answers | Everything is a suggestion. Below 70% sure there is no one-press Approve. Wrong quick approvals are counted in the report. |
+| Wrong answers | Everything is a suggestion. Below 70% sure, or when the two models disagree, there is no one-press Approve. Wrong quick approvals are counted in the report. |
 | High-risk tickets | Safety rules send the ones they catch to a person whatever the model says, and misses are the headline number. |
 | Overclaiming | Every figure is measured or a stated assumption. Time and pay can be edited on the desk; the simulated reviewer's 95% is fixed. Live runs and test sets are labeled apart. |
 | Over-automation | The system never replies to a customer. |
