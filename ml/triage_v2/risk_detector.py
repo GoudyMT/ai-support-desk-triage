@@ -96,6 +96,8 @@ def build_set(train_rows, judged_rows):
     """
     train, tune = split_tuning(train_rows)
     assert_no_leak(train, judged_rows)
+    assert_no_leak(train, tune)
+    assert_no_leak(tune, judged_rows)
     detector = fit_pipeline([row["maskedText"] for row in train], [YES if is_risky(row) else NO for row in train])
     return {
         "tune_ids": [row["id"] for row in tune],

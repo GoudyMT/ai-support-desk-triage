@@ -50,6 +50,16 @@ def test_a_judged_ticket_found_in_training_stops_the_set():
         build_set(rows, [rows[0]])
 
 
+# A tuning text the detector also learned from makes it look surer on the tuning side than on unseen tickets, which
+# pushes the cut-off up; the generated sets repeat texts, so the guard must hold on the tuning side too.
+def test_a_tuning_text_also_in_training_stops_the_set():
+    rows = make_rows(300, 9)
+    train, tune = split_tuning(rows)
+    copied = [{**row, "maskedText": train[0]["maskedText"]} if row["id"] == tune[0]["id"] else row for row in rows]
+    with pytest.raises(ValueError, match="E_HELDOUT_IN_TRAIN"):
+        build_set(copied, make_rows(10, 10, prefix="J"))
+
+
 def test_the_detector_says_yes_more_often_to_risky_tickets_it_never_saw():
     built = build_set(make_rows(400, 3), make_rows(100, 4, prefix="J"))
     judged = make_rows(100, 4, prefix="J")
