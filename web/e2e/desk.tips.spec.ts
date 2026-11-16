@@ -40,7 +40,7 @@ const HISTORY_TIPS = [
   },
   {
     name: 'Why fewer is better',
-    text: 'Fewer is better, as long as High-risk missed stays at zero. Since the routing and risk split, a marked ticket goes to a person at its team instead of the operator.',
+    text: 'Fewer is better, as long as High-risk missed stays at zero. Since the routing and risk split, a risky ticket the two models agree on goes to a person at its team, marked, instead of to the operator.',
   },
 ];
 
