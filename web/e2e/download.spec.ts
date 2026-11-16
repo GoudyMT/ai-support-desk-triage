@@ -44,14 +44,17 @@ test('every file link answers from this site, and each stated size is the file i
 test('links to other sites send no referrer', async ({ page }) => {
   await page.goto(PAGE);
   expect(await page.evaluate(() => document.querySelector('meta[name="referrer"]')?.getAttribute('content'))).toBe('no-referrer');
+  // A link's own policy would override the page's, so no link may set one.
+  await expect(page.locator('a[referrerpolicy]')).toHaveCount(0);
 });
 
-test('opening the page downloads no model file', async ({ page }) => {
-  const asked: string[] = [];
-  page.on('request', (request) => asked.push(new URL(request.url()).pathname));
+test('opening the page downloads no model file and asks no other site for anything', async ({ page, baseURL }) => {
+  const asked: URL[] = [];
+  page.on('request', (request) => asked.push(new URL(request.url())));
   await page.goto(PAGE);
   await page.waitForLoadState('networkidle');
-  expect(asked.filter((path) => path.includes('/models/'))).toEqual([]);
+  expect(asked.filter((url) => url.pathname.includes('/models/')).map(String)).toEqual([]);
+  expect(asked.filter((url) => url.origin !== new URL(baseURL ?? '').origin).map(String)).toEqual([]);
 });
 
 test('Model History links to the page, and the page leads back', async ({ page }) => {
