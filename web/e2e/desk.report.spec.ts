@@ -9,7 +9,7 @@ const ENDED = 'All 130 tickets handled. Open More numbers and report, or press S
 const KEPT = 'Kept 3. Enter a number of 0 or more.';
 const VALUE_TAIL = ' saved this run. An estimate, not a measurement.';
 const ROW_LABELS = [
-  'Sent to a person',
+  'Checked by the operator',
   'Changed at review',
   'Handled with no person',
   'Software time per ticket',

@@ -28,7 +28,7 @@ flowchart LR
 | Category right on unseen wording: 57.3% | Average of four rounds, each on wording that model never trained on | The weakest round is 48.6% | [`eval.json`](../../ml/reports/eval.json) |
 | Hand-written tickets: 39 of 48 | The shipped model on tickets written outside the generator | Same author as the templates, and 48 is small, so it is a sanity check, not a proof | [`MODEL_CARD.md`](../../ml/MODEL_CARD.md#limits) |
 | High-risk missed: 0 of 24 | Risky tickets that got past every check, on 60 tickets written blind and frozen before measuring | A small sample. The four larger test rounds miss 72 of 5,856 (1.2%), and at that rate 24 tickets would show fewer than one miss | [`history.json`](../../web/src/history/history.json), [design spec](../superpowers/specs/2026-10-29-v1-triage-demo-design.md#6-success-charter) |
-| Sent to a person: 78% | Share of that blind set flagged for a person | Higher on live runs | [`history.json`](../../web/src/history/history.json) |
+| Checked by the operator: 78% | Share of that blind set flagged for the operator | Higher on live runs | [`history.json`](../../web/src/history/history.json) |
 
 The sentence model, measured the same way (the desk now runs both models; see the [model card](../../ml/MODEL_CARD.md#the-sentence-model)):
 
@@ -37,7 +37,7 @@ The sentence model, measured the same way (the desk now runs both models; see th
 | Category right on unseen wording: 83.9% | The same four rounds as the word model's 57.3% | The weakest round is 78.3% | [`sentence_folds.json`](../../ml/reports/sentence_folds.json) |
 | Hand-written tickets: 45 of 48 | The shipped sentence model on the same 48 | Same caveat: one author, a small set | [`bundle_v2.json`](../../ml/reports/bundle_v2.json) |
 | Blind set: 90.8% (word model 69.6%) | 2,000 tickets in wording no model trained or was tuned on, read once after every model was frozen | 53 of them come from templates close to the training wording; without them, 90.5% against 68.7% | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
-| Sent to a person: 83% (was 78%) | Both models on the 60-ticket blind set, on the first two-model desk | Higher, on purpose: there a ticket left alone only when both models agreed | [`two_model_sets.json`](../../ml/reports/two_model_sets.json) |
+| Checked by the operator: 83% (was 78%) | Both models on the 60-ticket blind set, on the first two-model desk | Higher, on purpose: there a ticket left alone only when both models agreed | [`two_model_sets.json`](../../ml/reports/two_model_sets.json) |
 | High-risk missed: 0 of 24 | Both models on the same set | On the 2,000-ticket blind set, 38 still got out (61 with the word model alone) | [`blind_reading.json`](../../ml/reports/blind_reading.json) |
 
 The desk today splits routing from risk ([how it works](how-it-works.md)). On the same 60 blind tickets:

@@ -21,7 +21,7 @@ This began as a keyword prototype for a course capstone. It is now a trained mod
 | **The report** | An after action report for the run so far, with the numbers behind it. Print it or save it as a PDF. |
 | **[Under the Hood](https://goudymt.github.io/ai-support-desk-triage/under-the-hood.html)** | The same pipeline slowed down, one stage at a time, with the words that moved each decision. |
 | **[Model History](https://goudymt.github.io/ai-support-desk-triage/model-history.html)** | Every model against the baseline, measured the same way each time. |
-| **[Get the model](https://goudymt.github.io/ai-support-desk-triage/get-the-model.html)** | The sentence model's files to download, with a short Python sample, the license and the notice of changes. |
+| **[Get the model](https://goudymt.github.io/ai-support-desk-triage/get-the-model.html)** | The sentence model's files to download, with a short Python sample, the license and the notice of changes. The same files are also on [Hugging Face](https://huggingface.co/goudymt/support-ticket-triage). |
 
 ## How it works
 

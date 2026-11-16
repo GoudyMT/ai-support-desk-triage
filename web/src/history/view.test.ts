@@ -136,7 +136,7 @@ describe('the current model against the baseline', () => {
       ['Right on tickets it never saw', '57.3%', 'Baseline 57.3%. No change yet', null],
       ['Right on tickets written for this project', '39 of 48', 'Baseline 39 of 48. No change yet', null],
       ['High-risk missed', '0 of 24', 'Baseline 0 of 24. No change yet', null],
-      ['Sent to a person', '78%', 'Baseline 78%. No change yet', null],
+      ['Checked by the operator', '78%', 'Baseline 78%. No change yet', null],
       ['Cards with Approve per run', '50.0', 'Baseline 50.0. No change yet', null],
       ['Right on the blind set', '69.5%', 'Baseline 69.5%. No change yet', null],
     ]);
@@ -148,7 +148,7 @@ describe('the current model against the baseline', () => {
     expect(view.blocks.map((b) => b.title)).toEqual([
       'Right on tickets written for this project',
       'High-risk missed',
-      'Sent to a person',
+      'Checked by the operator',
       'Right on the blind set',
     ]);
     expect(view.blocks[3]).toMatchObject({ value: '90.0%', baseline: 'Baseline 69.5%' });

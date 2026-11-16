@@ -122,7 +122,7 @@ const COLUMNS: readonly Column[] = [
     better: 'down',
   },
   {
-    title: 'Sent to a person',
+    title: 'Checked by the operator',
     show: (row) => formatPercent(row.sentToPerson, 0),
     figure: (row) => shareFigure(row.sentToPerson),
     size: points,
