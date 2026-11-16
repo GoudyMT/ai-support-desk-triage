@@ -251,7 +251,7 @@ export function evalNumbers(report: unknown): EvalNumbers {
 }
 
 // Static codes, one per number of the history's word-model and prototype rows that differs from the figure it repeats. Held-out
-// and hand-written right are the evaluation report's recorded numbers, for both rows. High-risk missed and Sent to a person
+// and hand-written right are the evaluation report's recorded numbers, for both rows. High-risk missed and Checked by the operator
 // are the fresh set's recorded start point, which the gate holds the measured set to. Only Approve cards per run is measured
 // by this command, and it is held to one decimal.
 export function historyFailures(
